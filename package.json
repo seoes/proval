@@ -1,0 +1,22 @@
+{
+    "name": "code-review",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "dev": "turbo dev",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "esbuild"
+        ]
+    },
+    "packageManager": "pnpm@10.0.0",
+    "devDependencies": {
+        "turbo": "^2.8.15"
+    }
+}
