@@ -6,5 +6,8 @@ node_modules
 .turbo
 .svelte-kit
 
+.env
+.env.*
+
 dist
 build
