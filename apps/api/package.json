@@ -7,8 +7,12 @@
         "start": "node dist/index.js"
     },
     "dependencies": {
+        "@ai-sdk/openai": "^3.0.41",
+        "@gitbeaker/rest": "^43.8.0",
         "@hono/node-server": "^1.19.11",
-        "hono": "^4.12.7"
+        "ai": "^6.0.116",
+        "hono": "^4.12.7",
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@types/node": "^20.11.17",
