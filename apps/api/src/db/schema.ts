@@ -1,0 +1,47 @@
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+
+const timeStamp = {
+    createdAt: text()
+        .notNull()
+        .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text()
+        .notNull()
+        .default(sql`(CURRENT_TIMESTAMP)`)
+        .$onUpdateFn(() => sql`(CURRENT_TIMESTAMP)`),
+};
+
+export const llmConfigTable = sqliteTable("llm_config", {
+    id: integer().primaryKey({ autoIncrement: true }),
+    provider: text({ enum: ["openai"] }).notNull(), // TODO: add claude, ollama, llama.cpp
+    model: text().notNull(),
+    baseUrl: text().notNull(),
+    apiKey: text().notNull(),
+    ...timeStamp,
+});
+
+export const repositoryTable = sqliteTable("repository", {
+    id: integer().primaryKey({ autoIncrement: true }),
+
+    name: text().notNull(),
+    provider: text({ enum: ["gitlab", "github", "gitea", "forgejo"] }).notNull(),
+    baseUrl: text().notNull(),
+    apiToken: text().notNull(),
+    webhookSecret: text(),
+    botUsername: text(),
+
+    reviewMode: text({ enum: ["assigned_only", "off"] })
+        .notNull()
+        .default("off"),
+    replyMode: text({ enum: ["assigned_only", "mention_only", "off"] })
+        .notNull()
+        .default("off"),
+
+    autoAssign: integer({ mode: "boolean" }).notNull().default(false),
+    language: text().notNull().default("English"),
+
+    gitlabRepositoryId: integer(),
+    llmId: integer().references(() => llmConfigTable.id),
+
+    ...timeStamp,
+});

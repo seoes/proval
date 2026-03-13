@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `llm_id` integer REFERENCES llm_config(id);
