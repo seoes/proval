@@ -1,60 +1,56 @@
 import type { MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
 import { Hono } from "hono";
-import type { Context, Next } from "hono";
+import type { Context } from "hono";
 import { ReviewService } from "../review/review.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
+import { llmConfigTable, repositoryTable } from "../../db/schema.js";
+import { type InferSelectModel } from "drizzle-orm";
+import { loadGitLabContext } from "./webhook.middleware.js";
 
 export const webhookController = new Hono();
 
-const checkGitLabSecretMiddleware = async (c: Context, next: Next) => {
-    console.log("Checking secret");
-    const secret = c.req.header("X-Gitlab-Token");
-    console.log("Secret: ", secret);
-    const expectedSecret = process.env.GITLAB_WEBHOOK_SECRET || "";
-    console.log("Expected Secret: ", expectedSecret);
-    if (secret !== expectedSecret) {
-        return c.text("Invalid token", 401);
-    }
-    await next();
-};
-
 // gitlab
-webhookController.post("/gitlab", checkGitLabSecretMiddleware, async (c: Context) => {
+webhookController.post("/gitlab", loadGitLabContext, async (c: Context) => {
     console.log("GitLab Webhook Received");
     const event = c.req.header("X-Gitlab-Event");
     const payload = await c.req.json();
 
-    switch (event) {
-        case "Merge Request Hook":
-            console.log("Merge Request Hook");
-            const mergeRequest = payload.object_attributes as MergeRequestSchema;
-            const project = payload.project as ProjectSchema;
+    const repository = c.get("repository") as InferSelectModel<typeof repositoryTable>;
+    const llm = c.get("llm") as InferSelectModel<typeof llmConfigTable>;
 
-            const token = process.env.GITLAB_API_TOKEN;
-            const baseUrl = process.env.GITLAB_URL;
+    const project = payload.project as ProjectSchema;
 
-            if (!token || !baseUrl) {
-                return c.json({ error: "GitLab token or base URL is not set" }, 500);
-            }
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
+    const reviewService = new ReviewService(gitlabProvider, llm.baseUrl, llm.apiKey, llm.model, repository.language);
 
-            const gitlabProvider = new GitLabProvider(baseUrl, token, project.id);
-            const reviewService = new ReviewService(gitlabProvider);
-            console.log("@@@ REVIEW SERVICE: Reviewing merge request");
-            console.log(mergeRequest);
+    console.log(event);
 
-            reviewService.reviewMergeRequest(mergeRequest.iid).catch((err) => {
-                console.error(err);
-                return c.json({ error: "Review failed" }, 500);
-            });
-
-            return c.json({ message: "Review completed" }, 200);
-        case "Push Hook":
-            console.log("Push Hook");
-            break;
-        case "Note Hook":
-            console.log("Note Hook");
-            break;
-        default:
-            console.log("Unhandled Event");
+    try {
+        switch (event) {
+            case "Merge Request Hook":
+                const mergeRequest = payload.object_attributes as MergeRequestSchema;
+                if (
+                    mergeRequest.state === "draft" ||
+                    mergeRequest.state === "closed" ||
+                    mergeRequest.state === "merged"
+                ) {
+                    return c.json(
+                        { error: `Merge request is not in a valid state to be reviewed (${mergeRequest.state})` },
+                        400,
+                    );
+                }
+                await reviewService.reviewMergeRequest(mergeRequest.iid);
+                break;
+            case "Push Hook":
+                break;
+            default:
+                console.log("Unhandled Event");
+                return c.json({ error: "Unhandled event" }, 400);
+        }
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: "Internal server error" }, 500);
     }
+
+    return c.json({ message: "Webhook received" }, 200);
 });

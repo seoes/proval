@@ -12,17 +12,22 @@ import {
 } from "./review.tool.js";
 
 export class ReviewService {
-    private readonly model: string;
+    private readonly BOT_USERNAME = "code-review";
     private readonly ai: OpenAIProvider;
-    private readonly LANGUAGE: string;
 
-    constructor(private readonly provider: GitProvider) {
+    constructor(
+        private readonly provider: GitProvider,
+        baseUrl: string,
+        apiToken: string,
+        private readonly model: string,
+        private readonly language: string,
+    ) {
         this.ai = createOpenAI({
-            apiKey: process.env.LLM_API_KEY,
-            baseURL: process.env.LLM_BASE_URL,
+            apiKey: apiToken,
+            baseURL: baseUrl,
         });
-        this.model = process.env.LLM_MODEL || "zai-org/glm-5";
-        this.LANGUAGE = process.env.LANG_NAME || "English";
+        this.model = model;
+        this.language = language;
     }
 
     public async reviewMergeRequest(mrIid: number): Promise<void> {
@@ -35,7 +40,7 @@ export class ReviewService {
                 tools: toolList,
                 stopWhen: stepCountIs(15),
                 system: reviewPrompt,
-                prompt: `Review merge request !${mrIid}. Use the available tools to gather information, then submit your review. Language: ${this.LANGUAGE}`,
+                prompt: `Review merge request !${mrIid}. Use the available tools to gather information, then submit your review. Language: ${this.language}`,
                 onStepFinish: ({ stepNumber, toolCalls }) => {
                     console.log(`\n  [Step ${stepNumber + 1}] ${toolCalls.length} tool call(s)`);
                     for (const tc of toolCalls) {
