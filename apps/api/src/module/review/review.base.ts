@@ -14,17 +14,17 @@ export abstract class ReviewBase {
 
     constructor(
         protected readonly provider: GitProvider,
-        llmBaseUrl: string,
-        llmApiKey: string,
-        protected readonly model: string,
+        modelBaseUrl: string,
+        modelApiKey: string,
+        protected readonly modelName: string,
         protected readonly language: string,
     ) {
-        this.ai = createOpenAI({ apiKey: llmApiKey, baseURL: llmBaseUrl });
+        this.ai = createOpenAI({ apiKey: modelApiKey, baseURL: modelBaseUrl });
     }
 
     protected async run(opts: RunOptions): Promise<void> {
         const { steps } = await generateText({
-            model: this.ai.chat(this.model),
+            model: this.ai.chat(this.modelName),
             tools: opts.tools,
             stopWhen: stepCountIs(opts.maxSteps ?? 15),
             system: opts.system,

@@ -11,10 +11,11 @@ const timeStamp = {
         .$onUpdateFn(() => sql`(CURRENT_TIMESTAMP)`),
 };
 
-export const llmConfigTable = sqliteTable("llm_config", {
+export const modelTable = sqliteTable("model", {
     id: integer().primaryKey({ autoIncrement: true }),
     provider: text({ enum: ["openai"] }).notNull(), // TODO: add claude, ollama, llama.cpp
-    model: text().notNull(),
+    name: text().notNull(),
+    label: text().notNull(),
     baseUrl: text().notNull(),
     apiKey: text().notNull(),
     ...timeStamp,
@@ -41,7 +42,7 @@ export const repositoryTable = sqliteTable("repository", {
     language: text().notNull().default("English"),
 
     gitlabRepositoryId: integer(),
-    llmId: integer().references(() => llmConfigTable.id),
+    modelId: integer().references(() => modelTable.id),
 
     ...timeStamp,
 });

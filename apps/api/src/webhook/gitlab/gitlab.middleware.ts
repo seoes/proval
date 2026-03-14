@@ -1,4 +1,4 @@
-import { llmConfigTable, repositoryTable } from "@code-review/db";
+import { modelTable, repositoryTable } from "@code-review/db";
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
@@ -9,23 +9,23 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
     const result = await db
         .select({
             repository: repositoryTable,
-            llm: llmConfigTable,
+            model: modelTable,
         })
         .from(repositoryTable)
-        .innerJoin(llmConfigTable, eq(repositoryTable.llmId, llmConfigTable.id))
+        .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
         .where(eq(repositoryTable.gitlabRepositoryId, payload.project?.id));
 
     if (result.length === 0) {
         return c.json({ error: "Repository not found" }, 404);
     }
 
-    const { repository, llm } = result[0];
+    const { repository, model } = result[0];
 
     if (repository.webhookSecret && repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
         return c.json({ error: "Invalid token" }, 401);
     }
 
     c.set("repository", repository);
-    c.set("llm", llm);
+    c.set("model", model);
     await next();
 });

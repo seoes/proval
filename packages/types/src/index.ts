@@ -1,9 +1,9 @@
 // Database types (re-exported from @code-review/db)
 export type {
     Repository,
-    LLMConfig,
+    Model,
     RepositoryInsert,
-    LLMConfigInsert,
+    ModelInsert,
     RepositoryResponse,
-    LLMConfigResponse,
+    ModelResponse,
 } from "./database.js";

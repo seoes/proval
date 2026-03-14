@@ -2,7 +2,7 @@ import type { MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
-import { llmConfigTable, repositoryTable } from "@code-review/db";
+import { modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
 
 const REVIEWABLE_MR_ACTIONS = ["open", "reopen", "update"];
@@ -14,16 +14,16 @@ export const handleGitLabWebhook = async (c: Context) => {
     console.log("payload", JSON.stringify(payload, null, 2));
 
     const repository = c.get("repository") as InferSelectModel<typeof repositoryTable>;
-    const llm = c.get("llm") as InferSelectModel<typeof llmConfigTable>;
+    const model = c.get("model") as InferSelectModel<typeof modelTable>;
 
     const project = payload.project as ProjectSchema;
 
     const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
-        llm.baseUrl,
-        llm.apiKey,
-        llm.model,
+        model.baseUrl,
+        model.apiKey,
+        model.name,
         repository.language,
     );
 
