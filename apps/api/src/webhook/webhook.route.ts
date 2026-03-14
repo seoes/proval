@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { loadGitLabContext } from "./webhook.middleware.js";
-import { handleGitLabWebhook } from "./webhook.controller.js";
+import { loadGitLabContext } from "./gitlab/gitlab.middleware.js";
+import { handleGitLabWebhook } from "./gitlab/gitlab.controller.js";
 
 export const webhookRouter = new Hono();
 

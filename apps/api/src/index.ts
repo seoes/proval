@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { webhookRouter } from "./module/webhook/webhook.route.js";
+import { webhookRouter } from "./webhook/webhook.route.js";
 
 const app = new Hono();
 

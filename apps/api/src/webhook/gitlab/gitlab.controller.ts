@@ -1,6 +1,6 @@
 import type { MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
 import type { Context } from "hono";
-import { MergeRequestService } from "../merge-request/merge-request.service.js";
+import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { llmConfigTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
