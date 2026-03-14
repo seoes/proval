@@ -48,10 +48,16 @@ export interface GitTree extends RepositoryTreeSchema {}
 // TODO: code review on specific line
 // export interface GitCodeReview {}
 
+export interface GitUser {
+    username: string;
+}
+
 export interface GitProvider {
+    fetchCurrentUser(): Promise<GitUser>;
     fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest>;
     fetchMergeRequestDiff(mrIid: number, ref?: string): Promise<GitDiff[]>;
     fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
+    fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
     fetchDirectoryTree(filePath: string, recursive?: boolean): Promise<GitTree[]>;
     fetchFileContent(filePath: string): Promise<string>;
     createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;

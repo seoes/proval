@@ -1,5 +1,13 @@
-import { Gitlab } from "@gitbeaker/rest";
-import type { GitComment, GitDiff, GitMergeRequest, GitMergeRequestState, GitProvider, GitTree } from "./types.js";
+import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
+import type {
+    GitComment,
+    GitDiff,
+    GitMergeRequest,
+    GitMergeRequestState,
+    GitProvider,
+    GitTree,
+    GitUser,
+} from "./types.js";
 
 export class GitLabProvider implements GitProvider {
     private readonly gitlab: Gitlab;
@@ -66,5 +74,27 @@ export class GitLabProvider implements GitProvider {
             author: comment.author.username,
             createdAt: comment.created_at,
         };
+    }
+
+    public async fetchCurrentUser(): Promise<GitUser> {
+        const user = await this.gitlab.Users.showCurrentUser();
+        return { username: user.username };
+    }
+
+    public async fetchMergeRequestReviewerList(mrIid: number): Promise<string[]> {
+        const mr = await this.gitlab.MergeRequests.show(this.projectId, mrIid);
+        return (mr.reviewers ?? []).map((r: { username: string }) => r.username);
+    }
+
+    public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
+        console.log("assignMergeRequestReviewer", mrIid);
+        const user = await this.gitlab.Users.showCurrentUser();
+        console.log("user", user);
+        const reviewerList = await this.gitlab.MergeRequests.showReviewers(this.projectId, mrIid);
+        console.log("reviewerList", reviewerList);
+        await this.gitlab.MergeRequests.edit(this.projectId, mrIid, {
+            reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
+        });
+        console.log("assigned");
     }
 }

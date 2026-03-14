@@ -2,7 +2,6 @@ import { tool } from "ai";
 import type { GitProvider } from "../../provider/types.js";
 import z from "zod";
 
-// Merge Request Detail Tool
 export const getMergeRequestDetailTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description: "Get the details of a merge request",
@@ -13,14 +12,12 @@ export const getMergeRequestDetailTool = (provider: GitProvider, mrIid: number) 
         },
     });
 
-// Merge Request Diff Tool
 export const getMergeRequestDiffTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
             "Get merge request metadata: title, description, labels, branches, author, diff_refs. Call this first.",
         inputSchema: z.object({}),
         execute: async () => {
-            console.log("@@@ TOOL: Fetching merge request diff");
             const diff = await provider.fetchMergeRequestDiff(mrIid);
             return diff;
         },
@@ -31,7 +28,6 @@ export const getMergeRequestCommentListTool = (provider: GitProvider, mrIid: num
         description: "Get existing review discussions and comments on this MR. Use to avoid duplicating feedback.",
         inputSchema: z.object({}),
         execute: async () => {
-            console.log("@@@ TOOL: Fetching merge request comment list");
             const comments = await provider.fetchMergeRequestCommentList(mrIid);
             return comments;
         },
@@ -45,13 +41,11 @@ export const getDirectoryTreeTool = (provider: GitProvider) =>
             recursive: z.boolean().describe("Whether to get the tree recursively.").optional(),
         }),
         execute: async ({ filePath, recursive }) => {
-            console.log("@@@ TOOL: Fetching directory tree");
             const tree = await provider.fetchDirectoryTree(filePath, recursive);
             return tree;
         },
     });
 
-// File Content Tool
 export const getFileContentTool = (provider: GitProvider) =>
     tool({
         description:
@@ -60,13 +54,11 @@ export const getFileContentTool = (provider: GitProvider) =>
             filePath: z.string().describe("The path of the file to get the content of."),
         }),
         execute: async ({ filePath }) => {
-            console.log("@@@ TOOL: Fetching file content");
             const content = await provider.fetchFileContent(filePath);
             return content;
         },
     });
 
-// Comment Tool
 export const postMergeRequestCommentTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description: "Submit your final code review. Posts a summary + optional inline comments. Call ONCE when done.",
@@ -74,8 +66,21 @@ export const postMergeRequestCommentTool = (provider: GitProvider, mrIid: number
             body: z.string().describe("The comment body, should be in markdown format."),
         }),
         execute: async ({ body }) => {
-            console.log("@@@ TOOL: Posting merge request comment");
             const comment = await provider.createMergeRequestComment(mrIid, body);
+            return comment;
+        },
+    });
+
+export const postMergeRequestReplyTool = (provider: GitProvider, mrIid: number, mentionTarget: string) =>
+    tool({
+        description:
+            "Post your reply to the user's comment. The @mention is added automatically — do NOT include it. Call ONCE when done.",
+        inputSchema: z.object({
+            body: z.string().describe("The reply content in markdown format, without the @mention prefix."),
+        }),
+        execute: async ({ body }) => {
+            const fullBody = `@${mentionTarget}\n\n${body}`;
+            const comment = await provider.createMergeRequestComment(mrIid, fullBody);
             return comment;
         },
     });

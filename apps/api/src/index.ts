@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { webhookController } from "./module/webhook/webhook.controller.js";
+import { webhookRouter } from "./module/webhook/webhook.route.js";
 
 const app = new Hono();
 
@@ -8,7 +8,7 @@ app.get("/", (c) => {
     return c.text("Hello Hono!");
 });
 
-app.route("/webhook", webhookController);
+app.route("/webhook", webhookRouter);
 
 serve(
     {

@@ -21,11 +21,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
 
     const { repository, llm } = result[0];
 
-    if (repository.replyMode === "off") {
-        return c.json({ error: "Note reply mode is off" }, 400);
-    }
-
-    if (repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
+    if (repository.webhookSecret && repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
         return c.json({ error: "Invalid token" }, 401);
     }
 
