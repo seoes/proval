@@ -11,10 +11,11 @@
     },
     "dependencies": {
         "@ai-sdk/openai": "^3.0.41",
+        "@code-review/db": "workspace:*",
+        "@code-review/types": "workspace:*",
         "@gitbeaker/rest": "^43.8.0",
         "@hono/node-server": "^1.19.11",
         "ai": "^6.0.116",
-        "api": "link:",
         "better-sqlite3": "^12.6.2",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.12.7",

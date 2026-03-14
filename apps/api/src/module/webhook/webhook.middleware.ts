@@ -1,4 +1,4 @@
-import { llmConfigTable, repositoryTable } from "../../db/schema.js";
+import { llmConfigTable, repositoryTable } from "@code-review/db";
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";

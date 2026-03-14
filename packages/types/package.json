@@ -1,0 +1,27 @@
+{
+    "name": "@code-review/types",
+    "version": "0.0.1",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch"
+    },
+    "peerDependencies": {
+        "drizzle-orm": "^0.45.1"
+    },
+    "dependencies": {
+        "@code-review/db": "workspace:*"
+    },
+    "devDependencies": {
+        "drizzle-orm": "^0.45.1",
+        "typescript": "^5.8.3"
+    }
+}

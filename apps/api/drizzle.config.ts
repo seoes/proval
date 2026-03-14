@@ -1,11 +1,11 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-    schema: "./src/db/schema.ts",
-    out: "./src/db/migration",
+    schema: "../../packages/db/src/schema.ts",
+    out: "../../packages/db/src/migration",
     dialect: "sqlite",
     casing: "snake_case",
     dbCredentials: {
-        url: process.env.DB_FILE_NAME || "file:local.db",
+        url: process.env.DB_FILE_NAME || "local.db",
     },
 });

@@ -1,0 +1,24 @@
+{
+    "name": "@code-review/db",
+    "version": "0.0.1",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch"
+    },
+    "dependencies": {
+        "drizzle-orm": "^0.45.1"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.31.9",
+        "typescript": "^5.8.3"
+    }
+}
