@@ -2,10 +2,10 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const timeStamp = {
-    createdAt: text()
+    createdAt: integer({ mode: "timestamp" })
         .notNull()
         .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text()
+    updatedAt: integer({ mode: "timestamp" })
         .notNull()
         .default(sql`(CURRENT_TIMESTAMP)`)
         .$onUpdateFn(() => sql`(CURRENT_TIMESTAMP)`),
