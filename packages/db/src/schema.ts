@@ -4,11 +4,11 @@ import { sql } from "drizzle-orm";
 const timeStamp = {
     createdAt: integer({ mode: "timestamp" })
         .notNull()
-        .default(sql`(CURRENT_TIMESTAMP)`),
+        .default(sql`(unixepoch())`),
     updatedAt: integer({ mode: "timestamp" })
         .notNull()
-        .default(sql`(CURRENT_TIMESTAMP)`)
-        .$onUpdateFn(() => sql`(CURRENT_TIMESTAMP)`),
+        .default(sql`(unixepoch())`)
+        .$onUpdateFn(() => sql`(unixepoch())`),
 };
 
 export const modelTable = sqliteTable("model", {

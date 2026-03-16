@@ -43,6 +43,13 @@
       "when": 1773626859360,
       "tag": "0005_yummy_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1773638098323,
+      "tag": "0006_bright_sleepwalker",
+      "breakpoints": true
     }
   ]
 }
