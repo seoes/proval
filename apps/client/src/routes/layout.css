@@ -124,8 +124,8 @@
     * {
         box-sizing: border-box;
         font-family:
-            'Calibri','Pretendard', Arial, Helvetica, sans-serif, BlinkMacSystemFont, 'Segoe UI', Roboto,
-            sans-serif;
+            'Wanted Sans Variable', 'Pretendard', Arial, Helvetica, sans-serif, BlinkMacSystemFont,
+            'Segoe UI', Roboto, sans-serif;
 
         @apply border-neutral-200;
         @apply dark:border-neutral-800;
@@ -229,3 +229,56 @@
         url(/font/Pretendard-Thin.subset.woff2) format('woff2');
 }
 
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 400;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-Regular.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 500;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-Medium.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 600;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-SemiBold.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 700;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-Regular.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 800;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-Medium.woff2) format('woff2');
+}
+
+@font-face {
+    font-family: 'Wanted Sans Variable';
+    font-weight: 900;
+    font-display: swap;
+    src:
+        local('Wanted Sans Variable'),
+        url(/font/WantedSans-SemiBold.woff2) format('woff2');
+}
