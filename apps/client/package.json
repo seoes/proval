@@ -15,7 +15,8 @@
     },
     "dependencies": {
         "@code-review/types": "workspace:*",
-        "phosphor-svelte": "^3.1.0"
+        "phosphor-svelte": "^3.1.0",
+        "simple-icons": "^16.12.0"
     },
     "devDependencies": {
         "@eslint/compat": "^2.0.2",

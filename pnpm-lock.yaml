@@ -69,6 +69,9 @@ importers:
       phosphor-svelte:
         specifier: ^3.1.0
         version: 3.1.0(svelte@5.53.9)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0))
+      simple-icons:
+        specifier: ^16.12.0
+        version: 16.12.0
     devDependencies:
       '@eslint/compat':
         specifier: ^2.0.2
@@ -2129,6 +2132,10 @@ packages:
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
 
+  simple-icons@16.12.0:
+    resolution: {integrity: sha512-fDJDqXUpkb2twqH+eBQpJsCYUE6jEH7VkuuPL9dH16sbLf6KKnwyijULmcx7SCoy3c2L6pl8WCzt+4rpYjoWfw==}
+    engines: {node: '>=0.12.18'}
+
   sirv@3.0.2:
     resolution: {integrity: sha512-2wcC/oGxHis/BoHkkPwldgiPSYcpZK3JU28WoMVv55yHJgcZ8rlXvuG9iZggz+sU1d4bRgIGASwyWqjxu3FM0g==}
     engines: {node: '>=18'}
@@ -4024,6 +4031,8 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-icons@16.12.0: {}
 
   sirv@3.0.2:
     dependencies:
