@@ -9,6 +9,7 @@
         onchange?: (event: Event) => void;
         name?: string;
         onkeydown?: (event: KeyboardEvent) => void;
+        id?: string;
     }
 
     let {
@@ -18,15 +19,17 @@
         class: className,
         onchange,
         name,
-        onkeydown
+        onkeydown,
+        id
     }: Props = $props();
 </script>
 
 <input
     bind:value
     {placeholder}
+    {id}
     class={twMerge(
-        `h-14 rounded-xl border border-neutral-200 bg-gray-50 px-4 outline-none dark:border-neutral-700 dark:bg-neutral-800`,
+        `h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800`,
         className
     )}
     type={password ? 'password' : 'text'}

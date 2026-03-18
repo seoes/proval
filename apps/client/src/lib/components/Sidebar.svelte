@@ -1,9 +1,12 @@
 <script lang="ts">
     import { page } from '$app/stores';
+    import { HouseIcon, GitForkIcon, CubeIcon } from 'phosphor-svelte';
+    import type { Component } from 'svelte';
 
     interface SidebarItem {
         label: string;
         href: string;
+        icon: Component;
     }
     interface SidebarItemGroup {
         label: string;
@@ -15,15 +18,18 @@
             items: [
                 {
                     label: 'Dashboard',
-                    href: '/dashboard'
+                    href: '/dashboard',
+                    icon: HouseIcon
                 },
                 {
-                    label: 'Git Repository',
-                    href: '/repository'
+                    label: 'Project',
+                    href: '/repository',
+                    icon: GitForkIcon
                 },
                 {
                     label: 'Model',
-                    href: '/model'
+                    href: '/model',
+                    icon: CubeIcon
                 }
             ]
         },
@@ -31,34 +37,36 @@
             label: 'PLACEHOLDER',
             items: [
                 {
-                    label: 'test',
-                    href: '/placeholder'
+                    label: 'Test',
+                    href: '/placeholder',
+                    icon: CubeIcon
                 }
             ]
         }
     ];
 </script>
 
-<div class="h-full min-h-screen w-full bg-neutral-100 px-4 py-4">
+<div class="h-full min-h-screen w-full bg-slate-100 px-4 py-4">
     <div>
-        <h1 class="px-2 text-2xl font-semibold tracking-tight">
-            <a href="/">Code Review</a>
-        </h1>
+        <div class="px-4 text-3xl font-semibold tracking-tight text-neutral-800">
+            <a href="/">Compass</a>
+        </div>
     </div>
     <div class="mt-4 divide-y divide-neutral-300">
         {#each sidebarItemList as itemGroup}
             <div class="py-3">
                 <!-- <h2 class="h-6 leading-6 tracking-tight cursor-default text-neutral-500 text-sm px-2">{itemGroup.label}</h2> -->
-                <ul class="space-y-px">
+                <ul class="space-y-1">
                     {#each itemGroup.items as item}
                         <li>
                             <a class="" href={item.href}>
                                 <span
-                                    class="block h-8 rounded-md px-2 align-middle text-sm leading-8 text-neutral-500 hover:bg-neutral-200 {$page
+                                    class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm leading-8 tracking-wide transition-colors hover:bg-primary hover:text-neutral-100 {$page
                                         .url.pathname === item.href
-                                        ? 'bg-neutral-200 '
-                                        : ''}"
+                                        ? 'bg-primary text-neutral-100'
+                                        : 'text-neutral-500'}"
                                 >
+                                    <svelte:component this={item.icon} class="size-5" />
                                     {item.label}
                                 </span>
                             </a>

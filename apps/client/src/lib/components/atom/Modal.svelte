@@ -1,6 +1,6 @@
 <script lang="ts">
-    import type { Snippet } from "svelte";
-    import { twMerge } from "tailwind-merge";
+    import type { Snippet } from 'svelte';
+    import { twMerge } from 'tailwind-merge';
 
     interface Props {
         open: boolean;
@@ -10,7 +10,13 @@
         children: Snippet;
     }
 
-    let { open = $bindable(false), onclose, closeOnOverlayClick = true, class: className, children }: Props = $props();
+    let {
+        open = $bindable(false),
+        onclose,
+        closeOnOverlayClick = true,
+        class: className,
+        children
+    }: Props = $props();
 
     let dialogEl: HTMLDialogElement;
 
@@ -41,7 +47,12 @@
         }
     }}
 >
-    <div class={twMerge("bg-white dark:bg-neutral-800 rounded-2xl p-6 w-full max-w-sm shadow-lg", className)}>
+    <div
+        class={twMerge(
+            'w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg dark:bg-neutral-800',
+            className
+        )}
+    >
         {@render children()}
     </div>
 </dialog>

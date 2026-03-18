@@ -14,9 +14,11 @@
         <Sidebar />
     </aside>
     <div class="w-full bg-neutral-50 px-4 pt-8">
-        <header></header>
+        <header class="h-16"></header>
         <main class="">
-            {@render children?.()}
+            <div class="mx-auto mb-10 max-w-6xl">
+                {@render children?.()}
+            </div>
         </main>
         <footer></footer>
     </div>

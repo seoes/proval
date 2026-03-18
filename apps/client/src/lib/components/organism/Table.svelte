@@ -10,19 +10,17 @@
     let { body, renderHeader, renderBody }: Props = $props();
 </script>
 
-<div class="px-1.5">
-    <table class="w-full text-sm">
-        <thead class="border-b border-neutral-200 bg-neutral-50">
-            <tr class="cursor-default">
-                {@render renderHeader()}
+<table class="w-full bg-white">
+    <thead class="border-b border-neutral-200 bg-neutral-100">
+        <tr class="cursor-default">
+            {@render renderHeader()}
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-200">
+        {#each body as item}
+            <tr class="cursor-default hover:bg-neutral-50">
+                {@render renderBody(item)}
             </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-200">
-            {#each body as item}
-                <tr class="cursor-defaulttransition-colors hover:bg-neutral-50">
-                    {@render renderBody(item)}
-                </tr>
-            {/each}
-        </tbody>
-    </table>
-</div>
+        {/each}
+    </tbody>
+</table>
