@@ -6,4 +6,7 @@ export type {
     ModelInsert,
     RepositoryResponse,
     ModelResponse,
+    RepositoryUpdateInput,
+    ModelUpdateInput,
+    SecretInput,
 } from "./database.js";
