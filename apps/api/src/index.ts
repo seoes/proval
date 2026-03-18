@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { webhookRouter } from "./webhook/webhook.route.js";
 import { apiRouter } from "./api/index.js";
+import { cors } from "hono/cors";
 
 const app = new Hono();
 
@@ -10,6 +11,8 @@ app.get("/", (c) => {
 });
 
 app.route("/webhook", webhookRouter);
+
+app.use("/api/*", cors());
 app.route("/api", apiRouter);
 
 serve(
