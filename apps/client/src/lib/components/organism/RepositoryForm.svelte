@@ -7,6 +7,8 @@
     import ToggleButton from '../atom/ToggleButton.svelte';
     import { siForgejo, siGitea, siGithub, siGitlab } from 'simple-icons';
     import Card from '../layout/Card.svelte';
+    import Button from '../atom/Button.svelte';
+    import { openAlert, openConfirm } from '$lib/store/modal';
 
     interface Props {
         mode: 'create' | 'edit';
@@ -51,6 +53,8 @@
         e.preventDefault();
 
         if (mode === 'create') {
+            const confirm = await openConfirm('Create this repository?');
+            if (!confirm) return;
             const body = {
                 name,
                 provider,
@@ -72,6 +76,8 @@
                 body: JSON.stringify(body)
             });
         } else {
+            const confirm = await openConfirm('Update this repository?');
+            if (!confirm) return;
             const body = {
                 name,
                 provider,
@@ -92,6 +98,16 @@
             });
         }
 
+        goto('/repository');
+    }
+
+    async function removeRepository(repositoryId: number) {
+        const confirmed = await openConfirm('Are you sure you want to remove this repository?');
+        if (!confirmed) return;
+        await fetchApi(`/repository/${repositoryId}`, {
+            method: 'DELETE'
+        });
+        await openAlert('Repository removed successfully');
         goto('/repository');
     }
 
@@ -294,13 +310,22 @@
         </div>
     </Card>
 
-    <div class="pt-4">
-        <button
-            type="submit"
-            class="rounded-lg bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-        >
-            Save
-        </button>
+    <div class="-mt-2 flex justify-between">
+        <div class="flex gap-4">
+            <Button primary type="submit">{mode === 'create' ? 'Create' : 'Save'}</Button>
+        </div>
+        <div class="mr-4">
+            {#if mode === 'edit' && repositoryId}
+                <Button
+                    text
+                    onclick={() => {
+                        removeRepository(repositoryId);
+                    }}>Remove Repository</Button
+                >
+            {:else if mode === 'create'}
+                <Button text onclick={() => goto('/repository')}>Cancel</Button>
+            {/if}
+        </div>
     </div>
 </form>
 

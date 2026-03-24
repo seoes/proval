@@ -2,7 +2,7 @@
     import TableHeaderCell from '$lib/components/atom/TableHeaderCell.svelte';
     import TableCell from '$lib/components/atom/TableCell.svelte';
     import Table from '$lib/components/organism/Table.svelte';
-    import { GearIcon, TrashIcon, LockIcon } from 'phosphor-svelte';
+    import { GearIcon, LockIcon } from 'phosphor-svelte';
     import type { PageProps } from './$types';
     import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
     import Popover from '$lib/components/atom/Popover.svelte';
@@ -57,11 +57,6 @@
                             >
                                 <LockIcon class="size-5" />
                             </Popover>
-                            <button
-                                class="cursor-pointer text-red-500 transition-colors hover:text-red-400"
-                            >
-                                <TrashIcon class="size-5" />
-                            </button>
                         </div>
                     </TableCell>
                 {/snippet}

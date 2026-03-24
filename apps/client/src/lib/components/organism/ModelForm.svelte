@@ -6,6 +6,8 @@
     import ToggleButton from '../atom/ToggleButton.svelte';
     import { siAnthropic, siOllama } from 'simple-icons';
     import Card from '../layout/Card.svelte';
+    import { openAlert, openConfirm } from '$lib/store/modal';
+    import Button from '../atom/Button.svelte';
 
     interface Props {
         mode: 'create' | 'edit';
@@ -32,6 +34,8 @@
         e.preventDefault();
 
         if (mode === 'create') {
+            const confirm = await openConfirm('Create this model?');
+            if (!confirm) return;
             const body = {
                 provider,
                 name,
@@ -46,6 +50,8 @@
                 body: JSON.stringify(body)
             });
         } else {
+            const confirm = await openConfirm('Update this model?');
+            if (!confirm) return;
             const body = {
                 provider,
                 name,
@@ -60,6 +66,16 @@
             });
         }
 
+        goto('/model');
+    }
+
+    async function removeModel(modelId: number) {
+        const confirmed = await openConfirm('Are you sure you want to remove this model?');
+        if (!confirmed) return;
+        await fetchApi(`/model/${modelId}`, {
+            method: 'DELETE'
+        });
+        await openAlert('Model removed successfully');
         goto('/model');
     }
 
@@ -89,9 +105,33 @@
         //     value: 'llama.cpp'
         // }
     ];
+
+    let isTestingConnection = $state(false);
+
+    async function testConnection() {
+        isTestingConnection = true;
+        const response = await fetchApi(`/model/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider,
+                model: name,
+                baseUrl,
+                apiKey
+            })
+        });
+
+        if (response.ok) {
+            await openAlert('Connection successful');
+        } else {
+            isTestingConnection = false;
+            await openAlert('Connection failed');
+        }
+        isTestingConnection = false;
+    }
 </script>
 
-<form onsubmit={handleSubmit}>
+<form onsubmit={handleSubmit} class="space-y-8">
     <Card>
         <div>
             <LabelWithDescription
@@ -138,12 +178,28 @@
             </div>
         {/if}
     </Card>
-    <div class="pt-4">
-        <button
-            type="submit"
-            class="rounded-lg bg-neutral-900 px-6 py-3 text-white transition-colors hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
-        >
-            {mode === 'create' ? 'Create' : 'Save'}
-        </button>
+    <div class="-mt-2 flex justify-between">
+        <div class="flex gap-4 text-sm">
+            <Button primary type="submit">{mode === 'create' ? 'Create' : 'Save'}</Button>
+            {#if mode === 'create'}
+                {#if isTestingConnection}
+                    <Button text>Testing...</Button>
+                {:else}
+                    <Button text onclick={testConnection}>Test Connection</Button>
+                {/if}
+            {/if}
+        </div>
+        <div class="mr-4">
+            {#if mode === 'edit' && modelId}
+                <Button
+                    text
+                    onclick={() => {
+                        removeModel(modelId);
+                    }}>Remove Model</Button
+                >
+            {:else if mode === 'create'}
+                <Button text onclick={() => goto('/model')}>Cancel</Button>
+            {/if}
+        </div>
     </div>
 </form>
