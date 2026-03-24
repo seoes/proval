@@ -9,6 +9,6 @@
     let { children, class: className }: Props = $props();
 </script>
 
-<th class={twMerge('px-4 py-3 text-left font-medium text-neutral-600', className)}>
+<th class={twMerge('px-4 py-3 text-left text-sm font-medium text-neutral-600', className)}>
     {@render children()}
 </th>
