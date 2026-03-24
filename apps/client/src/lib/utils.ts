@@ -18,7 +18,7 @@ export const formatTimeAgo = (date: Date): string => {
     if (diffSeconds < 60) {
         return `${diffSeconds} seconds ago`;
     } else if (diffMinutes < 60) {
-        return `${diffMinutes} minutes ago`;
+        return `${diffMinutes} min ago`;
     } else if (diffHours < 24) {
         return `${diffHours} hours ago`;
     } else if (diffDays <= 7) {
