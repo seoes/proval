@@ -52,6 +52,51 @@
     async function handleSubmit(e: Event) {
         e.preventDefault();
 
+        if (!name) {
+            await openAlert('Name is required');
+            return;
+        }
+        if (!modelId) {
+            await openAlert('Model is required');
+            return;
+        }
+        if (!language) {
+            await openAlert('Language is required');
+            return;
+        }
+        if (!provider) {
+            await openAlert('Provider is required');
+            return;
+        }
+        if (!baseUrl) {
+            await openAlert('Base URL is required');
+            return;
+        }
+        if (provider === 'gitlab' && !gitlabRepositoryId) {
+            await openAlert('GitLab Repository ID is required');
+            return;
+        }
+        if (mode === 'create' && !apiToken) {
+            await openAlert('API Token is required');
+            return;
+        }
+        if (mode === 'create' && !webhookSecret) {
+            await openAlert('Webhook Secret is required');
+            return;
+        }
+        if (!reviewMode) {
+            await openAlert('Review Mode is required');
+            return;
+        }
+        if (!replyMode) {
+            await openAlert('Reply Mode is required');
+            return;
+        }
+        if (!language) {
+            await openAlert('Language is required');
+            return;
+        }
+
         if (mode === 'create') {
             const confirm = await openConfirm('Create this repository?');
             if (!confirm) return;

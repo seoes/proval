@@ -32,10 +32,31 @@
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
-
+        if (!label) {
+            await openAlert('Display Name is required');
+            return;
+        }
+        if (!name) {
+            await openAlert('Model ID is required');
+            return;
+        }
+        if (!baseUrl) {
+            await openAlert('Base URL is required');
+            return;
+        }
+        if (!provider) {
+            await openAlert('API Provider is required');
+            return;
+        }
         if (mode === 'create') {
+            if (!apiKey) {
+                await openAlert('API Key is required');
+                return;
+            }
+
             const confirm = await openConfirm('Create this model?');
             if (!confirm) return;
+
             const body = {
                 provider,
                 name,
@@ -185,7 +206,9 @@
                 {#if isTestingConnection}
                     <Button text>Testing...</Button>
                 {:else}
-                    <Button text onclick={testConnection}>Test Connection</Button>
+                    <Button text class="whitespace-nowrap" onclick={testConnection}
+                        >Test Connection</Button
+                    >
                 {/if}
             {/if}
         </div>
