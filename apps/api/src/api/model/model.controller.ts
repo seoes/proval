@@ -1,4 +1,4 @@
-import type { Handler } from "hono";
+import type { Context, Handler } from "hono";
 import { ModelService } from "./model.service.js";
 import type { ModelResponse, ModelInsert, ModelUpdateInput, SecretInput } from "@code-review/types";
 
@@ -42,6 +42,16 @@ export const updateModel: Handler = async (c) => {
     return c.json(modelResponse, 200);
 };
 
+export const removeModel: Handler = async (c) => {
+    const modelService = new ModelService();
+    const modelId = c.req.param("id");
+    if (!modelId) {
+        return c.json({ error: "Model ID is required" }, 400);
+    }
+    await modelService.remove(parseInt(modelId));
+    return c.json({ message: "Model deleted" }, 200);
+};
+
 export const updateApiKey: Handler = async (c) => {
     const modelService = new ModelService();
     const modelId = c.req.param("id");
@@ -54,4 +64,18 @@ export const updateApiKey: Handler = async (c) => {
     }
     await modelService.updateApiKey(parseInt(modelId), apiKey);
     return c.json({ message: "API key updated" }, 200);
+};
+
+export const verifyConfig: Handler = async (c: Context) => {
+    const modelService = new ModelService();
+    const body = await c.req.json();
+
+    const { provider, baseUrl, model, apiKey } = body;
+    switch (provider) {
+        case "openai":
+            await modelService.verifyOpenAiApi(baseUrl, model, apiKey);
+            return c.json({ message: "Config verified" }, 200);
+        default:
+            return c.json({ error: "Invalid provider" }, 400);
+    }
 };

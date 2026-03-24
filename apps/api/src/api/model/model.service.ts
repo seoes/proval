@@ -2,6 +2,8 @@ import { modelTable } from "@code-review/db";
 import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@code-review/types";
 import db from "../../db/index.js";
 import { desc, eq } from "drizzle-orm";
+import { createOpenAI } from "@ai-sdk/openai";
+import { generateText } from "ai";
 
 export class ModelService {
     public async findAll(): Promise<Model[]> {
@@ -24,11 +26,7 @@ export class ModelService {
 
     public async update(modelId: number, data: ModelUpdateInput): Promise<Model> {
         const cleanData = this.removeUndefined(data);
-        const result = await db
-            .update(modelTable)
-            .set(cleanData)
-            .where(eq(modelTable.id, modelId))
-            .returning();
+        const result = await db.update(modelTable).set(cleanData).where(eq(modelTable.id, modelId)).returning();
         if (result.length === 0) {
             throw new Error("Model not found");
         }
@@ -36,10 +34,7 @@ export class ModelService {
     }
 
     public async updateApiKey(modelId: number, apiKey: string): Promise<void> {
-        await db
-            .update(modelTable)
-            .set({ apiKey })
-            .where(eq(modelTable.id, modelId));
+        await db.update(modelTable).set({ apiKey }).where(eq(modelTable.id, modelId));
     }
 
     public toResponse(model: Model): ModelResponse {
@@ -47,9 +42,24 @@ export class ModelService {
         return rest;
     }
 
+    public async remove(id: number): Promise<void> {
+        await db.delete(modelTable).where(eq(modelTable.id, id));
+    }
+
     private removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-        return Object.fromEntries(
-            Object.entries(obj).filter(([_, v]) => v !== undefined),
-        ) as Partial<T>;
+        return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>;
+    }
+    public async verifyOpenAiApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
+        const ai = createOpenAI({ apiKey, baseURL: baseUrl });
+        const { usage } = await generateText({
+            model: ai.chat(model),
+            prompt: "Hello, how are you?",
+            maxOutputTokens: 1,
+        });
+        if (usage?.totalTokens && usage.totalTokens > 0) {
+            console.log("API key is valid");
+            return;
+        }
+        throw new Error("Invalid API key or base URL");
     }
 }

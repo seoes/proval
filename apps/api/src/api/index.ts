@@ -6,15 +6,26 @@ import {
     updateRepository,
     updateApiToken,
     updateWebhookSecret,
+    removeRepository,
 } from "./repository/repository.controller.js";
-import { findAllModel, findById, createModel, updateModel, updateApiKey } from "./model/model.controller.js";
+import {
+    findAllModel,
+    findById,
+    createModel,
+    updateModel,
+    updateApiKey,
+    verifyConfig,
+    removeModel,
+} from "./model/model.controller.js";
 
 export const apiRouter = new Hono();
 
 // Model routes
 apiRouter.get("/model", findAllModel);
-apiRouter.get("/model/:id", findById);
+apiRouter.get("/model/:id{\\d+}", findById);
 apiRouter.post("/model", createModel);
+apiRouter.post("/model/verify", verifyConfig);
+apiRouter.delete("/model/:id", removeModel);
 apiRouter.put("/model/:id", updateModel);
 apiRouter.patch("/model/:id/api-key", updateApiKey);
 
@@ -25,3 +36,4 @@ apiRouter.post("/repository", createRepository);
 apiRouter.put("/repository/:id", updateRepository);
 apiRouter.patch("/repository/:id/api-token", updateApiToken);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
+apiRouter.delete("/repository/:id", removeRepository);

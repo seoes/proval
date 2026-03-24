@@ -36,17 +36,11 @@ export class RepositoryService {
     }
 
     public async updateApiToken(repositoryId: number, apiToken: string): Promise<void> {
-        await db
-            .update(repositoryTable)
-            .set({ apiToken })
-            .where(eq(repositoryTable.id, repositoryId));
+        await db.update(repositoryTable).set({ apiToken }).where(eq(repositoryTable.id, repositoryId));
     }
 
     public async updateWebhookSecret(repositoryId: number, webhookSecret: string): Promise<void> {
-        await db
-            .update(repositoryTable)
-            .set({ webhookSecret })
-            .where(eq(repositoryTable.id, repositoryId));
+        await db.update(repositoryTable).set({ webhookSecret }).where(eq(repositoryTable.id, repositoryId));
     }
 
     public toResponse(repository: Repository): RepositoryResponse {
@@ -54,9 +48,11 @@ export class RepositoryService {
         return rest;
     }
 
+    public async remove(id: number): Promise<void> {
+        await db.delete(repositoryTable).where(eq(repositoryTable.id, id));
+    }
+
     private removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-        return Object.fromEntries(
-            Object.entries(obj).filter(([_, v]) => v !== undefined),
-        ) as Partial<T>;
+        return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>;
     }
 }

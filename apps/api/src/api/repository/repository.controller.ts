@@ -71,3 +71,13 @@ export const updateWebhookSecret: Handler = async (c) => {
     await repositoryService.updateWebhookSecret(parseInt(repositoryId), webhookSecret);
     return c.json({ message: "Webhook secret updated" }, 200);
 };
+
+export const removeRepository: Handler = async (c) => {
+    const repositoryService = new RepositoryService();
+    const repositoryId = c.req.param("id");
+    if (!repositoryId) {
+        return c.json({ error: "Repository ID is required" }, 400);
+    }
+    await repositoryService.remove(parseInt(repositoryId));
+    return c.json({ message: "Repository deleted" }, 200);
+};
