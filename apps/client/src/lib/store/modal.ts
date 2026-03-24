@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable } from 'svelte/store';
 
 interface ModalOptions {
     title?: string;
@@ -9,7 +9,7 @@ interface ModalOptions {
 
 interface ModalState {
     open: boolean;
-    type: "alert" | "confirm";
+    type: 'alert' | 'confirm';
     title?: string;
     message: string;
     confirmText: string;
@@ -20,11 +20,11 @@ interface ModalState {
 
 const defaultState: ModalState = {
     open: false,
-    type: "alert",
-    message: "",
-    confirmText: "확인",
-    cancelText: "취소",
-    closeOnOverlayClick: true,
+    type: 'alert',
+    message: '',
+    confirmText: 'OK',
+    cancelText: 'Cancel',
+    closeOnOverlayClick: true
 };
 
 export const modalStore = writable<ModalState>({ ...defaultState });
@@ -35,13 +35,13 @@ export function openAlert(message: string, options?: ModalOptions): Promise<void
             prev.resolve?.(false);
             return {
                 open: true,
-                type: "alert",
+                type: 'alert',
                 message,
                 title: options?.title,
-                confirmText: options?.confirmText ?? "확인",
-                cancelText: "취소",
+                confirmText: options?.confirmText ?? 'OK',
+                cancelText: options?.cancelText ?? 'Cancel',
                 closeOnOverlayClick: options?.closeOnOverlayClick ?? true,
-                resolve: () => resolve(),
+                resolve: () => resolve()
             };
         });
     });
@@ -53,13 +53,13 @@ export function openConfirm(message: string, options?: ModalOptions): Promise<bo
             prev.resolve?.(false);
             return {
                 open: true,
-                type: "confirm",
+                type: 'confirm',
                 message,
                 title: options?.title,
-                confirmText: options?.confirmText ?? "확인",
-                cancelText: options?.cancelText ?? "취소",
+                confirmText: options?.confirmText ?? 'OK',
+                cancelText: options?.cancelText ?? 'Cancel',
                 closeOnOverlayClick: options?.closeOnOverlayClick ?? true,
-                resolve,
+                resolve
             };
         });
     });

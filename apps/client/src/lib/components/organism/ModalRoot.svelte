@@ -1,29 +1,26 @@
 <script lang="ts">
-    import Modal from "$lib/components/atom/Modal.svelte";
-    import { modalStore, closeModal } from "$lib/store/modal";
+    import Modal from '$lib/components/atom/Modal.svelte';
+    import { modalStore, closeModal } from '$lib/store/modal';
+    import Button from '../atom/Button.svelte';
 </script>
 
-<Modal open={$modalStore.open} closeOnOverlayClick={$modalStore.closeOnOverlayClick} onclose={() => closeModal(false)}>
+<Modal
+    open={$modalStore.open}
+    closeOnOverlayClick={$modalStore.closeOnOverlayClick}
+    onclose={() => closeModal(false)}
+>
     {#if $modalStore.title}
-        <h3 class="text-lg font-semibold dark:text-neutral-50 tracking-tight mb-3">{$modalStore.title}</h3>
+        <h3 class="mb-3 text-lg font-semibold tracking-tight dark:text-neutral-50">
+            {$modalStore.title}
+        </h3>
     {/if}
-    <p class="text-sm text-neutral-600 dark:text-neutral-400 whitespace-pre-line">
+    <p class="text-sm whitespace-pre-line text-neutral-600 dark:text-neutral-400">
         {$modalStore.message}
     </p>
-    <div class="flex gap-3 mt-6">
-        {#if $modalStore.type === "confirm"}
-            <button
-                class="flex-1 h-11 rounded-xl cursor-pointer border text-sm font-medium text-neutral-600 dark:text-neutral-400 dark:border-neutral-700 focus:outline-none"
-                onclick={() => closeModal(false)}
-            >
-                {$modalStore.cancelText}
-            </button>
+    <div class="mt-6 flex gap-3">
+        {#if $modalStore.type === 'confirm'}
+            <Button secondary onclick={() => closeModal(false)}>{$modalStore.cancelText}</Button>
         {/if}
-        <button
-            class="flex-1 h-11 bg-neutral-800 text-neutral-50 dark:text-neutral-800 dark:bg-neutral-50 rounded-xl cursor-pointer text-sm font-medium focus:outline-none"
-            onclick={() => closeModal(true)}
-        >
-            {$modalStore.confirmText}
-        </button>
+        <Button primary onclick={() => closeModal(true)}>{$modalStore.confirmText}</Button>
     </div>
 </Modal>
