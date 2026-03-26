@@ -34,7 +34,7 @@ export const repositoryTable = sqliteTable("repository", {
     reviewMode: text({ enum: ["assigned_only", "off"] })
         .notNull()
         .default("off"),
-    replyMode: text({ enum: ["assigned_only", "mention_only", "off"] })
+    replyMode: text({ enum: ["assigned_only", "mentioned_only", "off"] })
         .notNull()
         .default("off"),
 

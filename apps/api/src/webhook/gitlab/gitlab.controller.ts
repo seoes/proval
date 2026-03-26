@@ -1,4 +1,4 @@
-import type { MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
+import type { MergeRequestNoteSchema, MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
@@ -11,7 +11,7 @@ export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
     const payload = await c.req.json();
 
-    console.log("payload", JSON.stringify(payload, null, 2));
+    console.log("Webhook received from GitLab");
 
     const repository = c.get("repository") as InferSelectModel<typeof repositoryTable>;
     const model = c.get("model") as InferSelectModel<typeof modelTable>;
@@ -74,10 +74,9 @@ export const handleGitLabWebhook = async (c: Context) => {
                     return c.json({ message: "Reply mode is off, skipping" }, 200);
                 }
 
-                const note = payload.object_attributes;
-                const noteableType: string = note.noteable_type ?? "";
+                const comment = payload.object_attributes as MergeRequestNoteSchema;
 
-                if (noteableType !== "MergeRequest") {
+                if (comment.noteable_type !== "MergeRequest") {
                     return c.json({ message: "Skipped: note is not on a merge request" }, 200);
                 }
 
@@ -88,11 +87,12 @@ export const handleGitLabWebhook = async (c: Context) => {
                     return c.json({ message: "Skipped: bot's own comment" }, 200);
                 }
 
-                const noteBody: string = note.note ?? note.body ?? "";
+                const noteBody: string = comment.note as string;
                 const mrIid: number = payload.merge_request?.iid;
 
-                if (repository.replyMode === "mention_only") {
-                    const botMention = `@${repository.botUsername ?? botUser.username}`;
+                if (repository.replyMode === "mentioned_only") {
+                    const bot = await gitlabProvider.fetchCurrentUser();
+                    const botMention = `@${bot.username}`;
                     if (!noteBody.includes(botMention)) {
                         return c.json({ message: "Skipped: bot not mentioned" }, 200);
                     }
