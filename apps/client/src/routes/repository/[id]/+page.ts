@@ -1,12 +1,12 @@
 import fetchApi from '$lib/utils';
 import type { RepositoryResponse, ModelResponse } from '@code-review/types';
-import type { PageServerLoad } from './$types';
+import type { PageLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params }) => {
     const [repositoryResponse, modelListResponse] = await Promise.all([
         fetchApi(`/repository/${params.id}`),
-        fetchApi('/model'),
+        fetchApi('/model')
     ]);
 
     if (!repositoryResponse.ok) {
@@ -18,6 +18,6 @@ export const load: PageServerLoad = async ({ params }) => {
 
     return {
         repository,
-        modelList,
+        modelList
     };
 };
