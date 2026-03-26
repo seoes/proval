@@ -21,6 +21,25 @@ export interface GitDiff {
     diff: string;
 }
 
+export interface GitDiffBase {
+    baseSha: string;
+    headSha: string;
+    startSha: string;
+    oldPath: string;
+    newPath: string;
+}
+
+export interface GitDiffSingleLine extends GitDiffBase {
+    newLine?: string;
+    oldLine?: string;
+}
+
+export interface GitMergeRequestVersion {
+    headSha: string;
+    baseSha: string;
+    startSha: string;
+}
+
 // comment and discussion
 export interface GitComment {
     id: number;
@@ -61,4 +80,6 @@ export interface GitProvider {
     fetchDirectoryTree(filePath: string, recursive?: boolean): Promise<GitTree[]>;
     fetchFileContent(filePath: string): Promise<string>;
     createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;
+    fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion>;
+    createCommentToSingleLine(mrIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
 }

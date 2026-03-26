@@ -8,6 +8,8 @@ import {
     postMergeRequestCommentTool,
     postMergeRequestReplyTool,
     getMergeRequestDiffTool,
+    getMergeRequestVersionTool,
+    createSingleLineCommentTool,
 } from "./merge-request.tool.js";
 
 export class MergeRequestService extends ReviewBase {
@@ -36,6 +38,8 @@ export class MergeRequestService extends ReviewBase {
             get_directory_tree: getDirectoryTreeTool(this.provider),
             get_file_content: getFileContentTool(this.provider),
             post_merge_request_comment: postMergeRequestCommentTool(this.provider, mrIid),
+            get_merge_request_version: getMergeRequestVersionTool(this.provider, mrIid),
+            create_single_line_comment: createSingleLineCommentTool(this.provider, mrIid),
         };
     }
 
@@ -47,6 +51,8 @@ export class MergeRequestService extends ReviewBase {
             get_directory_tree: getDirectoryTreeTool(this.provider),
             get_file_content: getFileContentTool(this.provider),
             post_reply_comment: postMergeRequestReplyTool(this.provider, mrIid, commenterUsername),
+            get_merge_request_version: getMergeRequestVersionTool(this.provider, mrIid),
+            create_single_line_comment: createSingleLineCommentTool(this.provider, mrIid),
         };
     }
 }

@@ -84,3 +84,34 @@ export const postMergeRequestReplyTool = (provider: GitProvider, mrIid: number, 
             return comment;
         },
     });
+
+export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number) =>
+    tool({
+        description: "Get the version of a merge request",
+        inputSchema: z.object({}),
+        execute: async () => {
+            const version = await provider.fetchMergeRequestVersion(mrIid);
+            return version;
+        },
+    });
+
+export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number) =>
+    tool({
+        description: "Create a single line comment on a merge request with a specific line number",
+        inputSchema: z.object({
+            body: z.string().describe("The comment body, should be in markdown format."),
+            position: z.object({
+                baseSha: z.string().describe("The base SHA of the comment."),
+                headSha: z.string().describe("The head SHA of the comment."),
+                startSha: z.string().describe("The start SHA of the comment."),
+                oldPath: z.string().describe("The old path of the comment."),
+                newPath: z.string().describe("The new path of the comment."),
+                newLine: z.string().describe("The new line number of the comment.").optional(),
+                oldLine: z.string().describe("The old line number of the comment.").optional(),
+            }),
+        }),
+        execute: async ({ body, position }) => {
+            const comment = await provider.createCommentToSingleLine(mrIid, body, position);
+            return comment;
+        },
+    });

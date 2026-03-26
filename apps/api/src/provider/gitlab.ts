@@ -2,8 +2,10 @@ import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import type {
     GitComment,
     GitDiff,
+    GitDiffSingleLine,
     GitMergeRequest,
     GitMergeRequestState,
+    GitMergeRequestVersion,
     GitProvider,
     GitTree,
     GitUser,
@@ -20,6 +22,15 @@ export class GitLabProvider implements GitProvider {
             host: baseUrl,
             token: token,
         });
+    }
+
+    public async fetchRepositoryDetail() {
+        const repository = await this.gitlab.Projects.show(this.projectId);
+        return {
+            id: repository.id,
+            name: repository.name,
+            description: repository.description,
+        };
     }
 
     public async fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest> {
@@ -84,6 +95,46 @@ export class GitLabProvider implements GitProvider {
     public async fetchMergeRequestReviewerList(mrIid: number): Promise<string[]> {
         const mr = await this.gitlab.MergeRequests.show(this.projectId, mrIid);
         return (mr.reviewers ?? []).map((r: { username: string }) => r.username);
+    }
+
+    public async fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion> {
+        const versions = await this.gitlab.MergeRequests.allDiffVersions(this.projectId, mrIid);
+        const latest = versions[0];
+        return {
+            headSha: latest.head_commit_sha,
+            baseSha: latest.base_commit_sha,
+            startSha: latest.start_commit_sha,
+        };
+    }
+
+    public async createCommentToSingleLine(
+        mrIid: number,
+        body: string,
+        position: GitDiffSingleLine,
+    ): Promise<GitComment> {
+        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, mrIid, body, {
+            position: {
+                positionType: "text",
+                baseSha: position.baseSha,
+                startSha: position.startSha,
+                headSha: position.headSha,
+                oldPath: position.oldPath,
+                newPath: position.newPath,
+                ...(position.newLine && { newLine: position.newLine }),
+                ...(position.oldLine && { oldLine: position.oldLine }),
+            },
+        });
+
+        const note = discussion.notes?.[0];
+        if (!note) {
+            throw new Error("Failed to create inline comment: no note returned");
+        }
+        return {
+            id: note.id,
+            body: note.body,
+            author: note.author.username,
+            createdAt: note.created_at,
+        };
     }
 
     public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
