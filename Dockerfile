@@ -47,7 +47,7 @@ RUN pnpm --filter api build
 COPY .npmrc .npmrc
 
 # Standalone 배포 (production 의존성만)
-RUN pnpm --filter api deploy --prod /deploy
+RUN pnpm --filter api deploy --prod --no-optional /deploy
 
 ########################################################
 # 3단계: Production
@@ -64,6 +64,11 @@ COPY --from=builder /build/apps/api/dist .
 
 # Client static files 복사
 COPY --from=client /build/apps/client/dist ./public
+
+# 불필요한 파일 제거
+RUN find node_modules -type f \( -name "*.md" -o -name "*.ts" -o -name "*.map" -o -name "LICENSE" -o -name "CHANGELOG*" \) -delete 2>/dev/null || true
+
+RUN find node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" \) -exec rm -rf {} + 2>/dev/null || true
 
 ENV PORT=7900
 ENV NODE_ENV=production
