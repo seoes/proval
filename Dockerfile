@@ -1,7 +1,7 @@
 ########################################################
 # 1단계: Client Build
 ########################################################
-FROM node:24-slim AS client
+FROM node:24-alpine AS client
 
 WORKDIR /build
 
@@ -21,7 +21,9 @@ RUN pnpm --filter client build
 ########################################################
 # 2단계: API Build
 ########################################################
-FROM node:24-slim AS builder
+FROM node:24-alpine AS builder
+
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /build
 
@@ -50,7 +52,7 @@ RUN pnpm --filter api deploy --prod /deploy
 ########################################################
 # 3단계: Production
 ########################################################
-FROM node:24-slim
+FROM node:24-alpine
 
 WORKDIR /app
 
