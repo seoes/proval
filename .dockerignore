@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+
+# Build outputs
+apps/client/dist
+apps/api/dist
+packages/*/dist
+.turbo
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/test/**
+**/tests/**
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Misc
+*.tgz
+.npm
+.eslintcache
