@@ -1,5 +1,5 @@
 ########################################################
-# 1단계: Client Build
+# 1. Client Build
 ########################################################
 FROM node:24-alpine AS client
 
@@ -19,7 +19,7 @@ RUN pnpm --filter "@code-review/*" build
 RUN pnpm --filter client build
 
 ########################################################
-# 2단계: API Build
+# 2. API Build
 ########################################################
 FROM node:24-alpine AS builder
 
@@ -39,33 +39,27 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/api ./apps/api
 
-# Drizzle 타입 생성 + 빌드
 RUN pnpm --filter @code-review/db generate
 RUN pnpm --filter "@code-review/*" build
 RUN pnpm --filter api build
 
 COPY .npmrc .npmrc
 
-# Standalone 배포 (production 의존성만)
 RUN pnpm --filter api deploy --prod --no-optional /deploy
 
 ########################################################
-# 3단계: Production
+# 3. Production
 ########################################################
 FROM node:24-alpine
 
 WORKDIR /app
 
-# API 의존성 (node_modules) 복사
 COPY --from=builder /deploy/node_modules ./node_modules
 
-# API 빌드 결과물 복사
 COPY --from=builder /build/apps/api/dist .
 
-# Client static files 복사
 COPY --from=client /build/apps/client/dist ./public
 
-# 불필요한 파일 제거
 RUN find node_modules -type f \( -name "*.md" -o -name "*.ts" -o -name "*.map" -o -name "LICENSE" -o -name "CHANGELOG*" \) -delete 2>/dev/null || true
 
 RUN find node_modules -type d \( -name "test" -o -name "tests" -o -name "__tests__" \) -exec rm -rf {} + 2>/dev/null || true
@@ -75,4 +69,4 @@ ENV NODE_ENV=production
 
 EXPOSE 7900
 
-CMD ["node", "index.js"]
+CMD ["node", "/app/src/index.js"]
