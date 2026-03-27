@@ -58,6 +58,8 @@ COPY --from=builder /deploy/node_modules ./node_modules
 
 COPY --from=builder /build/apps/api/dist .
 
+COPY --from=builder /build/packages/db/src/migration ./migration
+
 COPY --from=client /build/apps/client/dist ./public
 
 RUN find node_modules -type f \( -name "*.md" -o -name "*.ts" -o -name "*.map" -o -name "LICENSE" -o -name "CHANGELOG*" \) -delete 2>/dev/null || true
