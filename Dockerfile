@@ -62,7 +62,7 @@ COPY --from=builder /build/packages/db/src/migration ./migration
 
 COPY --from=client /build/apps/client/dist ./public
 
-HEALTHCHECK --interval=30s --timeout=10s --start-priod=5s --retires=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7900/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7900/api/health || exit 1
 
 ENV DB_FILE_NAME=/data/app.db
 
