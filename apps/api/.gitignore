@@ -31,3 +31,5 @@ lerna-debug.log*
 
 local.db
 *.db
+
+public

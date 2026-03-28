@@ -1,19 +1,28 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { webhookRouter } from "./webhook/webhook.route.js";
-import { apiRouter } from "./api/index.js";
-import { cors } from "hono/cors";
+import { serveStatic } from "@hono/node-server/serve-static";
+import app from "./app.js";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import db from "./db/index.js";
 
-const app = new Hono();
+if (process.env.NODE_ENV === "production") {
+    console.log("Production environment");
 
-app.get("/", (c) => {
-    return c.text("Hello Hono!");
-});
+    try {
+        migrate(db, { migrationsFolder: "./migration" });
+        console.log("Database migrated successfully");
+    } catch (error) {
+        console.error("Error migrating database", error);
+        process.exit(1);
+    }
 
-app.route("/webhook", webhookRouter);
-
-app.use("/api/*", cors());
-app.route("/api", apiRouter);
+    app.use("/*", serveStatic({ root: "./public" }));
+    app.get("*", serveStatic({ path: "./public/index.html" }));
+} else {
+    console.log("Development environment");
+    app.get("/", (c) => {
+        return c.text("Hello Hono!");
+    });
+}
 
 serve(
     {
@@ -21,6 +30,6 @@ serve(
         port: 7900,
     },
     (info) => {
-        console.log(`Server is running on http://localhost:${info.port}`);
+        console.log(`Server is running on port ${info.port}`);
     },
 );
