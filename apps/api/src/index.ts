@@ -1,8 +1,7 @@
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
 import app from "./app.js";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import db from "./db/index.js";
+import { serveStatic } from "hono/bun";
 
 if (process.env.NODE_ENV === "production") {
     console.log("Production environment");
@@ -24,12 +23,7 @@ if (process.env.NODE_ENV === "production") {
     });
 }
 
-serve(
-    {
-        fetch: app.fetch,
-        port: 7900,
-    },
-    (info) => {
-        console.log(`Server is running on port ${info.port}`);
-    },
-);
+export default {
+    fetch: app.fetch,
+    port: 7900,
+};

@@ -13,8 +13,7 @@
     "license": "ISC",
     "pnpm": {
         "onlyBuiltDependencies": [
-            "esbuild",
-            "better-sqlite3"
+            "esbuild"
         ]
     },
     "packageManager": "pnpm@10.0.0",
