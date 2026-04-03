@@ -29,12 +29,11 @@ RUN bun build apps/api/src/index.ts --compile --outfile /build/server
 ########################################################
 # Production: glibc slim + compiled binary only
 ########################################################
-FROM debian:bookworm-slim
+FROM cgr.dev/chainguard/wolfi-base:latest
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends wget \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache wget
 
 COPY --from=builder /build/server ./server
 COPY --from=builder /build/packages/db/src/migration ./migration
