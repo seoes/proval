@@ -5,6 +5,7 @@
         "dev": "bun --watch --env-file=.env src/index.ts",
         "typecheck": "tsc --noEmit",
         "build": "bun build src/index.ts --outdir dist --target bun",
+        "compile": "bun build src/index.ts --compile --outfile ./server",
         "start": "NODE_ENV=production bun dist/index.js",
         "test": "bun test",
         "generate": "drizzle-kit generate",

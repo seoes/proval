@@ -25,8 +25,8 @@ MR review, threaded comments where the host allows it, configurable note replies
 From the repository root:
 
 ```bash
-pnpm install
-pnpm dev
+bun install
+bun dev
 ```
 
 Add `apps/api/.env` for local API settings. (`DB_FILE_NAME` for the local database file path)

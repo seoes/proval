@@ -1,66 +1,44 @@
 ########################################################
-# 1. Client Build
+# Build: Bun workspaces + compile
 ########################################################
-FROM node:24-alpine AS client
+FROM oven/bun:1 AS builder
 
 WORKDIR /build
 
-RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
-
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
+COPY bun.lock package.json turbo.json ./
 COPY apps/client/package.json ./apps/client/
-COPY packages ./packages
+COPY apps/api/package.json ./apps/api/
+COPY packages/db/package.json ./packages/db/
+COPY packages/types/package.json ./packages/types/
 
-RUN pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
+
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+RUN bun run --filter api generate
+RUN bun run --filter @code-review/db build
+RUN bun run --filter @code-review/types build
 
 COPY apps/client ./apps/client
 
-RUN pnpm --filter "@code-review/*" build
-RUN pnpm --filter client build
+RUN bun run --filter client build
+
+RUN bun build apps/api/src/index.ts --compile --outfile /build/server
 
 ########################################################
-# 2. API Build
+# Production: glibc slim + compiled binary only
 ########################################################
-FROM node:24-alpine AS builder
-
-RUN apk add --no-cache python3 make g++
-
-WORKDIR /build
-
-RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
-
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
-COPY apps/api/package.json ./apps/api/
-
-COPY packages/db ./packages/db
-COPY packages/types ./packages/types
-
-RUN pnpm install --frozen-lockfile
-
-COPY apps/api ./apps/api
-
-RUN pnpm --filter @code-review/db generate
-RUN pnpm --filter "@code-review/*" build
-RUN pnpm --filter api build
-
-COPY .npmrc .npmrc
-
-RUN pnpm --filter api deploy --prod --no-optional /deploy
-
-########################################################
-# 3. Production
-########################################################
-FROM node:24-alpine
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
-COPY --from=builder /deploy/node_modules ./node_modules
+RUN apt-get update && apt-get install -y --no-install-recommends wget \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/apps/api/dist .
-
+COPY --from=builder /build/server ./server
 COPY --from=builder /build/packages/db/src/migration ./migration
-
-COPY --from=client /build/apps/client/dist ./public
+COPY --from=builder /build/apps/client/dist ./public
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7900/api/health || exit 1
 
@@ -72,4 +50,4 @@ ENV NODE_ENV=production
 
 EXPOSE 7900
 
-CMD ["node", "/app/src/index.js"]
+CMD ["./server"]

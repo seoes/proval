@@ -20,6 +20,11 @@ import {
 
 export const apiRouter = new Hono();
 
+// Health check routes
+apiRouter.get("/health", (c) => {
+    return c.json({ message: "OK" }, 200);
+});
+
 // Model routes
 apiRouter.get("/model", findAllModel);
 apiRouter.get("/model/:id{\\d+}", findById);

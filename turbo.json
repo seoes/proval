@@ -12,6 +12,10 @@
             "persistent": true,
             "inputs": ["$TURBO_DEFAULT$", ".env"],
             "dependsOn": ["^build"]
+        },
+        "test": {
+            "dependsOn": ["^build"],
+            "outputs": []
         }
     }
 }

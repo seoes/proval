@@ -4,6 +4,7 @@ node_modules
 # Build outputs
 apps/client/dist
 apps/api/dist
+apps/api/server
 packages/*/dist
 .turbo
 
@@ -39,7 +40,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 
 # Misc
 *.tgz
