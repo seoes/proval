@@ -85,6 +85,28 @@ export const postMergeRequestReplyTool = (provider: GitProvider, mrIid: number, 
         },
     });
 
+export const approveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
+    tool({
+        description:
+            "Approve this merge request in GitLab (records your approval as the bot user). Call after posting your review comment when the change is acceptable to merge. Call at most once.",
+        inputSchema: z.object({}),
+        execute: async () => {
+            await provider.approveMergeRequest(mrIid);
+            return { approved: true };
+        },
+    });
+
+export const unapproveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
+    tool({
+        description:
+            "Remove your approval from this merge request in GitLab. Use when you would reject or block the MR (e.g. critical issues), or to retract a mistaken approval. Call after posting your review comment when the MR should not be approved. Call at most once.",
+        inputSchema: z.object({}),
+        execute: async () => {
+            await provider.unapproveMergeRequest(mrIid);
+            return { unapproved: true };
+        },
+    });
+
 export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description: "Get the version of a merge request",

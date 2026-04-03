@@ -39,6 +39,7 @@ export const repositoryTable = sqliteTable("repository", {
         .default("off"),
 
     autoAssign: integer({ mode: "boolean" }).notNull().default(false),
+    allowApproval: integer({ mode: "boolean" }).notNull().default(false),
     language: text().notNull().default("English"),
 
     gitlabRepositoryId: integer(),

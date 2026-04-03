@@ -25,6 +25,7 @@ export const handleGitLabWebhook = async (c: Context) => {
         model.apiKey,
         model.name,
         repository.language,
+        repository.allowApproval,
     );
 
     try {

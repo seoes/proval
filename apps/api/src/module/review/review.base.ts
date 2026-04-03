@@ -18,6 +18,7 @@ export abstract class ReviewBase {
         modelApiKey: string,
         protected readonly modelName: string,
         protected readonly language: string,
+        protected readonly allowApproval: boolean,
     ) {
         this.ai = createOpenAI({ apiKey: modelApiKey, baseURL: modelBaseUrl });
     }

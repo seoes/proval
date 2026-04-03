@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `allow_approval` integer DEFAULT false NOT NULL;

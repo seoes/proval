@@ -137,6 +137,14 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
+    public async approveMergeRequest(mrIid: number): Promise<void> {
+        await this.gitlab.MergeRequestApprovals.approve(this.projectId, mrIid);
+    }
+
+    public async unapproveMergeRequest(mrIid: number): Promise<void> {
+        await this.gitlab.MergeRequestApprovals.unapprove(this.projectId, mrIid);
+    }
+
     public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
         console.log("assignMergeRequestReviewer", mrIid);
         const user = await this.gitlab.Users.showCurrentUser();

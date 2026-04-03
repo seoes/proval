@@ -34,6 +34,17 @@ export interface GitDiffSingleLine extends GitDiffBase {
     oldLine?: string;
 }
 
+export interface GitDiffMultiLine extends GitDiffBase {
+    start: GitDiffLine;
+    end: GitDiffLine;
+}
+
+export interface GitDiffLine {
+    type: "old" | "new";
+    oldLine?: number;
+    newLine?: number;
+}
+
 export interface GitMergeRequestVersion {
     headSha: string;
     baseSha: string;
@@ -82,4 +93,7 @@ export interface GitProvider {
     createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;
     fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion>;
     createCommentToSingleLine(mrIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
+    // createCommentToMultiLine(mrIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
+    approveMergeRequest(mrIid: number): Promise<void>;
+    unapproveMergeRequest(mrIid: number): Promise<void>;
 }

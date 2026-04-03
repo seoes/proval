@@ -1,6 +1,7 @@
 import { ReviewBase } from "../review/review.base.js";
-import { reviewPrompt, replyPrompt } from "./merge-request.prompt.js";
+import { approvalPromptAddendum, reviewPrompt, replyPrompt } from "./merge-request.prompt.js";
 import {
+    approveMergeRequestTool,
     getDirectoryTreeTool,
     getFileContentTool,
     getMergeRequestCommentListTool,
@@ -10,14 +11,18 @@ import {
     getMergeRequestDiffTool,
     getMergeRequestVersionTool,
     createSingleLineCommentTool,
+    unapproveMergeRequestTool,
+    // createMultiLineCommentTool,
 } from "./merge-request.tool.js";
 
 export class MergeRequestService extends ReviewBase {
     public async review(mrIid: number): Promise<void> {
+        const system = this.allowApproval ? `${reviewPrompt}\n\n${approvalPromptAddendum}` : reviewPrompt;
         await this.run({
-            system: reviewPrompt,
+            system,
             prompt: `Review merge request !${mrIid}. Use the available tools to gather information, then submit your review. Language: ${this.language}`,
             tools: this.createReviewToolList(mrIid),
+            maxSteps: this.allowApproval ? 20 : undefined,
         });
     }
 
@@ -31,7 +36,7 @@ export class MergeRequestService extends ReviewBase {
     }
 
     private createReviewToolList(mrIid: number) {
-        return {
+        const base = {
             get_merge_request_detail: getMergeRequestDetailTool(this.provider, mrIid),
             get_merge_request_diff: getMergeRequestDiffTool(this.provider, mrIid),
             get_merge_request_comment_list: getMergeRequestCommentListTool(this.provider, mrIid),
@@ -40,6 +45,15 @@ export class MergeRequestService extends ReviewBase {
             post_merge_request_comment: postMergeRequestCommentTool(this.provider, mrIid),
             get_merge_request_version: getMergeRequestVersionTool(this.provider, mrIid),
             create_single_line_comment: createSingleLineCommentTool(this.provider, mrIid),
+            // create_multi_line_comment: createMultiLineCommentTool(this.provider, mrIid),
+        };
+        if (!this.allowApproval) {
+            return base;
+        }
+        return {
+            ...base,
+            approve_merge_request: approveMergeRequestTool(this.provider, mrIid),
+            unapprove_merge_request: unapproveMergeRequestTool(this.provider, mrIid),
         };
     }
 
@@ -53,6 +67,7 @@ export class MergeRequestService extends ReviewBase {
             post_reply_comment: postMergeRequestReplyTool(this.provider, mrIid, commenterUsername),
             get_merge_request_version: getMergeRequestVersionTool(this.provider, mrIid),
             create_single_line_comment: createSingleLineCommentTool(this.provider, mrIid),
+            // create_multi_line_comment: createMultiLineCommentTool(this.provider, mrIid),
         };
     }
 }

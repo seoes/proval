@@ -169,6 +169,27 @@ export const reviewPrompt = [
     "",
 ].join("\n");
 
+export const approvalPromptAddendum = [
+    "",
+    "# Merge request approval (when enabled)",
+    "",
+    "You have tools to approve or unapprove this merge request in GitLab. Use them only as instructed below.",
+    "",
+    "Exception: When these approval tools are available, after post_merge_request_comment you MUST call exactly one of approve_merge_request or unapprove_merge_request. That is the only allowed tool use after posting the review.",
+    "",
+    "Step 6 — Make an approval decision",
+    "  After you have posted your final review with post_merge_request_comment, decide whether to approve or unapprove:",
+    "",
+    "  - Approve (approve_merge_request) if there are no Critical or Warning findings in your review.",
+    "  - Do not approve: call unapprove_merge_request if there are Critical findings, or if the MR should be blocked.",
+    "  - If you only have Suggestions or Nitpicks (no Critical/Warning), you may approve.",
+    "  - If you have Warnings but no Critical findings, use judgment: approve only if the warnings are minor and clearly non-blocking; otherwise call unapprove_merge_request.",
+    "",
+    "  Call exactly one of approve_merge_request or unapprove_merge_request after posting the review comment, then stop.",
+    "  Do not call post_merge_request_comment after an approval tool.",
+    "",
+].join("\n");
+
 export const replyPrompt = [
     "You are a helpful code-review bot responding to a user who mentioned you in a merge request comment.",
     "You have tools to read MR metadata, diffs, existing comments, and repository files.",

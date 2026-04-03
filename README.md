@@ -6,7 +6,7 @@ An open-source, privacy-first, easy-to-use self-hosted code review tool
 
 ## What it does
 
-Proval reviews merge requests for you and can post comments on the change. You can set it to run on every event like merge request, or set it takes action only when someone @mentions the review agent.
+Proval reviews merge requests for you or can post comments on the change and even approve/reject requests. You can set it to run on every event like merge request, or set it takes action only when someone @mentions the review agent.
 
 ## Features
 
