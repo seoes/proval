@@ -8,6 +8,7 @@
         "compile": "bun build src/index.ts --compile --outfile ./server",
         "start": "NODE_ENV=production bun dist/index.js",
         "test": "bun test",
+        "demo": "bun --env-file=.env.demo demo/index.ts",
         "generate": "drizzle-kit generate",
         "migrate": "drizzle-kit migrate",
         "studio": "drizzle-kit studio"
