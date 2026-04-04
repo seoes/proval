@@ -14,6 +14,7 @@ node_modules/
 # env
 .env
 .env.production
+.env.test
 
 # logs
 logs/
@@ -32,3 +33,6 @@ local.db
 *.db
 
 public
+
+# demo LLM outputs
+demo/result/*.md

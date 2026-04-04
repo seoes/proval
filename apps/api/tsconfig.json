@@ -11,5 +11,6 @@
         "jsxImportSource": "hono/jsx",
         "outDir": "./dist"
     },
+    "include": ["src/**/*.ts", "mock/input/**/*.ts", "demo/**/*.ts", "mock/provider.ts"],
     "exclude": ["node_modules"]
 }
