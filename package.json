@@ -1,16 +1,16 @@
 {
-    "name": "code-review",
+    "name": "proval",
     "version": "1.0.0",
+    "license": "AGPL-3.0",
     "packageManager": "bun@1.3.11",
-    "workspaces": ["apps/*", "packages/*"],
     "scripts": {
-        "dev": "turbo dev",
-        "build": "turbo build",
-        "test": "turbo run test",
+        "dev": "bun run --parallel --filter '*' dev",
+        "build": "bun run --parallel --filter '*' build",
+        "test": "bun run --parallel --filter '*' test",
         "tunnel": "cloudflared tunnel --url http://localhost:7900"
     },
-    "license": "AGPL-3.0",
-    "devDependencies": {
-        "turbo": "^2.8.15"
-    }
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ]
 }
