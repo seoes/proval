@@ -77,10 +77,10 @@ export default app;
 `,
     },
     tree: [
-        { id: "a", name: "src", type: "tree", path: "src", mode: "040000" },
-        { id: "b", name: "routes", type: "tree", path: "src/routes", mode: "040000" },
-        { id: "c", name: "hello.ts", type: "blob", path: "src/routes/hello.ts", mode: "100644" },
-        { id: "d", name: "index.ts", type: "blob", path: "src/index.ts", mode: "100644" },
+        { name: "src", type: "directory", path: "src" },
+        { name: "routes", type: "directory", path: "src/routes" },
+        { name: "hello.ts", type: "file", path: "src/routes/hello.ts" },
+        { name: "index.ts", type: "file", path: "src/index.ts" },
     ],
     comments: [{ id: 1, body: "Nice split into a sub-app.", author: "carol", createdAt: "2025-01-01T00:00:00Z" }],
 };

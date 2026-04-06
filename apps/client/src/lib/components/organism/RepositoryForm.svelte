@@ -24,7 +24,9 @@
             reviewMode: string;
             replyMode: string;
             autoAssign: boolean;
+            allowApproval: boolean;
             language: string;
+            githubRepositoryPath: string | null;
             gitlabRepositoryId: number | null;
             modelId: number | null;
         };
@@ -45,6 +47,7 @@
     let reviewMode = $state(initialData?.reviewMode ?? 'off');
     let replyMode = $state(initialData?.replyMode ?? 'off');
     let autoAssign = $state(initialData?.autoAssign ?? false);
+    let allowApproval = $state(initialData?.allowApproval ?? false);
     let language = $state(initialData?.language ?? 'English');
     let gitlabRepositoryId = $state(initialData?.gitlabRepositoryId?.toString() ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
@@ -110,6 +113,7 @@
                 reviewMode,
                 replyMode,
                 autoAssign,
+                allowApproval,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId) : null,
                 modelId: modelId ? parseInt(modelId) : null
@@ -131,6 +135,7 @@
                 reviewMode,
                 replyMode,
                 autoAssign,
+                allowApproval,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId) : null,
                 modelId: modelId ? parseInt(modelId) : null
@@ -318,6 +323,17 @@
             <input
                 type="checkbox"
                 bind:checked={autoAssign}
+                class="mt-2 h-5 w-5 rounded border-neutral-200"
+            />
+        </div>
+        <div>
+            <LabelWithDescription
+                label="Allow Approve / Reject"
+                description="Allow the review agent to autonomously approve or reject Merge Requests based on review findings"
+            />
+            <input
+                type="checkbox"
+                bind:checked={allowApproval}
                 class="mt-2 h-5 w-5 rounded border-neutral-200"
             />
         </div>

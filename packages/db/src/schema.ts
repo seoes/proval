@@ -42,6 +42,7 @@ export const repositoryTable = sqliteTable("repository", {
     allowApproval: integer({ mode: "boolean" }).notNull().default(false),
     language: text().notNull().default("English"),
 
+    githubRepositoryPath: text(),
     gitlabRepositoryId: integer(),
     modelId: integer().references(() => modelTable.id),
 

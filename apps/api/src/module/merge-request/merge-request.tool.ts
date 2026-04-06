@@ -4,7 +4,7 @@ import z from "zod";
 
 export const getMergeRequestDetailTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Get the details of a merge request",
+        description: "Get metadata for the current pull/merge request (title, description, branches, author, state).",
         inputSchema: z.object({}),
         execute: async () => {
             const detail = await provider.fetchMergeRequestDetail(mrIid);
@@ -15,7 +15,7 @@ export const getMergeRequestDetailTool = (provider: GitProvider, mrIid: number) 
 export const getMergeRequestDiffTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
-            "Get merge request metadata: title, description, labels, branches, author, diff_refs. Call this first.",
+            "Get the full diff for the current pull/merge request (per-file patches). Prefer calling get_merge_request_detail first for context; use this for line-by-line changes.",
         inputSchema: z.object({}),
         execute: async () => {
             const diff = await provider.fetchMergeRequestDiff(mrIid);
@@ -25,7 +25,8 @@ export const getMergeRequestDiffTool = (provider: GitProvider, mrIid: number) =>
 
 export const getMergeRequestCommentListTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Get existing review discussions and comments on this MR. Use to avoid duplicating feedback.",
+        description:
+            "Get existing issue and review comments on this pull/merge request. Use to avoid duplicating feedback.",
         inputSchema: z.object({}),
         execute: async () => {
             const comments = await provider.fetchMergeRequestCommentList(mrIid);
@@ -88,7 +89,7 @@ export const postMergeRequestReplyTool = (provider: GitProvider, mrIid: number, 
 export const approveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
-            "Approve this merge request in GitLab (records your approval as the bot user). Call after posting your review comment when the change is acceptable to merge. Call at most once.",
+            "Approve this pull/merge request as the bot user (e.g. GitHub review approve / GitLab MR approval). Call after posting your review comment when the change is acceptable to merge. Call at most once.",
         inputSchema: z.object({}),
         execute: async () => {
             await provider.approveMergeRequest(mrIid);
@@ -99,7 +100,7 @@ export const approveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
 export const unapproveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
-            "Remove your approval from this merge request in GitLab. Use when you would reject or block the MR (e.g. critical issues), or to retract a mistaken approval. Call after posting your review comment when the MR should not be approved. Call at most once.",
+            "Withdraw approval or request changes (host-specific: e.g. GitHub REQUEST_CHANGES / GitLab unapprove). Use when you would reject or block the change (e.g. critical issues), or to retract a mistaken approval. Call after posting your review comment when the change should not be approved. Call at most once.",
         inputSchema: z.object({}),
         execute: async () => {
             await provider.unapproveMergeRequest(mrIid);
@@ -109,7 +110,7 @@ export const unapproveMergeRequestTool = (provider: GitProvider, mrIid: number) 
 
 export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Get the version of a merge request",
+        description: "Get commit SHAs for the current pull/merge request (base, head, start) for inline comment positioning.",
         inputSchema: z.object({}),
         execute: async () => {
             const version = await provider.fetchMergeRequestVersion(mrIid);
@@ -119,7 +120,8 @@ export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number)
 
 export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Create a single line comment on a merge request with a specific line number",
+        description:
+            "Create a single-line inline review comment on the current pull/merge request at the given file path and line (use SHAs from get_merge_request_version).",
         inputSchema: z.object({
             body: z.string().describe("The comment body, should be in markdown format."),
             position: z.object({

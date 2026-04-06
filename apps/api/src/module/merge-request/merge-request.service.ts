@@ -20,7 +20,7 @@ export class MergeRequestService extends ReviewBase {
         const system = this.allowApproval ? `${reviewPrompt}\n\n${approvalPromptAddendum}` : reviewPrompt;
         await this.run({
             system,
-            prompt: `Review merge request !${mrIid}. Use the available tools to gather information, then submit your review. Language: ${this.language}`,
+            prompt: `Use the available tools to gather information, then submit your review. Language: ${this.language}`,
             tools: this.createReviewToolList(mrIid),
             maxSteps: this.allowApproval ? 20 : undefined,
         });
@@ -29,7 +29,7 @@ export class MergeRequestService extends ReviewBase {
     public async reply(mrIid: number, commenterUsername: string, commentBody: string): Promise<void> {
         await this.run({
             system: replyPrompt,
-            prompt: `User @${commenterUsername} mentioned you in merge request !${mrIid}. Their comment:\n\n${commentBody}\n\nUse the available tools to gather context if needed, then post your reply. Language: ${this.language}`,
+            prompt: `User @${commenterUsername} mentioned you. Their comment:\n\n${commentBody}\n\nUse the available tools to gather context if needed, then post your reply. Language: ${this.language}`,
             tools: this.createReplyToolList(mrIid, commenterUsername),
             maxSteps: 10,
         });

@@ -7,7 +7,8 @@
         "dev": "bun run --parallel --filter '*' dev",
         "build": "bun run --parallel --filter '*' build",
         "test": "bun run --parallel --filter '*' test",
-        "tunnel": "cloudflared tunnel --url http://localhost:7900"
+        "tunnel": "cloudflared tunnel --url http://localhost:7900",
+        "studio": "bun run --filter 'api' studio"
     },
     "workspaces": [
         "apps/*",

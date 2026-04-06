@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
     import { twMerge } from 'tailwind-merge';
+    import Button from './Button.svelte';
 
     interface ButtonItem {
         onclick: () => void;
@@ -51,17 +52,24 @@
     {#if open}
         <div
             class={twMerge(
-                'absolute top-full right-0 z-50 mt-1 w-max rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800'
+                'absolute top-full right-0 z-50 mt-1 w-max divide-y rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800'
             )}
         >
             {#each buttonList as item}
-                <button
+                <div>
+                    <Button
+                        text
+                        class="border-none px-4 py-2"
+                        onclick={() => handleButtonClick(item)}>{item.label}</Button
+                    >
+                </div>
+                <!-- <button
                     type="button"
                     onclick={() => handleButtonClick(item)}
                     class="block w-full cursor-pointer px-4 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700"
                 >
                     {item.label}
-                </button>
+                </button> -->
             {/each}
         </div>
     {/if}

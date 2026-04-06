@@ -1,5 +1,3 @@
-import type { RepositoryTreeSchema } from "@gitbeaker/rest";
-
 export interface GitMergeRequest {
     title: string;
     description: string | null;
@@ -73,7 +71,11 @@ export interface GitFile {
     content: string;
 }
 
-export interface GitTree extends RepositoryTreeSchema {}
+export interface GitTree {
+    name: string;
+    path: string;
+    type: "file" | "directory";
+}
 
 // TODO: code review on specific line
 // export interface GitCodeReview {}
@@ -96,4 +98,5 @@ export interface GitProvider {
     // createCommentToMultiLine(mrIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
     approveMergeRequest(mrIid: number): Promise<void>;
     unapproveMergeRequest(mrIid: number): Promise<void>;
+    assignMergeRequestReviewer(mrIid: number): Promise<void>;
 }

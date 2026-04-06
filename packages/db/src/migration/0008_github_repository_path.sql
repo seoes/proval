@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `github_repository_path` text;
