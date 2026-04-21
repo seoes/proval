@@ -22,7 +22,10 @@ RUN bun run --filter @code-review/types build
 
 COPY apps/client ./apps/client
 
+
 RUN bun run --filter client build
+
+ENV NODE_ENV=production
 
 RUN bun build apps/api/src/index.ts --compile --outfile /build/server
 
