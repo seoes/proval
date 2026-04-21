@@ -5,7 +5,7 @@ FROM oven/bun:1 AS builder
 
 WORKDIR /build
 
-COPY bun.lock package.json turbo.json ./
+COPY bun.lock package.json ./
 COPY apps/client/package.json ./apps/client/
 COPY apps/api/package.json ./apps/api/
 COPY packages/db/package.json ./packages/db/
