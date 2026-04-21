@@ -17,6 +17,12 @@ import {
     verifyConfig,
     removeModel,
 } from "./model/model.controller.js";
+import {
+    createInstallation,
+    findGitHubAppList,
+    handleGitHubAppCallback,
+    handleGitHubAppSetup,
+} from "./github/github-app.controller.js";
 
 export const apiRouter = new Hono();
 
@@ -42,3 +48,9 @@ apiRouter.put("/repository/:id", updateRepository);
 apiRouter.patch("/repository/:id/api-token", updateApiToken);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
 apiRouter.delete("/repository/:id", removeRepository);
+
+// GitHub App routes
+apiRouter.get("/github/app", findGitHubAppList);
+apiRouter.post("/github/app/callback", handleGitHubAppCallback);
+apiRouter.post("/github/app/setup", handleGitHubAppSetup);
+apiRouter.post("/github/app/installation", createInstallation);

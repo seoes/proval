@@ -16,12 +16,10 @@
         </div>
     {/if}
     <div
-        class=" rounded-lg {border
+        class="rounded-lg {border
             ? 'border'
-            : 'border-none'} 'border-neutral-200 bg-white px-4 py-6"
+            : 'border-none'} border-neutral-200 bg-white px-6 py-5 dark:border-neutral-700 dark:bg-neutral-800"
     >
-        <div class=" space-y-8">
-            {@render children()}
-        </div>
+        {@render children()}
     </div>
 </div>

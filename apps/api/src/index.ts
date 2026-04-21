@@ -1,4 +1,4 @@
-import app from "./app.js";
+import { apiApp, webhookApp } from "./app.js";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import db from "./db/index.js";
 import { serveStatic } from "hono/bun";
@@ -14,16 +14,21 @@ if (process.env.NODE_ENV === "production") {
         process.exit(1);
     }
 
-    app.use("/*", serveStatic({ root: "./public" }));
-    app.get("*", serveStatic({ path: "./public/index.html" }));
+    apiApp.use("/*", serveStatic({ root: "./public" }));
+    apiApp.get("*", serveStatic({ path: "./public/index.html" }));
 } else {
     console.log("Development environment");
-    app.get("/", (c) => {
+    apiApp.get("/", (c) => {
         return c.text("Hello Hono!");
     });
 }
 
-export default {
-    fetch: app.fetch,
+Bun.serve({
+    fetch: apiApp.fetch,
     port: 7900,
-};
+});
+
+Bun.serve({
+    fetch: webhookApp.fetch,
+    port: 7901,
+});

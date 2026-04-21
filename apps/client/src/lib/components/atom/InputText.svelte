@@ -12,6 +12,8 @@
         onkeydown?: (event: KeyboardEvent) => void;
         id?: string;
         required?: boolean;
+        label?: string;
+        description?: string;
     }
 
     let {
@@ -24,9 +26,15 @@
         name,
         onkeydown,
         id,
-        required
+        required,
+        label,
+        description
     }: Props = $props();
 </script>
+
+{#if label}
+    <label for={id} class="mb-1.5 ml-1 block text-sm font-medium text-neutral-700">{label} </label>
+{/if}
 
 <input
     bind:value
@@ -44,3 +52,7 @@
     {name}
     {onkeydown}
 />
+
+{#if description}
+    <p class="mt-1.5 ml-1 text-xs text-neutral-500">{description}</p>
+{/if}

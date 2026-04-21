@@ -21,6 +21,14 @@ export const modelTable = sqliteTable("model", {
     ...timeStamp,
 });
 
+export const githubAppTable = sqliteTable("github_app", {
+    id: integer().primaryKey({ autoIncrement: true }),
+    appId: integer().notNull().unique(),
+    slug: text().notNull().unique(),
+    privateKey: text().notNull(),
+    ...timeStamp,
+});
+
 export const repositoryTable = sqliteTable("repository", {
     id: integer().primaryKey({ autoIncrement: true }),
 
@@ -31,6 +39,15 @@ export const repositoryTable = sqliteTable("repository", {
     webhookSecret: text(),
     botUsername: text(),
 
+    // github
+    githubAppId: integer().references(() => githubAppTable.id),
+    githubInstallationId: integer(),
+    githubRepositoryPath: text(),
+
+    // gitlab
+    gitlabRepositoryId: integer(),
+
+    // common fields
     reviewMode: text({ enum: ["assigned_only", "off"] })
         .notNull()
         .default("off"),
@@ -42,8 +59,6 @@ export const repositoryTable = sqliteTable("repository", {
     allowApproval: integer({ mode: "boolean" }).notNull().default(false),
     language: text().notNull().default("English"),
 
-    githubRepositoryPath: text(),
-    gitlabRepositoryId: integer(),
     modelId: integer().references(() => modelTable.id),
 
     ...timeStamp,

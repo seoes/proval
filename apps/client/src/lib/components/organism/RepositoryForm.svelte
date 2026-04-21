@@ -232,8 +232,13 @@
 <form onsubmit={handleSubmit} class="space-y-8">
     <Card>
         <div>
-            <LabelWithDescription label="Name" description="The name of the repository" />
-            <InputText placeholder="My Project" bind:value={name} />
+            <!-- <LabelWithDescription label="Name" description="The name of the repository" /> -->
+            <InputText
+                label="Name"
+                description="The name of the repository"
+                placeholder="My Project"
+                bind:value={name}
+            />
         </div>
         <!-- <div>
                 <label class="mb-1 block text-sm font-medium text-neutral-700"

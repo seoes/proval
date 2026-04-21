@@ -26,28 +26,29 @@
 <button
     type="button"
     class={twMerge(
-        `${selected ? 'border-primary fill-primary text-primary' : 'border-neutral-200 fill-neutral-500 text-neutral-500'} aspect-square h-38
-        cursor-pointer rounded-xl border 
-         px-3 py-2 transition-colors`,
+        `cursor-pointer rounded-xl border px-4 py-3 text-left transition-colors ${
+            selected
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-neutral-200 text-neutral-600 hover:border-neutral-300 dark:border-neutral-700 dark:text-neutral-400'
+        }`,
         className
     )}
     {onclick}
 >
     {#if icon}
-        <div class="aspect-square h-8 w-full">
-            <svg width="100%" height="100%" viewBox="0 0 24 24">
+        <div class="mb-2 h-6 w-6">
+            <svg width="100%" height="100%" viewBox="0 0 24 24" fill="currentColor">
                 <path d={icon.path} />
             </svg>
         </div>
     {/if}
-    <!-- children 대신 snippet으로 받도록 변경 -->
     {#if children}
-        <div class="aspect-square h-8 w-full">
+        <div class="mb-2">
             {@render children()}
         </div>
     {/if}
-    <p class="mt-2">{label}</p>
+    <p class="text-sm font-medium">{label}</p>
     {#if description}
-        <p class="mt-2 text-xs">{description}</p>
+        <p class="mt-1 text-xs text-neutral-500">{description}</p>
     {/if}
 </button>
