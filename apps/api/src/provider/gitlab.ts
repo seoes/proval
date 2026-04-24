@@ -2,6 +2,7 @@ import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import type {
     GitComment,
     GitDiff,
+    GitDiffMultiLine,
     GitDiffSingleLine,
     GitMergeRequest,
     GitMergeRequestState,
@@ -76,8 +77,9 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
-    public async fetchFileContent(filePath: string): Promise<string> {
-        const response = await this.gitlab.RepositoryFiles.show(this.projectId, filePath, "main");
+    public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
+        const branchOrSha = ref ?? "main";
+        const response = await this.gitlab.RepositoryFiles.show(this.projectId, filePath, branchOrSha);
         return response.content;
     }
 
@@ -124,14 +126,60 @@ export class GitLabProvider implements GitProvider {
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
-                ...(position.newLine && { newLine: position.newLine }),
-                ...(position.oldLine && { oldLine: position.oldLine }),
+                ...(position.newLine !== undefined && { newLine: String(position.newLine) }),
+                ...(position.oldLine !== undefined && { oldLine: String(position.oldLine) }),
             },
         });
 
         const note = discussion.notes?.[0];
         if (!note) {
             throw new Error("Failed to create inline comment: no note returned");
+        }
+        return {
+            id: note.id,
+            body: note.body,
+            author: note.author.username,
+            createdAt: note.created_at,
+        };
+    }
+
+    public async createCommentToMultiLine(
+        mrIid: number,
+        body: string,
+        position: GitDiffMultiLine,
+    ): Promise<GitComment> {
+        // GitLab expects the "anchor" new_line/old_line to be the last line of the selected range.
+        const anchorNewLine = position.end.type === "new" ? position.end.newLine : undefined;
+        const anchorOldLine = position.end.type === "old" ? position.end.oldLine : undefined;
+
+        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, mrIid, body, {
+            position: {
+                positionType: "text",
+                baseSha: position.baseSha,
+                startSha: position.startSha,
+                headSha: position.headSha,
+                oldPath: position.oldPath,
+                newPath: position.newPath,
+                ...(anchorNewLine !== undefined && { newLine: String(anchorNewLine) }),
+                ...(anchorOldLine !== undefined && { oldLine: String(anchorOldLine) }),
+                lineRange: {
+                    start: {
+                        type: position.start.type,
+                        ...(position.start.newLine !== undefined && { newLine: position.start.newLine }),
+                        ...(position.start.oldLine !== undefined && { oldLine: position.start.oldLine }),
+                    },
+                    end: {
+                        type: position.end.type,
+                        ...(position.end.newLine !== undefined && { newLine: position.end.newLine }),
+                        ...(position.end.oldLine !== undefined && { oldLine: position.end.oldLine }),
+                    },
+                },
+            },
+        });
+
+        const note = discussion.notes?.[0];
+        if (!note) {
+            throw new Error("Failed to create multi-line inline comment: no note returned");
         }
         return {
             id: note.id,

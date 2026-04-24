@@ -71,6 +71,13 @@
       "when": 1775622213374,
       "tag": "0009_whole_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1776752008997,
+      "tag": "0010_yellow_lady_bullseye",
+      "breakpoints": true
     }
   ]
 }

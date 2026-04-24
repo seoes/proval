@@ -23,6 +23,8 @@
             autoAssign: data.repository.autoAssign,
             allowApproval: data.repository.allowApproval,
             language: data.repository.language,
+            inlineReviewMode: data.repository.inlineReviewMode,
+            reviewDepth: data.repository.reviewDepth,
             gitlabRepositoryId: data.repository.gitlabRepositoryId,
             githubRepositoryPath: data.repository.githubRepositoryPath ?? null,
             modelId: data.repository.modelId

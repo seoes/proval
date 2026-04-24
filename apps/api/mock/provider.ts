@@ -1,6 +1,7 @@
 import type {
     GitComment,
     GitDiff,
+    GitDiffMultiLine,
     GitDiffSingleLine,
     GitMergeRequest,
     GitMergeRequestVersion,
@@ -59,7 +60,7 @@ export class MockProvider implements GitProvider {
         return this.input.tree ?? [];
     }
 
-    async fetchFileContent(filePath: string): Promise<string> {
+    async fetchFileContent(filePath: string, _ref?: string): Promise<string> {
         return this.input.files?.[filePath] ?? `// file not found: ${filePath}`;
     }
 
@@ -83,6 +84,16 @@ export class MockProvider implements GitProvider {
             id: Date.now(),
             body,
             author: "test_bot",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
+    async createCommentToMultiLine(_mrIid: number, body: string, _position: GitDiffMultiLine): Promise<GitComment> {
+        this.posted.push({ type: "inline", body });
+        return {
+            id: Date.now(),
+            body,
+            author: this.input.currentUser?.username ?? "test_bot",
             createdAt: new Date().toISOString(),
         };
     }

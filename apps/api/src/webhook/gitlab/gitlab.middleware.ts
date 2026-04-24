@@ -27,5 +27,6 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
 
     c.set("repository", repository);
     c.set("model", model);
+    c.set("gitlabPayload", payload);
     await next();
 });

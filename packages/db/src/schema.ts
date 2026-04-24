@@ -59,6 +59,13 @@ export const repositoryTable = sqliteTable("repository", {
     allowApproval: integer({ mode: "boolean" }).notNull().default(false),
     language: text().notNull().default("English"),
 
+    /** Inline MR comments: off | important_only (Critical/Warning, capped) | balanced (+ some Suggestions) */
+    inlineReviewMode: text({ enum: ["off", "important_only", "balanced"] })
+        .notNull()
+        .default("important_only"),
+    /** Agent exploration depth: standard vs more steps + deeper prompt */
+    reviewDepth: text({ enum: ["standard", "deep"] }).notNull().default("standard"),
+
     modelId: integer().references(() => modelTable.id),
 
     ...timeStamp,

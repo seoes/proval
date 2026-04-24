@@ -28,8 +28,10 @@ export interface GitDiffBase {
 }
 
 export interface GitDiffSingleLine extends GitDiffBase {
-    newLine?: string;
-    oldLine?: string;
+    /** Line on the new file side (added/changed lines). GitLab expects a number. */
+    newLine?: number;
+    /** Line on the old file side (deletions / old side of diff). */
+    oldLine?: number;
 }
 
 export interface GitDiffMultiLine extends GitDiffBase {
@@ -91,11 +93,12 @@ export interface GitProvider {
     fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
     fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
     fetchDirectoryTree(filePath: string, recursive?: boolean): Promise<GitTree[]>;
-    fetchFileContent(filePath: string): Promise<string>;
+    /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
+    fetchFileContent(filePath: string, ref?: string): Promise<string>;
     createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;
     fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion>;
     createCommentToSingleLine(mrIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
-    // createCommentToMultiLine(mrIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
+    createCommentToMultiLine(mrIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
     approveMergeRequest(mrIid: number): Promise<void>;
     unapproveMergeRequest(mrIid: number): Promise<void>;
     assignMergeRequestReviewer(mrIid: number): Promise<void>;

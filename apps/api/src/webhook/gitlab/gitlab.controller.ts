@@ -7,9 +7,18 @@ import { type InferSelectModel } from "drizzle-orm";
 
 const REVIEWABLE_MR_ACTIONS = ["open", "reopen", "update"];
 
+/** Body parsed once in loadGitLabContext; avoids double c.req.json(). */
+type GitLabWebhookPayload = {
+    project?: ProjectSchema;
+    object_attributes?: MergeRequestSchema &
+        MergeRequestNoteSchema & { oldrev?: string; action?: string };
+    merge_request?: { iid?: number };
+    user?: { username?: string };
+};
+
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
-    const payload = await c.req.json();
+    const payload = c.get("gitlabPayload") as GitLabWebhookPayload;
 
     console.log("Webhook received from GitLab");
 
@@ -26,6 +35,8 @@ export const handleGitLabWebhook = async (c: Context) => {
         model.name,
         repository.language,
         repository.allowApproval,
+        repository.inlineReviewMode,
+        repository.reviewDepth,
     );
 
     try {
@@ -36,13 +47,13 @@ export const handleGitLabWebhook = async (c: Context) => {
                 }
 
                 const mergeRequest = payload.object_attributes as MergeRequestSchema;
-                const action: string = (payload.object_attributes as { action?: string }).action ?? "";
+                const action: string = payload.object_attributes?.action ?? "";
 
                 if (!REVIEWABLE_MR_ACTIONS.includes(action)) {
                     return c.json({ message: `Skipped: action '${action}'` }, 200);
                 }
 
-                if (action === "update" && !payload.object_attributes.oldrev) {
+                if (action === "update" && !payload.object_attributes?.oldrev) {
                     return c.json({ message: "Skipped: update without new commits" }, 200);
                 }
 
@@ -89,7 +100,10 @@ export const handleGitLabWebhook = async (c: Context) => {
                 }
 
                 const noteBody: string = comment.note as string;
-                const mrIid: number = payload.merge_request?.iid;
+                const mrIid = payload.merge_request?.iid;
+                if (mrIid === undefined || Number.isNaN(mrIid)) {
+                    return c.json({ message: "Skipped: missing merge request iid" }, 200);
+                }
 
                 if (repository.replyMode === "mentioned_only") {
                     const bot = await gitlabProvider.fetchCurrentUser();

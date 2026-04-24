@@ -26,6 +26,8 @@
             autoAssign: boolean;
             allowApproval: boolean;
             language: string;
+            inlineReviewMode?: string;
+            reviewDepth?: string;
             githubRepositoryPath: string | null;
             gitlabRepositoryId: number | null;
             modelId: number | null;
@@ -48,6 +50,8 @@
     let replyMode = $state(initialData?.replyMode ?? 'off');
     let autoAssign = $state(initialData?.autoAssign ?? false);
     let allowApproval = $state(initialData?.allowApproval ?? false);
+    let inlineReviewMode = $state(initialData?.inlineReviewMode ?? 'important_only');
+    let reviewDepth = $state(initialData?.reviewDepth ?? 'standard');
     let language = $state(initialData?.language ?? 'English');
     let gitlabRepositoryId = $state(initialData?.gitlabRepositoryId?.toString() ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
@@ -116,7 +120,9 @@
                 allowApproval,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId) : null,
-                modelId: modelId ? parseInt(modelId) : null
+                modelId: modelId ? parseInt(modelId) : null,
+                inlineReviewMode,
+                reviewDepth
             };
 
             await fetchApi('/repository', {
@@ -138,7 +144,9 @@
                 allowApproval,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId) : null,
-                modelId: modelId ? parseInt(modelId) : null
+                modelId: modelId ? parseInt(modelId) : null,
+                inlineReviewMode,
+                reviewDepth
             };
 
             await fetchApi(`/repository/${repositoryId}`, {
@@ -225,6 +233,37 @@
         {
             ...offToggleButtonValue,
             description: 'Bot will not review any Merge Requests'
+        }
+    ];
+
+    const inlineReviewModeOptions: { label: string; value: string; description: string }[] = [
+        {
+            label: 'Off',
+            value: 'off',
+            description: 'Summary comment only; no inline line comments'
+        },
+        {
+            label: 'Important only',
+            value: 'important_only',
+            description: 'Inline for Critical/Warning (capped)'
+        },
+        {
+            label: 'Balanced',
+            value: 'balanced',
+            description: 'More inline threads including some suggestions (capped)'
+        }
+    ];
+
+    const reviewDepthOptions: { label: string; value: string; description: string }[] = [
+        {
+            label: 'Standard',
+            value: 'standard',
+            description: 'Extra context only when needed'
+        },
+        {
+            label: 'Deep',
+            value: 'deep',
+            description: 'More exploration of related files and call paths'
         }
     ];
 </script>
@@ -320,6 +359,40 @@
         {/if}
     </Card>
     <Card title="Merge Request">
+        <div>
+            <LabelWithDescription
+                label="Inline review"
+                description="Post findings on specific diff lines (GitLab discussions) vs summary-only"
+            />
+            <div class="mt-4 flex flex-wrap gap-2">
+                {#each inlineReviewModeOptions as opt}
+                    <ToggleButton
+                        label={opt.label}
+                        description={opt.description}
+                        selected={inlineReviewMode === opt.value}
+                        onclick={() => (inlineReviewMode = opt.value)}
+                        class="min-w-[8rem] flex-1"
+                    />
+                {/each}
+            </div>
+        </div>
+        <div>
+            <LabelWithDescription
+                label="Review depth"
+                description="How much the agent explores surrounding code beyond the diff"
+            />
+            <div class="mt-4 flex flex-wrap gap-2">
+                {#each reviewDepthOptions as opt}
+                    <ToggleButton
+                        label={opt.label}
+                        description={opt.description}
+                        selected={reviewDepth === opt.value}
+                        onclick={() => (reviewDepth = opt.value)}
+                        class="min-w-[8rem] flex-1"
+                    />
+                {/each}
+            </div>
+        </div>
         <div>
             <LabelWithDescription
                 label="Assign to Every New Merge Request"

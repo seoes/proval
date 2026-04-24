@@ -47,24 +47,24 @@ export const getDirectoryTreeTool = (provider: GitProvider) =>
         },
     });
 
-export const getFileContentTool = (provider: GitProvider) =>
+export const getFileContentTool = (provider: GitProvider, ref: string) =>
     tool({
-        description:
-            "Read the full content of a file from the repository. Use to understand context — imports, related functions, types.",
+        description: `Read the full content of a file at the merge request source ref (${ref}). Use for imports, callers, types, and surrounding logic when validating a concern from the diff.`,
         inputSchema: z.object({
-            filePath: z.string().describe("The path of the file to get the content of."),
+            filePath: z.string().describe("Repository-relative path to the file."),
         }),
         execute: async ({ filePath }) => {
-            const content = await provider.fetchFileContent(filePath);
+            const content = await provider.fetchFileContent(filePath, ref);
             return content;
         },
     });
 
 export const postMergeRequestCommentTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Submit your final code review. Posts a summary + optional inline comments. Call ONCE when done.",
+        description:
+            "Post the single top-level MR summary note (merge recommendation + short overview). Call exactly ONCE after inline threads (if any). Do not put full duplicate write-ups of every inline finding here.",
         inputSchema: z.object({
-            body: z.string().describe("The comment body, should be in markdown format."),
+            body: z.string().describe("Markdown body for the summary note only."),
         }),
         execute: async ({ body }) => {
             const comment = await provider.createMergeRequestComment(mrIid, body);
@@ -89,7 +89,7 @@ export const postMergeRequestReplyTool = (provider: GitProvider, mrIid: number, 
 export const approveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
-            "Approve this pull/merge request as the bot user (e.g. GitHub review approve / GitLab MR approval). Call after posting your review comment when the change is acceptable to merge. Call at most once.",
+            "Approve this merge request as the bot user (GitLab MR approval). Call only after post_merge_request_comment, when policy allows approval. Call at most once.",
         inputSchema: z.object({}),
         execute: async () => {
             await provider.approveMergeRequest(mrIid);
@@ -100,7 +100,7 @@ export const approveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
 export const unapproveMergeRequestTool = (provider: GitProvider, mrIid: number) =>
     tool({
         description:
-            "Withdraw approval or request changes (host-specific: e.g. GitHub REQUEST_CHANGES / GitLab unapprove). Use when you would reject or block the change (e.g. critical issues), or to retract a mistaken approval. Call after posting your review comment when the change should not be approved. Call at most once.",
+            "Withdraw MR approval (GitLab unapprove). Call only after post_merge_request_comment when the change should not be approved. Call at most once.",
         inputSchema: z.object({}),
         execute: async () => {
             await provider.unapproveMergeRequest(mrIid);
@@ -110,7 +110,8 @@ export const unapproveMergeRequestTool = (provider: GitProvider, mrIid: number) 
 
 export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number) =>
     tool({
-        description: "Get commit SHAs for the current pull/merge request (base, head, start) for inline comment positioning.",
+        description:
+            "Get commit SHAs for the current pull/merge request (base, head, start) for inline comment positioning.",
         inputSchema: z.object({}),
         execute: async () => {
             const version = await provider.fetchMergeRequestVersion(mrIid);
@@ -118,24 +119,93 @@ export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number)
         },
     });
 
-export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number) =>
-    tool({
+export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number, options?: { max?: number }) => {
+    let used = 0;
+    const max = options?.max ?? Infinity;
+    return tool({
         description:
-            "Create a single-line inline review comment on the current pull/merge request at the given file path and line (use SHAs from get_merge_request_version).",
+            "Create one inline thread on a specific line of the MR diff. Call get_merge_request_version first; use its baseSha/startSha/headSha. Paths must match the diff (old_path/new_path). Prefer newLine for additions/changes on the new file; use oldLine for pure deletions on the old side.",
         inputSchema: z.object({
-            body: z.string().describe("The comment body, should be in markdown format."),
+            body: z.string().describe("Short markdown: severity + concise issue + fix or question."),
             position: z.object({
-                baseSha: z.string().describe("The base SHA of the comment."),
-                headSha: z.string().describe("The head SHA of the comment."),
-                startSha: z.string().describe("The start SHA of the comment."),
-                oldPath: z.string().describe("The old path of the comment."),
-                newPath: z.string().describe("The new path of the comment."),
-                newLine: z.string().describe("The new line number of the comment.").optional(),
-                oldLine: z.string().describe("The old line number of the comment.").optional(),
+                baseSha: z.string(),
+                headSha: z.string(),
+                startSha: z.string(),
+                oldPath: z.string(),
+                newPath: z.string(),
+                newLine: z.coerce.number().optional().describe("1-based line on the new file."),
+                oldLine: z.coerce.number().optional().describe("1-based line on the old file."),
             }),
         }),
         execute: async ({ body, position }) => {
+            if (used >= max) {
+                return {
+                    error: `Maximum inline comments (${max}) reached for this review. Put remaining points in the top-level summary only.`,
+                };
+            }
+            used += 1;
             const comment = await provider.createCommentToSingleLine(mrIid, body, position);
             return comment;
         },
     });
+};
+
+export const createMultiLineCommentTool = (provider: GitProvider, mrIid: number, options?: { max?: number }) => {
+    let used = 0;
+    const max = options?.max ?? Infinity;
+    const lineSchema = z.object({
+        type: z.enum(["old", "new"]).describe("Which side of the diff this endpoint refers to."),
+        newLine: z.coerce.number().optional().describe("1-based line on the new file; required when type is 'new'."),
+        oldLine: z.coerce.number().optional().describe("1-based line on the old file; required when type is 'old'."),
+    });
+    return tool({
+        description:
+            "Create one inline thread that spans MULTIPLE lines of the MR diff. Call get_merge_request_version first; use its baseSha/startSha/headSha. Paths must match the diff (old_path/new_path). Provide start and end positions where each has a side (new/old) and the matching line number; start must come before end on the same side. Prefer covering additions/changes on the new side (type='new' with newLine); use type='old' only for pure deletions.",
+        inputSchema: z.object({
+            body: z.string().describe("Short markdown: severity + concise issue + fix or question."),
+            position: z.object({
+                baseSha: z.string(),
+                headSha: z.string(),
+                startSha: z.string(),
+                oldPath: z.string(),
+                newPath: z.string(),
+                start: lineSchema.describe("First line of the selected range."),
+                end: lineSchema.describe("Last line of the selected range (inclusive)."),
+            }),
+        }),
+        execute: async ({ body, position }) => {
+            if (used >= max) {
+                return {
+                    error: `Maximum inline comments (${max}) reached for this review. Put remaining points in the top-level summary only.`,
+                };
+            }
+
+            const validateEndpoint = (label: "start" | "end", endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number }) => {
+                if (endpoint.type === "new" && endpoint.newLine === undefined) {
+                    return `position.${label}.newLine is required when position.${label}.type is 'new'.`;
+                }
+                if (endpoint.type === "old" && endpoint.oldLine === undefined) {
+                    return `position.${label}.oldLine is required when position.${label}.type is 'old'.`;
+                }
+                return null;
+            };
+
+            const startError = validateEndpoint("start", position.start);
+            if (startError) return { error: startError };
+            const endError = validateEndpoint("end", position.end);
+            if (endError) return { error: endError };
+
+            if (position.start.type === position.end.type) {
+                const startLine = position.start.type === "new" ? position.start.newLine! : position.start.oldLine!;
+                const endLine = position.end.type === "new" ? position.end.newLine! : position.end.oldLine!;
+                if (startLine > endLine) {
+                    return { error: "position.start line must be <= position.end line on the same side." };
+                }
+            }
+
+            used += 1;
+            const comment = await provider.createCommentToMultiLine(mrIid, body, position);
+            return comment;
+        },
+    });
+};
