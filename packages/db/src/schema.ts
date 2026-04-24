@@ -38,6 +38,7 @@ export const repositoryTable = sqliteTable("repository", {
     apiToken: text().notNull(),
     webhookSecret: text(),
     botUsername: text(),
+    language: text().notNull().default("English"),
 
     // github
     githubAppId: integer().references(() => githubAppTable.id),
@@ -47,24 +48,16 @@ export const repositoryTable = sqliteTable("repository", {
     // gitlab
     gitlabRepositoryId: integer(),
 
-    // common fields
-    reviewMode: text({ enum: ["assigned_only", "off"] })
+    reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(false),
+    commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(false),
+    replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
         .default("off"),
-    replyMode: text({ enum: ["assigned_only", "mentioned_only", "off"] })
+    replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
         .default("off"),
 
-    autoAssign: integer({ mode: "boolean" }).notNull().default(false),
-    allowApproval: integer({ mode: "boolean" }).notNull().default(false),
-    language: text().notNull().default("English"),
-
-    /** Inline MR comments: off | important_only (Critical/Warning, capped) | balanced (+ some Suggestions) */
-    inlineReviewMode: text({ enum: ["off", "important_only", "balanced"] })
-        .notNull()
-        .default("important_only"),
-    /** Agent exploration depth: standard vs more steps + deeper prompt */
-    reviewDepth: text({ enum: ["standard", "deep"] }).notNull().default("standard"),
+    inlineReview: integer({ mode: "boolean" }).notNull().default(false),
 
     modelId: integer().references(() => modelTable.id),
 
