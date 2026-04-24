@@ -48,16 +48,18 @@ export const repositoryTable = sqliteTable("repository", {
     // gitlab
     gitlabRepositoryId: integer(),
 
-    reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(false),
-    commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(false),
+    // merge request
+    reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
+    inlineReview: integer({ mode: "boolean" }).notNull().default(true),
     replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
-        .default("off"),
+        .default("all"),
+
+    // issue
+    commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
     replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
-        .default("off"),
-
-    inlineReview: integer({ mode: "boolean" }).notNull().default(false),
+        .default("all"),
 
     modelId: integer().references(() => modelTable.id),
 

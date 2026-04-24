@@ -85,6 +85,13 @@
       "when": 1777006844101,
       "tag": "0011_chief_invisible_woman",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1777009280121,
+      "tag": "0012_mute_wonder_man",
+      "breakpoints": true
     }
   ]
 }
