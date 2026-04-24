@@ -26,7 +26,7 @@
 <button
     type="button"
     class={twMerge(
-        `cursor-pointer rounded-xl border px-4 py-3 text-left transition-colors ${
+        `aspect-square cursor-pointer rounded-xl border px-4 py-3 text-left transition-colors ${
             selected
                 ? 'border-primary bg-primary/5 text-primary'
                 : 'border-neutral-200 text-neutral-600 hover:border-neutral-300 dark:border-neutral-700 dark:text-neutral-400'

@@ -3,12 +3,13 @@
     import { goto } from '$app/navigation';
     import fetchApi from '$lib/utils';
     import type { ModelResponse } from '@code-review/types';
-    import LabelWithDescription from '../molecule/LabelWithDescription.svelte';
+    import FormField from '../molecule/FormField.svelte';
     import ToggleButton from '../atom/ToggleButton.svelte';
     import { siForgejo, siGitea, siGithub, siGitlab } from 'simple-icons';
     import Card from '../layout/Card.svelte';
     import Button from '../atom/Button.svelte';
     import { openAlert, openConfirm } from '$lib/store/modal';
+    import Description from '../atom/Description.svelte';
 
     interface Props {
         mode: 'create' | 'edit';
@@ -269,183 +270,216 @@
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
-    <Card>
+    <Card spaceY>
         <div>
-            <!-- <LabelWithDescription label="Name" description="The name of the repository" /> -->
-            <InputText
-                label="Name"
-                description="The name of the repository"
-                placeholder="My Project"
-                bind:value={name}
-            />
+            <FormField label="Name" description="The name of the repository">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="My Project" bind:value={name} />
+                {/snippet}
+            </FormField>
         </div>
-        <!-- <div>
-                <label class="mb-1 block text-sm font-medium text-neutral-700"
-                    >Bot Username (optional)</label
-                >
-                <InputText placeholder="project_123_bot" bind:value={botUsername} />
-            </div> -->
 
         <div>
-            <LabelWithDescription
-                label="Model"
-                description="Select the model to use for the repository"
-            />
-            <select
-                bind:value={modelId}
-                class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
-            >
-                <option value="">Select a model</option>
-                {#each modelList as model}
-                    <option value={model.id.toString()}>{model.label}</option>
-                {/each}
-            </select>
+            <FormField label="Model" description="Select the model to use for the repository">
+                {#snippet children({ id })}
+                    <select
+                        {id}
+                        bind:value={modelId}
+                        class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                        <option value="">Select a model</option>
+                        {#each modelList as model}
+                            <option value={model.id.toString()}>{model.label}</option>
+                        {/each}
+                    </select>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription label="Language" description="Default language for code review" />
-            <InputText placeholder="English" bind:value={language} />
+            <FormField label="Language" description="Default language for code review">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="English" bind:value={language} />
+                {/snippet}
+            </FormField>
         </div>
     </Card>
-    <Card title="Git Provider">
+    <Card title="Git Provider" spaceY>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Provider"
                 description="The provider of the repository (ex. GitLab, Forgejo)"
-            />
-            <div class="mt-4 flex gap-2">
-                {#each gitProviderToggleButtonValueList as toggleButtonValue}
-                    <ToggleButton
-                        // class="max-h-28"
-                        label={toggleButtonValue.label}
-                        selected={provider === toggleButtonValue.value}
-                        onclick={() => (provider = toggleButtonValue.value)}
-                        icon={toggleButtonValue.icon}
-                    />
-                {/each}
-            </div>
+                upper
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="flex h-24 gap-2" id={_id} role="group">
+                        {#each gitProviderToggleButtonValueList as toggleButtonValue}
+                            <ToggleButton
+                                label={toggleButtonValue.label}
+                                selected={provider === toggleButtonValue.value}
+                                onclick={() => (provider = toggleButtonValue.value)}
+                                icon={toggleButtonValue.icon}
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
+                class="mb-2 pl-1"
                 label="Base URL"
                 description="The base URL of the repository (ex. https://gitlab.com, http://127.0.0.1:8080)"
-                class="mb-2 pl-1"
-            />
-            <InputText placeholder="https://gitlab.com" bind:value={baseUrl} />
+            >
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="https://gitlab.com" bind:value={baseUrl} />
+                {/snippet}
+            </FormField>
         </div>
         {#if provider === 'gitlab'}
             <div>
-                <LabelWithDescription
-                    label="GitLab Repository ID"
-                    description="ID of the GitLab repository"
-                />
-                <InputText placeholder="12345" bind:value={gitlabRepositoryId} />
+                <FormField label="GitLab Repository ID" description="ID of the GitLab repository">
+                    {#snippet children({ id })}
+                        <InputText {id} placeholder="12345" bind:value={gitlabRepositoryId} />
+                    {/snippet}
+                </FormField>
             </div>
         {/if}
 
         {#if mode === 'create'}
             <div>
-                <LabelWithDescription
-                    label="API Token"
-                    description="The API token of the repository"
-                />
-                <InputText placeholder="glpat-..." bind:value={apiToken} password />
+                <FormField label="API Token" description="The API token of the repository">
+                    {#snippet children({ id })}
+                        <InputText {id} placeholder="glpat-..." bind:value={apiToken} password />
+                    {/snippet}
+                </FormField>
             </div>
             <div>
-                <label class="mb-1 block text-sm font-medium text-neutral-700"
-                    >Webhook Secret (optional)</label
+                <FormField label="Webhook Secret (optional)">
+                    {#snippet children({ id })}
+                        <InputText {id} placeholder="secret" bind:value={webhookSecret} password />
+                    {/snippet}
+                </FormField>
+            </div>
+        {:else}
+            <div class="mt-8">
+                <Description
+                    >API Token and Webhook Secret can be updated in the list page</Description
                 >
-                <InputText placeholder="secret" bind:value={webhookSecret} password />
             </div>
         {/if}
     </Card>
-    <Card title="Merge Request">
+    <Card title="Merge Request" spaceY>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Inline review"
                 description="Post findings on specific diff lines (GitLab discussions) vs summary-only"
-            />
-            <div class="mt-4 flex flex-wrap gap-2">
-                {#each inlineReviewModeOptions as opt}
-                    <ToggleButton
-                        label={opt.label}
-                        description={opt.description}
-                        selected={inlineReviewMode === opt.value}
-                        onclick={() => (inlineReviewMode = opt.value)}
-                        class="min-w-[8rem] flex-1"
-                    />
-                {/each}
-            </div>
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="flex h-36 gap-2" id={_id} role="group">
+                        {#each inlineReviewModeOptions as opt}
+                            <ToggleButton
+                                label={opt.label}
+                                description={opt.description}
+                                selected={inlineReviewMode === opt.value}
+                                onclick={() => (inlineReviewMode = opt.value)}
+                                class="min-w-[8rem] flex-1"
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Review depth"
                 description="How much the agent explores surrounding code beyond the diff"
-            />
-            <div class="mt-4 flex flex-wrap gap-2">
-                {#each reviewDepthOptions as opt}
-                    <ToggleButton
-                        label={opt.label}
-                        description={opt.description}
-                        selected={reviewDepth === opt.value}
-                        onclick={() => (reviewDepth = opt.value)}
-                        class="min-w-[8rem] flex-1"
-                    />
-                {/each}
-            </div>
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="flex h-36 gap-2" id={_id} role="group">
+                        {#each reviewDepthOptions as opt}
+                            <ToggleButton
+                                label={opt.label}
+                                description={opt.description}
+                                selected={reviewDepth === opt.value}
+                                onclick={() => (reviewDepth = opt.value)}
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Assign to Every New Merge Request"
                 description="Automatically assign reviewers to every Merge Request"
-            />
-            <input
-                type="checkbox"
-                bind:checked={autoAssign}
-                class="mt-2 h-5 w-5 rounded border-neutral-200"
-            />
+            >
+                {#snippet children({ id })}
+                    <input
+                        {id}
+                        type="checkbox"
+                        bind:checked={autoAssign}
+                        class="h-5 w-5 rounded border-neutral-200"
+                    />
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Allow Approve / Reject"
                 description="Allow the review agent to autonomously approve or reject Merge Requests based on review findings"
-            />
-            <input
-                type="checkbox"
-                bind:checked={allowApproval}
-                class="mt-2 h-5 w-5 rounded border-neutral-200"
-            />
+            >
+                {#snippet children({ id })}
+                    <input
+                        {id}
+                        type="checkbox"
+                        bind:checked={allowApproval}
+                        class="h-5 w-5 rounded border-neutral-200"
+                    />
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Review Mode"
                 description="Model will only review when the bot is assigned with the Merge Request"
-            />
-            <div class="mt-4 flex gap-2">
-                {#each reviewModeToggleButtonValueList as toggleButtonValue}
-                    <ToggleButton
-                        label={toggleButtonValue.label}
-                        description={toggleButtonValue.description}
-                        selected={reviewMode === toggleButtonValue.value}
-                        onclick={() => (reviewMode = toggleButtonValue.value)}
-                    />
-                {/each}
-            </div>
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="flex h-36 gap-2" id={_id} role="group">
+                        {#each reviewModeToggleButtonValueList as toggleButtonValue}
+                            <ToggleButton
+                                label={toggleButtonValue.label}
+                                description={toggleButtonValue.description}
+                                selected={reviewMode === toggleButtonValue.value}
+                                onclick={() => (reviewMode = toggleButtonValue.value)}
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Reply Mode"
                 description="If Mentioned Only, bot will only reply when the bot is mentioned"
-            />
-            <div class="mt-4 flex gap-2">
-                {#each replyModeToggleButtonValueList as toggleButtonValue}
-                    <ToggleButton
-                        label={toggleButtonValue.label}
-                        description={toggleButtonValue.description}
-                        selected={replyMode === toggleButtonValue.value}
-                        onclick={() => (replyMode = toggleButtonValue.value)}
-                    />
-                {/each}
-            </div>
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="flex h-36 gap-2" id={_id} role="group">
+                        {#each replyModeToggleButtonValueList as toggleButtonValue}
+                            <ToggleButton
+                                label={toggleButtonValue.label}
+                                description={toggleButtonValue.description}
+                                selected={replyMode === toggleButtonValue.value}
+                                onclick={() => (replyMode = toggleButtonValue.value)}
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
     </Card>
 

@@ -5,8 +5,9 @@
         children: Snippet;
         border?: boolean;
         title?: string;
+        spaceY?: boolean;
     }
-    let { children, border = false, title }: Props = $props();
+    let { children, border = false, title, spaceY = false }: Props = $props();
 </script>
 
 <div>
@@ -16,7 +17,7 @@
         </div>
     {/if}
     <div
-        class="rounded-lg {border
+        class="rounded-lg {spaceY ? 'space-y-6' : ''} {border
             ? 'border'
             : 'border-none'} border-neutral-200 bg-white px-6 py-5 dark:border-neutral-700 dark:bg-neutral-800"
     >
