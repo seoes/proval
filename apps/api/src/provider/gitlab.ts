@@ -68,8 +68,12 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
-    public async fetchDirectoryTree(filePath: string, recursive?: boolean): Promise<GitTree[]> {
-        const tree = await this.gitlab.Repositories.allRepositoryTrees(this.projectId, { path: filePath, recursive });
+    public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
+        const tree = await this.gitlab.Repositories.allRepositoryTrees(this.projectId, {
+            path: filePath,
+            ref,
+            recursive,
+        });
         return tree.map((node) => ({
             name: node.name,
             path: node.path,

@@ -92,7 +92,7 @@ export interface GitProvider {
     fetchMergeRequestDiff(mrIid: number, ref?: string): Promise<GitDiff[]>;
     fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
     fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
-    fetchDirectoryTree(filePath: string, recursive?: boolean): Promise<GitTree[]>;
+    fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]>;
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;
     createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;

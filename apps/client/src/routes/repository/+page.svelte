@@ -24,8 +24,9 @@
                 {#snippet renderHeader()}
                     <TableHeaderCell>ID</TableHeaderCell>
                     <TableHeaderCell>Name</TableHeaderCell>
-                    <TableHeaderCell>Review Mode</TableHeaderCell>
-                    <TableHeaderCell>Reply Mode</TableHeaderCell>
+                    <TableHeaderCell>Review on MR open</TableHeaderCell>
+                    <TableHeaderCell>MR replies</TableHeaderCell>
+                    <TableHeaderCell>Issue replies</TableHeaderCell>
                     <TableHeaderCell>Language</TableHeaderCell>
                     <TableHeaderCell>Updated</TableHeaderCell>
                     <TableHeaderCell>Actions</TableHeaderCell>
@@ -33,8 +34,9 @@
                 {#snippet renderBody(repository)}
                     <TableCell>{repository.id}</TableCell>
                     <TableCell>{repository.name}</TableCell>
-                    <TableCell>{repository.reviewMode.replace('_', ' ')}</TableCell>
-                    <TableCell>{repository.replyMode.replace('_', ' ')}</TableCell>
+                    <TableCell>{repository.reviewOnMergeRequestOpen ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>{repository.replyToMergeRequestComment.replace(/_/g, ' ')}</TableCell>
+                    <TableCell>{repository.replyToIssueComment.replace(/_/g, ' ')}</TableCell>
                     <TableCell>{repository.language}</TableCell>
                     <TableCell>{formatTimeAgo(new Date(repository.updatedAt))}</TableCell>
                     <TableCell>

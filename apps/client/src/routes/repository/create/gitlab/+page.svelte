@@ -7,5 +7,5 @@
 </script>
 
 <DefaultLayout title="Create GitLab Repository">
-    <RepositoryForm mode="create" modelList={data.modelList} />
+    <RepositoryForm mode="create" provider="gitlab" modelList={data.modelList} />
 </DefaultLayout>

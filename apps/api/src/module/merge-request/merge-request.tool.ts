@@ -34,7 +34,7 @@ export const getMergeRequestCommentListTool = (provider: GitProvider, mrIid: num
         },
     });
 
-export const getDirectoryTreeTool = (provider: GitProvider) =>
+export const getDirectoryTreeTool = (provider: GitProvider, ref: string) =>
     tool({
         description: "Get the directory tree of a repository",
         inputSchema: z.object({
@@ -42,7 +42,7 @@ export const getDirectoryTreeTool = (provider: GitProvider) =>
             recursive: z.boolean().describe("Whether to get the tree recursively.").optional(),
         }),
         execute: async ({ filePath, recursive }) => {
-            const tree = await provider.fetchDirectoryTree(filePath, recursive);
+            const tree = await provider.fetchDirectoryTree(filePath, ref, recursive);
             return tree;
         },
     });
@@ -119,9 +119,7 @@ export const getMergeRequestVersionTool = (provider: GitProvider, mrIid: number)
         },
     });
 
-export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number, options?: { max?: number }) => {
-    let used = 0;
-    const max = options?.max ?? Infinity;
+export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number) => {
     return tool({
         description:
             "Create one inline thread on a specific line of the MR diff. Call get_merge_request_version first; use its baseSha/startSha/headSha. Paths must match the diff (old_path/new_path). Prefer newLine for additions/changes on the new file; use oldLine for pure deletions on the old side.",
@@ -138,21 +136,13 @@ export const createSingleLineCommentTool = (provider: GitProvider, mrIid: number
             }),
         }),
         execute: async ({ body, position }) => {
-            if (used >= max) {
-                return {
-                    error: `Maximum inline comments (${max}) reached for this review. Put remaining points in the top-level summary only.`,
-                };
-            }
-            used += 1;
             const comment = await provider.createCommentToSingleLine(mrIid, body, position);
             return comment;
         },
     });
 };
 
-export const createMultiLineCommentTool = (provider: GitProvider, mrIid: number, options?: { max?: number }) => {
-    let used = 0;
-    const max = options?.max ?? Infinity;
+export const createMultiLineCommentTool = (provider: GitProvider, mrIid: number) => {
     const lineSchema = z.object({
         type: z.enum(["old", "new"]).describe("Which side of the diff this endpoint refers to."),
         newLine: z.coerce.number().optional().describe("1-based line on the new file; required when type is 'new'."),
@@ -174,13 +164,10 @@ export const createMultiLineCommentTool = (provider: GitProvider, mrIid: number,
             }),
         }),
         execute: async ({ body, position }) => {
-            if (used >= max) {
-                return {
-                    error: `Maximum inline comments (${max}) reached for this review. Put remaining points in the top-level summary only.`,
-                };
-            }
-
-            const validateEndpoint = (label: "start" | "end", endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number }) => {
+            const validateEndpoint = (
+                label: "start" | "end",
+                endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number },
+            ) => {
                 if (endpoint.type === "new" && endpoint.newLine === undefined) {
                     return `position.${label}.newLine is required when position.${label}.type is 'new'.`;
                 }
@@ -203,7 +190,6 @@ export const createMultiLineCommentTool = (provider: GitProvider, mrIid: number,
                 }
             }
 
-            used += 1;
             const comment = await provider.createCommentToMultiLine(mrIid, body, position);
             return comment;
         },

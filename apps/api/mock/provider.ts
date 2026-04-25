@@ -56,7 +56,7 @@ export class MockProvider implements GitProvider {
         return this.input.reviewers ?? [];
     }
 
-    async fetchDirectoryTree(_filePath: string, _recursive?: boolean): Promise<GitTree[]> {
+    async fetchDirectoryTree(_filePath: string, _ref: string, _recursive?: boolean): Promise<GitTree[]> {
         return this.input.tree ?? [];
     }
 

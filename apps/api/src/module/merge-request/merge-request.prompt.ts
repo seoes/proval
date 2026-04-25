@@ -1,59 +1,31 @@
 /**
  * Appended to the system prompt so repo settings can tune inline depth and exploration.
  */
-export function buildReviewPolicyAppendix(opts: {
-    inlineReviewMode: "off" | "important_only" | "balanced";
-    reviewDepth: "standard" | "deep";
-}): string {
-    const { inlineReviewMode, reviewDepth } = opts;
+export function buildReviewPolicyAppendix(opts: { inlineReview: boolean }): string {
+    const { inlineReview } = opts;
 
-    const inlineRules =
-        inlineReviewMode === "off"
-            ? [
-                  "# Inline comments policy (repository setting: OFF)",
-                  "",
-                  "Do NOT use create_single_line_comment. Put all substantive feedback in the top-level summary via post_merge_request_comment only.",
-                  "",
-              ]
-            : inlineReviewMode === "important_only"
-              ? [
-                    "# Inline comments policy (repository setting: IMPORTANT ONLY)",
-                    "",
-                    "Use create_single_line_comment for Critical and Warning findings when you can anchor to an exact changed line in the diff.",
-                    "Do not use inline for Nitpick. Use inline for Suggestion only if it is clearly actionable and capped by the max below.",
-                    "Maximum inline comments per review run: 5. Prefer fewer, higher-quality inlines.",
-                    "If you cannot confidently map a finding to a single line, describe it in the top-level summary instead of guessing the position.",
-                    "",
-                ]
-              : [
-                    "# Inline comments policy (repository setting: BALANCED)",
-                    "",
-                    "Use create_single_line_comment for Critical, Warning, and selected Suggestion-level issues when anchored to an exact line.",
-                    "Keep Nitpick mostly in the summary unless it truly blocks readability.",
-                    "Maximum inline comments per review run: 8. Prefer signal over volume.",
-                    "",
-                ];
+    const inlineReviewRule = inlineReview ? inlineReviewTrueRule : inlineReviewFalseRule;
 
-    const depthRules =
-        reviewDepth === "standard"
-            ? [
-                  "# Exploration depth (repository setting: STANDARD)",
-                  "",
-                  "After reading the diff, fetch extra context only when needed to validate a suspected bug, security issue, API contract break, or concurrency risk.",
-                  "If the change is trivial (typo, formatting-only, single-line doc), skip deep exploration.",
-                  "",
-              ]
-            : [
-                  "# Exploration depth (repository setting: DEEP)",
-                  "",
-                  "Treat this MR as worth deeper investigation. After the diff, proactively trace concerns across the codebase when the change touches behavior, public APIs, auth, data boundaries, or concurrency.",
-                  "Follow a loop when unsure: diff → related file(s) → types/callers → return to diff. Prefer reading imports, call sites, and adjacent modules over guessing.",
-                  "Still avoid random browsing: every extra file read should answer a concrete question raised by the diff.",
-                  "",
-              ];
-
-    return [...inlineRules, ...depthRules].join("\n");
+    return [...inlineReviewRule].join("\n");
 }
+
+const inlineReviewFalseRule: string[] = [
+    "# Inline comments policy (repository setting: OFF)",
+    "",
+    "Do NOT use create_single_line_comment and create_multi_line_comment. Put all substantive feedback in the top-level summary via post_merge_request_comment only.",
+    "",
+];
+
+const inlineReviewTrueRule: string[] = [
+    "# Inline comments policy (repository setting: ON)",
+    "",
+    "create_single_line_comment and create_multi_line_comment are available. Use it to anchor a finding to a specific line in the diff — not to annotate every hunk.",
+    "Prioritize inlines for 🔴 Critical and 🟡 Warning when the problem maps to a clear single line. If a Warning spans many lines or is architectural, state it in the top-level summary instead (or one tight inline on the most representative line).",
+    "Use 🔵 Suggestion inlines for localized improvements (naming, a small clear refactor) that belong on one line. Put broad Suggestions, style debates, or file-wide concerns in the summary.",
+    "Keep ⚪ Nitpick out of inlines by default; mention them in the summary or omit, unless a nit on that line seriously hurts understanding of the change.",
+    "Hard cap: at most 8 create_single_line_comment and create_multi_line_comment calls per review run. Prefer a few high-signal threads over many shallow ones. If you cannot map a finding to a confident line, skip inline and cover it briefly in post_merge_request_comment.",
+    "",
+];
 
 export const reviewPrompt = [
     // ── Role ──
@@ -76,6 +48,9 @@ export const reviewPrompt = [
     "",
     "Step 2 — Read the full diff",
     "  Call get_merge_request_diff. Read every hunk. Build a mental model of what changed per file.",
+    "  Do not post comments or use inline tools in this step — this step is for gathering facts from the diff only.",
+    "  Afterward, form a short internal change map: group the diff by theme, module, directory, or risk (e.g. API/auth, data, concurrency). A few brief bullets in your own reasoning is enough. This map is for planning only; it is not a merge request note.",
+    "  If the change set is very large, list the distinct areas you saw in the diff and work through that list systematically in later steps so no area is ignored.",
     "",
     "Step 3 — Check existing comments",
     "  Call get_merge_request_comment_list. Do NOT repeat feedback another reviewer already gave. If a thread covers the same issue, skip it.",
@@ -84,7 +59,8 @@ export const reviewPrompt = [
     "  Call get_merge_request_version once and reuse baseSha, startSha, headSha for all inline comments in this review.",
     "",
     "Step 5 — Optional deeper context",
-    "  If Step 2 leaves a correctness, security, contract, or concurrency doubt, call get_file_content and/or get_directory_tree to confirm before you comment.",
+    "  Use the change map from Step 2: prioritize get_file_content and get_directory_tree for the highest-risk or least-clear areas (security, contract boundaries, call paths, shared state) before you post findings.",
+    "  If Step 2 still leaves a correctness, security, contract, or concurrency doubt, call get_file_content and/or get_directory_tree to confirm before you comment. Do not read the whole repository — only files/paths that validate a specific suspicion or complete the map for a high-risk area.",
     "  Use the MR source ref implicitly provided by get_file_content (do not assume default branch).",
     "",
     "Step 6 — Inline comments first (when policy allows)",
@@ -97,7 +73,7 @@ export const reviewPrompt = [
     "Step 7 — Top-level summary (exactly once)",
     "  Call post_merge_request_comment exactly once with a SHORT markdown summary.",
     "  It must NOT re-list every finding in full — those belong in inline threads when you used them.",
-    "  Include: 1–2 sentence overview, merge recommendation (approve as-is / changes needed / block), and optional pointers like \"See inline threads for X\".",
+    '  Include: 1–2 sentence overview, merge recommendation (approve as-is / changes needed / block), and optional pointers like "See inline threads for X".',
     "  If the MR is trivial, a very short summary is enough.",
     "  After post_merge_request_comment, do not call any tools except approve/unapprove when that addendum is active.",
     "",
@@ -210,7 +186,7 @@ export const reviewPrompt = [
     "- Do not comment on unchanged code unless the change makes that code incorrect.",
     "- Do not repeat issues already raised in existing comments.",
     "- If the change is trivial, a very short summary is fine; skip inline spam.",
-    '- If unsure about intent, ask a short question in the right place (inline or summary), not a lecture.',
+    "- If unsure about intent, ask a short question in the right place (inline or summary), not a lecture.",
     '- Be direct. Instead of "this could be improved", say what to change and why.',
     "- post_merge_request_comment: call at most once. create_single_line_comment: multiple calls allowed within policy limits.",
     "- After post_merge_request_comment, stop except for approval tools when enabled.",
@@ -248,6 +224,7 @@ export const replyPrompt = [
     "- If you are unsure, say so honestly rather than guessing.",
     "- Use markdown formatting for code snippets and structured responses.",
     "- Do NOT perform a full code review unless explicitly asked. Focus on answering the user's question.",
-    "- Post your reply exactly once using the reply tool. Do not call any tools after posting.",
+    "- Post your reply exactly once using the reply tool. Do not call any tools after posting. do not skipping post_reply_comment tool call.",
+
     "",
 ].join("\n");
