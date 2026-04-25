@@ -5,11 +5,14 @@
     import type { ModelResponse, RepositoryResponse } from '@code-review/types';
     import FormField from '../molecule/FormField.svelte';
     import ToggleButton from '../atom/ToggleButton.svelte';
+    import SimpleSelectCard from '../atom/SimpleSelectCard.svelte';
     import { siForgejo, siGitea, siGithub, siGitlab } from 'simple-icons';
     import Card from '../layout/Card.svelte';
     import Button from '../atom/Button.svelte';
     import { openAlert, openConfirm } from '$lib/store/modal';
     import Description from '../atom/Description.svelte';
+    import ToggleSwitch from '../atom/ToggleSwitch.svelte';
+    import FieldTitle from '../atom/FieldTitle.svelte';
 
     type ReplyThreadPolicy = 'all' | 'mentioned_only' | 'off';
 
@@ -36,12 +39,12 @@
     interface Props {
         mode: 'create' | 'edit';
         repositoryId?: number;
-        provider?: 'gitlab' | 'github' | 'gitea' | 'forgejo';
+        provider?: 'GitLab' | 'GitHub' | 'Gitea' | 'Forgejo';
         modelList: ModelResponse[];
         initialData?: InitialData;
     }
 
-    let { mode, repositoryId, provider, modelList, initialData }: Props = $props();
+    let { mode, repositoryId, provider: initialProvider, modelList, initialData }: Props = $props();
 
     let name = $state(initialData?.name ?? '');
     let baseUrl = $state(initialData?.baseUrl ?? '');
@@ -52,6 +55,7 @@
     let gitlabRepositoryId = $state(initialData?.gitlabRepositoryId?.toString() ?? '');
     let githubRepositoryPath = $state(initialData?.githubRepositoryPath ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
+    let provider = $state(initialData?.provider ?? initialProvider ?? '');
 
     let reviewOnMergeRequestOpen = $state(initialData?.reviewOnMergeRequestOpen ?? true);
     let commentOnIssueOpen = $state(initialData?.commentOnIssueOpen ?? true);
@@ -327,54 +331,31 @@
         {/if}
     </Card>
     <Card title="Merge request" spaceY>
-        <div>
-            <FormField
-                label="Review on merge request open"
-                description="Run a code review when a merge request is opened or updated"
-            >
-                {#snippet children({ id })}
-                    <input
-                        {id}
-                        type="checkbox"
-                        bind:checked={reviewOnMergeRequestOpen}
-                        class="h-5 w-5 rounded border-neutral-200"
-                    />
-                {/snippet}
-            </FormField>
-        </div>
-        <div>
-            <FormField
-                label="Inline review"
-                description="Post findings on specific diff lines when supported, instead of summary-only"
-            >
-                {#snippet children({ id })}
-                    <div class="flex items-center gap-2">
-                        <input
-                            {id}
-                            type="checkbox"
-                            bind:checked={inlineReview}
-                            class="h-5 w-5 rounded border-neutral-200"
-                        />
-                        <span class="text-sm text-neutral-600 dark:text-neutral-400">Enabled</span>
-                    </div>
-                {/snippet}
-            </FormField>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between gap-2">
+                <FieldTitle>Review on Merge Request Open</FieldTitle>
+                <ToggleSwitch bind:checked={reviewOnMergeRequestOpen} />
+            </div>
+            <div class="flex items-center justify-between">
+                <FieldTitle>Inline review</FieldTitle>
+                <ToggleSwitch bind:checked={inlineReview} />
+            </div>
         </div>
         <div>
             <FormField
                 label="Reply to merge request comments"
                 description="How the bot responds in MR discussion threads"
                 linkLabelToControl={false}
+                upper
             >
                 {#snippet children({ id: _id })}
-                    <div class="flex min-h-36 flex-wrap gap-2" id={_id} role="group">
+                    <div class="flex flex-col gap-2" id={_id} role="group">
                         {#each replyToMergeRequestCommentOptionList as opt}
-                            <ToggleButton
+                            <SimpleSelectCard
                                 label={opt.label}
                                 description={opt.description}
                                 selected={replyToMergeRequestComment === opt.value}
                                 onclick={() => (replyToMergeRequestComment = opt.value)}
-                                class="min-w-[7rem] flex-1"
                             />
                         {/each}
                     </div>
@@ -383,36 +364,25 @@
         </div>
     </Card>
     <Card title="Issue" spaceY>
-        <div>
-            <FormField
-                label="Comment on issue open"
-                description="Open a thread when a new issue is created (provider-dependent)"
-            >
-                {#snippet children({ id })}
-                    <input
-                        {id}
-                        type="checkbox"
-                        bind:checked={commentOnIssueOpen}
-                        class="h-5 w-5 rounded border-neutral-200"
-                    />
-                {/snippet}
-            </FormField>
+        <div class="flex items-center justify-between gap-2">
+            <FieldTitle>Comment on Issue Open</FieldTitle>
+            <ToggleSwitch bind:checked={commentOnIssueOpen} />
         </div>
         <div>
             <FormField
                 label="Reply to issue comments"
                 description="How the bot responds in issue discussion threads"
                 linkLabelToControl={false}
+                upper
             >
                 {#snippet children({ id: _id })}
-                    <div class="flex min-h-36 flex-wrap gap-2" id={_id} role="group">
+                    <div class="flex flex-col gap-2" id={_id} role="group">
                         {#each replyToIssueCommentOptionList as opt}
-                            <ToggleButton
+                            <SimpleSelectCard
                                 label={opt.label}
                                 description={opt.description}
                                 selected={replyToIssueComment === opt.value}
                                 onclick={() => (replyToIssueComment = opt.value)}
-                                class="min-w-[7rem] flex-1"
                             />
                         {/each}
                     </div>
