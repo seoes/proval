@@ -2,7 +2,7 @@
     import InputText from '../atom/InputText.svelte';
     import { goto } from '$app/navigation';
     import fetchApi from '$lib/utils';
-    import LabelWithDescription from '../molecule/LabelWithDescription.svelte';
+    import FormField from '../molecule/FormField.svelte';
     import ToggleButton from '../atom/ToggleButton.svelte';
     import { siAnthropic, siOllama } from 'simple-icons';
     import Card from '../layout/Card.svelte';
@@ -17,7 +17,7 @@
             name: string;
             label: string;
             baseUrl: string;
-            apiKey: string;
+            apiKey?: string;
         };
         border?: boolean;
     }
@@ -106,25 +106,6 @@
             description: 'Chat Completions API',
             value: 'openai'
         }
-        // {
-        //     label: 'OpenAI',
-        //     description: 'Responses API',
-        //     value: 'openai'
-        // },
-        // {
-        //     label: 'Anthropic',
-        //     value: 'anthropic',
-        //     icon: siAnthropic
-        // },
-        // {
-        //     label: 'Ollama',
-        //     value: 'ollama',
-        //     icon: siOllama
-        // },
-        // {
-        //     label: 'Llama.cpp',
-        //     value: 'llama.cpp'
-        // }
     ];
 
     let isTestingConnection = $state(false);
@@ -155,47 +136,69 @@
 <form onsubmit={handleSubmit} class="space-y-8">
     <Card>
         <div>
-            <LabelWithDescription
+            <FormField
                 label="Display Name"
                 description="The display name of the model"
-            />
-            <InputText name="label" placeholder="Main Reviewer" bind:value={label} />
+            >
+                {#snippet children({ id })}
+                    <InputText {id} name="label" placeholder="Main Reviewer" bind:value={label} />
+                {/snippet}
+            </FormField>
         </div>
 
         <div>
-            <LabelWithDescription
+            <FormField
                 label="API Provider"
                 description="LLM's API (ex. OpenAI compatible, Ollama...)"
-            />
-            <div class="mt-4 grid grid-cols-3 gap-2">
-                {#each apiProviderToggleButtonValueList as toggleButtonValue}
-                    <ToggleButton
-                        class="h-full w-full"
-                        label={toggleButtonValue.label}
-                        description={toggleButtonValue.description}
-                        selected={provider === toggleButtonValue.value}
-                        onclick={() => (provider = toggleButtonValue.value)}
-                        icon={toggleButtonValue.icon}
+                linkLabelToControl={false}
+            >
+                {#snippet children({ id: _id })}
+                    <div class="mt-4 grid grid-cols-3 gap-2" id={_id} role="group">
+                        {#each apiProviderToggleButtonValueList as toggleButtonValue}
+                            <ToggleButton
+                                class="h-full w-full"
+                                label={toggleButtonValue.label}
+                                description={toggleButtonValue.description}
+                                selected={provider === toggleButtonValue.value}
+                                onclick={() => (provider = toggleButtonValue.value)}
+                            />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
+        </div>
+        <div>
+            <FormField
+                label="Model ID"
+                description="Model's name to call from API"
+            >
+                {#snippet children({ id })}
+                    <InputText
+                        {id}
+                        placeholder="anthropic/claude-opus-4.6"
+                        bind:value={name}
                     />
-                {/each}
-            </div>
+                {/snippet}
+            </FormField>
         </div>
         <div>
-            <LabelWithDescription label="Model ID" description="Model's name to call from API" />
-            <InputText placeholder="anthropic/claude-opus-4.6" bind:value={name} />
-        </div>
-        <div>
-            <LabelWithDescription
+            <FormField
                 label="Base URL"
                 description="Server Host to use LLM through API"
-            />
-            <InputText placeholder="https://api.anthropic.com" bind:value={baseUrl} />
+            >
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="https://api.anthropic.com" bind:value={baseUrl} />
+                {/snippet}
+            </FormField>
         </div>
 
         {#if mode === 'create'}
             <div>
-                <label class="mb-1 block text-sm font-medium text-neutral-700">API Key</label>
-                <InputText placeholder="sk-..." bind:value={apiKey} password />
+                <FormField label="API Key">
+                    {#snippet children({ id })}
+                        <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
+                    {/snippet}
+                </FormField>
             </div>
         {/if}
     </Card>

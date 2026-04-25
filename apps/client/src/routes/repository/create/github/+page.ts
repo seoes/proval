@@ -3,9 +3,11 @@ import type { PageLoad } from './$types';
 
 export const ssr = false;
 
+type GithubApp = { id: number; slug: string; owner: string };
+
 export const load: PageLoad = async () => {
     const response = await fetchApi('/github/app');
-    const appList = await response.json();
+    const appList = (await response.json()) as GithubApp[];
     return {
         appList,
         installationList: [

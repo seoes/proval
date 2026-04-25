@@ -1,12 +1,17 @@
-import { generateText, stepCountIs } from "ai";
+import { generateText, stepCountIs, type ToolSet } from "ai";
 import { createOpenAI, type OpenAIProvider } from "@ai-sdk/openai";
 import type { GitProvider } from "../../provider/types.js";
 
 interface RunOptions {
     system: string;
     prompt: string;
-    tools: Record<string, any>;
+    tools: ToolSet;
     maxSteps?: number;
+}
+
+export interface ReviewRunStats {
+    stepCount: number;
+    toolCallCounts: Record<string, number>;
 }
 
 export abstract class ReviewBase {
@@ -18,12 +23,13 @@ export abstract class ReviewBase {
         modelApiKey: string,
         protected readonly modelName: string,
         protected readonly language: string,
-        protected readonly allowApproval: boolean,
     ) {
         this.ai = createOpenAI({ apiKey: modelApiKey, baseURL: modelBaseUrl });
     }
 
-    protected async run(opts: RunOptions): Promise<void> {
+    protected async run(opts: RunOptions): Promise<ReviewRunStats> {
+        const toolCallCounts: Record<string, number> = {};
+
         const { steps } = await generateText({
             model: this.ai.chat(this.modelName),
             tools: opts.tools,
@@ -32,9 +38,17 @@ export abstract class ReviewBase {
             prompt: opts.prompt,
             onStepFinish: ({ stepNumber, toolCalls }) => {
                 console.log(`\n  [Step ${stepNumber + 1}] ${toolCalls.length} tool call(s)`);
-                for (const tc of toolCalls) console.log(`    → ${tc.toolName} done`);
+                for (const tc of toolCalls) {
+                    const name =
+                        typeof tc === "object" && tc !== null && "toolName" in tc
+                            ? String((tc as { toolName?: string }).toolName)
+                            : "unknown";
+                    console.log(`    → ${name} done`);
+                    toolCallCounts[name] = (toolCallCounts[name] ?? 0) + 1;
+                }
             },
         });
-        console.log(`  Completed in ${steps.length} steps`);
+        console.log(`  Completed in ${steps.length} steps`, { toolCallCounts });
+        return { stepCount: steps.length, toolCallCounts };
     }
 }

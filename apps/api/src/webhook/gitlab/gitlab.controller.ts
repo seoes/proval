@@ -1,123 +1,174 @@
-import type { MergeRequestNoteSchema, MergeRequestSchema, ProjectSchema } from "@gitbeaker/rest";
+import type {
+    WebhookBaseNoteEventSchema,
+    WebhookMergeRequestEventSchema,
+    WebhookMergeRequestNoteEventSchema,
+} from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
 
-const REVIEWABLE_MR_ACTIONS = ["open", "reopen", "update"];
+type Repository = InferSelectModel<typeof repositoryTable>;
+type Model = InferSelectModel<typeof modelTable>;
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
-    const payload = await c.req.json();
 
-    console.log("Webhook received from GitLab");
+    const repository = c.get("repository") as Repository;
+    const model = c.get("model") as Model;
 
-    const repository = c.get("repository") as InferSelectModel<typeof repositoryTable>;
-    const model = c.get("model") as InferSelectModel<typeof modelTable>;
+    console.log("--------------------------------");
+    console.log(`GitLab Webhook received: ${event}`);
+    console.log("Repository:", repository.name);
+    console.log("Model:", model.name);
+    console.log("--------------------------------");
 
-    const project = payload.project as ProjectSchema;
+    try {
+        // Handle Merge Request Hook
+        if (event === "Merge Request Hook") {
+            const payload: WebhookMergeRequestEventSchema = c.get("gitlabPayload");
+            const response = await handleGitLabMergeRequestWebhook(payload, repository, model);
+            return response;
+        }
 
+        // Handle Note Hook
+        if (event === "Note Hook") {
+            const payload: WebhookBaseNoteEventSchema = c.get("gitlabPayload");
+            const noteType = payload.object_attributes?.noteable_type ?? "";
+
+            // Switch on note type
+            switch (noteType) {
+                case "MergeRequest": {
+                    const response = await handleGitLabMergeRequestNoteWebhook(
+                        payload as WebhookMergeRequestNoteEventSchema,
+                        repository,
+                        model,
+                    );
+                    return response;
+                }
+                default: {
+                    return c.json({ message: `Skipped: note type is not supported` }, 200);
+                }
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: "Internal server error" }, 500);
+    }
+};
+
+type HandleGitLabMergeRequestWebhook = (
+    payload: WebhookMergeRequestEventSchema,
+    repository: Repository,
+    model: Model,
+) => Promise<Response>;
+
+const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (payload, repository, model) => {
+    const project = payload.project;
     const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
+
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
         model.baseUrl,
         model.apiKey,
         model.name,
         repository.language,
-        repository.allowApproval,
+        repository.reviewOnMergeRequestOpen,
+        repository.inlineReview,
+        repository.replyToMergeRequestComment,
     );
 
-    try {
-        switch (event) {
-            case "Merge Request Hook": {
-                if (repository.reviewMode === "off") {
-                    return c.json({ message: "Review mode is off, skipping" }, 200);
-                }
+    const mergeRequest = payload.object_attributes;
 
-                const mergeRequest = payload.object_attributes as MergeRequestSchema;
-                const action: string = (payload.object_attributes as { action?: string }).action ?? "";
+    const action = payload.object_attributes?.action ?? "";
 
-                if (!REVIEWABLE_MR_ACTIONS.includes(action)) {
-                    return c.json({ message: `Skipped: action '${action}'` }, 200);
-                }
-
-                if (action === "update" && !payload.object_attributes.oldrev) {
-                    return c.json({ message: "Skipped: update without new commits" }, 200);
-                }
-
-                if (["draft", "closed", "merged"].includes(mergeRequest.state)) {
-                    return c.json({ message: `Skipped: state '${mergeRequest.state}'` }, 200);
-                }
-
-                // If auto assign is enabled, assign reviewers to the merge request
-                if (action === "open" && repository.autoAssign) {
-                    await gitlabProvider.assignMergeRequestReviewer(mergeRequest.iid);
-                }
-
-                if (repository.reviewMode === "assigned_only") {
-                    const reviewers = await gitlabProvider.fetchMergeRequestReviewerList(mergeRequest.iid);
-                    const botUser = await gitlabProvider.fetchCurrentUser();
-                    if (!reviewers.includes(botUser.username)) {
-                        return c.json({ message: "Skipped: bot is not assigned as reviewer" }, 200);
-                    }
-                }
-
-                mergeRequestService.review(mergeRequest.iid).catch((err) => {
-                    console.error("Review failed:", err);
-                });
-
-                return c.json({ message: "Review started" }, 202);
-            }
-
-            case "Note Hook": {
-                if (repository.replyMode === "off") {
-                    return c.json({ message: "Reply mode is off, skipping" }, 200);
-                }
-
-                const comment = payload.object_attributes as MergeRequestNoteSchema;
-
-                if (comment.noteable_type !== "MergeRequest") {
-                    return c.json({ message: "Skipped: note is not on a merge request" }, 200);
-                }
-
-                const commenterUsername: string = payload.user?.username ?? "";
-                const botUser = await gitlabProvider.fetchCurrentUser();
-
-                if (commenterUsername === botUser.username) {
-                    return c.json({ message: "Skipped: bot's own comment" }, 200);
-                }
-
-                const noteBody: string = comment.note as string;
-                const mrIid: number = payload.merge_request?.iid;
-
-                if (repository.replyMode === "mentioned_only") {
-                    const bot = await gitlabProvider.fetchCurrentUser();
-                    const botMention = `@${bot.username}`;
-                    if (!noteBody.includes(botMention)) {
-                        return c.json({ message: "Skipped: bot not mentioned" }, 200);
-                    }
-                }
-
-                if (repository.replyMode === "assigned_only") {
-                    const reviewers = await gitlabProvider.fetchMergeRequestReviewerList(mrIid);
-                    if (!reviewers.includes(botUser.username)) {
-                        return c.json({ message: "Skipped: bot is not assigned as reviewer" }, 200);
-                    }
-                }
-
-                mergeRequestService.reply(mrIid, commenterUsername, noteBody).catch((err) => {
-                    console.error("Reply failed:", err);
-                });
-
-                return c.json({ message: "Reply started" }, 202);
-            }
-
-            default:
-                return c.json({ message: `Unhandled event: ${event}` }, 200);
-        }
-    } catch (error) {
-        console.error(error);
-        return c.json({ error: "Internal server error" }, 500);
+    if (!action) {
+        return new Response(JSON.stringify({ message: "No action found" }), { status: 200 });
     }
+
+    switch (action) {
+        case "open": {
+            // If review is off, skip
+            if (!repository.reviewOnMergeRequestOpen) {
+                return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+            }
+
+            // If review is on, review the merge request
+            mergeRequestService.review(mergeRequest.iid).catch((err) => {
+                console.error("Review failed:", err);
+            });
+            return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+        }
+        case "update": {
+        }
+        case "reopen": {
+        }
+        case "close": {
+        }
+        default: {
+            return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        }
+    }
+};
+
+type HandleGitLabMergeRequestNoteWebhook = (
+    payload: WebhookMergeRequestNoteEventSchema,
+    repository: Repository,
+    model: Model,
+) => Promise<Response>;
+
+const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook = async (payload, repository, model) => {
+    // If reply to merge request comment is off, skip
+    if (repository.replyToMergeRequestComment === "off") {
+        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+    }
+
+    const project = payload.project;
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
+
+    const botUserData = await gitlabProvider.fetchCurrentUser();
+    const botUsername = botUserData.username;
+    const commenterUsername: string = payload.user?.username ?? "";
+
+    if (botUsername === commenterUsername) {
+        return new Response(
+            JSON.stringify({ message: "Skipped: bot username is the same as the commenter username, skipping" }),
+            { status: 200 },
+        );
+    }
+
+    const noteBody: string = payload.object_attributes?.note;
+    const mrIid = payload.merge_request.iid;
+
+    console.log("--------------------------------");
+    console.log("New Comment on Merge Request");
+    console.log("Comment Body:", noteBody);
+    console.log("Commenter Username:", commenterUsername);
+    console.log("Merge Request IID:", mrIid);
+    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
+    console.log("--------------------------------");
+
+    const mergeRequestService = new MergeRequestService(
+        gitlabProvider,
+        model.baseUrl,
+        model.apiKey,
+        model.name,
+        repository.language,
+        repository.reviewOnMergeRequestOpen,
+        repository.inlineReview,
+        repository.replyToMergeRequestComment,
+    );
+
+    if (repository.replyToMergeRequestComment === "mentioned_only") {
+        if (!noteBody.includes(`@${botUsername}`)) {
+            console.log("Skipped: bot username is not mentioned");
+            return new Response(JSON.stringify({ message: "Skipped: commenter is not mentioned" }), { status: 200 });
+        }
+    }
+
+    mergeRequestService.reply(mrIid, commenterUsername, noteBody).catch((err) => {
+        console.error("Reply failed:", err);
+    });
+    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };

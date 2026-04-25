@@ -18,14 +18,15 @@
             apiToken: '',
             webhookSecret: '',
             botUsername: data.repository.botUsername ?? '',
-            reviewMode: data.repository.reviewMode,
-            replyMode: data.repository.replyMode,
-            autoAssign: data.repository.autoAssign,
-            allowApproval: data.repository.allowApproval,
             language: data.repository.language,
             gitlabRepositoryId: data.repository.gitlabRepositoryId,
-            githubRepositoryPath: data.repository.githubRepositoryPath ?? null,
-            modelId: data.repository.modelId
+            githubRepositoryPath: data.repository.githubRepositoryPath ?? '',
+            modelId: data.repository.modelId,
+            reviewOnMergeRequestOpen: data.repository.reviewOnMergeRequestOpen,
+            commentOnIssueOpen: data.repository.commentOnIssueOpen,
+            replyToMergeRequestComment: data.repository.replyToMergeRequestComment,
+            replyToIssueComment: data.repository.replyToIssueComment,
+            inlineReview: data.repository.inlineReview
         }}
     />
 </DefaultLayout>

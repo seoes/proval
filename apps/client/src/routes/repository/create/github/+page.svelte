@@ -1,7 +1,7 @@
 <script lang="ts">
     import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
     import InputText from '$lib/components/atom/InputText.svelte';
-    import LabelWithDescription from '$lib/components/molecule/LabelWithDescription.svelte';
+    import FormField from '$lib/components/molecule/FormField.svelte';
     import ToggleButton from '$lib/components/atom/ToggleButton.svelte';
     import Card from '$lib/components/layout/Card.svelte';
     import Button from '$lib/components/atom/Button.svelte';
@@ -118,7 +118,7 @@
     }
 
     async function installApp() {
-        const app = data.appList.find((app) => app.id.toString() === selectedAppId);
+        const app = data.appList.find((a) => a.id.toString() === selectedAppId);
         if (!app) return;
         // TODO: 실제 installation 링크
         await openAlert('Complete the installation in the opened tab.');
@@ -224,12 +224,18 @@
                                 placeholder="https://your-domain.com"
                                 bind:value={instanceUrl}
                             /> -->
-                            <InputText
+                            <FormField
                                 label="Webhook URL"
                                 description="Webhook will be sent to this URL from GitHub. HTTPS is required."
-                                placeholder="https://your-domain.com/"
-                                bind:value={webhookUrl}
-                            />
+                            >
+                                {#snippet children({ id })}
+                                    <InputText
+                                        {id}
+                                        placeholder="https://your-domain.com/"
+                                        bind:value={webhookUrl}
+                                    />
+                                {/snippet}
+                            </FormField>
                         </div>
 
                         <div>
@@ -244,11 +250,17 @@
                 {:else}
                     <div class="space-y-4">
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Select App"
                                 description="Choose an existing GitHub App or create a new one"
-                            />
-                            <div class="mt-3 flex flex-wrap gap-2">
+                                linkLabelToControl={false}
+                            >
+                                {#snippet children({ id: _id })}
+                                    <div
+                                        class="mt-3 flex flex-wrap gap-2"
+                                        id={_id}
+                                        role="group"
+                                    >
                                 {#each data.appList as app}
                                     <button
                                         type="button"
@@ -262,7 +274,9 @@
                                         <div class="text-sm text-neutral-500">@{app.owner}</div>
                                     </button>
                                 {/each}
-                            </div>
+                                    </div>
+                                {/snippet}
+                            </FormField>
                         </div>
 
                         <div class="flex gap-2">
@@ -293,11 +307,17 @@
                 {:else}
                     <div class="space-y-4">
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Select Installation"
                                 description="Choose where the app is installed"
-                            />
-                            <div class="mt-3 flex flex-wrap gap-2">
+                                linkLabelToControl={false}
+                            >
+                                {#snippet children({ id: _id })}
+                                    <div
+                                        class="mt-3 flex flex-wrap gap-2"
+                                        id={_id}
+                                        role="group"
+                                    >
                                 {#each data.installationList as installation}
                                     <button
                                         type="button"
@@ -314,7 +334,9 @@
                                         </div>
                                     </button>
                                 {/each}
-                            </div>
+                                    </div>
+                                {/snippet}
+                            </FormField>
                         </div>
 
                         <div class="flex gap-2">
@@ -340,19 +362,23 @@
                 {:else}
                     <div class="space-y-4">
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Select Repository"
                                 description="Choose the repository to connect"
-                            />
-                            <select
-                                class="mt-2 h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
-                                bind:value={selectedRepoPath}
                             >
-                                <option value="">Select a repository</option>
-                                {#each data.repoList as repo}
-                                    <option value={repo.fullName}>{repo.fullName}</option>
-                                {/each}
-                            </select>
+                                {#snippet children({ id })}
+                                    <select
+                                        {id}
+                                        class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                                        bind:value={selectedRepoPath}
+                                    >
+                                        <option value="">Select a repository</option>
+                                        {#each data.repoList as repo}
+                                            <option value={repo.fullName}>{repo.fullName}</option>
+                                        {/each}
+                                    </select>
+                                {/snippet}
+                            </FormField>
                         </div>
 
                         <div>
@@ -375,103 +401,132 @@
                 <Card>
                     <div class="space-y-4">
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Repository"
                                 description="Selected GitHub repository"
-                            />
-                            <p class="mt-1 font-medium text-neutral-700 dark:text-neutral-300">
-                                {selectedRepoPath}
-                            </p>
+                                linkLabelToControl={false}
+                            >
+                                {#snippet children({ id })}
+                                    <p
+                                        {id}
+                                        class="mt-1 font-medium text-neutral-700 dark:text-neutral-300"
+                                    >
+                                        {selectedRepoPath}
+                                    </p>
+                                {/snippet}
+                            </FormField>
                         </div>
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Name"
                                 description="Display name for this repository"
-                            />
-                            <InputText placeholder="My Project" bind:value={name} />
+                            >
+                                {#snippet children({ id })}
+                                    <InputText {id} placeholder="My Project" bind:value={name} />
+                                {/snippet}
+                            </FormField>
                         </div>
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Model"
                                 description="Select the model to use for code review"
-                            />
-                            <select
-                                bind:value={modelId}
-                                class="mt-2 h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
                             >
-                                <option value="">Select a model</option>
-                                {#each data.modelList as model}
-                                    <option value={model.id.toString()}>{model.label}</option>
-                                {/each}
-                            </select>
+                                {#snippet children({ id })}
+                                    <select
+                                        {id}
+                                        bind:value={modelId}
+                                        class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                                    >
+                                        <option value="">Select a model</option>
+                                        {#each data.modelList as model}
+                                            <option value={model.id.toString()}>{model.label}</option>
+                                        {/each}
+                                    </select>
+                                {/snippet}
+                            </FormField>
                         </div>
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Language"
                                 description="Default language for code review"
-                            />
-                            <InputText placeholder="English" bind:value={language} />
+                            >
+                                {#snippet children({ id })}
+                                    <InputText {id} placeholder="English" bind:value={language} />
+                                {/snippet}
+                            </FormField>
                         </div>
                     </div>
                 </Card>
 
                 <Card title="Pull Request Settings">
                     <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <LabelWithDescription
+                        <div class="flex items-center justify-between gap-2">
+                            <FormField
+                                class="min-w-0 flex-1 pr-2"
                                 label="Assign to Every New Pull Request"
                                 description="Automatically assign reviewers"
+                                linkLabelToControl={false}
                             />
                             <input
                                 type="checkbox"
                                 bind:checked={autoAssign}
-                                class="h-5 w-5 rounded border-neutral-200"
+                                class="h-5 w-5 shrink-0 rounded border-neutral-200"
                             />
                         </div>
-                        <div class="flex items-center justify-between">
-                            <LabelWithDescription
+                        <div class="flex items-center justify-between gap-2">
+                            <FormField
+                                class="min-w-0 flex-1 pr-2"
                                 label="Allow Approve / Reject"
                                 description="Bot can autonomously approve/reject"
+                                linkLabelToControl={false}
                             />
                             <input
                                 type="checkbox"
                                 bind:checked={allowApproval}
-                                class="h-5 w-5 rounded border-neutral-200"
+                                class="h-5 w-5 shrink-0 rounded border-neutral-200"
                             />
                         </div>
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Review Mode"
                                 description="When should the bot review?"
-                            />
-                            <div class="mt-3 flex gap-2">
-                                {#each reviewModeOptions as option}
-                                    <ToggleButton
-                                        label={option.label}
-                                        description={option.description}
-                                        selected={reviewMode === option.value}
-                                        onclick={() => (reviewMode = option.value)}
-                                        class="flex-1"
-                                    />
-                                {/each}
-                            </div>
+                                linkLabelToControl={false}
+                            >
+                                {#snippet children({ id: _id })}
+                                    <div class="mt-3 flex gap-2" id={_id} role="group">
+                                        {#each reviewModeOptions as option}
+                                            <ToggleButton
+                                                label={option.label}
+                                                description={option.description}
+                                                selected={reviewMode === option.value}
+                                                onclick={() => (reviewMode = option.value)}
+                                                class="flex-1"
+                                            />
+                                        {/each}
+                                    </div>
+                                {/snippet}
+                            </FormField>
                         </div>
                         <div>
-                            <LabelWithDescription
+                            <FormField
                                 label="Reply Mode"
                                 description="When should the bot reply?"
-                            />
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                {#each replyModeOptions as option}
-                                    <ToggleButton
-                                        label={option.label}
-                                        description={option.description}
-                                        selected={replyMode === option.value}
-                                        onclick={() => (replyMode = option.value)}
-                                        class="flex-1"
-                                    />
-                                {/each}
-                            </div>
+                                linkLabelToControl={false}
+                            >
+                                {#snippet children({ id: _id })}
+                                    <div class="mt-3 flex flex-wrap gap-2" id={_id} role="group">
+                                        {#each replyModeOptions as option}
+                                            <ToggleButton
+                                                label={option.label}
+                                                description={option.description}
+                                                selected={replyMode === option.value}
+                                                onclick={() => (replyMode = option.value)}
+                                                class="flex-1"
+                                            />
+                                        {/each}
+                                    </div>
+                                {/snippet}
+                            </FormField>
                         </div>
                     </div>
                 </Card>

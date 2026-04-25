@@ -38,6 +38,7 @@ export const repositoryTable = sqliteTable("repository", {
     apiToken: text().notNull(),
     webhookSecret: text(),
     botUsername: text(),
+    language: text().notNull().default("English"),
 
     // github
     githubAppId: integer().references(() => githubAppTable.id),
@@ -47,17 +48,18 @@ export const repositoryTable = sqliteTable("repository", {
     // gitlab
     gitlabRepositoryId: integer(),
 
-    // common fields
-    reviewMode: text({ enum: ["assigned_only", "off"] })
+    // merge request
+    reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
+    inlineReview: integer({ mode: "boolean" }).notNull().default(true),
+    replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
-        .default("off"),
-    replyMode: text({ enum: ["assigned_only", "mentioned_only", "off"] })
-        .notNull()
-        .default("off"),
+        .default("all"),
 
-    autoAssign: integer({ mode: "boolean" }).notNull().default(false),
-    allowApproval: integer({ mode: "boolean" }).notNull().default(false),
-    language: text().notNull().default("English"),
+    // issue
+    commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
+    replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
+        .notNull()
+        .default("all"),
 
     modelId: integer().references(() => modelTable.id),
 

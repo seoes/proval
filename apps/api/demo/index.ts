@@ -50,6 +50,8 @@ function createService(input: TestInput, opts: { model?: string; language?: stri
         opts.model ?? Bun.env.OPENAI_MODEL!,
         opts.language ?? Bun.env.LANGUAGE ?? "English",
         opts.allowApproval ?? false,
+        true,
+        "all",
     );
     return { provider, service };
 }
