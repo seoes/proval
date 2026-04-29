@@ -2,8 +2,7 @@ import { modelTable } from "@code-review/db";
 import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@code-review/types";
 import db from "../../db/index.js";
 import { desc, eq } from "drizzle-orm";
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import OpenAI from "openai";
 
 export class ModelService {
     public async findAll(): Promise<Model[]> {
@@ -50,13 +49,13 @@ export class ModelService {
         return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>;
     }
     public async verifyOpenAiApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
-        const ai = createOpenAI({ apiKey, baseURL: baseUrl });
-        const { usage } = await generateText({
-            model: ai.chat(model),
-            prompt: "Hello, how are you?",
-            maxOutputTokens: 1,
+        const client = new OpenAI({ apiKey, baseURL: baseUrl });
+        const completion = await client.chat.completions.create({
+            model,
+            messages: [{ role: "user", content: "Hello" }],
+            max_tokens: 1,
         });
-        if (usage?.totalTokens && usage.totalTokens > 0) {
+        if (completion.choices[0]?.message?.content !== undefined) {
             console.log("API key is valid");
             return;
         }

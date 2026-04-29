@@ -1,45 +1,44 @@
-import type { ToolSet } from "ai";
-import { ReviewBase } from "../review/review.base.js";
+import { runAgentLoop, type AgentTool } from "../../agent/loop.js";
+import { createOpenAiSender } from "../../agent/openai.js";
 import {
-    approvalPromptAddendum,
+    getMergeRequestDetailTool,
+    getMergeRequestDiffTool,
+    getMergeRequestCommentListTool,
+    getDirectoryTreeTool,
+    getFileContentTool,
+    postMergeRequestCommentTool,
+    postMergeRequestReplyTool,
+    getMergeRequestVersionTool,
+    createSingleLineCommentTool,
+    createMultiLineCommentTool,
+    approveMergeRequestTool,
+    unapproveMergeRequestTool,
+} from "../../agent/tool/index.js";
+import {
     buildReviewPolicyAppendix,
     reviewPrompt,
     replyPrompt,
 } from "./merge-request.prompt.js";
-import {
-    approveMergeRequestTool,
-    getDirectoryTreeTool,
-    getFileContentTool,
-    getMergeRequestCommentListTool,
-    getMergeRequestDetailTool,
-    postMergeRequestCommentTool,
-    postMergeRequestReplyTool,
-    getMergeRequestDiffTool,
-    getMergeRequestVersionTool,
-    createSingleLineCommentTool,
-    unapproveMergeRequestTool,
-    createMultiLineCommentTool,
-} from "./merge-request.tool.js";
+import type { GitProvider } from "../../provider/types.js";
 
-export class MergeRequestService extends ReviewBase {
-    private readonly reviewOnMergeRequestOpen: boolean;
-    private readonly inlineReview: boolean;
-    private readonly replyToMergeRequestComment: "all" | "mentioned_only" | "off";
+export class MergeRequestService {
+    private readonly sender: ReturnType<typeof createOpenAiSender>;
 
     constructor(
-        provider: ConstructorParameters<typeof ReviewBase>[0],
+        private readonly provider: GitProvider,
         modelBaseUrl: string,
         modelApiKey: string,
         modelName: string,
-        language: string,
+        private readonly language: string,
         reviewOnMergeRequestOpen: boolean,
-        inlineReview: boolean,
+        private readonly inlineReview: boolean,
         replyToMergeRequestComment: "all" | "mentioned_only" | "off",
     ) {
-        super(provider, modelBaseUrl, modelApiKey, modelName, language);
-        this.reviewOnMergeRequestOpen = reviewOnMergeRequestOpen;
-        this.inlineReview = inlineReview;
-        this.replyToMergeRequestComment = replyToMergeRequestComment;
+        this.sender = createOpenAiSender({
+            apiKey: modelApiKey,
+            baseURL: modelBaseUrl,
+            model: modelName,
+        });
     }
 
     public async review(mrIid: number): Promise<void> {
@@ -48,12 +47,12 @@ export class MergeRequestService extends ReviewBase {
 
         const system = `${reviewPrompt}\n\n${buildReviewPolicyAppendix({ inlineReview: this.inlineReview })}`;
 
-        // generate options for agent
-        const stats = await this.run({
+        const stats = await runAgentLoop(
+            this.sender,
             system,
-            prompt: `Merge request IID: ${mrIid}. Target branch: ${targetBranch}. Source branch for file reads: ${sourceBranch}. Use the available tools in order, then finish with a single top-level summary. Language: ${this.language}`,
-            tools: this.createReviewToolList(mrIid, sourceBranch),
-        });
+            `Merge request IID: ${mrIid}. Target branch: ${targetBranch}. Source branch for file reads: ${sourceBranch}. Use the available tools in order, then finish with a single top-level summary. Language: ${this.language}`,
+            this.createReviewToolList(mrIid, sourceBranch),
+        );
 
         console.log(
             `[MR review] iid=${mrIid} steps=${stats.stepCount} inlineReview=${this.inlineReview} tools=${JSON.stringify(stats.toolCallCounts)}`,
@@ -64,18 +63,19 @@ export class MergeRequestService extends ReviewBase {
         const detail = await this.provider.fetchMergeRequestDetail(mrIid);
         const fileRef = detail.sourceBranch;
 
-        const stats = await this.run({
-            system: replyPrompt,
-            prompt: `Merge request IID: ${mrIid}. Source branch for file reads: ${fileRef}. User @${commenterUsername} mentioned you. Their comment:\n\n${commentBody}\n\nUse the available tools if needed, then post your reply. Language: ${this.language}`,
-            tools: this.createReplyToolList(mrIid, commenterUsername, fileRef),
-            maxSteps: 14,
-        });
+        const stats = await runAgentLoop(
+            this.sender,
+            replyPrompt,
+            `Merge request IID: ${mrIid}. Source branch for file reads: ${fileRef}. User @${commenterUsername} mentioned you. Their comment:\n\n${commentBody}\n\nUse the available tools if needed, then post your reply. Language: ${this.language}`,
+            this.createReplyToolList(mrIid, commenterUsername, fileRef),
+            14,
+        );
 
         console.log(`[MR reply] iid=${mrIid} steps=${stats.stepCount} tools=${JSON.stringify(stats.toolCallCounts)}`);
     }
 
-    private createReviewToolList(mrIid: number, fileRef: string) {
-        const base: Record<string, unknown> = {
+    private createReviewToolList(mrIid: number, fileRef: string): Record<string, AgentTool> {
+        const base: Record<string, AgentTool> = {
             get_merge_request_detail: getMergeRequestDetailTool(this.provider, mrIid),
             get_merge_request_diff: getMergeRequestDiffTool(this.provider, mrIid),
             get_merge_request_comment_list: getMergeRequestCommentListTool(this.provider, mrIid),
@@ -94,11 +94,11 @@ export class MergeRequestService extends ReviewBase {
             ...base,
             approve_merge_request: approveMergeRequestTool(this.provider, mrIid),
             unapprove_merge_request: unapproveMergeRequestTool(this.provider, mrIid),
-        } as ToolSet;
+        };
     }
 
-    private createReplyToolList(mrIid: number, commenterUsername: string, fileRef: string): ToolSet {
-        const base = {
+    private createReplyToolList(mrIid: number, commenterUsername: string, fileRef: string): Record<string, AgentTool> {
+        return {
             get_merge_request_detail: getMergeRequestDetailTool(this.provider, mrIid),
             get_merge_request_diff: getMergeRequestDiffTool(this.provider, mrIid),
             get_merge_request_comment_list: getMergeRequestCommentListTool(this.provider, mrIid),
@@ -107,6 +107,5 @@ export class MergeRequestService extends ReviewBase {
             post_reply_comment: postMergeRequestReplyTool(this.provider, mrIid, commenterUsername),
             get_merge_request_version: getMergeRequestVersionTool(this.provider, mrIid),
         };
-        return base as ToolSet;
     }
 }
