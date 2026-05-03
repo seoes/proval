@@ -4,7 +4,7 @@ import type {
     WebhookMergeRequestNoteEventSchema,
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
-import { MergeRequestService, type ReviewPlanItem } from "../../module/merge-request/merge-request.service.js";
+import { MergeRequestService, type ReviewTarget } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
@@ -96,14 +96,14 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
             if (repository.deepResearchOnMergeRequest) {
                 console.log("Deep research is on, planning deep review");
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log("@Generating review plan list");
+                console.log("@Generating review target list");
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                const reviewPlanList: ReviewPlanItem[] = await mergeRequestService.planDeepReview(mergeRequest.iid);
+                const reviewTargetList: ReviewTarget[] = await mergeRequestService.planDeepReview(mergeRequest.iid);
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log("@generated review plan list");
-                console.log(JSON.stringify(reviewPlanList));
+                console.log("@generated review target list");
+                console.log(JSON.stringify(reviewTargetList));
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                await mergeRequestService.generateDeepReview(mergeRequest.iid, reviewPlanList);
+                await mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList);
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
                 console.log("@deep review generated");
                 console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");

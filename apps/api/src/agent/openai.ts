@@ -44,34 +44,6 @@ export function createOpenAiSender(config: OpenAiConfig): LlmSender {
                 finishReason: choice.finish_reason,
             };
         },
-        async sendWithStructuredOutput(messages, schema) {
-            const completion = await client.chat.completions.create({
-                model: config.model,
-                messages: [
-                    ...messages.map(convertToOpenAiMessage),
-                    { role: "user", content: `Return ONLY the JSON object. ${schema.toJSONSchema()}` },
-                ],
-                response_format: {
-                    type: "json_object",
-                },
-            });
-
-            const choice = completion.choices[0];
-            const message = choice.message;
-
-            return {
-                message: {
-                    role: "assistant",
-                    content: message.content ?? null,
-                    toolCalls: message.tool_calls?.map((tc) => ({
-                        id: tc.id,
-                        name: tc.function.name,
-                        arguments: tc.function.arguments,
-                    })),
-                },
-                finishReason: choice.finish_reason,
-            };
-        },
     };
 }
 

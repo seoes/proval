@@ -1,5 +1,3 @@
-import type z from "zod";
-
 export interface AgentTool {
     name: string;
     description: string;
@@ -27,7 +25,6 @@ export interface LlmResponse {
 
 export interface LlmSender {
     send(messages: Message[], tools: AgentTool[]): Promise<LlmResponse>;
-    sendWithStructuredOutput<T>(messages: Message[], schema: z.ZodType<T>): Promise<LlmResponse>;
 }
 
 export interface AgentRunResult {

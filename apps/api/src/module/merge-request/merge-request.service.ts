@@ -1,6 +1,5 @@
-import { runAgentLoop, type AgentTool, type Message } from "../../agent/loop.js";
+import { runAgentLoop, type AgentTool } from "../../agent/loop.js";
 import { createOpenAiSender } from "../../agent/openai.js";
-import { z } from "zod";
 import {
     getChangedFileListTool,
     getMergeRequestDetailTool,
@@ -15,8 +14,10 @@ import {
     createMultiLineCommentTool,
     approveMergeRequestTool,
     unapproveMergeRequestTool,
+    appendReviewTargetTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
+import type { ReviewTarget } from "./review-target.schema.js";
 import {
     DEEP_REVIEW_PLAN_PROMPT,
     DEEP_REVIEW_SUB_AGENT_PROMPT,
@@ -25,17 +26,7 @@ import {
     STANDARD_REVIEW_PLAN_PROMPT,
 } from "./merge-request.prompt.js";
 
-const reviewPlanItemSchema = z.object({
-    id: z.number(),
-    category: z.enum(["security", "correctness", "performance", "api", "error_handling", "design", "concurrency"]),
-    file: z.string(),
-    description: z.string(),
-    severity: z.enum(["critical", "warning", "suggestion"]),
-});
-
-const reviewPlanSchema = z.array(reviewPlanItemSchema);
-
-export type ReviewPlanItem = z.infer<typeof reviewPlanItemSchema>;
+export type { ReviewTarget } from "./review-target.schema.js";
 
 export class MergeRequestService {
     private readonly sender: ReturnType<typeof createOpenAiSender>;
@@ -99,48 +90,35 @@ export class MergeRequestService {
     // # Deep Review
     // #########################################################
 
-    public async planDeepReview(mrIid: number): Promise<ReviewPlanItem[]> {
+    public async planDeepReview(mrIid: number): Promise<ReviewTarget[]> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
-        // const { messages } = await runAgentLoop(
+
+        const reviewTargetList: ReviewTarget[] = [];
+
         const stats = await runAgentLoop(
             this.sender,
             DEEP_REVIEW_PLAN_PROMPT,
             await this.generateMergeRequestPrompt(mrIid),
             {
-                toolList: this.createReadToolList(mrIid, sourceBranch),
+                toolList: [...this.createReadToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
             },
         );
 
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        console.log("@messages");
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        console.log(stats);
-        console.log(stats.messages);
-        console.log(stats.finalMessage);
+        console.log(
+            `[MR deep-plan] iid=${mrIid} steps=${stats.stepCount} targets=${reviewTargetList.length} tools=${JSON.stringify(stats.toolCallCounts)} finalMessage=${stats.finalMessage ?? "(none)"}`,
+        );
 
-        const messages: Message[] = stats.messages;
-
-        messages.push({
-            role: "user",
-            content: "Based on your investigation above, return ONLY the JSON array.",
-        });
-
-        const response = await this.sender.sendWithStructuredOutput(messages, reviewPlanSchema);
-        if (!response.message.content) {
-            throw new Error("Failed to generate deep review plan");
-        }
-
-        return reviewPlanSchema.parse(JSON.parse(response.message.content)) as ReviewPlanItem[];
+        return reviewTargetList;
     }
 
-    public async generateDeepReview(mrIid: number, reviewPlanList: ReviewPlanItem[]): Promise<void> {
+    public async generateDeepReview(mrIid: number, reviewTargetList: ReviewTarget[]): Promise<void> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const reviewResultList: string[] = [];
-        for (const reviewPlan of reviewPlanList) {
-            const reviewResult = await this.runDeepReviewSubAgent(mrIid, reviewPlan);
+        for (const reviewTarget of reviewTargetList) {
+            const reviewResult = await this.runDeepReviewSubAgent(mrIid, reviewTarget);
             console.log(
-                `[MR review] iid=${mrIid} reviewPlan=${JSON.stringify(reviewPlan)} reviewResult=${reviewResult}`,
+                `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=${reviewResult}`,
             );
             if (!reviewResult) {
                 throw new Error("Failed to run deep review sub agent");
@@ -148,7 +126,7 @@ export class MergeRequestService {
             reviewResultList.push(reviewResult);
         }
 
-        const system = `${REVIEW_PROMPT}\n\n\If there are duplicate issues, do not review them again.n\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
+        const system = `${REVIEW_PROMPT}\n\nIf duplicate review targets appear in the specialist findings below, do not review them again.\n\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
         const stats = await runAgentLoop(this.sender, system, await this.generateMergeRequestPrompt(mrIid), {
             toolList: [
                 ...this.createReadToolList(mrIid, sourceBranch),
@@ -162,9 +140,9 @@ export class MergeRequestService {
         );
     }
 
-    private async runDeepReviewSubAgent(mrIid: number, reviewPlan: ReviewPlanItem): Promise<string> {
+    private async runDeepReviewSubAgent(mrIid: number, reviewTarget: ReviewTarget): Promise<string> {
         const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
-        const prompt = `Review plan: ${JSON.stringify(reviewPlan)}`;
+        const prompt = `Review target: ${JSON.stringify(reviewTarget)}`;
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 

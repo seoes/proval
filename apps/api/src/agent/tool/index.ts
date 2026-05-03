@@ -11,3 +11,4 @@ export { createSingleLineCommentTool } from "./create-single-line-comment.js";
 export { createMultiLineCommentTool } from "./create-multi-line-comment.js";
 export { approveMergeRequestTool } from "./approve-merge-request.js";
 export { unapproveMergeRequestTool } from "./unapprove-merge-request.js";
+export { appendReviewTargetTool } from "./append-review-target.js";
