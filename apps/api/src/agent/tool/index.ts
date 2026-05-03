@@ -1,5 +1,6 @@
 export { getMergeRequestDetailTool } from "./get-merge-request-detail.js";
-export { getMergeRequestDiffTool } from "./get-merge-request-diff.js";
+export { getChangedFileListTool } from "./get-changed-file-list.js";
+export { getFileDiffTool } from "./get-file-diff.js";
 export { getMergeRequestCommentListTool } from "./get-merge-request-comment-list.js";
 export { getDirectoryTreeTool } from "./get-directory-tree.js";
 export { getFileContentTool } from "./get-file-content.js";

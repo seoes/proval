@@ -1,3 +1,5 @@
+import type z from "zod";
+
 export interface AgentTool {
     name: string;
     description: string;
@@ -25,10 +27,12 @@ export interface LlmResponse {
 
 export interface LlmSender {
     send(messages: Message[], tools: AgentTool[]): Promise<LlmResponse>;
+    sendWithStructuredOutput<T>(messages: Message[], schema: z.ZodType<T>): Promise<LlmResponse>;
 }
 
 export interface AgentRunResult {
     finalMessage: string | null;
+    messages: Message[];
     stepCount: number;
     toolCallCounts: Record<string, number>;
 }
@@ -37,18 +41,21 @@ export async function runAgentLoop(
     sender: LlmSender,
     system: string,
     prompt: string,
-    tools: Record<string, AgentTool>,
-    maxSteps = 15,
+    options: {
+        toolList?: AgentTool[];
+        maxSteps?: number;
+    },
 ): Promise<AgentRunResult> {
     const messages: Message[] = [
         { role: "system", content: system },
         { role: "user", content: prompt },
     ];
 
-    const toolList = Object.values(tools);
+    const maxSteps = options.maxSteps ?? 50;
+
+    const toolList = options.toolList ?? [];
     const toolCallCounts: Record<string, number> = {};
     let stepCount = 0;
-
     for (let step = 0; step < maxSteps; step++) {
         stepCount++;
         const response = await sender.send(messages, toolList);
@@ -57,6 +64,7 @@ export async function runAgentLoop(
             console.log(`[Agent] Completed in ${stepCount} steps`);
             return {
                 finalMessage: response.message.content,
+                messages,
                 stepCount,
                 toolCallCounts,
             };
@@ -72,7 +80,7 @@ export async function runAgentLoop(
 
         const results = await Promise.all(
             response.message.toolCalls.map(async (tc) => {
-                const tool = tools[tc.name];
+                const tool = toolList.find((t) => t.name === tc.name);
                 if (!tool) {
                     console.log(`    → ${tc.name} — unknown tool, skipping`);
                     return {
@@ -108,5 +116,5 @@ export async function runAgentLoop(
     }
 
     console.log(`[Agent] Reached max steps (${maxSteps})`);
-    return { finalMessage: null, stepCount, toolCallCounts };
+    return { finalMessage: null, messages, stepCount, toolCallCounts };
 }

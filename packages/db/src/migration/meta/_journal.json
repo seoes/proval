@@ -92,6 +92,13 @@
       "when": 1777009280121,
       "tag": "0012_mute_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1777698633156,
+      "tag": "0013_illegal_vargas",
+      "breakpoints": true
     }
   ]
 }

@@ -54,6 +54,7 @@ export const repositoryTable = sqliteTable("repository", {
     replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
         .notNull()
         .default("all"),
+    deepResearchOnMergeRequest: integer({ mode: "boolean" }).notNull().default(false),
 
     // issue
     commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),

@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { AgentTool, LlmSender, Message, LlmResponse } from "./loop.js";
+import type { LlmSender, Message } from "./loop.js";
 
 export interface OpenAiConfig {
     apiKey: string;
@@ -26,6 +26,34 @@ export function createOpenAiSender(config: OpenAiConfig): LlmSender {
                 messages: messages.map(convertToOpenAiMessage),
                 tools: openAiTools,
                 tool_choice: "auto",
+            });
+
+            const choice = completion.choices[0];
+            const message = choice.message;
+
+            return {
+                message: {
+                    role: "assistant",
+                    content: message.content ?? null,
+                    toolCalls: message.tool_calls?.map((tc) => ({
+                        id: tc.id,
+                        name: tc.function.name,
+                        arguments: tc.function.arguments,
+                    })),
+                },
+                finishReason: choice.finish_reason,
+            };
+        },
+        async sendWithStructuredOutput(messages, schema) {
+            const completion = await client.chat.completions.create({
+                model: config.model,
+                messages: [
+                    ...messages.map(convertToOpenAiMessage),
+                    { role: "user", content: `Return ONLY the JSON object. ${schema.toJSONSchema()}` },
+                ],
+                response_format: {
+                    type: "json_object",
+                },
             });
 
             const choice = completion.choices[0];

@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `deep_research_on_merge_request` integer DEFAULT false NOT NULL;

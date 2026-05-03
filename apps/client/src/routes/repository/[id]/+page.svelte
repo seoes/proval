@@ -26,7 +26,8 @@
             commentOnIssueOpen: data.repository.commentOnIssueOpen,
             replyToMergeRequestComment: data.repository.replyToMergeRequestComment,
             replyToIssueComment: data.repository.replyToIssueComment,
-            inlineReview: data.repository.inlineReview
+            inlineReview: data.repository.inlineReview,
+            deepResearchOnMergeRequest: data.repository.deepResearchOnMergeRequest
         }}
     />
 </DefaultLayout>

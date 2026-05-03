@@ -1,6 +1,7 @@
 import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import type {
     GitComment,
+    GitChangedFile,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -46,7 +47,7 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchMergeRequestDiff(mrIid: number): Promise<GitDiff[]> {
+    public async fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]> {
         const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, mrIid);
         return changes.map((change) => ({
             oldPath: change.old_path,
@@ -54,8 +55,23 @@ export class GitLabProvider implements GitProvider {
             newFile: change.new_file,
             renamedFile: change.renamed_file,
             deletedFile: change.deleted_file,
-            diff: change.diff,
         }));
+    }
+
+    public async fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff> {
+        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, mrIid);
+        const change = changes.find((item) => item.new_path === filePath || item.old_path === filePath);
+        if (!change) {
+            throw new Error(`Changed file not found in merge request: ${filePath}`);
+        }
+        return {
+            oldPath: change.old_path,
+            newPath: change.new_path,
+            newFile: change.new_file,
+            renamedFile: change.renamed_file,
+            deletedFile: change.deleted_file,
+            diff: change.diff,
+        };
     }
 
     public async fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]> {

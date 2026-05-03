@@ -10,6 +10,14 @@ export interface GitMergeRequest {
 export type GitMergeRequestState = "opened" | "closed" | "merged" | "locked";
 
 // git diff
+export interface GitChangedFile {
+    oldPath: string;
+    newPath: string;
+    newFile: boolean;
+    renamedFile: boolean;
+    deletedFile: boolean;
+}
+
 export interface GitDiff {
     oldPath: string;
     newPath: string;
@@ -89,7 +97,9 @@ export interface GitUser {
 export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
     fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest>;
-    fetchMergeRequestDiff(mrIid: number, ref?: string): Promise<GitDiff[]>;
+    fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]>;
+    /** Read one changed file's patch from the MR. Accepts either oldPath or newPath. */
+    fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff>;
     fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
     fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
     fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]>;

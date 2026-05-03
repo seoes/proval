@@ -49,9 +49,7 @@ function createService(input: TestInput, opts: { model?: string; language?: stri
         Bun.env.OPENAI_API_KEY!,
         opts.model ?? Bun.env.OPENAI_MODEL!,
         opts.language ?? Bun.env.LANGUAGE ?? "English",
-        opts.allowApproval ?? false,
         true,
-        "all",
     );
     return { provider, service };
 }
@@ -154,7 +152,7 @@ async function main() {
     console.log(`Running demo: ${scenarioKey} (${entry.mode})…`);
 
     if (entry.mode === "review") {
-        await service.review(1);
+        await service.reviewStandard(1);
     } else {
         await service.reply(1, entry.commenter, entry.comment);
     }

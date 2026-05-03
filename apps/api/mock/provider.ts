@@ -1,5 +1,6 @@
 import type {
     GitComment,
+    GitChangedFile,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -44,8 +45,22 @@ export class MockProvider implements GitProvider {
         return this.input.detail;
     }
 
-    async fetchMergeRequestDiff(_mrIid: number, _ref?: string) {
-        return this.input.diffs;
+    async fetchChangedFileList(_mrIid: number): Promise<GitChangedFile[]> {
+        return this.input.diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
+            oldPath,
+            newPath,
+            newFile,
+            renamedFile,
+            deletedFile,
+        }));
+    }
+
+    async fetchFileDiff(_mrIid: number, filePath: string): Promise<GitDiff> {
+        const diff = this.input.diffs.find((item) => item.newPath === filePath || item.oldPath === filePath);
+        if (!diff) {
+            throw new Error(`Changed file not found in merge request: ${filePath}`);
+        }
+        return diff;
     }
 
     async fetchMergeRequestCommentList(_mrIid: number): Promise<GitComment[]> {

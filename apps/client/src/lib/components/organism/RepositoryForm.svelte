@@ -16,22 +16,7 @@
 
     type ReplyThreadPolicy = 'all' | 'mentioned_only' | 'off';
 
-    type InitialData = Pick<
-        RepositoryResponse,
-        | 'name'
-        | 'provider'
-        | 'baseUrl'
-        | 'botUsername'
-        | 'language'
-        | 'gitlabRepositoryId'
-        | 'githubRepositoryPath'
-        | 'modelId'
-        | 'reviewOnMergeRequestOpen'
-        | 'commentOnIssueOpen'
-        | 'replyToMergeRequestComment'
-        | 'replyToIssueComment'
-        | 'inlineReview'
-    > & {
+    type InitialData = Omit<RepositoryResponse, 'apiToken' | 'webhookSecret'> & {
         apiToken?: string;
         webhookSecret?: string;
     };
@@ -56,6 +41,7 @@
     let githubRepositoryPath = $state(initialData?.githubRepositoryPath ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
     let provider = $state(initialData?.provider ?? initialProvider ?? '');
+    let deepResearchOnMergeRequest = $state(initialData?.deepResearchOnMergeRequest ?? false);
 
     let reviewOnMergeRequestOpen = $state(initialData?.reviewOnMergeRequestOpen ?? true);
     let commentOnIssueOpen = $state(initialData?.commentOnIssueOpen ?? true);
@@ -166,7 +152,8 @@
                 commentOnIssueOpen,
                 replyToMergeRequestComment,
                 replyToIssueComment,
-                inlineReview
+                inlineReview,
+                deepResearchOnMergeRequest
             };
 
             await fetchApi('/repository', {
@@ -190,7 +177,8 @@
                 commentOnIssueOpen,
                 replyToMergeRequestComment,
                 replyToIssueComment,
-                inlineReview
+                inlineReview,
+                deepResearchOnMergeRequest
             };
 
             await fetchApi(`/repository/${repositoryId}`, {
@@ -339,6 +327,11 @@
             <div class="flex items-center justify-between">
                 <FieldTitle>Inline review</FieldTitle>
                 <ToggleSwitch bind:checked={inlineReview} />
+            </div>
+            <div class="flex items-center justify-between">
+                <FieldTitle>Deep Research</FieldTitle>
+                <ToggleSwitch bind:checked={deepResearchOnMergeRequest} />
+                <Description>If enabled, sub agents will be used to research the code</Description>
             </div>
         </div>
         <div>

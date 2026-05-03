@@ -4,7 +4,7 @@ import type {
     WebhookMergeRequestNoteEventSchema,
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
-import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
+import { MergeRequestService, type ReviewPlanItem } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
@@ -74,9 +74,7 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         model.apiKey,
         model.name,
         repository.language,
-        repository.reviewOnMergeRequestOpen,
         repository.inlineReview,
-        repository.replyToMergeRequestComment,
     );
 
     const mergeRequest = payload.object_attributes;
@@ -95,9 +93,26 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
             }
 
             // If review is on, review the merge request
-            mergeRequestService.review(mergeRequest.iid).catch((err) => {
-                console.error("Review failed:", err);
-            });
+            if (repository.deepResearchOnMergeRequest) {
+                console.log("Deep research is on, planning deep review");
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                console.log("@Generating review plan list");
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                const reviewPlanList: ReviewPlanItem[] = await mergeRequestService.planDeepReview(mergeRequest.iid);
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                console.log("@generated review plan list");
+                console.log(JSON.stringify(reviewPlanList));
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                await mergeRequestService.generateDeepReview(mergeRequest.iid, reviewPlanList);
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                console.log("@deep review generated");
+                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            } else {
+                const reviewPlan = await mergeRequestService.planStandardReview(mergeRequest.iid);
+                mergeRequestService.generateStandardReview(mergeRequest.iid, reviewPlan).catch((err) => {
+                    console.error("Review failed:", err);
+                });
+            }
             return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
         }
         case "update": {
@@ -155,9 +170,7 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         model.apiKey,
         model.name,
         repository.language,
-        repository.reviewOnMergeRequestOpen,
         repository.inlineReview,
-        repository.replyToMergeRequestComment,
     );
 
     if (repository.replyToMergeRequestComment === "mentioned_only") {
