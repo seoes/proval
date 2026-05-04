@@ -152,7 +152,7 @@ async function main() {
     console.log(`Running demo: ${scenarioKey} (${entry.mode})…`);
 
     if (entry.mode === "review") {
-        await service.reviewStandard(1);
+        await service.generateStandardReview(1);
     } else {
         await service.reply(1, entry.commenter, entry.comment);
     }

@@ -18,6 +18,15 @@ export function getFileContentTool(provider: GitProvider, ref: string): AgentToo
         execute: async (args) => {
             const filePath = String(args.filePath);
             const content = await provider.fetchFileContent(filePath, ref);
+
+            const lines = content.split("\n");
+            if (lines.length > 1000) {
+                return {
+                    warning: `File is too large to read. (${lines.length} lines) Showing first 1000 lines.`,
+                    content: lines.slice(0, 1000).join("\n"),
+                    totalLines: lines.length,
+                };
+            }
             return content;
         },
     };

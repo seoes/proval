@@ -93,7 +93,7 @@ export async function runAgentLoop(
                     const result = await tool.execute(args);
                     toolCallCounts[tool.name] = (toolCallCounts[tool.name] ?? 0) + 1;
                     const content = typeof result === "string" ? result : JSON.stringify(result);
-                    console.log(`      result: ${content.slice(0, 200)}${content.length > 200 ? "..." : ""}`);
+                    console.log(`      result: ${content.slice(0, 20)}${content.length > 20 ? "..." : ""}`);
                     return { toolCallId: tc.id, content };
                 } catch (err) {
                     const errorMsg = err instanceof Error ? err.message : String(err);

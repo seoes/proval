@@ -4,7 +4,7 @@ import type {
     WebhookMergeRequestNoteEventSchema,
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
-import { MergeRequestService, type ReviewTarget } from "../../module/merge-request/merge-request.service.js";
+import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
@@ -22,6 +22,10 @@ export const handleGitLabWebhook = async (c: Context) => {
     console.log(`GitLab Webhook received: ${event}`);
     console.log("Repository:", repository.name);
     console.log("Model:", model.name);
+    console.log("Inline Review:", repository.inlineReview);
+    console.log("Deep Research:", repository.deepResearchOnMergeRequest);
+    console.log("Review On Merge Request Open:", repository.reviewOnMergeRequestOpen);
+    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
     console.log("--------------------------------");
 
     try {
@@ -94,22 +98,14 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
 
             // If review is on, review the merge request
             if (repository.deepResearchOnMergeRequest) {
-                console.log("Deep research is on, planning deep review");
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log("@Generating review target list");
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                const reviewTargetList: ReviewTarget[] = await mergeRequestService.planDeepReview(mergeRequest.iid);
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log("@generated review target list");
-                console.log(JSON.stringify(reviewTargetList));
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                await mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList);
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-                console.log("@deep review generated");
-                console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+                mergeRequestService
+                    .planDeepReview(mergeRequest.iid)
+                    .then((reviewTargetList) => mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList))
+                    .catch((err) => {
+                        console.error("Deep review failed:", err);
+                    });
             } else {
-                const reviewPlan = await mergeRequestService.planStandardReview(mergeRequest.iid);
-                mergeRequestService.generateStandardReview(mergeRequest.iid, reviewPlan).catch((err) => {
+                mergeRequestService.generateStandardReview(mergeRequest.iid).catch((err) => {
                     console.error("Review failed:", err);
                 });
             }

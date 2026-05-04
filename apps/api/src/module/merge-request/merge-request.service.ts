@@ -21,10 +21,10 @@ import type { ReviewTarget } from "./review-target.schema.js";
 import {
     DEEP_REVIEW_PLAN_PROMPT,
     DEEP_REVIEW_SUB_AGENT_PROMPT,
+    DEEP_REVIEW_COMMENT_PROMPT,
     REPLY_PROMPT,
-    REVIEW_PROMPT,
-    STANDARD_REVIEW_PLAN_PROMPT,
-} from "./merge-request.prompt.js";
+    STANDARD_REVIEW_PROMPT,
+} from "./prompt/index.js";
 
 export type { ReviewTarget } from "./review-target.schema.js";
 
@@ -50,25 +50,12 @@ export class MergeRequestService {
     // # Standard Review
     // #########################################################
 
-    public async planStandardReview(mrIid: number): Promise<string> {
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+    public async generateStandardReview(mrIid: number): Promise<void> {
+        const inlineModeTag = this.inlineReview
+            ? "<inline_comments_enabled>true</inline_comments_enabled>"
+            : "<inline_comments_enabled>false</inline_comments_enabled>";
 
-        const { finalMessage } = await runAgentLoop(
-            this.sender,
-            STANDARD_REVIEW_PLAN_PROMPT,
-            await this.generateMergeRequestPrompt(mrIid),
-            {
-                toolList: this.createReadToolList(mrIid, sourceBranch),
-            },
-        );
-        if (!finalMessage) {
-            throw new Error("Failed to generate standard review plan");
-        }
-        return finalMessage;
-    }
-
-    public async generateStandardReview(mrIid: number, reviewPlan: string): Promise<void> {
-        const system = `${REVIEW_PROMPT}\n\n${reviewPlan}\n\nLanguage: ${this.language}`;
+        const system = `${STANDARD_REVIEW_PROMPT}\n\n${inlineModeTag}\n\nLanguage: ${this.language}`;
         const prompt = await this.generateMergeRequestPrompt(mrIid);
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
@@ -115,7 +102,10 @@ export class MergeRequestService {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const reviewResultList: string[] = [];
-        for (const reviewTarget of reviewTargetList) {
+        for (const [index, reviewTarget] of reviewTargetList.entries()) {
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            console.log(`@ Sub-Agent ${index + 1} of ${reviewTargetList.length} - ${reviewTarget.description}`);
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             const reviewResult = await this.runDeepReviewSubAgent(mrIid, reviewTarget);
             console.log(
                 `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=${reviewResult}`,
@@ -126,7 +116,11 @@ export class MergeRequestService {
             reviewResultList.push(reviewResult);
         }
 
-        const system = `${REVIEW_PROMPT}\n\nIf duplicate review targets appear in the specialist findings below, do not review them again.\n\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
+        const inlineModeTag = this.inlineReview
+            ? "<inline_comments_enabled>true</inline_comments_enabled>"
+            : "<inline_comments_enabled>false</inline_comments_enabled>";
+
+        const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
         const stats = await runAgentLoop(this.sender, system, await this.generateMergeRequestPrompt(mrIid), {
             toolList: [
                 ...this.createReadToolList(mrIid, sourceBranch),

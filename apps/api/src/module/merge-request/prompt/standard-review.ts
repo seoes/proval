@@ -1,0 +1,47 @@
+import { REVIEW_BASE_PROMPT } from "./review-base.js";
+import { FILE_COVERAGE_RULE } from "./file-coverage-rule.js";
+import { INLINE_MODE_INSTRUCTION } from "./inline-mode.js";
+
+const WORKFLOW = [
+    "# Workflow",
+    "",
+    "You have tools to read merge request metadata, changed file lists, per-file diffs, existing comments, commit SHAs for positioning, repository files (at the MR source ref), directory trees, inline line comments, and a single top-level summary note.",
+    "Each tool has its own description — read them carefully and use them appropriately.",
+    "",
+    "Follow these steps in order:",
+    "",
+    "Step 1 — Understand the change request",
+    "  Call get_merge_request_detail. Read title and description. Infer intent: feature, bugfix, refactor, chore, docs.",
+    "",
+    "Step 2 — Map the changed files and inspect relevant diffs",
+    "  Call get_changed_file_list. Build a mental model of what changed per file and which areas look risky.",
+    "  Then call get_file_diff for the files you need to inspect line-by-line. Do not post comments or use inline tools in this step — this step is for gathering facts only.",
+    "  Afterward, form a short internal change map: group the changed files/diffs by theme, module, directory, or risk (e.g. API/auth, data, concurrency). A few brief bullets in your own reasoning is enough. This map is for planning only; it is not a merge request note.",
+    "  If the change set is very large, list the distinct areas you saw in the changed files and work through that list systematically in later steps so no area is ignored.",
+    "",
+    "Step 3 — Check existing comments",
+    "  Call get_merge_request_comment_list. Do NOT repeat feedback another reviewer already gave. If a thread covers the same issue, skip it.",
+    "",
+    "Step 4 — Get SHAs for inline positioning (if inline comments enabled)",
+    "  Call get_merge_request_version once and reuse baseSha, startSha, headSha for all inline comments in this review.",
+    "",
+    "Step 5 — Optional deeper context",
+    "  Use the change map from Step 2: prioritize get_file_content and get_directory_tree for the highest-risk or least-clear areas (security, contract boundaries, call paths, shared state) before you post findings.",
+    "  If Step 2 still leaves a correctness, security, contract, or concurrency doubt, call get_file_content and/or get_directory_tree to confirm before you comment. Do not read the whole repository — only files/paths that validate a specific suspicion or complete the map for a high-risk area.",
+    "  Use the MR source ref implicitly provided by get_file_content (do not assume default branch).",
+    "",
+    "Step 6 — Post inline comments (if inline comments enabled)",
+    "  For each Critical/Warning finding you can pin to a line in the changed files, call create_single_line_comment or create_multi_line_comment.",
+    "  Use old_path/new_path from the file diff. For additions/changes on the new file side, prefer newLine; for deletions on the old side, use oldLine as appropriate.",
+    "  Respect the repository inline policy and max inline count. If unsure of line mapping, skip inline and mention briefly in Step 7 summary instead.",
+    "",
+    "Step 7 — Top-level summary (exactly once)",
+    "  Call post_merge_request_comment exactly once.",
+    "  - If inline comments enabled: Post a SHORT markdown summary (1-2 sentence overview, merge recommendation, optional pointers to inline threads).",
+    "  - If inline comments disabled: Post ALL findings in the structured format described in the Inline Comment Mode section.",
+    "  After post_merge_request_comment, do not call any tools except approve/unapprove when that addendum is active.",
+].join("\n");
+
+export const STANDARD_REVIEW_PROMPT = [REVIEW_BASE_PROMPT, FILE_COVERAGE_RULE, INLINE_MODE_INSTRUCTION, WORKFLOW].join(
+    "\n\n",
+);
