@@ -62,9 +62,8 @@ export class MergeRequestService {
 
         const stats = await runAgentLoop(this.sender, system, prompt, {
             toolList: [
-                ...this.createReadToolList(mrIid, sourceBranch),
-                ...this.createCommentToolList(mrIid),
-                ...(this.inlineReview ? this.createInlineCommentToolList(mrIid) : []),
+                ...this.createCodeToolList(mrIid, sourceBranch),
+                ...this.createReviewToolList(mrIid, this.inlineReview),
             ],
         });
 
@@ -87,7 +86,7 @@ export class MergeRequestService {
             DEEP_REVIEW_PLAN_PROMPT,
             await this.generateMergeRequestPrompt(mrIid),
             {
-                toolList: [...this.createReadToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
+                toolList: [...this.createCodeToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
             },
         );
 
@@ -123,9 +122,8 @@ export class MergeRequestService {
         const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
         const stats = await runAgentLoop(this.sender, system, await this.generateMergeRequestPrompt(mrIid), {
             toolList: [
-                ...this.createReadToolList(mrIid, sourceBranch),
-                ...this.createCommentToolList(mrIid),
-                ...(this.inlineReview ? this.createInlineCommentToolList(mrIid) : []),
+                ...this.createCodeToolList(mrIid, sourceBranch),
+                ...this.createReviewToolList(mrIid, this.inlineReview),
             ],
         });
 
@@ -141,7 +139,7 @@ export class MergeRequestService {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const stats = await runAgentLoop(this.sender, system, prompt, {
-            toolList: [...this.createReadToolList(mrIid, sourceBranch)],
+            toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
         });
 
         console.log(
@@ -162,14 +160,19 @@ export class MergeRequestService {
     public async reply(mrIid: number, commenterUsername: string, commentBody: string): Promise<void> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        const system = `${REPLY_PROMPT}, Commenter Username: ${commenterUsername}, Comment Body: ${commentBody}`;
+        const commentList = await this.provider.fetchMergeRequestCommentList(mrIid);
 
-        const stats = await runAgentLoop(this.sender, system, await this.generateMergeRequestPrompt(mrIid), {
-            toolList: [
-                ...this.createReadToolList(mrIid, sourceBranch),
-                ...this.createReplyToolList(mrIid, commenterUsername),
-            ],
-        });
+        const system = `${REPLY_PROMPT}`;
+        const prompt = `Commenter Username: ${commenterUsername}, Comment Body: ${commentBody}, Comment List: ${JSON.stringify(commentList)}`;
+        const toolList = [
+            ...this.createCodeToolList(mrIid, sourceBranch),
+            ...this.createReplyToolList(mrIid, commenterUsername),
+        ];
+
+        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        console.log(`@ Tool List: ${JSON.stringify(toolList)}`);
+        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+        const stats = await runAgentLoop(this.sender, system, prompt, { toolList });
 
         console.log(`[MR reply] iid=${mrIid} steps=${stats.stepCount} tools=${JSON.stringify(stats.toolCallCounts)}`);
     }
@@ -178,32 +181,32 @@ export class MergeRequestService {
     // # Tools
     // #########################################################
 
-    private createReadToolList(mrIid: number, sourceBranch: string): AgentTool[] {
+    private createCodeToolList(mrIid: number, sourceBranch: string): AgentTool[] {
         return [
             getMergeRequestDetailTool(this.provider, mrIid),
             getChangedFileListTool(this.provider, mrIid),
             getFileDiffTool(this.provider, mrIid),
-            getMergeRequestCommentListTool(this.provider, mrIid),
             getDirectoryTreeTool(this.provider, sourceBranch),
             getFileContentTool(this.provider, sourceBranch),
             getMergeRequestVersionTool(this.provider, mrIid),
         ];
     }
 
-    private createInlineCommentToolList(mrIid: number): AgentTool[] {
-        return [createSingleLineCommentTool(this.provider, mrIid), createMultiLineCommentTool(this.provider, mrIid)];
-    }
-
-    private createCommentToolList(mrIid: number): AgentTool[] {
-        return [postMergeRequestCommentTool(this.provider, mrIid)];
-    }
-
-    private createApprovalToolList(mrIid: number): AgentTool[] {
-        return [approveMergeRequestTool(this.provider, mrIid), unapproveMergeRequestTool(this.provider, mrIid)];
+    private createReviewToolList(mrIid: number, inlineReview: boolean): AgentTool[] {
+        return [
+            postMergeRequestCommentTool(this.provider, mrIid),
+            ...(inlineReview
+                ? [createSingleLineCommentTool(this.provider, mrIid), createMultiLineCommentTool(this.provider, mrIid)]
+                : []),
+        ];
     }
 
     private createReplyToolList(mrIid: number, commenterUsername: string): AgentTool[] {
         return [postMergeRequestReplyTool(this.provider, mrIid, commenterUsername)];
+    }
+
+    private createApprovalToolList(mrIid: number): AgentTool[] {
+        return [approveMergeRequestTool(this.provider, mrIid), unapproveMergeRequestTool(this.provider, mrIid)];
     }
 
     // #########################################################
