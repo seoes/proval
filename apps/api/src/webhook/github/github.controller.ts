@@ -1,6 +1,8 @@
 import type { Context } from "hono";
+import { App } from "@octokit/app";
+import { Octokit } from "@octokit/rest";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
-import { createGitHubProvider, githubBotUsernameFromSlug } from "../../provider/github-app.js";
+import { GitHubProvider } from "../../provider/github.js";
 import { githubAppTable, modelTable, repositoryTable } from "@code-review/db";
 import type { InferSelectModel } from "drizzle-orm";
 
@@ -19,6 +21,30 @@ type IssueCommentWebhookPayload = {
     comment?: { body?: string };
     sender?: { type?: string; login?: string };
 };
+
+async function createGitHubProvider(
+    repository: Repository,
+    githubApp: GithubApp,
+): Promise<GitHubProvider> {
+    const app = new App({
+        appId: githubApp.appId,
+        privateKey: githubApp.privateKey,
+        Octokit,
+    });
+    const octokit = await app.getInstallationOctokit(repository.githubInstallationId!);
+    if (!octokit) {
+        throw new Error("Failed to get installation octokit");
+    }
+
+    const { data: repo } = await octokit.request("GET /repositories/:repository_id", {
+        repository_id: repository.githubRepositoryId!,
+    });
+    const owner = repo.owner.login;
+    const repoName = repo.name;
+    const botUsername = `${githubApp.slug}[bot]`;
+
+    return new GitHubProvider(octokit, owner, repoName, botUsername);
+}
 
 export const handleGitHubWebhook = async (c: Context) => {
     const event = c.req.header("X-GitHub-Event") ?? "";
@@ -112,7 +138,7 @@ async function handleIssueCommentWebhook(
 
     const prNumber = payload.issue.number;
     const sender = payload.sender;
-    const botLogin = githubBotUsernameFromSlug(githubApp.slug);
+    const botLogin = `${githubApp.slug}[bot]`;
 
     if (sender?.type === "Bot" || sender?.login === botLogin) {
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
