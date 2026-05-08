@@ -4,7 +4,7 @@ import {
     findById as findRepositoryById,
     createRepository,
     updateRepository,
-    updateApiToken,
+    updateGitlabAccessToken,
     updateWebhookSecret,
     removeRepository,
 } from "./repository/repository.controller.js";
@@ -18,8 +18,10 @@ import {
     removeModel,
 } from "./model/model.controller.js";
 import {
-    createInstallation,
+    createGitHubAppManually,
     findGitHubAppList,
+    findGitHubAppInstallationList,
+    findGitHubAppInstallationRepositoryList,
     handleGitHubAppCallback,
     handleGitHubAppSetup,
 } from "./github/github-app.controller.js";
@@ -45,12 +47,14 @@ apiRouter.get("/repository", findAllRepositoryController);
 apiRouter.get("/repository/:id", findRepositoryById);
 apiRouter.post("/repository", createRepository);
 apiRouter.put("/repository/:id", updateRepository);
-apiRouter.patch("/repository/:id/api-token", updateApiToken);
+apiRouter.patch("/repository/:id/gitlab-access-token", updateGitlabAccessToken);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
 apiRouter.delete("/repository/:id", removeRepository);
 
 // GitHub App routes
 apiRouter.get("/github/app", findGitHubAppList);
+apiRouter.post("/github/app", createGitHubAppManually);
 apiRouter.post("/github/app/callback", handleGitHubAppCallback);
 apiRouter.post("/github/app/setup", handleGitHubAppSetup);
-apiRouter.post("/github/app/installation", createInstallation);
+apiRouter.get("/github/app/:id/installation/:installationId/repository", findGitHubAppInstallationRepositoryList);
+apiRouter.get("/github/app/:id/installation", findGitHubAppInstallationList);

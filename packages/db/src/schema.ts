@@ -26,6 +26,7 @@ export const githubAppTable = sqliteTable("github_app", {
     appId: integer().notNull().unique(),
     slug: text().notNull().unique(),
     privateKey: text().notNull(),
+    webhookSecret: text().notNull().default(""),
     ...timeStamp,
 });
 
@@ -35,7 +36,7 @@ export const repositoryTable = sqliteTable("repository", {
     name: text().notNull(),
     provider: text({ enum: ["gitlab", "github", "gitea", "forgejo"] }).notNull(),
     baseUrl: text().notNull(),
-    apiToken: text().notNull(),
+    gitlabAccessToken: text(),
     webhookSecret: text(),
     botUsername: text(),
     language: text().notNull().default("English"),
@@ -44,6 +45,7 @@ export const repositoryTable = sqliteTable("repository", {
     githubAppId: integer().references(() => githubAppTable.id),
     githubInstallationId: integer(),
     githubRepositoryPath: text(),
+    githubRepositoryId: integer(),
 
     // gitlab
     gitlabRepositoryId: integer(),

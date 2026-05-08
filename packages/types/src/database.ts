@@ -10,12 +10,12 @@ export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
 export type ModelInsert = InferInsertModel<typeof modelTable>;
 
 // API response types (sensitive fields omitted)
-export type RepositoryResponse = Omit<Repository, "apiToken" | "webhookSecret">;
+export type RepositoryResponse = Omit<Repository, "gitlabAccessToken" | "webhookSecret">;
 export type ModelResponse = Omit<Model, "apiKey">;
 
 // Update types (for PUT - excludes sensitive fields)
 export type RepositoryUpdateInput = Partial<
-    Omit<RepositoryInsert, "apiToken" | "webhookSecret" | "createdAt" | "updatedAt">
+    Omit<RepositoryInsert, "gitlabAccessToken" | "webhookSecret" | "createdAt" | "updatedAt">
 >;
 export type ModelUpdateInput = Partial<Omit<ModelInsert, "apiKey" | "createdAt" | "updatedAt">>;
 

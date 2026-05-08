@@ -99,6 +99,13 @@
       "when": 1777698633156,
       "tag": "0013_illegal_vargas",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1778210060574,
+      "tag": "0014_tricky_sugar_man",
+      "breakpoints": true
     }
   ]
 }

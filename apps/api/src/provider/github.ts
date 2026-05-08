@@ -17,20 +17,16 @@ export class GitHubProvider implements GitProvider {
     private readonly octokit: Octokit;
 
     constructor(
-        token: string,
+        octokit: Octokit,
         private readonly owner: string,
         private readonly repo: string,
-        baseUrl?: string,
+        private readonly botUsername: string,
     ) {
-        this.octokit = new Octokit({
-            baseUrl: baseUrl ?? "https://api.github.com",
-            auth: token,
-        });
+        this.octokit = octokit;
     }
 
     public async fetchCurrentUser(): Promise<GitUser> {
-        const { data: user } = await this.octokit.users.getAuthenticated();
-        return { username: user.login };
+        return { username: this.botUsername };
     }
 
     public async fetchMergeRequestDetail(prNumber: number): Promise<GitMergeRequest> {
@@ -148,26 +144,51 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
-        const { data: tree } = await this.octokit.git.getTree({
+        if (recursive) {
+            const { data: tree } = await this.octokit.git.getTree({
+                owner: this.owner,
+                repo: this.repo,
+                tree_sha: ref,
+                recursive: "true",
+            });
+
+            const prefix = filePath ? `${filePath}/` : "";
+            const filtered = tree.tree.filter((node) => node.path?.startsWith(prefix));
+
+            return filtered.map((node) => {
+                const relativePath = node.path?.slice(prefix.length) ?? "";
+                return {
+                    name: relativePath.split("/")[0],
+                    path: node.path ?? "",
+                    type: node.type === "tree" ? "directory" : "file",
+                };
+            });
+        }
+
+        const { data } = await this.octokit.repos.getContent({
             owner: this.owner,
             repo: this.repo,
-            tree_sha: `${ref}:${filePath}`,
-            recursive: recursive ? "true" : undefined,
+            path: filePath,
+            ref,
         });
 
-        return tree.tree.map((node) => ({
-            name: node.path?.split("/").pop() ?? "",
-            path: node.path ?? "",
-            type: node.type === "tree" ? "directory" : "file",
+        if (!Array.isArray(data)) {
+            return [];
+        }
+
+        return data.map((item) => ({
+            name: item.name,
+            path: item.path,
+            type: item.type === "dir" ? "directory" : "file",
         }));
     }
 
     public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
-        const refPath = ref ? `${ref}:${filePath}` : filePath;
         const { data } = await this.octokit.repos.getContent({
             owner: this.owner,
             repo: this.repo,
-            path: refPath,
+            path: filePath,
+            ref,
         });
 
         if (Array.isArray(data)) {

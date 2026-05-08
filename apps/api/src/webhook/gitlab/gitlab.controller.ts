@@ -70,7 +70,11 @@ type HandleGitLabMergeRequestWebhook = (
 
 const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (payload, repository, model) => {
     const project = payload.project;
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
+    const token = repository.gitlabAccessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+    }
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
 
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
@@ -136,7 +140,11 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
     }
 
     const project = payload.project;
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, repository.apiToken, project.id);
+    const token = repository.gitlabAccessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+    }
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
 
     const botUserData = await gitlabProvider.fetchCurrentUser();
     const botUsername = botUserData.username;

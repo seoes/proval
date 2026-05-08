@@ -1,7 +1,15 @@
 import type { Context } from "hono";
-import { sign } from "crypto";
-import db from "../../db";
-import { githubAppTable } from "@code-review/db";
+import { App } from "@octokit/app";
+import { eq, isNotNull } from "drizzle-orm";
+import db from "../../db/index.js";
+import { githubAppTable, repositoryTable } from "@code-review/db";
+
+type ManifestConversionResult = {
+    id: number;
+    slug: string;
+    pem: string;
+    webhook_secret?: string;
+};
 
 export const findGitHubAppList = async (c: Context) => {
     const appList = await db.select().from(githubAppTable);
@@ -17,14 +25,62 @@ export const findGitHubAppList = async (c: Context) => {
     );
 };
 
-export const handleGitHubAppCallback = async (c: Context) => {
-    console.log("handleGitHubAppCallback");
+export const createGitHubAppManually = async (c: Context) => {
+    const body = await c.req.json();
+    const appId = Number(body.appId);
+    const slugInput = String(body.slug ?? "").trim();
+    const privateKey = String(body.privateKey ?? "").trim();
+    const webhookSecret = String(body.webhookSecret ?? "").trim();
 
+    if (!Number.isFinite(appId) || appId <= 0 || !slugInput || !privateKey || !webhookSecret) {
+        return c.json({ error: "appId, slug, privateKey, and webhookSecret are required" }, 400);
+    }
+
+    let appAuth: App;
+    try {
+        appAuth = new App({ appId, privateKey });
+    } catch {
+        return c.json({ error: "Invalid private key" }, 400);
+    }
+
+    let data: { id: number; slug?: string };
+    try {
+        const res = await appAuth.octokit.request("GET /app", {});
+        data = res.data as typeof data;
+    } catch {
+        return c.json({ error: "Could not verify App with GitHub; check appId and privateKey" }, 401);
+    }
+
+    if (data.id !== appId) {
+        return c.json({ error: "GitHub returned a different app id than expected" }, 400);
+    }
+
+    const slug = data.slug || slugInput;
+
+    try {
+        const inserted = await db
+            .insert(githubAppTable)
+            .values({
+                appId,
+                slug,
+                privateKey,
+                webhookSecret,
+            })
+            .returning({ id: githubAppTable.id });
+
+        return c.json({ id: inserted[0].id, slug }, 201);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("UNIQUE") || msg.includes("unique")) {
+            return c.json({ error: "This GitHub App is already registered" }, 409);
+        }
+        throw e;
+    }
+};
+
+export const handleGitHubAppCallback = async (c: Context) => {
     const body = await c.req.json();
     const { code, state } = body;
-
-    console.log("code", code);
-    console.log("state", state);
 
     if (!code || !state) {
         return c.json({ error: "Code or state is required" }, 400);
@@ -39,22 +95,31 @@ export const handleGitHubAppCallback = async (c: Context) => {
     });
 
     if (!response.ok) {
-        const error = await response.text();
-        return c.json({ error: "Failed to convert manifest", detail: error }, 502);
+        const errText = await response.text();
+        return c.json({ error: "Failed to convert manifest", detail: errText }, 502);
     }
-    const result = await response.json();
 
-    console.log("result", result);
+    const result = (await response.json()) as ManifestConversionResult;
 
-    // save the app id and private key to the database
+    try {
+        const inserted = await db
+            .insert(githubAppTable)
+            .values({
+                appId: result.id,
+                slug: result.slug,
+                privateKey: result.pem,
+                webhookSecret: result.webhook_secret ?? "",
+            })
+            .returning({ id: githubAppTable.id });
 
-    await db.insert(githubAppTable).values({
-        appId: result.id,
-        slug: result.slug,
-        privateKey: result.pem,
-    });
-
-    return c.json({ slug: result.slug }, 200);
+        return c.json({ slug: result.slug, id: inserted[0].id }, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("UNIQUE") || msg.includes("unique")) {
+            return c.json({ error: "This GitHub App is already registered" }, 409);
+        }
+        throw e;
+    }
 };
 
 export const handleGitHubAppSetup = async (c: Context) => {
@@ -74,45 +139,114 @@ export const handleGitHubAppSetup = async (c: Context) => {
         return c.json({ error: "No GitHub App configured" }, 404);
     }
 
-    const app = apps[0];
-    const jwt = generateAppJwt(app.appId, app.privateKey);
+    const iid = Number(installationId);
 
-    const response = await fetch(`https://api.github.com/app/installations/${installationId}`, {
-        headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${jwt}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    });
+    for (const row of apps) {
+        const app = new App({ appId: row.appId, privateKey: row.privateKey });
+        try {
+            const { data: installation } = await app.octokit.request("GET /app/installations/{installation_id}", {
+                installation_id: iid,
+            });
 
-    if (!response.ok) {
-        return c.json({ error: "Installation not found or not accessible" }, 404);
+            return c.json(
+                {
+                    installationId: iid,
+                    githubAppId: row.id,
+                    account:
+                        installation.account && "login" in installation.account
+                            ? String((installation.account as { login: string }).login)
+                            : "",
+                    type:
+                        installation.account && "type" in installation.account
+                            ? String((installation.account as { type?: string }).type ?? "")
+                            : "",
+                },
+                200,
+            );
+        } catch {
+            continue;
+        }
     }
 
-    const installation = await response.json();
-
-    return c.json(
-        {
-            installationId: Number(installationId),
-            account: installation.account?.login,
-            type: installation.account?.type,
-        },
-        200,
-    );
+    return c.json({ error: "Installation not found or not accessible" }, 404);
 };
 
-function generateAppJwt(appId: number, privateKey: string): string {
-    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+export const findGitHubAppInstallationList = async (c: Context) => {
+    const idParam = c.req.param("id");
+    const id = parseInt(idParam ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid app id" }, 400);
+    }
 
-    const now = Math.floor(Date.now() / 1000);
-    const payload = Buffer.from(JSON.stringify({ iat: now - 60, exp: now + 600, iss: appId })).toString("base64url");
+    const rows = await db.select().from(githubAppTable).where(eq(githubAppTable.id, id)).limit(1);
+    if (rows.length === 0) {
+        return c.json({ error: "GitHub App not found" }, 404);
+    }
 
-    const signature = sign("sha256", Buffer.from(`${header}.${payload}`), privateKey);
+    const row = rows[0];
+    const app = new App({ appId: row.appId, privateKey: row.privateKey });
 
-    return `${header}.${payload}.${signature.toString("base64url")}`;
-}
+    const { data: installations } = await app.octokit.request("GET /app/installations", {
+        per_page: 100,
+    });
 
-export const createInstallation = async (c: Context) => {
-    const body = await c.req.json();
-    const { appId } = body;
+    const instList = Array.isArray(installations) ? installations : [];
+    const list = instList.map((inst) => {
+        const acc = inst.account;
+        const login = acc && "login" in acc ? String((acc as { login: string }).login) : "";
+        const accType = acc && "type" in acc ? String((acc as { type?: string }).type ?? "") : "";
+        return {
+            id: inst.id,
+            account: login,
+            type: accType,
+        };
+    });
+
+    return c.json(list, 200);
+};
+
+export const findGitHubAppInstallationRepositoryList = async (c: Context) => {
+    const idParam = c.req.param("id");
+    const installationParam = c.req.param("installationId");
+    const appPk = parseInt(idParam ?? "", 10);
+    const installationId = parseInt(installationParam ?? "", 10);
+
+    if (!Number.isFinite(appPk) || !Number.isFinite(installationId)) {
+        return c.json({ error: "Invalid app or installation id" }, 400);
+    }
+
+    const rows = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appPk)).limit(1);
+    if (rows.length === 0) {
+        return c.json({ error: "GitHub App not found" }, 404);
+    }
+
+    const row = rows[0];
+    const app = new App({ appId: row.appId, privateKey: row.privateKey });
+
+    let octokit: Awaited<ReturnType<App["getInstallationOctokit"]>>;
+    try {
+        octokit = await app.getInstallationOctokit(installationId);
+    } catch {
+        return c.json({ error: "Installation not accessible for this app" }, 404);
+    }
+
+    const connectedRows = await db
+        .select({ githubRepositoryId: repositoryTable.githubRepositoryId })
+        .from(repositoryTable)
+        .where(isNotNull(repositoryTable.githubRepositoryId));
+
+    const connected = new Set(connectedRows.map((r) => r.githubRepositoryId).filter((x): x is number => x != null));
+
+    const { data } = await octokit.request("GET /installation/repositories", { per_page: 100 });
+    type GhRepo = { id: number; full_name: string; private: boolean };
+    const repositories = (data.repositories ?? []) as GhRepo[];
+
+    const list = repositories.map((repo) => ({
+        id: repo.id,
+        fullName: repo.full_name,
+        private: repo.private,
+        alreadyConnected: connected.has(repo.id),
+    }));
+
+    return c.json(list, 200);
 };

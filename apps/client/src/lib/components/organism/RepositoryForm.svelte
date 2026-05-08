@@ -16,15 +16,15 @@
 
     type ReplyThreadPolicy = 'all' | 'mentioned_only' | 'off';
 
-    type InitialData = Omit<RepositoryResponse, 'apiToken' | 'webhookSecret'> & {
-        apiToken?: string;
+    type InitialData = Partial<RepositoryResponse> & {
+        gitlabAccessToken?: string;
         webhookSecret?: string;
     };
 
     interface Props {
         mode: 'create' | 'edit';
         repositoryId?: number;
-        provider?: 'GitLab' | 'GitHub' | 'Gitea' | 'Forgejo';
+        provider?: RepositoryResponse['provider'];
         modelList: ModelResponse[];
         initialData?: InitialData;
     }
@@ -33,7 +33,7 @@
 
     let name = $state(initialData?.name ?? '');
     let baseUrl = $state(initialData?.baseUrl ?? '');
-    let apiToken = $state(initialData?.apiToken ?? '');
+    let gitlabAccessToken = $state(initialData?.gitlabAccessToken ?? '');
     let webhookSecret = $state(initialData?.webhookSecret ?? '');
     let botUsername = $state(initialData?.botUsername ?? '');
     let language = $state(initialData?.language ?? 'English');
@@ -129,8 +129,8 @@
             await openAlert('GitLab Repository ID is required');
             return;
         }
-        if (mode === 'create' && !apiToken) {
-            await openAlert('API Token is required');
+        if (mode === 'create' && provider === 'gitlab' && !gitlabAccessToken) {
+            await openAlert('GitLab access token is required');
             return;
         }
 
@@ -141,7 +141,7 @@
                 name,
                 provider,
                 baseUrl,
-                apiToken,
+                gitlabAccessToken: gitlabAccessToken || null,
                 webhookSecret: webhookSecret || null,
                 botUsername: botUsername || null,
                 language,
@@ -296,13 +296,15 @@
         {/if}
 
         {#if mode === 'create'}
-            <div>
-                <FormField label="API Token" description="The API token of the repository">
-                    {#snippet children({ id })}
-                        <InputText {id} placeholder="glpat-..." bind:value={apiToken} password />
-                    {/snippet}
-                </FormField>
-            </div>
+            {#if provider === 'gitlab'}
+                <div>
+                    <FormField label="GitLab access token" description="Personal access token for this project">
+                        {#snippet children({ id })}
+                            <InputText {id} placeholder="glpat-..." bind:value={gitlabAccessToken} password />
+                        {/snippet}
+                    </FormField>
+                </div>
+            {/if}
             <div>
                 <FormField label="Webhook Secret (optional)">
                     {#snippet children({ id })}
@@ -313,7 +315,7 @@
         {:else}
             <div class="mt-8">
                 <Description
-                    >API Token and Webhook Secret can be updated in the list page</Description
+                    >GitLab access token and webhook secret can be updated from the repository list</Description
                 >
             </div>
         {/if}
