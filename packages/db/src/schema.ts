@@ -30,6 +30,13 @@ export const githubAppTable = sqliteTable("github_app", {
     ...timeStamp,
 });
 
+export const githubInstallationTable = sqliteTable("github_installation", {
+    id: integer().primaryKey({ autoIncrement: true }),
+    installationId: integer().notNull().unique(),
+    appId: integer().references(() => githubAppTable.id, { onDelete: "cascade" }),
+    ...timeStamp,
+});
+
 export const repositoryTable = sqliteTable("repository", {
     id: integer().primaryKey({ autoIncrement: true }),
 
@@ -42,8 +49,7 @@ export const repositoryTable = sqliteTable("repository", {
     language: text().notNull().default("English"),
 
     // github
-    githubAppId: integer().references(() => githubAppTable.id),
-    githubInstallationId: integer(),
+    githubInstallationId: integer().references(() => githubInstallationTable.id),
     githubRepositoryPath: text(),
     githubRepositoryId: integer(),
 

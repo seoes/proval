@@ -8,7 +8,6 @@ export const findAllRepositoryController: Handler = async (c) => {
     const repositoryResponseList: RepositoryResponse[] = repositoryList.map((repository) =>
         repositoryService.toResponse(repository),
     );
-    console.log(repositoryResponseList);
     return c.json(repositoryResponseList, 200);
 };
 

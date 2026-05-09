@@ -133,6 +133,8 @@ export class MergeRequestService {
     }
 
     private async runDeepReviewSubAgent(mrIid: number, reviewTarget: ReviewTarget): Promise<string> {
+        const maxSteps = 100;
+
         const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
         const prompt = `Review target: ${JSON.stringify(reviewTarget)}`;
 
@@ -140,6 +142,7 @@ export class MergeRequestService {
 
         const stats = await runAgentLoop(this.sender, system, prompt, {
             toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
+            maxSteps,
         });
 
         console.log(

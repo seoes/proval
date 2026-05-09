@@ -29,5 +29,4 @@ CREATE TABLE `__new_repository` (
 INSERT INTO `__new_repository`("id", "name", "provider", "base_url", "gitlab_access_token", "webhook_secret", "bot_username", "language", "github_app_id", "github_installation_id", "github_repository_path", "github_repository_id", "gitlab_repository_id", "review_on_merge_request_open", "inline_review", "reply_to_merge_request_comment", "deep_research_on_merge_request", "comment_on_issue_open", "reply_to_issue_comment", "model_id", "created_at", "updated_at") SELECT "id", "name", "provider", "base_url", "gitlab_access_token", "webhook_secret", "bot_username", "language", "github_app_id", "github_installation_id", "github_repository_path", "github_repository_id", "gitlab_repository_id", "review_on_merge_request_open", "inline_review", "reply_to_merge_request_comment", "deep_research_on_merge_request", "comment_on_issue_open", "reply_to_issue_comment", "model_id", "created_at", "updated_at" FROM `repository`;--> statement-breakpoint
 DROP TABLE `repository`;--> statement-breakpoint
 ALTER TABLE `__new_repository` RENAME TO `repository`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;--> statement-breakpoint
-ALTER TABLE `github_app` ADD `webhook_secret` text DEFAULT '' NOT NULL;
+PRAGMA foreign_keys=ON;

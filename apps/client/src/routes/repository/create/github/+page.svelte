@@ -9,24 +9,24 @@
     import { goto } from '$app/navigation';
     import fetchApi from '$lib/utils';
     import { openAlert, openConfirm } from '$lib/store/modal';
+    import { onMount } from 'svelte';
     import type { PageProps } from './$types';
 
-    type GithubAppRow = { id: number; appId: number; slug: string };
-    type InstallationRow = { id: number; account: string; type: string };
+    type InstallationRow = {
+        id: number;
+        installationId: number;
+        accountName: string;
+        accountType: 'User' | 'Organization';
+    };
     type RepoRow = { id: number; fullName: string; private: boolean; alreadyConnected: boolean };
     type ReplyMode = 'all' | 'mentioned_only' | 'off';
 
     let { data }: PageProps = $props();
 
-    let appList = $state<GithubAppRow[]>([...data.appList]);
     let step = $state(1);
-    let regMode = $state<'quick' | 'manual'>('quick');
-    let isCreatingApp = $state(false);
     let isFetching = $state(false);
 
-    let selectedAppId = $state('');
-    let webhookUrl = $state('');
-
+    let appId = $state<number | null>(null);
     let installationList = $state<InstallationRow[]>([]);
     let selectedInstallationId = $state('');
 
@@ -34,11 +34,6 @@
     let repoSearch = $state('');
     let selectedRepoPath = $state('');
     let selectedGithubRepoId = $state(0);
-
-    let manualAppId = $state('');
-    let manualSlug = $state('');
-    let manualPrivateKey = $state('');
-    let manualWebhookSecret = $state('');
 
     let name = $state('');
     let modelId = $state('');
@@ -56,156 +51,47 @@
             : repoList
     );
 
-    async function refreshAppList() {
-        const res = await fetchApi('/github/app');
-        if (!res.ok) {
-            await openAlert('Failed to load GitHub Apps');
+    onMount(async () => {
+        // Check if app exists
+        if (!data.app) {
+            await openAlert(
+                'GitHub App is not registered. Please register it in Settings > Integration.'
+            );
+            goto('/settings/integration');
             return;
         }
-        appList = await res.json();
-    }
 
-    function normalizeBaseUrl(raw: string): string {
-        const u = raw.trim().replace(/\/$/, '');
-        try {
-            new URL(u);
-            return u;
-        } catch {
-            throw new Error('Invalid webhook URL');
-        }
-    }
+        appId = data.app.id;
 
-    function postManifestToGitHub() {
-        const normalizedWebhookUrl = normalizeBaseUrl(webhookUrl);
-
-        const clientUrl = window.location.origin;
-        const callbackUrl = `${clientUrl}/repository/create/github/app/callback`;
-        const setupUrl = `${clientUrl}/repository/create/github/app/setup`;
-
-        const manifest = {
-            name: `Proval-${crypto.randomUUID().replace(/-/g, '').slice(0, 6)}`,
-            url: normalizedWebhookUrl,
-            hook_attributes: {
-                url: `${normalizedWebhookUrl}/webhook/github`,
-                active: true
-            },
-            redirect_url: callbackUrl,
-            setup_url: setupUrl,
-            public: false,
-            default_permissions: {
-                contents: 'read',
-                metadata: 'read',
-                pull_requests: 'write',
-                issues: 'write',
-                statuses: 'write'
-            },
-            default_events: ['pull_request', 'issue_comment']
-        };
-
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://github.com/settings/apps/new';
-
-        const manifestInput = document.createElement('input');
-        manifestInput.type = 'hidden';
-        manifestInput.name = 'manifest';
-        manifestInput.value = JSON.stringify(manifest);
-
-        const stateInput = document.createElement('input');
-        stateInput.type = 'hidden';
-        stateInput.name = 'state';
-        stateInput.value = crypto.randomUUID();
-
-        form.append(manifestInput, stateInput);
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
-    }
-
-    async function createApp() {
-        try {
-            isCreatingApp = true;
-            postManifestToGitHub();
-            await openAlert('Complete GitHub App creation in the new tab, then return here.');
-        } catch (e) {
-            await openAlert(e instanceof Error ? e.message : 'Invalid URL');
-        } finally {
-            isCreatingApp = false;
-        }
-    }
-
-    async function registerManualApp() {
-        const appId = parseInt(manualAppId, 10);
-        if (
-            !Number.isFinite(appId) ||
-            !manualSlug.trim() ||
-            !manualPrivateKey.trim() ||
-            !manualWebhookSecret.trim()
-        ) {
-            await openAlert('Fill in App ID, slug, private key, and webhook secret');
-            return;
-        }
+        // Load installations
         isFetching = true;
         try {
-            const res = await fetchApi('/github/app', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    appId,
-                    slug: manualSlug.trim(),
-                    privateKey: manualPrivateKey,
-                    webhookSecret: manualWebhookSecret.trim()
-                })
-            });
-            const body = (await res.json()) as { error?: string };
-            if (!res.ok) {
-                await openAlert(body.error ?? 'Registration failed');
-                return;
+            const res = await fetchApi(`/github/app/${appId}/installation`);
+            if (res.ok) {
+                installationList = await res.json();
+
+                console.log('installationList', installationList);
+                // Filter only saved installations
+
+                if (installationList.length === 0) {
+                    await openAlert(
+                        'Installation is not found. Please add it in Settings > Integration.'
+                    );
+                    goto('/settings/integration');
+                    return;
+                }
             }
-            await openAlert('GitHub App saved. You can select it below.');
-            manualPrivateKey = '';
-            manualWebhookSecret = '';
-            await refreshAppList();
-            regMode = 'quick';
         } finally {
             isFetching = false;
         }
-    }
-
-    function openInstallPage() {
-        const app = appList.find((a) => a.id.toString() === selectedAppId);
-        const slug = app?.slug;
-        if (!slug) return;
-        window.open(
-            `https://github.com/apps/${slug}/installations/new`,
-            '_blank',
-            'noopener,noreferrer'
-        );
-    }
-
-    async function continueToInstallations() {
-        if (!selectedAppId) return;
-        isFetching = true;
-        try {
-            const res = await fetchApi(`/github/app/${selectedAppId}/installation`);
-            if (!res.ok) {
-                await openAlert('Could not load installations');
-                return;
-            }
-            installationList = await res.json();
-            selectedInstallationId = '';
-            step = 2;
-        } finally {
-            isFetching = false;
-        }
-    }
+    });
 
     async function continueToRepositories() {
-        if (!selectedAppId || !selectedInstallationId) return;
+        if (!appId || !selectedInstallationId) return;
         isFetching = true;
         try {
             const res = await fetchApi(
-                `/github/app/${selectedAppId}/installation/${selectedInstallationId}/repository`
+                `/github/app/${appId}/installation/${selectedInstallationId}/repository`
             );
             if (!res.ok) {
                 await openAlert('Could not load repositories');
@@ -215,7 +101,7 @@
             selectedRepoPath = '';
             selectedGithubRepoId = 0;
             repoSearch = '';
-            step = 3;
+            step = 2;
         } finally {
             isFetching = false;
         }
@@ -237,7 +123,7 @@
             return;
         }
         name = selectedRepoPath.split('/')[1] || selectedRepoPath;
-        step = 4;
+        step = 3;
     }
 
     async function handleSubmit(e: Event) {
@@ -251,12 +137,7 @@
             await openAlert('Model is required');
             return;
         }
-        if (
-            !selectedAppId ||
-            !selectedInstallationId ||
-            !selectedRepoPath ||
-            !selectedGithubRepoId
-        ) {
+        if (!appId || !selectedInstallationId || !selectedRepoPath || !selectedGithubRepoId) {
             await openAlert('Missing GitHub selection');
             return;
         }
@@ -275,7 +156,6 @@
                 webhookSecret: null,
                 botUsername: null,
                 language,
-                githubAppId: parseInt(selectedAppId, 10),
                 githubInstallationId: parseInt(selectedInstallationId, 10),
                 githubRepositoryPath: selectedRepoPath,
                 githubRepositoryId: selectedGithubRepoId,
@@ -317,7 +197,7 @@
 <DefaultLayout narrow title="Create GitHub Repository">
     <div class="space-y-6">
         <div class="flex items-center gap-2 text-sm">
-            {#each [1, 2, 3, 4] as s}
+            {#each [1, 2, 3] as s}
                 <div class="flex items-center">
                     <div
                         class="flex h-8 w-8 items-center justify-center rounded-full {step >= s
@@ -326,7 +206,7 @@
                     >
                         {s}
                     </div>
-                    {#if s < 4}
+                    {#if s < 3}
                         <div
                             class="h-0.5 w-8 {step > s
                                 ? 'bg-primary'
@@ -337,198 +217,52 @@
             {/each}
         </div>
 
-        {#if step === 1}
-            <Card title="Step 1: GitHub App">
-                <div class="mb-4 flex flex-wrap gap-2">
-                    <ToggleButton
-                        label="Quick setup"
-                        description="Create via GitHub manifest"
-                        selected={regMode === 'quick'}
-                        onclick={() => (regMode = 'quick')}
-                        class="min-w-36 flex-1"
-                    />
-                    <ToggleButton
-                        label="Existing app"
-                        description="Paste credentials from GitHub"
-                        selected={regMode === 'manual'}
-                        onclick={() => (regMode = 'manual')}
-                        class="min-w-36 flex-1"
-                    />
+        {#if isFetching && step === 1}
+            <Card>
+                <p class="text-neutral-500">Loading...</p>
+            </Card>
+        {:else if step === 1}
+            <Card title="Step 1: Installation">
+                <div class="space-y-4">
+                    <FormField
+                        label="Installation"
+                        description="Select an installation to connect repositories from"
+                        linkLabelToControl={false}
+                    >
+                        {#snippet children({ id: _id })}
+                            <div class="mt-3 flex flex-wrap gap-2" id={_id} role="group">
+                                {#each installationList as installation}
+                                    <button
+                                        type="button"
+                                        class="min-w-32 rounded-lg border p-3 text-left transition-colors {selectedInstallationId ===
+                                        installation.id.toString()
+                                            ? 'border-primary bg-primary/10'
+                                            : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700'}"
+                                        onclick={() =>
+                                            (selectedInstallationId = installation.id.toString())}
+                                    >
+                                        <div class="font-medium">{installation.accountName}</div>
+                                        <div class="text-sm text-neutral-500">
+                                            {installation.accountType}
+                                        </div>
+                                    </button>
+                                {/each}
+                            </div>
+                        {/snippet}
+                    </FormField>
+                    <Button
+                        primary
+                        onclick={continueToRepositories}
+                        disabled={!selectedInstallationId || isFetching}
+                    >
+                        {isFetching ? 'Loading...' : 'Continue'}
+                    </Button>
                 </div>
-
-                {#if regMode === 'manual'}
-                    <div class="space-y-4">
-                        <FormField
-                            label="App ID"
-                            description="Numeric App ID from GitHub App settings"
-                        >
-                            {#snippet children({ id })}
-                                <InputText {id} placeholder="123456" bind:value={manualAppId} />
-                            {/snippet}
-                        </FormField>
-                        <FormField label="Slug" description="Short name of your GitHub App">
-                            {#snippet children({ id })}
-                                <InputText
-                                    {id}
-                                    placeholder="my-proval-app"
-                                    bind:value={manualSlug}
-                                />
-                            {/snippet}
-                        </FormField>
-                        <FormField
-                            label="Private key (PEM)"
-                            description="Generate from App settings"
-                        >
-                            {#snippet children({ id })}
-                                <textarea
-                                    {id}
-                                    bind:value={manualPrivateKey}
-                                    rows="6"
-                                    class="mt-1 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 py-2 font-mono text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
-                                    placeholder="-----BEGIN RSA PRIVATE KEY-----"
-                                ></textarea>
-                            {/snippet}
-                        </FormField>
-                        <FormField
-                            label="Webhook secret"
-                            description="From App settings — must match what GitHub sends"
-                        >
-                            {#snippet children({ id })}
-                                <InputText {id} bind:value={manualWebhookSecret} password />
-                            {/snippet}
-                        </FormField>
-                        <Button primary onclick={registerManualApp} disabled={isFetching}>
-                            {isFetching ? 'Saving...' : 'Save GitHub App'}
-                        </Button>
-                    </div>
-                {:else if !appList.length || isCreatingApp}
-                    <div class="space-y-4">
-                        <FormField
-                            label="Public webhook base URL"
-                            description="Must be reachable by GitHub (often your tunnel to port 7901), e.g. https://hooks.example.com:7901 — webhook path /webhook/github is appended automatically."
-                        >
-                            {#snippet children({ id })}
-                                <InputText
-                                    {id}
-                                    placeholder="https://your-public-host:7901"
-                                    bind:value={webhookUrl}
-                                />
-                            {/snippet}
-                        </FormField>
-                        <Button primary onclick={createApp} disabled={!webhookUrl}>
-                            Connect GitHub App
-                        </Button>
-                        <p class="text-sm text-neutral-500">
-                            Opens GitHub to register the app. Callback and setup URLs use this
-                            browser origin (<code
-                                class="rounded bg-neutral-100 px-1 dark:bg-neutral-800"
-                                >{typeof window !== 'undefined' ? window.location.origin : ''}</code
-                            >), so private networks work for those steps.
-                        </p>
-                    </div>
-                {:else}
-                    <div class="space-y-4">
-                        <FormField
-                            label="Select app"
-                            description="Choose a registered GitHub App"
-                            linkLabelToControl={false}
-                        >
-                            {#snippet children({ id: _id })}
-                                <div class="mt-3 flex flex-wrap gap-2" id={_id} role="group">
-                                    {#each appList as app}
-                                        <button
-                                            type="button"
-                                            class="min-w-32 rounded-lg border p-3 text-left transition-colors {selectedAppId ===
-                                            app.id.toString()
-                                                ? 'border-primary bg-primary/10'
-                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700'}"
-                                            onclick={() => (selectedAppId = app.id.toString())}
-                                        >
-                                            <div class="font-medium">{app.slug}</div>
-                                            <div class="text-sm text-neutral-500">
-                                                App #{app.appId}
-                                            </div>
-                                        </button>
-                                    {/each}
-                                </div>
-                            {/snippet}
-                        </FormField>
-                        <div class="flex flex-wrap gap-2">
-                            <Button
-                                primary
-                                onclick={continueToInstallations}
-                                disabled={!selectedAppId || isFetching}
-                            >
-                                {isFetching ? 'Loading...' : 'Continue'}
-                            </Button>
-                            <Button text onclick={() => (isCreatingApp = true)}
-                                >Create new app</Button
-                            >
-                            <Button text onclick={refreshAppList}>Refresh list</Button>
-                        </div>
-                    </div>
-                {/if}
             </Card>
         {/if}
 
         {#if step === 2}
-            <Card title="Step 2: Installation">
-                {#if installationList.length === 0}
-                    <div class="space-y-4">
-                        <p class="text-neutral-500">No installations found for this app.</p>
-                        <Button primary onclick={openInstallPage}>Install app on GitHub</Button>
-                        <Button text onclick={continueToInstallations} disabled={isFetching}>
-                            Refresh installations
-                        </Button>
-                    </div>
-                {:else}
-                    <div class="space-y-4">
-                        <FormField
-                            label="Installation"
-                            description="Account or organization where the app is installed"
-                            linkLabelToControl={false}
-                        >
-                            {#snippet children({ id: _id })}
-                                <div class="mt-3 flex flex-wrap gap-2" id={_id} role="group">
-                                    {#each installationList as installation}
-                                        <button
-                                            type="button"
-                                            class="min-w-32 rounded-lg border p-3 text-left transition-colors {selectedInstallationId ===
-                                            installation.id.toString()
-                                                ? 'border-primary bg-primary/10'
-                                                : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700'}"
-                                            onclick={() =>
-                                                (selectedInstallationId =
-                                                    installation.id.toString())}
-                                        >
-                                            <div class="font-medium">{installation.account}</div>
-                                            <div class="text-sm text-neutral-500">
-                                                {installation.type}
-                                            </div>
-                                        </button>
-                                    {/each}
-                                </div>
-                            {/snippet}
-                        </FormField>
-                        <div class="flex flex-wrap gap-2">
-                            <Button
-                                primary
-                                onclick={continueToRepositories}
-                                disabled={!selectedInstallationId || isFetching}
-                            >
-                                {isFetching ? 'Loading...' : 'Continue'}
-                            </Button>
-                            <Button text onclick={openInstallPage}
-                                >Install on another account</Button
-                            >
-                        </div>
-                    </div>
-                {/if}
-            </Card>
-        {/if}
-
-        {#if step === 3}
-            <Card title="Step 3: Repository">
+            <Card title="Step 2: Repository">
                 {#if repoList.length === 0}
                     <p class="text-neutral-500">
                         No repositories accessible for this installation.
@@ -576,7 +310,7 @@
             </Card>
         {/if}
 
-        {#if step === 4}
+        {#if step === 3}
             <form onsubmit={handleSubmit} class="space-y-6">
                 <Card>
                     <div class="space-y-4">

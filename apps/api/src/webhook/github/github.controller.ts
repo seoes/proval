@@ -25,13 +25,14 @@ type IssueCommentWebhookPayload = {
 async function createGitHubProvider(
     repository: Repository,
     githubApp: GithubApp,
+    installationId: number,
 ): Promise<GitHubProvider> {
     const app = new App({
         appId: githubApp.appId,
         privateKey: githubApp.privateKey,
         Octokit,
     });
-    const octokit = await app.getInstallationOctokit(repository.githubInstallationId!);
+    const octokit = await app.getInstallationOctokit(installationId);
     if (!octokit) {
         throw new Error("Failed to get installation octokit");
     }
@@ -52,6 +53,9 @@ export const handleGitHubWebhook = async (c: Context) => {
     const repository = c.get("repository") as Repository;
     const model = c.get("model") as Model;
     const githubApp = c.get("githubApp") as GithubApp;
+    const githubInstallation = c.get("githubInstallation");
+
+    const installationId = githubInstallation.installationId;
 
     if (event === "ping") {
         return c.json({ message: "pong" }, 200);
@@ -60,7 +64,7 @@ export const handleGitHubWebhook = async (c: Context) => {
     try {
         if (event === "pull_request") {
             const payload = c.get("githubPayload") as PullRequestWebhookPayload;
-            return await handlePullRequestWebhook(payload, repository, model, githubApp);
+            return await handlePullRequestWebhook(payload, repository, model, githubApp, installationId);
         }
 
         if (event === "issue_comment") {
@@ -80,6 +84,7 @@ async function handlePullRequestWebhook(
     repository: Repository,
     model: Model,
     githubApp: GithubApp,
+    installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";
     if (action !== "opened") {
@@ -95,7 +100,7 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
 
-    const gitHubProvider = await createGitHubProvider(repository, githubApp);
+    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const mergeRequestService = new MergeRequestService(
         gitHubProvider,
         model.baseUrl,
