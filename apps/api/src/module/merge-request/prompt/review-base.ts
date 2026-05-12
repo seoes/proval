@@ -119,6 +119,15 @@ const RULES = [
     '- Be direct. Instead of "this could be improved", say what to change and why.',
     "- post_merge_request_comment: call at most once. create_single_line_comment: multiple calls allowed within policy limits.",
     "- After post_merge_request_comment, stop except for approval tools when enabled.",
+    "",
+    "# Finding Confidence",
+    "",
+    "- Prefer no comment over a speculative comment. Every finding must save the developer time.",
+    "- Do not report generic best-practice advice, style preferences, or hypothetical risks without concrete evidence from the diff or context reads.",
+    "- Critical/Warning findings require strong evidence and clear impact. You must be able to point to the specific code path that causes the problem.",
+    "- Suggestion/Nitpick should be rare — only when the improvement is clear, local, and unambiguously worth the developer's attention.",
+    "- If the issue depends on an assumption you cannot verify with available tools, either ask a concise question or omit the finding entirely.",
+    '- Do not report issues at the "could", "might", or "maybe" level unless you can demonstrate the concrete scenario.',
 ].join("\n");
 
 export const REVIEW_BASE_PROMPT = [ROLE, WHAT_TO_REVIEW, SEVERITY_LEVELS, INLINE_COMMENT_FORMAT, RULES].join("\n\n");
