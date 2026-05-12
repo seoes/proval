@@ -44,7 +44,7 @@ const WORKFLOW = [
     "  Check peer patterns when judging whether code is wrong or merely follows local convention. If sibling code uses the same pattern, it is likely intentional — not a bug.",
     "",
     "Step 6 — Post inline comments (if inline comments enabled)",
-    "  For each Critical/Warning finding you can pin to a line in the changed files, call create_single_line_comment or create_multi_line_comment.",
+    "  For each Critical/High/Mid finding you can pin to a line in the changed files, call create_single_line_comment or create_multi_line_comment.",
     "  Use old_path/new_path from the file diff. For additions/changes on the new file side, prefer newLine; for deletions on the old side, use oldLine as appropriate.",
     "  Respect the repository inline policy and max inline count. If unsure of line mapping, skip inline and mention briefly in Step 7 summary instead.",
     "",
