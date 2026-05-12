@@ -3,125 +3,127 @@
     import InputText from '$lib/components/atom/InputText.svelte';
     import FormField from '$lib/components/molecule/FormField.svelte';
     import ToggleButton from '$lib/components/atom/ToggleButton.svelte';
+    import ToggleSwitch from '$lib/components/atom/ToggleSwitch.svelte';
     import Card from '$lib/components/layout/Card.svelte';
     import Button from '$lib/components/atom/Button.svelte';
     import { goto } from '$app/navigation';
+    import fetchApi from '$lib/utils';
     import { openAlert, openConfirm } from '$lib/store/modal';
+    import { onMount } from 'svelte';
     import type { PageProps } from './$types';
+
+    type InstallationRow = {
+        id: number;
+        installationId: number;
+        accountName: string;
+        accountType: 'User' | 'Organization';
+    };
+    type RepoRow = { id: number; fullName: string; private: boolean; alreadyConnected: boolean };
+    type ReplyMode = 'all' | 'mentioned_only' | 'off';
 
     let { data }: PageProps = $props();
 
-    // State
     let step = $state(1);
-    let isLoading = $state(false);
-    let isCreatingApp = $state(false);
+    let isFetching = $state(false);
 
-    // Step 1: App selection
-    let selectedAppId = $state<string>('');
-    let webhookUrl = $state('');
+    let appId = $state<number | null>(null);
+    let installationList = $state<InstallationRow[]>([]);
+    let selectedInstallationId = $state('');
 
-    // Step 2: Installation selection
-    let selectedInstallationId = $state<string>('');
-
-    // Step 3: Repository selection
+    let repoList = $state<RepoRow[]>([]);
+    let repoSearch = $state('');
     let selectedRepoPath = $state('');
+    let selectedGithubRepoId = $state(0);
 
-    // Step 4: Common settings
     let name = $state('');
     let modelId = $state('');
     let language = $state('English');
-    let reviewMode = $state<'off' | 'assigned_only'>('off');
-    let replyMode = $state<'off' | 'assigned_only' | 'mentioned_only'>('off');
-    let autoAssign = $state(false);
-    let allowApproval = $state(false);
+    let reviewOnMergeRequestOpen = $state(true);
+    let replyMode = $state<ReplyMode>('all');
+    let inlineReview = $state(true);
+    let deepResearchOnMergeRequest = $state(false);
 
-    function handleAppSelect(appId: string) {
-        selectedAppId = appId;
-        step = 2;
-    }
+    const filteredRepoList = $derived(
+        repoSearch.trim()
+            ? repoList.filter((r) =>
+                  r.fullName.toLowerCase().includes(repoSearch.trim().toLowerCase())
+              )
+            : repoList
+    );
 
-    function handleInstallationSelect(installationId: string) {
-        selectedInstallationId = installationId;
-        step = 3;
-    }
+    onMount(async () => {
+        // Check if app exists
+        if (!data.app) {
+            await openAlert(
+                'GitHub App is not registered. Please register it in Settings > Integration.'
+            );
+            goto('/settings/integration');
+            return;
+        }
 
-    function handleRepoSelect(repoPath: string) {
-        selectedRepoPath = repoPath;
-        name = repoPath.split('/')[1] || repoPath;
-        step = 4;
-    }
+        appId = data.app.id;
 
-    function normalizeBaseUrl(raw: string): string {
-        const u = raw.trim().replace(/\/$/, '');
+        // Load installations
+        isFetching = true;
         try {
-            new URL(u);
-            return u;
-        } catch {
-            throw new Error('Invalid instance URL');
+            const res = await fetchApi(`/github/app/${appId}/installation`);
+            if (res.ok) {
+                installationList = await res.json();
+
+                console.log('installationList', installationList);
+                // Filter only saved installations
+
+                if (installationList.length === 0) {
+                    await openAlert(
+                        'Installation is not found. Please add it in Settings > Integration.'
+                    );
+                    goto('/settings/integration');
+                    return;
+                }
+            }
+        } finally {
+            isFetching = false;
+        }
+    });
+
+    async function continueToRepositories() {
+        if (!appId || !selectedInstallationId) return;
+        isFetching = true;
+        try {
+            const res = await fetchApi(
+                `/github/app/${appId}/installation/${selectedInstallationId}/repository`
+            );
+            if (!res.ok) {
+                await openAlert('Could not load repositories');
+                return;
+            }
+            repoList = await res.json();
+            selectedRepoPath = '';
+            selectedGithubRepoId = 0;
+            repoSearch = '';
+            step = 2;
+        } finally {
+            isFetching = false;
         }
     }
 
-    async function createApp() {
-        isCreatingApp = true;
-
-        const normalizedWebhookUrl = normalizeBaseUrl(webhookUrl);
-
-        const clientUrl = window.location.origin;
-
-        const callbackUrl = `${clientUrl}/repository/create/github/app/callback`;
-        const setupUrl = `${clientUrl}/repository/create/github/app/setup`;
-
-        const manifest = {
-            name: `Proval-${crypto.randomUUID().replace(/-/g, '').slice(0, 6)}`,
-            url: normalizedWebhookUrl,
-            hook_attributes: {
-                url: `${normalizedWebhookUrl}/webhook/github`,
-                active: true
-            },
-            redirect_url: callbackUrl,
-            setup_url: setupUrl,
-            public: false,
-            default_permissions: {
-                contents: 'read',
-                metadata: 'read',
-                pull_requests: 'write',
-                issues: 'write',
-                statuses: 'write'
-            },
-            default_events: ['pull_request', 'issue_comment']
-        };
-
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://github.com/settings/apps/new';
-        form.rel = 'noopener noreferrer';
-
-        const manifestInput = document.createElement('input');
-        manifestInput.type = 'hidden';
-        manifestInput.name = 'manifest';
-        manifestInput.value = JSON.stringify(manifest);
-        form.appendChild(manifestInput);
-
-        const stateInput = document.createElement('input');
-        stateInput.type = 'hidden';
-        stateInput.name = 'state';
-        stateInput.value = crypto.randomUUID();
-        form.appendChild(stateInput);
-
-        form.append(manifestInput, stateInput);
-        document.body.appendChild(form);
-        form.submit();
-        form.remove();
-
-        await openAlert('GitHub App registration opened in a new tab.');
-        isLoading = false;
+    function onRepoSelectChange() {
+        const r = repoList.find((x) => x.fullName === selectedRepoPath);
+        selectedGithubRepoId = r?.id ?? 0;
     }
 
-    async function installApp() {
-        const app = data.appList.find((a) => a.id.toString() === selectedAppId);
-        if (!app) return;
-        // TODO: 실제 installation 링크
-        await openAlert('Complete the installation in the opened tab.');
+    async function continueToSettings() {
+        if (!selectedRepoPath || !selectedGithubRepoId) {
+            await openAlert('Select a repository');
+            return;
+        }
+        const r = repoList.find((x) => x.fullName === selectedRepoPath);
+        if (r?.alreadyConnected) {
+            await openAlert('This repository is already connected to Proval');
+            return;
+        }
+        name = selectedRepoPath.split('/')[1] || selectedRepoPath;
+        step = 3;
     }
 
     async function handleSubmit(e: Event) {
@@ -135,64 +137,67 @@
             await openAlert('Model is required');
             return;
         }
+        if (!appId || !selectedInstallationId || !selectedRepoPath || !selectedGithubRepoId) {
+            await openAlert('Missing GitHub selection');
+            return;
+        }
 
-        const confirm = await openConfirm('Create this repository?');
-        if (!confirm) return;
+        const ok = await openConfirm('Create this repository?');
+        if (!ok) return;
 
-        // TODO: 실제 저장 로직
-        console.log('Creating repository:', {
-            name,
-            provider: 'github',
-            githubRepositoryPath: selectedRepoPath,
-            githubInstallationId: selectedInstallationId,
-            modelId,
-            language,
-            reviewMode,
-            replyMode,
-            autoAssign,
-            allowApproval
+        const res = await fetchApi('/repository', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                provider: 'github',
+                baseUrl: 'https://api.github.com',
+                gitlabAccessToken: null,
+                webhookSecret: null,
+                botUsername: null,
+                language,
+                githubInstallationId: parseInt(selectedInstallationId, 10),
+                githubRepositoryPath: selectedRepoPath,
+                githubRepositoryId: selectedGithubRepoId,
+                gitlabRepositoryId: null,
+                modelId: parseInt(modelId, 10),
+                reviewOnMergeRequestOpen,
+                replyToMergeRequestComment: replyMode,
+                inlineReview,
+                deepResearchOnMergeRequest,
+                commentOnIssueOpen: false,
+                replyToIssueComment: 'off'
+            })
         });
+
+        const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+            await openAlert(errBody.error ?? 'Failed to create repository');
+            return;
+        }
 
         goto('/repository');
     }
 
-    const reviewModeOptions: {
-        label: string;
-        value: 'off' | 'assigned_only';
-        description: string;
-    }[] = [
+    const replyModeOptions: { label: string; value: ReplyMode; description: string }[] = [
         {
-            label: 'Assigned Only',
-            value: 'assigned_only',
-            description: 'Bot will only review assigned Pull Requests'
-        },
-        { label: 'Off', value: 'off', description: 'Bot will not review any Pull Requests' }
-    ];
-
-    const replyModeOptions: {
-        label: string;
-        value: 'off' | 'assigned_only' | 'mentioned_only';
-        description: string;
-    }[] = [
-        {
-            label: 'Assigned Only',
-            value: 'assigned_only',
-            description: 'Bot will reply to comments in assigned PRs only'
+            label: 'All',
+            value: 'all',
+            description: 'Reply on all PR conversation comments'
         },
         {
-            label: 'Mentioned Only',
+            label: 'Mentioned only',
             value: 'mentioned_only',
-            description: 'Bot will reply when mentioned'
+            description: 'Reply only when the app is @mentioned'
         },
-        { label: 'Off', value: 'off', description: 'Bot will not reply to any comments' }
+        { label: 'Off', value: 'off', description: 'Do not reply to PR comments' }
     ];
 </script>
 
 <DefaultLayout narrow title="Create GitHub Repository">
     <div class="space-y-6">
-        <!-- Progress indicator -->
         <div class="flex items-center gap-2 text-sm">
-            {#each [1, 2, 3, 4] as s}
+            {#each [1, 2, 3] as s}
                 <div class="flex items-center">
                     <div
                         class="flex h-8 w-8 items-center justify-center rounded-full {step >= s
@@ -201,7 +206,7 @@
                     >
                         {s}
                     </div>
-                    {#if s < 4}
+                    {#if s < 3}
                         <div
                             class="h-0.5 w-8 {step > s
                                 ? 'bg-primary'
@@ -212,113 +217,21 @@
             {/each}
         </div>
 
-        <!-- Step 1: App selection -->
-        {#if step === 1}
-            <Card title="Step 1: GitHub App">
-                {#if !data.appList || data.appList.length === 0 || isCreatingApp}
-                    <div class="space-y-4">
-                        <div>
-                            <!-- <InputText
-                                label="Instance URL"
-                                description="External URL of current service. Webhook will be sent to this URL from GitHub."
-                                placeholder="https://your-domain.com"
-                                bind:value={instanceUrl}
-                            /> -->
-                            <FormField
-                                label="Webhook URL"
-                                description="Webhook will be sent to this URL from GitHub. HTTPS is required."
-                            >
-                                {#snippet children({ id })}
-                                    <InputText
-                                        {id}
-                                        placeholder="https://your-domain.com/"
-                                        bind:value={webhookUrl}
-                                    />
-                                {/snippet}
-                            </FormField>
-                        </div>
-
-                        <div>
-                            <Button primary onclick={createApp} disabled={isLoading || !webhookUrl}>
-                                {isCreatingApp ? 'Loading...' : 'Connect GitHub App'}
-                            </Button>
-                        </div>
-                        <p class="text-sm text-neutral-500">
-                            This will open GitHub to create a new App.
-                        </p>
-                    </div>
-                {:else}
-                    <div class="space-y-4">
-                        <div>
-                            <FormField
-                                label="Select App"
-                                description="Choose an existing GitHub App or create a new one"
-                                linkLabelToControl={false}
-                            >
-                                {#snippet children({ id: _id })}
-                                    <div
-                                        class="mt-3 flex flex-wrap gap-2"
-                                        id={_id}
-                                        role="group"
-                                    >
-                                {#each data.appList as app}
-                                    <button
-                                        type="button"
-                                        class="min-w-32 rounded-lg border p-3 text-left transition-colors {selectedAppId ===
-                                        app.id.toString()
-                                            ? 'border-primary bg-primary/10'
-                                            : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700'}"
-                                        onclick={() => (selectedAppId = app.id.toString())}
-                                    >
-                                        <div class="font-medium">{app.slug}</div>
-                                        <div class="text-sm text-neutral-500">@{app.owner}</div>
-                                    </button>
-                                {/each}
-                                    </div>
-                                {/snippet}
-                            </FormField>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <Button
-                                primary
-                                onclick={() => handleAppSelect(selectedAppId)}
-                                disabled={!selectedAppId}
-                            >
-                                Continue
-                            </Button>
-                            <Button text onclick={() => (isCreatingApp = true)}
-                                >Create New App</Button
-                            >
-                        </div>
-                    </div>
-                {/if}
+        {#if isFetching && step === 1}
+            <Card>
+                <p class="text-neutral-500">Loading...</p>
             </Card>
-        {/if}
-
-        <!-- Step 2: Installation selection -->
-        {#if step === 2}
-            <Card title="Step 2: Installation">
-                {#if data.installationList.length === 0}
-                    <div class="space-y-4">
-                        <p class="text-neutral-500">No installations found for this app.</p>
-                        <Button primary onclick={installApp}>Install App to Account/Org</Button>
-                    </div>
-                {:else}
-                    <div class="space-y-4">
-                        <div>
-                            <FormField
-                                label="Select Installation"
-                                description="Choose where the app is installed"
-                                linkLabelToControl={false}
-                            >
-                                {#snippet children({ id: _id })}
-                                    <div
-                                        class="mt-3 flex flex-wrap gap-2"
-                                        id={_id}
-                                        role="group"
-                                    >
-                                {#each data.installationList as installation}
+        {:else if step === 1}
+            <Card title="Step 1: Installation">
+                <div class="space-y-4">
+                    <FormField
+                        label="Installation"
+                        description="Select an installation to connect repositories from"
+                        linkLabelToControl={false}
+                    >
+                        {#snippet children({ id: _id })}
+                            <div class="mt-3 flex flex-wrap gap-2" id={_id} role="group">
+                                {#each installationList as installation}
                                     <button
                                         type="button"
                                         class="min-w-32 rounded-lg border p-3 text-left transition-colors {selectedInstallationId ===
@@ -328,189 +241,153 @@
                                         onclick={() =>
                                             (selectedInstallationId = installation.id.toString())}
                                     >
-                                        <div class="font-medium">{installation.account}</div>
+                                        <div class="font-medium">{installation.accountName}</div>
                                         <div class="text-sm text-neutral-500">
-                                            {installation.type}
+                                            {installation.accountType}
                                         </div>
                                     </button>
                                 {/each}
-                                    </div>
-                                {/snippet}
-                            </FormField>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <Button
-                                primary
-                                onclick={() => handleInstallationSelect(selectedInstallationId)}
-                                disabled={!selectedInstallationId}
-                            >
-                                Continue
-                            </Button>
-                            <Button text onclick={installApp}>Install to Another Account</Button>
-                        </div>
-                    </div>
-                {/if}
+                            </div>
+                        {/snippet}
+                    </FormField>
+                    <Button
+                        primary
+                        onclick={continueToRepositories}
+                        disabled={!selectedInstallationId || isFetching}
+                    >
+                        {isFetching ? 'Loading...' : 'Continue'}
+                    </Button>
+                </div>
             </Card>
         {/if}
 
-        <!-- Step 3: Repository selection -->
-        {#if step === 3}
-            <Card title="Step 3: Repository">
-                {#if data.repoList.length === 0}
-                    <p class="text-neutral-500">No repositories accessible.</p>
+        {#if step === 2}
+            <Card title="Step 2: Repository">
+                {#if repoList.length === 0}
+                    <p class="text-neutral-500">
+                        No repositories accessible for this installation.
+                    </p>
                 {:else}
                     <div class="space-y-4">
-                        <div>
-                            <FormField
-                                label="Select Repository"
-                                description="Choose the repository to connect"
-                            >
-                                {#snippet children({ id })}
-                                    <select
-                                        {id}
-                                        class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
-                                        bind:value={selectedRepoPath}
-                                    >
-                                        <option value="">Select a repository</option>
-                                        {#each data.repoList as repo}
-                                            <option value={repo.fullName}>{repo.fullName}</option>
-                                        {/each}
-                                    </select>
-                                {/snippet}
-                            </FormField>
-                        </div>
-
-                        <div>
-                            <Button
-                                primary
-                                onclick={() => handleRepoSelect(selectedRepoPath)}
-                                disabled={!selectedRepoPath}
-                            >
-                                Continue
-                            </Button>
-                        </div>
+                        <FormField label="Search" description="Filter by name">
+                            {#snippet children({ id })}
+                                <InputText {id} placeholder="owner/repo" bind:value={repoSearch} />
+                            {/snippet}
+                        </FormField>
+                        <FormField label="Repository">
+                            {#snippet children({ id })}
+                                <select
+                                    {id}
+                                    class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                                    bind:value={selectedRepoPath}
+                                    onchange={onRepoSelectChange}
+                                >
+                                    <option value="">Select a repository</option>
+                                    {#each filteredRepoList as repo}
+                                        <option
+                                            value={repo.fullName}
+                                            disabled={repo.alreadyConnected}
+                                        >
+                                            {repo.fullName}{repo.private
+                                                ? ' (private)'
+                                                : ''}{repo.alreadyConnected
+                                                ? ' — already connected'
+                                                : ''}
+                                        </option>
+                                    {/each}
+                                </select>
+                            {/snippet}
+                        </FormField>
+                        <Button
+                            primary
+                            onclick={continueToSettings}
+                            disabled={!selectedRepoPath || !selectedGithubRepoId}
+                        >
+                            Continue
+                        </Button>
                     </div>
                 {/if}
             </Card>
         {/if}
 
-        <!-- Step 4: Common settings -->
-        {#if step === 4}
+        {#if step === 3}
             <form onsubmit={handleSubmit} class="space-y-6">
                 <Card>
                     <div class="space-y-4">
-                        <div>
-                            <FormField
-                                label="Repository"
-                                description="Selected GitHub repository"
-                                linkLabelToControl={false}
-                            >
-                                {#snippet children({ id })}
-                                    <p
-                                        {id}
-                                        class="mt-1 font-medium text-neutral-700 dark:text-neutral-300"
-                                    >
-                                        {selectedRepoPath}
-                                    </p>
-                                {/snippet}
-                            </FormField>
-                        </div>
-                        <div>
-                            <FormField
-                                label="Name"
-                                description="Display name for this repository"
-                            >
-                                {#snippet children({ id })}
-                                    <InputText {id} placeholder="My Project" bind:value={name} />
-                                {/snippet}
-                            </FormField>
-                        </div>
-                        <div>
-                            <FormField
-                                label="Model"
-                                description="Select the model to use for code review"
-                            >
-                                {#snippet children({ id })}
-                                    <select
-                                        {id}
-                                        bind:value={modelId}
-                                        class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
-                                    >
-                                        <option value="">Select a model</option>
-                                        {#each data.modelList as model}
-                                            <option value={model.id.toString()}>{model.label}</option>
-                                        {/each}
-                                    </select>
-                                {/snippet}
-                            </FormField>
-                        </div>
-                        <div>
-                            <FormField
-                                label="Language"
-                                description="Default language for code review"
-                            >
-                                {#snippet children({ id })}
-                                    <InputText {id} placeholder="English" bind:value={language} />
-                                {/snippet}
-                            </FormField>
-                        </div>
+                        <FormField
+                            label="Repository"
+                            description="Selected GitHub repository"
+                            linkLabelToControl={false}
+                        >
+                            {#snippet children({ id })}
+                                <p
+                                    {id}
+                                    class="mt-1 font-medium text-neutral-700 dark:text-neutral-300"
+                                >
+                                    {selectedRepoPath}
+                                </p>
+                            {/snippet}
+                        </FormField>
+                        <FormField label="Name" description="Display name in Proval">
+                            {#snippet children({ id })}
+                                <InputText {id} placeholder="My Project" bind:value={name} />
+                            {/snippet}
+                        </FormField>
+                        <FormField label="Model">
+                            {#snippet children({ id })}
+                                <select
+                                    {id}
+                                    bind:value={modelId}
+                                    class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                                >
+                                    <option value="">Select a model</option>
+                                    {#each data.modelList as model}
+                                        <option value={model.id.toString()}>{model.label}</option>
+                                    {/each}
+                                </select>
+                            {/snippet}
+                        </FormField>
+                        <FormField label="Language">
+                            {#snippet children({ id })}
+                                <InputText {id} placeholder="English" bind:value={language} />
+                            {/snippet}
+                        </FormField>
                     </div>
                 </Card>
 
-                <Card title="Pull Request Settings">
+                <Card title="Pull request review">
                     <div class="space-y-4">
                         <div class="flex items-center justify-between gap-2">
                             <FormField
                                 class="min-w-0 flex-1 pr-2"
-                                label="Assign to Every New Pull Request"
-                                description="Automatically assign reviewers"
+                                label="Review when PR opens"
+                                description="Run review on new pull requests"
                                 linkLabelToControl={false}
                             />
-                            <input
-                                type="checkbox"
-                                bind:checked={autoAssign}
-                                class="h-5 w-5 shrink-0 rounded border-neutral-200"
-                            />
+                            <ToggleSwitch bind:checked={reviewOnMergeRequestOpen} />
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <FormField
                                 class="min-w-0 flex-1 pr-2"
-                                label="Allow Approve / Reject"
-                                description="Bot can autonomously approve/reject"
+                                label="Inline comments"
+                                description="Allow line-level review comments"
                                 linkLabelToControl={false}
                             />
-                            <input
-                                type="checkbox"
-                                bind:checked={allowApproval}
-                                class="h-5 w-5 shrink-0 rounded border-neutral-200"
+                            <ToggleSwitch bind:checked={inlineReview} />
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <FormField
+                                class="min-w-0 flex-1 pr-2"
+                                label="Deep research"
+                                description="Multi-step research before commenting"
+                                linkLabelToControl={false}
                             />
+                            <ToggleSwitch bind:checked={deepResearchOnMergeRequest} />
                         </div>
                         <div>
                             <FormField
-                                label="Review Mode"
-                                description="When should the bot review?"
-                                linkLabelToControl={false}
-                            >
-                                {#snippet children({ id: _id })}
-                                    <div class="mt-3 flex gap-2" id={_id} role="group">
-                                        {#each reviewModeOptions as option}
-                                            <ToggleButton
-                                                label={option.label}
-                                                description={option.description}
-                                                selected={reviewMode === option.value}
-                                                onclick={() => (reviewMode = option.value)}
-                                                class="flex-1"
-                                            />
-                                        {/each}
-                                    </div>
-                                {/snippet}
-                            </FormField>
-                        </div>
-                        <div>
-                            <FormField
-                                label="Reply Mode"
-                                description="When should the bot reply?"
+                                label="Reply to PR comments"
+                                description="Conversation comments on the PR"
                                 linkLabelToControl={false}
                             >
                                 {#snippet children({ id: _id })}
@@ -521,7 +398,7 @@
                                                 description={option.description}
                                                 selected={replyMode === option.value}
                                                 onclick={() => (replyMode = option.value)}
-                                                class="flex-1"
+                                                class="min-w-28 flex-1"
                                             />
                                         {/each}
                                     </div>
@@ -533,7 +410,7 @@
 
                 <div class="flex justify-between">
                     <Button primary type="submit">Create</Button>
-                    <Button text onclick={() => goto('/repository')}>Cancel</Button>
+                    <Button text type="button" onclick={() => goto('/repository')}>Cancel</Button>
                 </div>
             </form>
         {/if}

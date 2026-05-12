@@ -8,7 +8,6 @@ export const findAllRepositoryController: Handler = async (c) => {
     const repositoryResponseList: RepositoryResponse[] = repositoryList.map((repository) =>
         repositoryService.toResponse(repository),
     );
-    console.log(repositoryResponseList);
     return c.json(repositoryResponseList, 200);
 };
 
@@ -44,18 +43,18 @@ export const updateRepository: Handler = async (c) => {
     return c.json(repositoryResponse, 200);
 };
 
-export const updateApiToken: Handler = async (c) => {
+export const updateGitlabAccessToken: Handler = async (c) => {
     const repositoryService = new RepositoryService();
     const repositoryId = c.req.param("id");
     if (!repositoryId) {
         return c.json({ error: "Repository ID is required" }, 400);
     }
-    const { value: apiToken } = await c.req.json<SecretInput>();
-    if (!apiToken) {
-        return c.json({ error: "API token is required" }, 400);
+    const { value: gitlabAccessToken } = await c.req.json<SecretInput>();
+    if (!gitlabAccessToken) {
+        return c.json({ error: "GitLab access token is required" }, 400);
     }
-    await repositoryService.updateApiToken(parseInt(repositoryId), apiToken);
-    return c.json({ message: "API token updated" }, 200);
+    await repositoryService.updateGitlabAccessToken(parseInt(repositoryId), gitlabAccessToken);
+    return c.json({ message: "GitLab access token updated" }, 200);
 };
 
 export const updateWebhookSecret: Handler = async (c) => {

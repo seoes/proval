@@ -26,6 +26,14 @@ export const githubAppTable = sqliteTable("github_app", {
     appId: integer().notNull().unique(),
     slug: text().notNull().unique(),
     privateKey: text().notNull(),
+    webhookSecret: text().notNull().default(""),
+    ...timeStamp,
+});
+
+export const githubInstallationTable = sqliteTable("github_installation", {
+    id: integer().primaryKey({ autoIncrement: true }),
+    installationId: integer().notNull().unique(),
+    appId: integer().references(() => githubAppTable.id, { onDelete: "cascade" }),
     ...timeStamp,
 });
 
@@ -35,15 +43,15 @@ export const repositoryTable = sqliteTable("repository", {
     name: text().notNull(),
     provider: text({ enum: ["gitlab", "github", "gitea", "forgejo"] }).notNull(),
     baseUrl: text().notNull(),
-    apiToken: text().notNull(),
+    gitlabAccessToken: text(),
     webhookSecret: text(),
     botUsername: text(),
     language: text().notNull().default("English"),
 
     // github
-    githubAppId: integer().references(() => githubAppTable.id),
-    githubInstallationId: integer(),
+    githubInstallationId: integer().references(() => githubInstallationTable.id),
     githubRepositoryPath: text(),
+    githubRepositoryId: integer(),
 
     // gitlab
     gitlabRepositoryId: integer(),

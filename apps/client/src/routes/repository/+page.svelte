@@ -50,13 +50,17 @@
 
                             <Popover
                                 buttonList={[
-                                    {
-                                        label: 'Update API Token',
-                                        onclick: () => {
-                                            selectedRepositoryId = repository.id;
-                                            updateApiTokenModalOpen = true;
-                                        }
-                                    },
+                                    ...(repository.provider === 'gitlab'
+                                        ? [
+                                              {
+                                                  label: 'Update GitLab access token',
+                                                  onclick: () => {
+                                                      selectedRepositoryId = repository.id;
+                                                      updateApiTokenModalOpen = true;
+                                                  }
+                                              }
+                                          ]
+                                        : []),
                                     {
                                         label: 'Update Webhook Secret',
                                         onclick: () => {
@@ -86,10 +90,10 @@
 {#if selectedRepositoryId}
     <Modal bind:open={updateApiTokenModalOpen}>
         <PatchSecret
-            label="Update API Token"
-            description="Enter the API token to access repository"
+            label="Update GitLab access token"
+            description="Personal access token for this GitLab project"
             placeholder="glpat-..."
-            patchEndpoint={`/repository/${selectedRepositoryId}/api-token`}
+            patchEndpoint={`/repository/${selectedRepositoryId}/gitlab-access-token`}
             onSuccess={() => (updateApiTokenModalOpen = false)}
         />
     </Modal>

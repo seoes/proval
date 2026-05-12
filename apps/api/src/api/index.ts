@@ -4,7 +4,7 @@ import {
     findById as findRepositoryById,
     createRepository,
     updateRepository,
-    updateApiToken,
+    updateGitlabAccessToken,
     updateWebhookSecret,
     removeRepository,
 } from "./repository/repository.controller.js";
@@ -17,12 +17,7 @@ import {
     verifyConfig,
     removeModel,
 } from "./model/model.controller.js";
-import {
-    createInstallation,
-    findGitHubAppList,
-    handleGitHubAppCallback,
-    handleGitHubAppSetup,
-} from "./github/github-app.controller.js";
+import { githubRouter } from "./github/index.js";
 
 export const apiRouter = new Hono();
 
@@ -45,12 +40,9 @@ apiRouter.get("/repository", findAllRepositoryController);
 apiRouter.get("/repository/:id", findRepositoryById);
 apiRouter.post("/repository", createRepository);
 apiRouter.put("/repository/:id", updateRepository);
-apiRouter.patch("/repository/:id/api-token", updateApiToken);
+apiRouter.patch("/repository/:id/gitlab-access-token", updateGitlabAccessToken);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
 apiRouter.delete("/repository/:id", removeRepository);
 
-// GitHub App routes
-apiRouter.get("/github/app", findGitHubAppList);
-apiRouter.post("/github/app/callback", handleGitHubAppCallback);
-apiRouter.post("/github/app/setup", handleGitHubAppSetup);
-apiRouter.post("/github/app/installation", createInstallation);
+// GitHub routes
+apiRouter.route("/github", githubRouter);

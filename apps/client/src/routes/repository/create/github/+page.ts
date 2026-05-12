@@ -1,27 +1,19 @@
 import fetchApi from '$lib/utils';
+import type { ModelResponse } from '@code-review/types';
 import type { PageLoad } from './$types';
 
 export const ssr = false;
 
-type GithubApp = { id: number; slug: string; owner: string };
+type GithubApp = { id: number; appId: number; slug: string };
 
 export const load: PageLoad = async () => {
-    const response = await fetchApi('/github/app');
-    const appList = (await response.json()) as GithubApp[];
+    const [appRes, modelRes] = await Promise.all([fetchApi('/github/app'), fetchApi('/model')]);
+
+    const appList: GithubApp[] = appRes.ok ? await appRes.json() : [];
+    const modelList: ModelResponse[] = modelRes.ok ? await modelRes.json() : [];
+
     return {
-        appList,
-        installationList: [
-            { id: 1, account: 'seoes', type: 'User' },
-            { id: 2, account: 'myorg', type: 'Organization' }
-        ],
-        repoList: [
-            { id: 1, fullName: 'seoes/code-review' },
-            { id: 2, fullName: 'seoes/my-project' },
-            { id: 3, fullName: 'myorg/team-repo' }
-        ],
-        modelList: [
-            { id: 1, label: 'GPT-4o' },
-            { id: 2, label: 'Claude 3.5 Sonnet' }
-        ]
+        app: appList.length > 0 ? appList[0] : null,
+        modelList: modelList ?? []
     };
 };

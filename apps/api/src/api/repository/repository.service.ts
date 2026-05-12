@@ -35,8 +35,11 @@ export class RepositoryService {
         return result[0];
     }
 
-    public async updateApiToken(repositoryId: number, apiToken: string): Promise<void> {
-        await db.update(repositoryTable).set({ apiToken }).where(eq(repositoryTable.id, repositoryId));
+    public async updateGitlabAccessToken(repositoryId: number, gitlabAccessToken: string): Promise<void> {
+        await db
+            .update(repositoryTable)
+            .set({ gitlabAccessToken })
+            .where(eq(repositoryTable.id, repositoryId));
     }
 
     public async updateWebhookSecret(repositoryId: number, webhookSecret: string): Promise<void> {
@@ -44,7 +47,7 @@ export class RepositoryService {
     }
 
     public toResponse(repository: Repository): RepositoryResponse {
-        const { webhookSecret, apiToken, ...rest } = repository;
+        const { webhookSecret, gitlabAccessToken, ...rest } = repository;
         return rest;
     }
 
