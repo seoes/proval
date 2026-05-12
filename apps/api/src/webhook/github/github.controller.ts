@@ -69,7 +69,7 @@ export const handleGitHubWebhook = async (c: Context) => {
 
         if (event === "issue_comment") {
             const payload = c.get("githubPayload") as IssueCommentWebhookPayload;
-            return await handleIssueCommentWebhook(payload, repository, model, githubApp);
+            return await handleIssueCommentWebhook(payload, repository, model, githubApp, installationId);
         }
 
         return c.json({ message: `Unhandled event: ${event}` }, 200);
@@ -127,6 +127,7 @@ async function handleIssueCommentWebhook(
     repository: Repository,
     model: Model,
     githubApp: GithubApp,
+    installationId: number,
 ): Promise<Response> {
     if (repository.replyToMergeRequestComment === "off") {
         return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
@@ -158,7 +159,7 @@ async function handleIssueCommentWebhook(
         }
     }
 
-    const gitHubProvider = await createGitHubProvider(repository, githubApp);
+    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const mergeRequestService = new MergeRequestService(
         gitHubProvider,
         model.baseUrl,
