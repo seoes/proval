@@ -1,9 +1,12 @@
 import type {
     WebhookBaseNoteEventSchema,
+    WebhookIssueEventSchema,
+    WebhookIssueNoteEventSchema,
     WebhookMergeRequestEventSchema,
     WebhookMergeRequestNoteEventSchema,
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
+import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { modelTable, repositoryTable } from "@code-review/db";
@@ -36,6 +39,12 @@ export const handleGitLabWebhook = async (c: Context) => {
             return response;
         }
 
+        if (event === "Issue Hook") {
+            const payload: WebhookIssueEventSchema = c.get("gitlabPayload");
+            const response = await handleGitLabIssueWebhook(payload, repository, model);
+            return response;
+        }
+
         // Handle Note Hook
         if (event === "Note Hook") {
             const payload: WebhookBaseNoteEventSchema = c.get("gitlabPayload");
@@ -46,6 +55,14 @@ export const handleGitLabWebhook = async (c: Context) => {
                 case "MergeRequest": {
                     const response = await handleGitLabMergeRequestNoteWebhook(
                         payload as WebhookMergeRequestNoteEventSchema,
+                        repository,
+                        model,
+                    );
+                    return response;
+                }
+                case "Issue": {
+                    const response = await handleGitLabIssueNoteWebhook(
+                        payload as WebhookIssueNoteEventSchema,
                         repository,
                         model,
                     );
@@ -104,7 +121,9 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
             if (repository.deepResearchOnMergeRequest) {
                 mergeRequestService
                     .planDeepReview(mergeRequest.iid)
-                    .then((reviewTargetList) => mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList))
+                    .then((reviewTargetList) =>
+                        mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList),
+                    )
                     .catch((err) => {
                         console.error("Deep review failed:", err);
                     });
@@ -188,4 +207,89 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         console.error("Reply failed:", err);
     });
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+};
+
+type HandleGitLabIssueWebhook = (
+    payload: WebhookIssueEventSchema,
+    repository: Repository,
+    model: Model,
+) => Promise<Response>;
+
+const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, model) => {
+    const action = payload.object_attributes?.action ?? "";
+    if (action !== "open") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+    }
+
+    if (!repository.commentOnIssueOpen) {
+        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), { status: 200 });
+    }
+
+    const project = payload.project;
+    const token = repository.gitlabAccessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+    }
+
+    const issueIid = payload.object_attributes?.iid;
+    if (issueIid == null) {
+        return new Response(JSON.stringify({ message: "No issue IID found" }), { status: 200 });
+    }
+
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+    const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+
+    issueService.commentOnOpen(issueIid).catch((err) => {
+        console.error("Issue comment failed:", err);
+    });
+
+    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+};
+
+type HandleGitLabIssueNoteWebhook = (
+    payload: WebhookIssueNoteEventSchema,
+    repository: Repository,
+    model: Model,
+) => Promise<Response>;
+
+const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, model) => {
+    // If reply to issue comment is off, skip
+    if (repository.replyToIssueComment === "off") {
+        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+    }
+
+    const project = payload.project;
+    const token = repository.gitlabAccessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+    }
+    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+
+    const botUserData = await gitlabProvider.fetchCurrentUser();
+    const botUsername = botUserData.username;
+    const commenterUsername: string = payload.user?.username ?? "";
+    if (botUsername === commenterUsername) {
+        return new Response(
+            JSON.stringify({ message: "Skipped: bot username is the same as the commenter username, skipping" }),
+            { status: 200 },
+        );
+    }
+
+    const noteBody: string = payload.object_attributes?.note ?? "";
+    const issueIid = payload.issue?.iid;
+    if (issueIid == null) {
+        return new Response(JSON.stringify({ message: "No issue IID found" }), { status: 200 });
+    }
+
+    if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), { status: 200 });
+    }
+
+    const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+
+    issueService.reply(issueIid, commenterUsername, noteBody).catch((err) => {
+        console.error("Issue reply failed:", err);
+    });
+
+    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
 };

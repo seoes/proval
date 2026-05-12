@@ -1,12 +1,16 @@
 import type {
     GitComment,
     GitChangedFile,
+    GitCodeSearchResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
+    GitIssue,
     GitMergeRequest,
     GitMergeRequestVersion,
     GitProvider,
+    GitRelatedItem,
+    GitRepository,
     GitTree,
     GitUser,
 } from "../src/provider/types.js";
@@ -41,6 +45,15 @@ export class MockProvider implements GitProvider {
         return this.input.currentUser ?? { username: "test_bot" };
     }
 
+    async fetchRepositoryDetail(): Promise<GitRepository> {
+        return {
+            id: 1,
+            name: "mock-repo",
+            description: "Mock repository",
+            defaultBranch: "main",
+        };
+    }
+
     async fetchMergeRequestDetail(_mrIid: number): Promise<GitMergeRequest> {
         return this.input.detail;
     }
@@ -69,6 +82,36 @@ export class MockProvider implements GitProvider {
 
     async fetchMergeRequestReviewerList(_mrIid: number): Promise<string[]> {
         return this.input.reviewers ?? [];
+    }
+
+    async fetchIssueDetail(_issueIid: number): Promise<GitIssue> {
+        return {
+            title: this.input.detail.title,
+            description: this.input.detail.description,
+            author: this.input.detail.author,
+            state: this.input.detail.state === "closed" ? "closed" : "opened",
+            labels: [],
+        };
+    }
+
+    async fetchIssueCommentList(_issueIid: number): Promise<GitComment[]> {
+        return this.input.comments ?? [];
+    }
+
+    async createIssueComment(_issueIid: number, body: string): Promise<GitComment> {
+        return this.createMergeRequestComment(_issueIid, body);
+    }
+
+    async searchIssueList(_query: string): Promise<GitRelatedItem[]> {
+        return [];
+    }
+
+    async searchMergeRequestList(_query: string): Promise<GitRelatedItem[]> {
+        return [];
+    }
+
+    async searchCodeList(_query: string, _ref: string): Promise<GitCodeSearchResult[]> {
+        return [];
     }
 
     async fetchDirectoryTree(_filePath: string, _ref: string, _recursive?: boolean): Promise<GitTree[]> {

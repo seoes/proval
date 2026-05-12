@@ -9,6 +9,40 @@ export interface GitMergeRequest {
 
 export type GitMergeRequestState = "opened" | "closed" | "merged" | "locked";
 
+export interface GitIssue {
+    title: string;
+    description: string | null;
+    author: string;
+    state: GitIssueState;
+    labels: string[];
+}
+
+export type GitIssueState = "opened" | "closed" | "locked";
+
+export interface GitRepository {
+    id: number;
+    name: string;
+    description: string | null;
+    defaultBranch: string;
+}
+
+export interface GitRelatedItem {
+    number: number;
+    title: string;
+    description: string | null;
+    state: "opened" | "closed" | "merged";
+    author: string;
+    url: string;
+}
+
+export interface GitCodeSearchResult {
+    path: string;
+    name: string;
+    ref: string;
+    snippet: string;
+    url?: string;
+}
+
 // git diff
 export interface GitChangedFile {
     oldPath: string;
@@ -96,12 +130,19 @@ export interface GitUser {
 
 export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
+    fetchRepositoryDetail(): Promise<GitRepository>;
     fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest>;
     fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]>;
     /** Read one changed file's patch from the MR. Accepts either oldPath or newPath. */
     fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff>;
     fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
     fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
+    fetchIssueDetail(issueIid: number): Promise<GitIssue>;
+    fetchIssueCommentList(issueIid: number): Promise<GitComment[]>;
+    createIssueComment(issueIid: number, body: string): Promise<GitComment>;
+    searchIssueList(query: string): Promise<GitRelatedItem[]>;
+    searchMergeRequestList(query: string): Promise<GitRelatedItem[]>;
+    searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]>;
     fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]>;
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;

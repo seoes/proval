@@ -2,13 +2,18 @@ import { Octokit } from "@octokit/rest";
 import type {
     GitChangedFile,
     GitComment,
+    GitCodeSearchResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
+    GitIssue,
+    GitIssueState,
     GitMergeRequest,
     GitMergeRequestState,
     GitMergeRequestVersion,
     GitProvider,
+    GitRelatedItem,
+    GitRepository,
     GitTree,
     GitUser,
 } from "./types.js";
@@ -27,6 +32,20 @@ export class GitHubProvider implements GitProvider {
 
     public async fetchCurrentUser(): Promise<GitUser> {
         return { username: this.botUsername };
+    }
+
+    public async fetchRepositoryDetail(): Promise<GitRepository> {
+        const { data: repository } = await this.octokit.repos.get({
+            owner: this.owner,
+            repo: this.repo,
+        });
+
+        return {
+            id: repository.id,
+            name: repository.name,
+            description: repository.description,
+            defaultBranch: repository.default_branch,
+        };
     }
 
     public async fetchMergeRequestDetail(prNumber: number): Promise<GitMergeRequest> {
@@ -123,6 +142,108 @@ export class GitHubProvider implements GitProvider {
         return comments;
     }
 
+    public async fetchIssueDetail(issueNumber: number): Promise<GitIssue> {
+        const { data: issue } = await this.octokit.issues.get({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+        });
+
+        return {
+            title: issue.title,
+            description: issue.body ?? null,
+            author: issue.user?.login ?? "",
+            state: this.mapIssueState(issue.state, issue.locked ?? false),
+            labels: issue.labels.map((label) => (typeof label === "string" ? label : label.name ?? "")),
+        };
+    }
+
+    public async fetchIssueCommentList(issueNumber: number): Promise<GitComment[]> {
+        const { data: comments } = await this.octokit.issues.listComments({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+        });
+
+        return comments.map((comment) => ({
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        }));
+    }
+
+    public async createIssueComment(issueNumber: number, body: string): Promise<GitComment> {
+        const { data: comment } = await this.octokit.issues.createComment({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+            body,
+        });
+
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
+    public async searchIssueList(query: string): Promise<GitRelatedItem[]> {
+        const { data } = await this.octokit.search.issuesAndPullRequests({
+            q: `${query} repo:${this.owner}/${this.repo} is:issue`,
+            per_page: 10,
+        });
+
+        return data.items.map((item) => ({
+            number: item.number,
+            title: item.title,
+            description: item.body ?? null,
+            state: item.state === "closed" ? "closed" : "opened",
+            author: item.user?.login ?? "",
+            url: item.html_url,
+        }));
+    }
+
+    public async searchMergeRequestList(query: string): Promise<GitRelatedItem[]> {
+        const { data } = await this.octokit.search.issuesAndPullRequests({
+            q: `${query} repo:${this.owner}/${this.repo} is:pr`,
+            per_page: 10,
+        });
+
+        return data.items.map((item) => ({
+            number: item.number,
+            title: item.title,
+            description: item.body ?? null,
+            state: item.pull_request?.merged_at ? "merged" : item.state === "closed" ? "closed" : "opened",
+            author: item.user?.login ?? "",
+            url: item.html_url,
+        }));
+    }
+
+    public async searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]> {
+        const { data } = await this.octokit.request("GET /search/code", {
+            q: `${query} repo:${this.owner}/${this.repo}`,
+            per_page: 10,
+            headers: {
+                accept: "application/vnd.github.text-match+json",
+            },
+        });
+
+        return data.items.map((item: {
+            path: string;
+            name: string;
+            html_url?: string;
+            text_matches?: Array<{ fragment?: string }>;
+        }) => ({
+            path: item.path,
+            name: item.name,
+            ref,
+            snippet: item.text_matches?.[0]?.fragment ?? "",
+            url: item.html_url,
+        }));
+    }
+
     public async fetchMergeRequestReviewerList(prNumber: number): Promise<string[]> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
@@ -203,19 +324,7 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async createMergeRequestComment(prNumber: number, body: string): Promise<GitComment> {
-        const { data: comment } = await this.octokit.issues.createComment({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: prNumber,
-            body,
-        });
-
-        return {
-            id: comment.id,
-            body: comment.body ?? "",
-            author: comment.user?.login ?? "",
-            createdAt: comment.created_at,
-        };
+        return this.createIssueComment(prNumber, body);
     }
 
     public async fetchMergeRequestVersion(prNumber: number): Promise<GitMergeRequestVersion> {
@@ -331,5 +440,11 @@ export class GitHubProvider implements GitProvider {
         if (merged) return "merged";
         if (state === "open") return "opened";
         return "closed";
+    }
+
+    private mapIssueState(state: string, locked: boolean): GitIssueState {
+        if (locked) return "locked";
+        if (state === "closed") return "closed";
+        return "opened";
     }
 }

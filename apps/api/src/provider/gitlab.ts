@@ -2,13 +2,18 @@ import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import type {
     GitComment,
     GitChangedFile,
+    GitCodeSearchResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
+    GitIssue,
+    GitIssueState,
     GitMergeRequest,
     GitMergeRequestState,
     GitMergeRequestVersion,
     GitProvider,
+    GitRelatedItem,
+    GitRepository,
     GitTree,
     GitUser,
 } from "./types.js";
@@ -16,8 +21,8 @@ import type {
 export class GitLabProvider implements GitProvider {
     private readonly gitlab: Gitlab;
     constructor(
-        baseUrl: string,
-        token: string,
+        private readonly baseUrl: string,
+        private readonly token: string,
         private readonly projectId: number,
     ) {
         this.gitlab = new Gitlab({
@@ -26,12 +31,13 @@ export class GitLabProvider implements GitProvider {
         });
     }
 
-    public async fetchRepositoryDetail() {
+    public async fetchRepositoryDetail(): Promise<GitRepository> {
         const repository = await this.gitlab.Projects.show(this.projectId);
         return {
             id: repository.id,
             name: repository.name,
             description: repository.description,
+            defaultBranch: repository.default_branch ?? "main",
         };
     }
 
@@ -84,6 +90,127 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
+    public async fetchIssueDetail(issueIid: number): Promise<GitIssue> {
+        const issue = await this.requestJson<{
+            title: string;
+            description: string | null;
+            state: string;
+            author?: { username?: string };
+            labels?: string[];
+        }>(`/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}`);
+
+        return {
+            title: issue.title,
+            description: issue.description,
+            author: issue.author?.username ?? "",
+            state: this.mapIssueState(issue.state),
+            labels: issue.labels ?? [],
+        };
+    }
+
+    public async fetchIssueCommentList(issueIid: number): Promise<GitComment[]> {
+        const comments = await this.requestJson<
+            Array<{
+                id: number;
+                body: string;
+                created_at: string;
+                author?: { username?: string };
+            }>
+        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes`);
+
+        return comments.map((comment) => ({
+            id: comment.id,
+            body: comment.body,
+            author: comment.author?.username ?? "",
+            createdAt: comment.created_at,
+        }));
+    }
+
+    public async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
+        const comment = await this.requestJson<{
+            id: number;
+            body: string;
+            created_at: string;
+            author?: { username?: string };
+        }>(`/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes`, {
+            method: "POST",
+            body: JSON.stringify({ body }),
+        });
+
+        return {
+            id: comment.id,
+            body: comment.body,
+            author: comment.author?.username ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
+    public async searchIssueList(query: string): Promise<GitRelatedItem[]> {
+        const result = await this.requestJson<
+            Array<{
+                iid: number;
+                title: string;
+                description: string | null;
+                state: string;
+                web_url?: string;
+                author?: { username?: string };
+            }>
+        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues?state=all&search=${encodeURIComponent(query)}`);
+
+        return result.map((issue) => ({
+            number: issue.iid,
+            title: issue.title,
+            description: issue.description,
+            state: issue.state === "closed" ? "closed" : "opened",
+            author: issue.author?.username ?? "",
+            url: issue.web_url ?? "",
+        }));
+    }
+
+    public async searchMergeRequestList(query: string): Promise<GitRelatedItem[]> {
+        const result = await this.requestJson<
+            Array<{
+                iid: number;
+                title: string;
+                description: string | null;
+                state: string;
+                web_url?: string;
+                author?: { username?: string };
+            }>
+        >(
+            `/projects/${encodeURIComponent(String(this.projectId))}/merge_requests?state=all&search=${encodeURIComponent(query)}`,
+        );
+
+        return result.map((mergeRequest) => ({
+            number: mergeRequest.iid,
+            title: mergeRequest.title,
+            description: mergeRequest.description,
+            state: this.mapMergeRequestState(mergeRequest.state),
+            author: mergeRequest.author?.username ?? "",
+            url: mergeRequest.web_url ?? "",
+        }));
+    }
+
+    public async searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]> {
+        const result = await this.requestJson<
+            Array<{
+                filename?: string;
+                path?: string;
+                ref?: string;
+                data?: string;
+            }>
+        >(
+            `/projects/${encodeURIComponent(String(this.projectId))}/search?scope=blobs&ref=${encodeURIComponent(ref)}&search=${encodeURIComponent(query)}`,
+        );
+
+        return result.map((item) => ({
+            path: item.path ?? item.filename ?? "",
+            name: item.filename ?? item.path?.split("/").at(-1) ?? "",
+            ref: item.ref ?? ref,
+            snippet: item.data ?? "",
+        }));
+    }
+
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
         const tree = await this.gitlab.Repositories.allRepositoryTrees(this.projectId, {
             path: filePath,
@@ -98,8 +225,11 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
-        const branchOrSha = ref ?? "main";
+        const branchOrSha = ref ?? (await this.fetchRepositoryDetail()).defaultBranch;
         const response = await this.gitlab.RepositoryFiles.show(this.projectId, filePath, branchOrSha);
+        if (response.encoding === "base64") {
+            return Buffer.from(response.content, "base64").toString("utf-8");
+        }
         return response.content;
     }
 
@@ -227,5 +357,35 @@ export class GitLabProvider implements GitProvider {
             reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
         });
         console.log("assigned");
+    }
+
+    private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+        const url = new URL(`/api/v4${path}`, this.baseUrl);
+        const response = await fetch(url, {
+            ...init,
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${this.token}`,
+                ...(init?.headers ?? {}),
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`GitLab request failed: ${response.status} ${response.statusText}`);
+        }
+
+        return (await response.json()) as T;
+    }
+
+    private mapIssueState(state: string): GitIssueState {
+        if (state === "closed") return "closed";
+        if (state === "locked") return "locked";
+        return "opened";
+    }
+
+    private mapMergeRequestState(state: string): "opened" | "closed" | "merged" {
+        if (state === "merged") return "merged";
+        if (state === "closed") return "closed";
+        return "opened";
     }
 }
