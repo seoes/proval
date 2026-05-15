@@ -46,7 +46,7 @@ export const DEEP_REVIEW_SUB_AGENT_PROMPT = [
     "",
     "File: <file path>",
     "Location: <function name or approximate line if identifiable>",
-    "Severity: <critical|warning|suggestion> (reassess based on your investigation)",
+    "Severity: <critical|high|mid|low|suggestion> (reassess based on your investigation)",
     "",
     "Problem:",
     "<2–4 sentences: what is wrong, with evidence from the code>",

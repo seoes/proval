@@ -65,6 +65,7 @@ export class MergeRequestService {
                 ...this.createCodeToolList(mrIid, sourceBranch),
                 ...this.createReviewToolList(mrIid, this.inlineReview),
             ],
+            maxSteps: 200,
         });
 
         console.log(
