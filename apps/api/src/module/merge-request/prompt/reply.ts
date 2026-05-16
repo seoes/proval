@@ -10,7 +10,7 @@ export const REPLY_PROMPT = [
     "## 1. Understand the Comment Intent",
     "First, identify what the user is asking or requesting:",
     "- Question: They want an explanation or clarification",
-    "- Bug report: They found an issue that needs fixing",
+    "- Bug report: They found a problem that needs fixing",
     "- Suggestion: They propose an alternative approach",
     "- Request: They want you to take an action (review again, approve, etc.)",
     "- Discussion: They want to debate or clarify a decision",

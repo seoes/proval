@@ -10,7 +10,7 @@ const WORKFLOW = [
     "You will receive specialist findings in JSON format. Each finding contains: File, Location, Severity, Problem, Impact, Suggestion.",
     "",
     "Step 1 — Review the specialist findings",
-    "  Read the provided specialist findings carefully. Understand each issue and its severity.",
+    "  Read the provided specialist findings carefully. Understand each problem and its severity.",
     "",
     "Step 2 — Check existing comments",
     "  Call get_merge_request_comment_list. Do NOT post findings that are already covered by existing comments.",
