@@ -46,7 +46,7 @@ export const createAccess = async (c: Context) => {
     }
     try {
         const access = await accessService.create(provider, name, baseUrl, accessToken, botUsername);
-        return c.json({ id: access }, 201);
+        return c.json(access, 201);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("UNIQUE") || msg.includes("unique")) {
@@ -97,7 +97,7 @@ export const updateAccessById = async (c: Context) => {
     }
     try {
         const access = await accessService.updateById(id, name, baseUrl, botUsername, accessToken);
-        return c.json({ id: access }, 200);
+        return c.json(access, 200);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("NOT_FOUND") || msg.includes("not found")) {

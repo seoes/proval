@@ -1,6 +1,12 @@
 <script lang="ts">
     import Button from '$lib/components/atom/Button.svelte';
-    import { TrashIcon, TestTubeIcon, GitlabLogoIcon, GitForkIcon, PencilIcon } from 'phosphor-svelte';
+    import {
+        TrashIcon,
+        TestTubeIcon,
+        GitlabLogoIcon,
+        GitForkIcon,
+        PencilIcon
+    } from 'phosphor-svelte';
 
     type Item = {
         id: number;

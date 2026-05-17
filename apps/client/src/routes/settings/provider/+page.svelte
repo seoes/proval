@@ -98,6 +98,8 @@
                     await openAlert(body.error || 'Failed to update access');
                     return;
                 }
+                const result = await res.json();
+                accessList = accessList.map((a) => (a.id === editingId ? { ...a, ...result } : a));
             } else {
                 const payload = {
                     provider: formProvider,
@@ -116,8 +118,10 @@
                     await openAlert(body.error || 'Failed to create access');
                     return;
                 }
+                const result = await res.json();
+                accessList.push(result);
             }
-            window.location.reload();
+            closeAccessModal();
         } catch {
             await openAlert('Failed to save access');
         } finally {
@@ -281,7 +285,7 @@
             bind:formAccessToken
             bind:formBotUsername
             {editingId}
-            isSavingAccess={isSavingAccess}
+            {isSavingAccess}
             onSubmit={saveAccess}
             onCancel={closeAccessModal}
         />

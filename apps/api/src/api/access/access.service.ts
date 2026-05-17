@@ -67,8 +67,8 @@ export class GitLabAccessService {
                 accessToken,
                 botUsername,
             })
-            .returning({ id: gitProviderAccessTable.id });
-        return newAccess[0].id;
+            .returning(this.query);
+        return newAccess[0];
     }
 
     public async updateById(id: number, name: string, baseUrl: string, botUsername?: string, accessToken?: string) {
@@ -82,11 +82,11 @@ export class GitLabAccessService {
             .update(gitProviderAccessTable)
             .set(patch)
             .where(eq(gitProviderAccessTable.id, id))
-            .returning({ id: gitProviderAccessTable.id });
+            .returning(this.query);
         if (updatedAccess.length === 0) {
             throw new Error("Access configuration not found");
         }
-        return updatedAccess[0].id;
+        return updatedAccess[0];
     }
 
     public async deleteById(id: number) {

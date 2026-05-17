@@ -101,13 +101,12 @@
             {/snippet}
         </FormField>
     {/if}
-    <FormField label="Bot username" description="Optional — used for mention detection in reply mode">
+    <FormField
+        label="Bot username"
+        description="Optional — used for mention detection in reply mode"
+    >
         {#snippet children({ id })}
-            <InputText
-                {id}
-                placeholder={accessFormBotPlaceholder}
-                bind:value={formBotUsername}
-            />
+            <InputText {id} placeholder={accessFormBotPlaceholder} bind:value={formBotUsername} />
         {/snippet}
     </FormField>
     <div class="flex items-center gap-2 pt-2">
