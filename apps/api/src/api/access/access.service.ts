@@ -83,6 +83,9 @@ export class GitLabAccessService {
             .set(patch)
             .where(eq(gitProviderAccessTable.id, id))
             .returning({ id: gitProviderAccessTable.id });
+        if (updatedAccess.length === 0) {
+            throw new Error("Access configuration not found");
+        }
         return updatedAccess[0].id;
     }
 
@@ -100,6 +103,9 @@ export class GitLabAccessService {
             .delete(gitProviderAccessTable)
             .where(eq(gitProviderAccessTable.id, id))
             .returning({ id: gitProviderAccessTable.id });
+        if (deletedAccess.length === 0) {
+            throw new Error("Access configuration not found");
+        }
         return deletedAccess[0].id;
     }
 
@@ -116,14 +122,22 @@ export class GitLabAccessService {
     }
 
     public async testGitLab(baseUrl: string, accessToken: string) {
-        const response = await fetch(`${baseUrl}/api/v4/user`, {
+        // new URL(baseUrl) 파싱 검증, https: 프로토콜 확인, trailing slash 정규화.
+        const url = new URL(baseUrl);
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+            throw new Error("Invalid base URL");
+        }
+        if (url.pathname.endsWith("/")) {
+            url.pathname = url.pathname.slice(0, -1);
+        }
+        const response = await fetch(`${url.toString()}/api/v4/user`, {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
             },
         });
         if (response.status === 401) {
-            return { success: false, message: "Invalid access token" };
+            return { success: false, message: "Unauthorized" };
         }
-        return { success: true, message: "Access token is valid" };
+        return { success: true, message: "Authorized" };
     }
 }
