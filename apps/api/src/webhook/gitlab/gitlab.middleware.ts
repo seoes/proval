@@ -1,4 +1,4 @@
-import { modelTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
@@ -10,23 +10,26 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
         .select({
             repository: repositoryTable,
             model: modelTable,
+            access: gitProviderAccessTable,
         })
         .from(repositoryTable)
         .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
+        .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
         .where(eq(repositoryTable.gitlabRepositoryId, payload.project?.id));
 
     if (result.length === 0) {
         return c.json({ error: "Repository not found" }, 404);
     }
 
-    const { repository, model } = result[0];
+    const { repository, model, access } = result[0];
 
     if (repository.webhookSecret && repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
-        return c.json({ error: "Invalid token" }, 401);
+        return c.json({ error: "Unauthorized" }, 401);
     }
 
     c.set("repository", repository);
     c.set("model", model);
     c.set("gitlabPayload", payload);
+    c.set("access", access);
     await next();
 });

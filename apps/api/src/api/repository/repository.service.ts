@@ -5,16 +5,16 @@ import { desc, eq } from "drizzle-orm";
 
 export class RepositoryService {
     public async findAll(): Promise<Repository[]> {
-        const repositories = await db.select().from(repositoryTable).orderBy(desc(repositoryTable.createdAt));
-        return repositories;
+        const repositoryList = await db.select().from(repositoryTable).orderBy(desc(repositoryTable.createdAt));
+        return repositoryList;
     }
 
     public async findById(repositoryId: number): Promise<Repository> {
-        const repository = await db.select().from(repositoryTable).where(eq(repositoryTable.id, repositoryId));
-        if (repository.length === 0) {
+        const repositoryList = await db.select().from(repositoryTable).where(eq(repositoryTable.id, repositoryId));
+        if (repositoryList.length === 0) {
             throw new Error("Repository not found");
         }
-        return repository[0];
+        return repositoryList[0];
     }
 
     public async create(data: RepositoryInsert): Promise<Repository> {
@@ -35,19 +35,12 @@ export class RepositoryService {
         return result[0];
     }
 
-    public async updateGitlabAccessToken(repositoryId: number, gitlabAccessToken: string): Promise<void> {
-        await db
-            .update(repositoryTable)
-            .set({ gitlabAccessToken })
-            .where(eq(repositoryTable.id, repositoryId));
-    }
-
     public async updateWebhookSecret(repositoryId: number, webhookSecret: string): Promise<void> {
         await db.update(repositoryTable).set({ webhookSecret }).where(eq(repositoryTable.id, repositoryId));
     }
 
     public toResponse(repository: Repository): RepositoryResponse {
-        const { webhookSecret, gitlabAccessToken, ...rest } = repository;
+        const { webhookSecret, ...rest } = repository;
         return rest;
     }
 

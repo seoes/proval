@@ -9,17 +9,19 @@ import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
-import { modelTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
+type Access = InferSelectModel<typeof gitProviderAccessTable>;
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
 
     const repository = c.get("repository") as Repository;
     const model = c.get("model") as Model;
+    const access = c.get("access") as Access;
 
     console.log("--------------------------------");
     console.log(`GitLab Webhook received: ${event}`);
@@ -35,13 +37,13 @@ export const handleGitLabWebhook = async (c: Context) => {
         // Handle Merge Request Hook
         if (event === "Merge Request Hook") {
             const payload: WebhookMergeRequestEventSchema = c.get("gitlabPayload");
-            const response = await handleGitLabMergeRequestWebhook(payload, repository, model);
+            const response = await handleGitLabMergeRequestWebhook(payload, repository, model, access);
             return response;
         }
 
         if (event === "Issue Hook") {
             const payload: WebhookIssueEventSchema = c.get("gitlabPayload");
-            const response = await handleGitLabIssueWebhook(payload, repository, model);
+            const response = await handleGitLabIssueWebhook(payload, repository, model, access);
             return response;
         }
 
@@ -57,6 +59,7 @@ export const handleGitLabWebhook = async (c: Context) => {
                         payload as WebhookMergeRequestNoteEventSchema,
                         repository,
                         model,
+                        access,
                     );
                     return response;
                 }
@@ -65,6 +68,7 @@ export const handleGitLabWebhook = async (c: Context) => {
                         payload as WebhookIssueNoteEventSchema,
                         repository,
                         model,
+                        access,
                     );
                     return response;
                 }
@@ -83,15 +87,16 @@ type HandleGitLabMergeRequestWebhook = (
     payload: WebhookMergeRequestEventSchema,
     repository: Repository,
     model: Model,
+    access: Access,
 ) => Promise<Response>;
 
-const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (payload, repository, model) => {
+const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (payload, repository, model, access) => {
     const project = payload.project;
-    const token = repository.gitlabAccessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
     }
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+    const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
@@ -150,20 +155,26 @@ type HandleGitLabMergeRequestNoteWebhook = (
     payload: WebhookMergeRequestNoteEventSchema,
     repository: Repository,
     model: Model,
+    access: Access,
 ) => Promise<Response>;
 
-const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook = async (payload, repository, model) => {
+const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook = async (
+    payload,
+    repository,
+    model,
+    access,
+) => {
     // If reply to merge request comment is off, skip
     if (repository.replyToMergeRequestComment === "off") {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
     }
 
     const project = payload.project;
-    const token = repository.gitlabAccessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
     }
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+    const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
     const botUserData = await gitlabProvider.fetchCurrentUser();
     const botUsername = botUserData.username;
@@ -213,9 +224,10 @@ type HandleGitLabIssueWebhook = (
     payload: WebhookIssueEventSchema,
     repository: Repository,
     model: Model,
+    access: Access,
 ) => Promise<Response>;
 
-const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, model) => {
+const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, model, access) => {
     const action = payload.object_attributes?.action ?? "";
     if (action !== "open") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
@@ -226,7 +238,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const project = payload.project;
-    const token = repository.gitlabAccessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
     }
@@ -236,7 +248,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         return new Response(JSON.stringify({ message: "No issue IID found" }), { status: 200 });
     }
 
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+    const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.commentOnOpen(issueIid).catch((err) => {
@@ -250,20 +262,21 @@ type HandleGitLabIssueNoteWebhook = (
     payload: WebhookIssueNoteEventSchema,
     repository: Repository,
     model: Model,
+    access: Access,
 ) => Promise<Response>;
 
-const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, model) => {
+const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, model, access) => {
     // If reply to issue comment is off, skip
     if (repository.replyToIssueComment === "off") {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
     }
 
     const project = payload.project;
-    const token = repository.gitlabAccessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
     }
-    const gitlabProvider = new GitLabProvider(repository.baseUrl, token, project.id);
+    const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
     const botUserData = await gitlabProvider.fetchCurrentUser();
     const botUsername = botUserData.username;

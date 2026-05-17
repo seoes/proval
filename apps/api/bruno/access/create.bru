@@ -1,0 +1,21 @@
+meta {
+  name: Create access
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/access
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "provider": "gitlab",
+    "name": "{{accessName}}",
+    "baseUrl": "{{gitlabBaseUrl}}",
+    "accessToken": "{{accessToken}}",
+    "botUsername": "{{botUsername}}"
+  }
+}

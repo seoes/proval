@@ -11,12 +11,11 @@
         mode="edit"
         repositoryId={data.repository.id}
         modelList={data.modelList}
+        accessList={data.accessList}
         initialData={{
             name: data.repository.name,
             provider: data.repository.provider,
-            baseUrl: data.repository.baseUrl,
-            gitlabAccessToken: '',
-            webhookSecret: '',
+            gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
             botUsername: data.repository.botUsername ?? '',
             language: data.repository.language,
             gitlabRepositoryId: data.repository.gitlabRepositoryId,

@@ -37,21 +37,32 @@ export const githubInstallationTable = sqliteTable("github_installation", {
     ...timeStamp,
 });
 
+export const gitProviderAccessTable = sqliteTable("git_provider_access", {
+    id: integer().primaryKey({ autoIncrement: true }),
+    provider: text({ enum: ["gitlab", "forgejo"] }).notNull(),
+    name: text().notNull(),
+    baseUrl: text().notNull(),
+    accessToken: text().notNull(),
+    botUsername: text(),
+    ...timeStamp,
+});
+
 export const repositoryTable = sqliteTable("repository", {
     id: integer().primaryKey({ autoIncrement: true }),
 
     name: text().notNull(),
-    provider: text({ enum: ["gitlab", "github", "gitea", "forgejo"] }).notNull(),
-    baseUrl: text().notNull(),
-    gitlabAccessToken: text(),
+    provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
     webhookSecret: text(),
     botUsername: text(),
     language: text().notNull().default("English"),
 
-    // github
+    // github access configs
     githubInstallationId: integer().references(() => githubInstallationTable.id),
     githubRepositoryPath: text(),
     githubRepositoryId: integer(),
+
+    // other git provider access configs
+    gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, { onDelete: "restrict" }),
 
     // gitlab
     gitlabRepositoryId: integer(),

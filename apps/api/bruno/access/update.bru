@@ -1,0 +1,20 @@
+meta {
+  name: Update access
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/access/{{accessId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "{{accessName}}",
+    "baseUrl": "{{gitlabBaseUrl}}",
+    "accessToken": "{{accessToken}}",
+    "botUsername": "{{botUsername}}"
+  }
+}

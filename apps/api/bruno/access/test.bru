@@ -1,0 +1,11 @@
+meta {
+  name: Test access (GitLab token)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/access/{{accessId}}/test
+  body: none
+  auth: none
+}

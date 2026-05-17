@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from '$app/stores';
-    import { HouseIcon, GitForkIcon, CubeIcon, PlugsIcon } from 'phosphor-svelte';
+    import { HouseIcon, GitForkIcon, CubeIcon, PlugsIcon, GitBranchIcon } from 'phosphor-svelte';
     import type { Component } from 'svelte';
 
     interface SidebarItem {
@@ -32,9 +32,9 @@
                     icon: CubeIcon
                 },
                 {
-                    label: 'Integration',
-                    href: '/settings/integration',
-                    icon: PlugsIcon
+                    label: 'Git Provider',
+                    href: '/settings/provider',
+                    icon: GitBranchIcon
                 }
             ]
         },
@@ -54,7 +54,7 @@
 <div class="h-full min-h-screen w-full bg-slate-100 px-4 py-4">
     <div>
         <div class="px-4 text-3xl font-semibold tracking-tight text-neutral-800">
-            <a href="/">Compass</a>
+            <a href="/">Proval</a>
         </div>
     </div>
     <div class="mt-4 divide-y divide-neutral-300">
