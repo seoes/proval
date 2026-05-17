@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX `git_provider_access_provider_baseUrl_unique` ON `git_provider_access` (`provider`,`base_url`);--> statement-breakpoint
+CREATE UNIQUE INDEX `repository_gitlabRepositoryId_gitProviderAccessId_unique` ON `repository` (`gitlab_repository_id`,`git_provider_access_id`);
