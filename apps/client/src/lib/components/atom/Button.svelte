@@ -25,11 +25,13 @@
     }: Props = $props();
 
     let buttonClass = twMerge(
-        'cursor-pointer rounded-lg px-6 py-3 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 h-full w-full',
+        'cursor-pointer rounded-lg px-6 py-3 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 h-auto w-auto',
         primary && 'bg-primary',
         secondary && 'border border-neutral-200 bg-white text-neutral-600',
         text && 'text-neutral-500 hover:text-neutral-700 px-0 py-0'
     );
 </script>
 
-<button {type} class={twMerge(buttonClass, className)} {onclick} {disabled}>{@render children()}</button>
+<button {type} class={twMerge(buttonClass, className)} {onclick} {disabled}
+    >{@render children()}</button
+>

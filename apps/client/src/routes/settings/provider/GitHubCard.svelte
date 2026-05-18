@@ -56,10 +56,9 @@
             return;
         }
         try {
-            const res = await fetchApi(
-                `/github/app/${app.id}/installation/${installationId}`,
-                { method: 'DELETE' }
-            );
+            const res = await fetchApi(`/github/app/${app.id}/installation/${installationId}`, {
+                method: 'DELETE'
+            });
             if (res.ok) {
                 window.location.reload();
             } else {
@@ -202,9 +201,7 @@
         <div class="space-y-5">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div
-                        class="flex size-10 items-center justify-center rounded-lg bg-neutral-100"
-                    >
+                    <div class="flex size-10 items-center justify-center rounded-lg bg-neutral-100">
                         <GithubLogoIcon class="size-5 text-neutral-600" />
                     </div>
                     <div>
@@ -236,9 +233,7 @@
                                     <div
                                         class="flex size-8 items-center justify-center rounded bg-neutral-100 text-sm font-medium text-neutral-600"
                                     >
-                                        {installation.accountType === 'Organization'
-                                            ? 'O'
-                                            : 'U'}
+                                        {installation.accountType === 'Organization' ? 'O' : 'U'}
                                     </div>
                                     <div>
                                         <p class="font-medium text-neutral-800">
@@ -259,7 +254,7 @@
                             </div>
                         {/each}
                     </div>
-                    <div class="mt-4">
+                    <div class="mt-4 flex items-center justify-center">
                         <Button text onclick={getInstallUrl} disabled={isAddingInstallation}>
                             Add Installation
                         </Button>
@@ -304,27 +299,17 @@
 
             {#if regMode === 'manual'}
                 <div class="space-y-4">
-                    <FormField
-                        label="App ID"
-                        description="Numeric App ID from GitHub App settings"
-                    >
+                    <FormField label="App ID" description="Numeric App ID from GitHub App settings">
                         {#snippet children({ id })}
                             <InputText {id} placeholder="123456" bind:value={manualAppId} />
                         {/snippet}
                     </FormField>
                     <FormField label="Slug" description="Short name of your GitHub App">
                         {#snippet children({ id })}
-                            <InputText
-                                {id}
-                                placeholder="my-proval-app"
-                                bind:value={manualSlug}
-                            />
+                            <InputText {id} placeholder="my-proval-app" bind:value={manualSlug} />
                         {/snippet}
                     </FormField>
-                    <FormField
-                        label="Private key (PEM)"
-                        description="Generate from App settings"
-                    >
+                    <FormField label="Private key (PEM)" description="Generate from App settings">
                         {#snippet children({ id })}
                             <textarea
                                 {id}
@@ -361,7 +346,11 @@
                             />
                         {/snippet}
                     </FormField>
-                    <Button primary onclick={createAppQuick} disabled={!webhookUrl || isCreatingApp}>
+                    <Button
+                        primary
+                        onclick={createAppQuick}
+                        disabled={!webhookUrl || isCreatingApp}
+                    >
                         {isCreatingApp ? 'Creating...' : 'Connect GitHub App'}
                     </Button>
                 </div>

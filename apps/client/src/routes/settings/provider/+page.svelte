@@ -3,7 +3,6 @@
     import Card from '$lib/components/layout/Card.svelte';
     import Button from '$lib/components/atom/Button.svelte';
     import Modal from '$lib/components/atom/Modal.svelte';
-    import { PlusIcon } from 'phosphor-svelte';
     import AccessItem from './AccessItem.svelte';
     import AccessForm from './AccessForm.svelte';
     import GitHubCard from './GitHubCard.svelte';
@@ -196,7 +195,7 @@
 <DefaultLayout title="Git Provider">
     <div class="space-y-6">
         <!-- GitLab Access Card -->
-        <Card title="GitLab Access" border>
+        <Card title="GitLab" border>
             <div class="space-y-4">
                 {#if gitlabList.length > 0}
                     <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
@@ -223,19 +222,16 @@
                     </div>
                 {/if}
 
-                <div class="flex items-center gap-2">
-                    <Button primary onclick={() => openAddModal('gitlab')} class="w-auto">
-                        <span class="flex items-center gap-1.5">
-                            <PlusIcon class="size-4" />
-                            Add Access
-                        </span>
-                    </Button>
+                <div class="mt-8 flex items-center justify-center gap-2">
+                    <Button text onclick={() => openAddModal('gitlab')}
+                        >Add GitLab connection</Button
+                    >
                 </div>
             </div>
         </Card>
 
         <!-- Forgejo Access Card -->
-        <Card title="Forgejo Access" border>
+        <Card title="Forgejo" border>
             <div class="space-y-4">
                 {#if forgejoList.length > 0}
                     <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
@@ -262,13 +258,10 @@
                     </div>
                 {/if}
 
-                <div class="flex items-center gap-2">
-                    <Button primary onclick={() => openAddModal('forgejo')} class="w-auto">
-                        <span class="flex items-center gap-1.5">
-                            <PlusIcon class="size-4" />
-                            Add Access
-                        </span>
-                    </Button>
+                <div class="mt-8 flex items-center justify-center gap-2">
+                    <Button text onclick={() => openAddModal('forgejo')}
+                        >Add Forgejo connection</Button
+                    >
                 </div>
             </div>
         </Card>

@@ -1,12 +1,6 @@
 <script lang="ts">
     import Button from '$lib/components/atom/Button.svelte';
-    import {
-        TrashIcon,
-        TestTubeIcon,
-        GitlabLogoIcon,
-        GitForkIcon,
-        PencilIcon
-    } from 'phosphor-svelte';
+    import { TrashIcon, GitlabLogoIcon, GitForkIcon, PencilIcon } from 'phosphor-svelte';
 
     type Item = {
         id: number;
@@ -70,35 +64,39 @@
                 {/if}
             </div>
         </div>
-        <div class="flex shrink-0 flex-wrap items-center justify-end gap-1">
-            <button
-                class="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:cursor-not-allowed disabled:opacity-50"
-                onclick={onTest}
-                disabled={isTesting}
-            >
-                <TestTubeIcon class="size-3.5" />
-                {isTesting ? 'Testing...' : 'Test'}
-            </button>
-            <Button
-                text
-                onclick={onUpdateToken}
-                class="h-auto w-auto shrink-0 px-2 py-1.5 text-xs font-medium"
-            >
-                Update Access Token
-            </Button>
-            <button
-                class="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
-                onclick={onEdit}
-            >
-                <PencilIcon class="size-4" />
-            </button>
-            <button
-                class="rounded p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                onclick={onDelete}
-            >
-                <TrashIcon class="size-4" />
-            </button>
+        <div>
+            <div class="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                <button
+                    class="rounded p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600"
+                    onclick={onEdit}
+                >
+                    <PencilIcon class="size-4" />
+                </button>
+                <button
+                    class="rounded p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    onclick={onDelete}
+                >
+                    <TrashIcon class="size-4" />
+                </button>
+            </div>
         </div>
+    </div>
+    <div class="mt-2 flex justify-end">
+        <Button
+            text
+            onclick={onTest}
+            disabled={isTesting}
+            class="h-auto w-auto shrink-0 px-2 py-1.5 text-xs font-medium"
+        >
+            {isTesting ? 'Testing...' : 'Test Connection'}
+        </Button>
+        <Button
+            text
+            onclick={onUpdateToken}
+            class="h-auto w-auto shrink-0 px-2 py-1.5 text-xs font-medium"
+        >
+            Update Access Token
+        </Button>
     </div>
     {#if testResult && testResult.id === item.id}
         <div

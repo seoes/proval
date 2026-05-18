@@ -30,8 +30,8 @@
         editingId !== null
             ? 'Edit Access'
             : formProvider === 'gitlab'
-              ? 'Add GitLab Access'
-              : 'Add Forgejo Access'
+              ? 'Add GitLab connection'
+              : 'Add Forgejo connection'
     );
 
     const accessFormNamePlaceholder = $derived(
