@@ -2,19 +2,12 @@
     import TableCell from '$lib/components/atom/TableCell.svelte';
     import TableHeaderCell from '$lib/components/atom/TableHeaderCell.svelte';
     import Table from '$lib/components/organism/Table.svelte';
-    import { LockIcon, GearIcon } from 'phosphor-svelte';
+    import { GearIcon } from 'phosphor-svelte';
     import type { PageProps } from './$types';
     import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
-    import Modal from '$lib/components/atom/Modal.svelte';
-    import PatchSecret from '$lib/components/molecule/PatchSecret.svelte';
-    import Popover from '$lib/components/atom/Popover.svelte';
     import { formatTimeAgo } from '$lib/utils';
 
     let { data }: PageProps = $props();
-
-    let selectedRepositoryId = $state<number | null>(null);
-    let updateApiTokenModalOpen = $state(false);
-    let updateWebhookSecretModalOpen = $state(false);
 </script>
 
 <DefaultLayout title="Repository">
@@ -47,31 +40,6 @@
                             >
                                 <GearIcon class="size-5" />
                             </a>
-
-                            <Popover
-                                buttonList={[
-                                    ...(repository.provider === 'gitlab'
-                                        ? [
-                                              {
-                                                  label: 'Update GitLab access token',
-                                                  onclick: () => {
-                                                      selectedRepositoryId = repository.id;
-                                                      updateApiTokenModalOpen = true;
-                                                  }
-                                              }
-                                          ]
-                                        : []),
-                                    {
-                                        label: 'Update Webhook Secret',
-                                        onclick: () => {
-                                            selectedRepositoryId = repository.id;
-                                            updateWebhookSecretModalOpen = true;
-                                        }
-                                    }
-                                ]}
-                            >
-                                <LockIcon class="size-5" />
-                            </Popover>
                         </div>
                     </TableCell>
                 {/snippet}
@@ -87,22 +55,3 @@
         </div>
     </div>
 </DefaultLayout>
-{#if selectedRepositoryId}
-    <Modal bind:open={updateApiTokenModalOpen}>
-        <PatchSecret
-            label="Update GitLab access token"
-            description="Personal access token for this GitLab project"
-            placeholder="glpat-..."
-            patchEndpoint={`/repository/${selectedRepositoryId}/gitlab-access-token`}
-            onSuccess={() => (updateApiTokenModalOpen = false)}
-        />
-    </Modal>
-    <Modal bind:open={updateWebhookSecretModalOpen}>
-        <PatchSecret
-            label="Update Webhook Secret"
-            placeholder="secret"
-            patchEndpoint={`/repository/${selectedRepositoryId}/webhook-secret`}
-            onSuccess={() => (updateWebhookSecretModalOpen = false)}
-        />
-    </Modal>
-{/if}

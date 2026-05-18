@@ -43,20 +43,6 @@ export const updateRepository: Handler = async (c) => {
     return c.json(repositoryResponse, 200);
 };
 
-export const updateGitlabAccessToken: Handler = async (c) => {
-    const repositoryService = new RepositoryService();
-    const repositoryId = c.req.param("id");
-    if (!repositoryId) {
-        return c.json({ error: "Repository ID is required" }, 400);
-    }
-    const { value: gitlabAccessToken } = await c.req.json<SecretInput>();
-    if (!gitlabAccessToken) {
-        return c.json({ error: "GitLab access token is required" }, 400);
-    }
-    await repositoryService.updateGitlabAccessToken(parseInt(repositoryId), gitlabAccessToken);
-    return c.json({ message: "GitLab access token updated" }, 200);
-};
-
 export const updateWebhookSecret: Handler = async (c) => {
     const repositoryService = new RepositoryService();
     const repositoryId = c.req.param("id");

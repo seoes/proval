@@ -13,12 +13,21 @@
     import Description from '../atom/Description.svelte';
     import ToggleSwitch from '../atom/ToggleSwitch.svelte';
     import FieldTitle from '../atom/FieldTitle.svelte';
+    import Modal from '../atom/Modal.svelte';
+    import PatchSecret from '../molecule/PatchSecret.svelte';
 
     type ReplyThreadPolicy = 'all' | 'mentioned_only' | 'off';
 
+    type AccessItem = {
+        id: number;
+        provider: 'gitlab' | 'forgejo';
+        name: string;
+        baseUrl: string;
+        botUsername: string | null;
+    };
+
     type InitialData = Partial<RepositoryResponse> & {
-        gitlabAccessToken?: string;
-        webhookSecret?: string;
+        gitProviderAccessId?: number | null;
     };
 
     interface Props {
@@ -26,21 +35,20 @@
         repositoryId?: number;
         provider?: RepositoryResponse['provider'];
         modelList: ModelResponse[];
+        accessList?: AccessItem[];
         initialData?: InitialData;
     }
 
-    let { mode, repositoryId, provider: initialProvider, modelList, initialData }: Props = $props();
+    let { mode, repositoryId, provider: initialProvider, modelList, accessList = [], initialData }: Props = $props();
 
     let name = $state(initialData?.name ?? '');
-    let baseUrl = $state(initialData?.baseUrl ?? '');
-    let gitlabAccessToken = $state(initialData?.gitlabAccessToken ?? '');
-    let webhookSecret = $state(initialData?.webhookSecret ?? '');
     let botUsername = $state(initialData?.botUsername ?? '');
     let language = $state(initialData?.language ?? 'English');
     let gitlabRepositoryId = $state(initialData?.gitlabRepositoryId?.toString() ?? '');
     let githubRepositoryPath = $state(initialData?.githubRepositoryPath ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
     let provider = $state(initialData?.provider ?? initialProvider ?? '');
+    let gitProviderAccessId = $state(initialData?.gitProviderAccessId?.toString() ?? '');
     let deepResearchOnMergeRequest = $state(initialData?.deepResearchOnMergeRequest ?? false);
 
     let reviewOnMergeRequestOpen = $state(initialData?.reviewOnMergeRequestOpen ?? true);
@@ -50,6 +58,8 @@
     );
     let replyToIssueComment = $state<ReplyThreadPolicy>(initialData?.replyToIssueComment ?? 'all');
     let inlineReview = $state(initialData?.inlineReview ?? true);
+
+    let webhookSecretModalOpen = $state(false);
 
     const providerOptionList = [
         { label: 'GitLab', value: 'gitlab' as const, icon: siGitlab },
@@ -121,16 +131,12 @@
             await openAlert('Provider is required');
             return;
         }
-        if (!baseUrl) {
-            await openAlert('Base URL is required');
+        if ((provider === 'gitlab' || provider === 'forgejo') && !gitProviderAccessId) {
+            await openAlert('Git provider access is required');
             return;
         }
         if (provider === 'gitlab' && !gitlabRepositoryId) {
             await openAlert('GitLab Repository ID is required');
-            return;
-        }
-        if (mode === 'create' && provider === 'gitlab' && !gitlabAccessToken) {
-            await openAlert('GitLab access token is required');
             return;
         }
 
@@ -140,9 +146,7 @@
             const body = {
                 name,
                 provider,
-                baseUrl,
-                gitlabAccessToken: gitlabAccessToken || null,
-                webhookSecret: webhookSecret || null,
+                gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
                 botUsername: botUsername || null,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId, 10) : null,
@@ -167,7 +171,7 @@
             const body = {
                 name,
                 provider,
-                baseUrl,
+                gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
                 botUsername: botUsername || null,
                 language,
                 gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId, 10) : null,
@@ -258,17 +262,33 @@
                 {/snippet}
             </FormField>
         </div>
-        <div>
-            <FormField
-                class="mb-2 pl-1"
-                label="Base URL"
-                description="The base URL of the repository (ex. https://gitlab.com, http://127.0.0.1:8080)"
-            >
-                {#snippet children({ id })}
-                    <InputText {id} placeholder="https://gitlab.com" bind:value={baseUrl} />
-                {/snippet}
-            </FormField>
-        </div>
+
+        {#if provider === 'gitlab' || provider === 'forgejo'}
+            <div>
+                <FormField
+                    label="Git Provider Access"
+                    description="Select an access configuration for this repository"
+                >
+                    {#snippet children({ id })}
+                        <select
+                            {id}
+                            value={gitProviderAccessId}
+                            onchange={(e) =>
+                                (gitProviderAccessId = (e.target as HTMLSelectElement).value)}
+                            class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                        >
+                            <option value="">Select an access</option>
+                            {#each accessList as access}
+                                <option value={access.id.toString()}>
+                                    {access.name} — {access.baseUrl}
+                                </option>
+                            {/each}
+                        </select>
+                    {/snippet}
+                </FormField>
+            </div>
+        {/if}
+
         {#if provider === 'gitlab'}
             <div>
                 <FormField label="GitLab Repository ID" description="ID of the GitLab project">
@@ -295,28 +315,16 @@
             </div>
         {/if}
 
-        {#if mode === 'create'}
-            {#if provider === 'gitlab'}
-                <div>
-                    <FormField label="GitLab access token" description="Personal access token for this project">
-                        {#snippet children({ id })}
-                            <InputText {id} placeholder="glpat-..." bind:value={gitlabAccessToken} password />
-                        {/snippet}
-                    </FormField>
-                </div>
-            {/if}
-            <div>
-                <FormField label="Webhook Secret (optional)">
-                    {#snippet children({ id })}
-                        <InputText {id} placeholder="secret" bind:value={webhookSecret} password />
-                    {/snippet}
-                </FormField>
-            </div>
-        {:else}
-            <div class="mt-8">
-                <Description
-                    >GitLab access token and webhook secret can be updated from the repository list</Description
+        {#if mode === 'edit' && repositoryId}
+            <div class="pt-2">
+                <Button
+                    secondary
+                    onclick={() => (webhookSecretModalOpen = true)}
+                    type="button"
+                    class="w-auto"
                 >
+                    Update Webhook Secret
+                </Button>
             </div>
         {/if}
     </Card>
@@ -416,6 +424,17 @@
         </div>
     </div>
 </form>
+
+{#if repositoryId}
+    <Modal bind:open={webhookSecretModalOpen}>
+        <PatchSecret
+            label="Update Webhook Secret"
+            placeholder="secret"
+            patchEndpoint={`/repository/${repositoryId}/webhook-secret`}
+            onSuccess={() => (webhookSecretModalOpen = false)}
+        />
+    </Modal>
+{/if}
 
 <style>
     * {

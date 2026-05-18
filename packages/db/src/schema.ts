@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const timeStamp = {
@@ -37,40 +37,59 @@ export const githubInstallationTable = sqliteTable("github_installation", {
     ...timeStamp,
 });
 
-export const repositoryTable = sqliteTable("repository", {
-    id: integer().primaryKey({ autoIncrement: true }),
+export const gitProviderAccessTable = sqliteTable(
+    "git_provider_access",
+    {
+        id: integer().primaryKey({ autoIncrement: true }),
+        provider: text({ enum: ["gitlab", "forgejo"] }).notNull(),
+        name: text().notNull(),
+        baseUrl: text().notNull(),
+        accessToken: text().notNull(),
+        botUsername: text(),
+        ...timeStamp,
+    },
+    (table) => [unique().on(table.provider, table.baseUrl)],
+);
 
-    name: text().notNull(),
-    provider: text({ enum: ["gitlab", "github", "gitea", "forgejo"] }).notNull(),
-    baseUrl: text().notNull(),
-    gitlabAccessToken: text(),
-    webhookSecret: text(),
-    botUsername: text(),
-    language: text().notNull().default("English"),
+export const repositoryTable = sqliteTable(
+    "repository",
+    {
+        id: integer().primaryKey({ autoIncrement: true }),
 
-    // github
-    githubInstallationId: integer().references(() => githubInstallationTable.id),
-    githubRepositoryPath: text(),
-    githubRepositoryId: integer(),
+        name: text().notNull(),
+        provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
+        webhookSecret: text(),
+        botUsername: text(),
+        language: text().notNull().default("English"),
 
-    // gitlab
-    gitlabRepositoryId: integer(),
+        // github access configs
+        githubInstallationId: integer().references(() => githubInstallationTable.id),
+        githubRepositoryPath: text(),
+        githubRepositoryId: integer(),
 
-    // merge request
-    reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
-    inlineReview: integer({ mode: "boolean" }).notNull().default(true),
-    replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
-        .notNull()
-        .default("all"),
-    deepResearchOnMergeRequest: integer({ mode: "boolean" }).notNull().default(false),
+        // other git provider access configs
+        gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, { onDelete: "restrict" }),
 
-    // issue
-    commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
-    replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
-        .notNull()
-        .default("all"),
+        // gitlab
+        gitlabRepositoryId: integer(),
 
-    modelId: integer().references(() => modelTable.id),
+        // merge request
+        reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
+        inlineReview: integer({ mode: "boolean" }).notNull().default(true),
+        replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
+            .notNull()
+            .default("all"),
+        deepResearchOnMergeRequest: integer({ mode: "boolean" }).notNull().default(false),
 
-    ...timeStamp,
-});
+        // issue
+        commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
+        replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
+            .notNull()
+            .default("all"),
+
+        modelId: integer().references(() => modelTable.id),
+
+        ...timeStamp,
+    },
+    (table) => [unique().on(table.gitlabRepositoryId, table.gitProviderAccessId)],
+);

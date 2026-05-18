@@ -16,14 +16,30 @@ type GitHubInstallation = {
     accountType: 'User' | 'Organization';
 };
 
+type AccessItem = {
+    id: number;
+    provider: 'gitlab' | 'forgejo';
+    name: string;
+    baseUrl: string;
+    botUsername: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
 export const load: PageLoad = async () => {
-    const appRes = await fetchApi('/github/app');
+    const [appRes, accessRes] = await Promise.all([
+        fetchApi('/github/app'),
+        fetchApi('/access')
+    ]);
+
     const appList: GitHubApp[] = appRes.ok ? await appRes.json() : [];
+    const accessList: AccessItem[] = accessRes.ok ? await accessRes.json() : [];
 
     if (appList.length === 0) {
         return {
             app: null,
-            installationList: []
+            installationList: [],
+            accessList
         };
     }
 
@@ -35,6 +51,8 @@ export const load: PageLoad = async () => {
 
     return {
         app,
-        installationList
+        installationList,
+        accessList
     };
 };
+

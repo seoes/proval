@@ -4,7 +4,6 @@ import {
     findById as findRepositoryById,
     createRepository,
     updateRepository,
-    updateGitlabAccessToken,
     updateWebhookSecret,
     removeRepository,
 } from "./repository/repository.controller.js";
@@ -18,6 +17,7 @@ import {
     removeModel,
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
+import { accessRouter } from "./access/index.js";
 
 export const apiRouter = new Hono();
 
@@ -40,9 +40,11 @@ apiRouter.get("/repository", findAllRepositoryController);
 apiRouter.get("/repository/:id", findRepositoryById);
 apiRouter.post("/repository", createRepository);
 apiRouter.put("/repository/:id", updateRepository);
-apiRouter.patch("/repository/:id/gitlab-access-token", updateGitlabAccessToken);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
 apiRouter.delete("/repository/:id", removeRepository);
 
 // GitHub routes
 apiRouter.route("/github", githubRouter);
+
+// Access routes
+apiRouter.route("/access", accessRouter);

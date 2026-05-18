@@ -1,0 +1,17 @@
+meta {
+  name: Patch access token
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/api/access/{{accessId}}/access-token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "value": "{{accessToken}}"
+  }
+}
