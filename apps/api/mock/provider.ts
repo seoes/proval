@@ -115,6 +115,25 @@ export class MockProvider implements GitProvider {
         return [];
     }
 
+    isCodeSearchSupported(): boolean {
+        return true;
+    }
+
+    async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
+        const content = await this.fetchFileContent(filePath, ref);
+        const results: GitCodeSearchResult[] = [];
+        const lines = content.split("\n");
+        const maxMatches = 50;
+
+        for (let i = 0; i < lines.length && results.length < maxMatches; i++) {
+            const line = lines[i];
+            if (line.includes(keyword)) {
+                results.push({ path: filePath, ref, snippet: line, line: i + 1 });
+            }
+        }
+        return results;
+    }
+
     async fetchDirectoryTree(_filePath: string, _ref: string, _recursive?: boolean): Promise<GitTree[]> {
         return this.input.tree ?? [];
     }

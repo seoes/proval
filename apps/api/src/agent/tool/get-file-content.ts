@@ -6,13 +6,19 @@ const MAX_LINES = 300;
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_file_content",
-        description: `Read file content at repository ref ${ref}. At most ${MAX_LINES} lines per call. Optional 1-based inclusive fromLine/toLine; spans over ${MAX_LINES} lines are clamped from fromLine.`,
+        description: `Read file content at repository ref ${ref}. At most ${MAX_LINES} lines per call. Optional 1-based inclusive fromLine/toLine; spans over ${MAX_LINES} lines are clamped from fromLine. Use fromLine and toLine only when file is over ${MAX_LINES} lines.`,
         parameters: {
             type: "object",
             properties: {
                 filePath: { type: "string", description: "Repository-relative path to the file." },
-                fromLine: { type: "number", description: "First line to include (1-based)." },
-                toLine: { type: "number", description: "Last line to include (1-based)." },
+                fromLine: {
+                    type: "number",
+                    description: `First line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
+                },
+                toLine: {
+                    type: "number",
+                    description: `Last line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
+                },
             },
             required: ["filePath"],
         },

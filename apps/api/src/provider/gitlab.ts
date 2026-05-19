@@ -208,10 +208,32 @@ export class GitLabProvider implements GitProvider {
 
         return result.map((item) => ({
             path: item.path ?? item.filename ?? "",
-            name: item.filename ?? item.path?.split("/").at(-1) ?? "",
             ref: item.ref ?? ref,
             snippet: item.data ?? "",
         }));
+    }
+
+    public isCodeSearchSupported(): boolean {
+        return true;
+    }
+
+    public async searchLineByKeyword(
+        keyword: string,
+        filePath: string,
+        ref: string,
+    ): Promise<GitCodeSearchResult[]> {
+        const content = await this.fetchFileContent(filePath, ref);
+        const results: GitCodeSearchResult[] = [];
+        const lines = content.split("\n");
+        const maxMatches = 50;
+
+        for (let i = 0; i < lines.length && results.length < maxMatches; i++) {
+            const line = lines[i];
+            if (line.includes(keyword)) {
+                results.push({ path: filePath, ref, snippet: line, line: i + 1 });
+            }
+        }
+        return results;
     }
 
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {

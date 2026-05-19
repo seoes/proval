@@ -430,29 +430,31 @@ export class ForgejoProvider implements GitProvider {
         }));
     }
 
-    public async searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]> {
-        // Forgejo/Gitea has limited code search; try the search endpoint
-        try {
-            const result = await this.requestJson<{
-                data?: Array<{
-                    path?: string;
-                    filename?: string;
-                    content?: string;
-                }>;
-            }>(
-                `/repos/${this.owner}/${this.repo}/git/blobs/search?q=${encodeURIComponent(query)}&ref=${encodeURIComponent(ref)}`,
-            );
+    public isCodeSearchSupported(): boolean {
+        return false;
+    }
 
-            return (result.data ?? []).map((item) => ({
-                path: item.path ?? "",
-                name: item.filename ?? item.path?.split("/").pop() ?? "",
-                ref,
-                snippet: item.content ?? "",
-            }));
-        } catch {
-            // Fallback: return empty array if search is not supported
-            return [];
+    public async searchCodeList(_query: string, _ref: string): Promise<GitCodeSearchResult[]> {
+        return [];
+    }
+
+    public async searchLineByKeyword(
+        keyword: string,
+        filePath: string,
+        ref: string,
+    ): Promise<GitCodeSearchResult[]> {
+        const content = await this.fetchFileContent(filePath, ref);
+        const results: GitCodeSearchResult[] = [];
+        const lines = content.split("\n");
+        const maxMatches = 50;
+
+        for (let i = 0; i < lines.length && results.length < maxMatches; i++) {
+            const line = lines[i];
+            if (line.includes(keyword)) {
+                results.push({ path: filePath, ref, snippet: line, line: i + 1 });
+            }
         }
+        return results;
     }
 
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {

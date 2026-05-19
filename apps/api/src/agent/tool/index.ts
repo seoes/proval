@@ -7,6 +7,7 @@ export { getIssueCommentListTool } from "./get-issue-comment-list.js";
 export { getDirectoryTreeTool } from "./get-directory-tree.js";
 export { getFileContentTool } from "./get-file-content.js";
 export { searchCodeListTool } from "./search-code-list.js";
+export { searchLineByKeywordTool } from "./search-line-by-keyword.js";
 export { searchIssueListTool } from "./search-issue-list.js";
 export { searchMergeRequestListTool } from "./search-merge-request-list.js";
 export { postMergeRequestCommentTool } from "./post-merge-request-comment.js";
