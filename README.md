@@ -2,6 +2,10 @@
 
 An open-source, privacy-first, easy-to-use self-hosted code review tool
 
+<!-- ## Description
+
+Proval is a self-hosted bridge between your Git host and an LLM. Pick your Git platform and LLM, Proval is compatible with multiple Git provider like GitLab, Forgejo, GitHub and various LLM API like Llama.cpp, Ollama, Anthropic API, Chat-Completions API, Responses API. Keep your traffic on your infrastructure, and run on internal network with local models. -->
+
 > Proval is **Under development**. More features will keep being added and details my change.
 
 ## What it does
@@ -13,6 +17,8 @@ Proval reviews merge requests for you or can post comments on the change and eve
 **Git providers**
 
 - GitLab
+- Forgejo
+- GitHub
 
 **LLM APIs**
 
