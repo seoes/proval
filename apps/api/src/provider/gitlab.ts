@@ -16,6 +16,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitRepositoryListItem,
 } from "./types.js";
 
 export class GitLabProvider implements GitProvider {
@@ -155,7 +156,9 @@ export class GitLabProvider implements GitProvider {
                 web_url?: string;
                 author?: { username?: string };
             }>
-        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues?state=all&search=${encodeURIComponent(query)}`);
+        >(
+            `/projects/${encodeURIComponent(String(this.projectId))}/issues?state=all&search=${encodeURIComponent(query)}`,
+        );
 
         return result.map((issue) => ({
             number: issue.iid,
@@ -357,6 +360,26 @@ export class GitLabProvider implements GitProvider {
             reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
         });
         console.log("assigned");
+    }
+
+    public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+        const projects = await this.requestJson<
+            Array<{
+                id: number;
+                name: string;
+                path_with_namespace: string;
+                description: string | null;
+                default_branch: string;
+            }>
+        >("/projects?membership=true&per_page=100");
+
+        return projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            fullName: project.path_with_namespace,
+            description: project.description,
+            defaultBranch: project.default_branch ?? "main",
+        }));
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {

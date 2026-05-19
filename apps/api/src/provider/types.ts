@@ -128,6 +128,14 @@ export interface GitUser {
     username: string;
 }
 
+export interface GitRepositoryListItem {
+    id: number;
+    name: string;
+    fullName: string;
+    description: string | null;
+    defaultBranch: string;
+}
+
 export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
     fetchRepositoryDetail(): Promise<GitRepository>;
@@ -153,4 +161,5 @@ export interface GitProvider {
     approveMergeRequest(mrIid: number): Promise<void>;
     unapproveMergeRequest(mrIid: number): Promise<void>;
     assignMergeRequestReviewer(mrIid: number): Promise<void>;
+    fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
 }

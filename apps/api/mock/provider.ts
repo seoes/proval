@@ -13,6 +13,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitRepositoryListItem,
 } from "../src/provider/types.js";
 
 export interface TestInput {
@@ -120,6 +121,10 @@ export class MockProvider implements GitProvider {
 
     async fetchFileContent(filePath: string, _ref?: string): Promise<string> {
         return this.input.files?.[filePath] ?? `// file not found: ${filePath}`;
+    }
+
+    async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+        return [];
     }
 
     async fetchMergeRequestVersion(_mrIid: number): Promise<GitMergeRequestVersion> {

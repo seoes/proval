@@ -1,13 +1,9 @@
 <script lang="ts">
     import ToggleButton from '$lib/components/atom/ToggleButton.svelte';
     import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
-    import RepositoryForm from '$lib/components/organism/RepositoryForm.svelte';
-    import { siGithub, siGitlab } from 'simple-icons';
-    import type { PageProps } from './$types';
+    import { siForgejo, siGithub, siGitlab } from 'simple-icons';
     import Button from '$lib/components/atom/Button.svelte';
     import { goto } from '$app/navigation';
-
-    let { data }: PageProps = $props();
 
     let providerToggleButtonValueList = [
         {
@@ -21,10 +17,16 @@
             value: 'github',
             description: 'Connect via github.com',
             icon: siGithub
+        },
+        {
+            label: 'Forgejo',
+            value: 'forgejo',
+            description: 'Self-hosted Forgejo or Gitea instance',
+            icon: siForgejo
         }
     ];
 
-    let selectedProvider = $state<'gitlab' | 'github'>('gitlab');
+    let selectedProvider = $state<'gitlab' | 'github' | 'forgejo'>('gitlab');
 </script>
 
 <DefaultLayout title="Create Repository">
@@ -36,14 +38,15 @@
             <ToggleButton
                 class="w-full"
                 label={toggleButtonValue.label}
-                selected={selectedProvider === (toggleButtonValue.value as 'gitlab' | 'github')}
-                onclick={() => (selectedProvider = toggleButtonValue.value as 'gitlab' | 'github')}
+                selected={selectedProvider ===
+                    (toggleButtonValue.value as 'gitlab' | 'github' | 'forgejo')}
+                onclick={() =>
+                    (selectedProvider = toggleButtonValue.value as 'gitlab' | 'github' | 'forgejo')}
                 icon={toggleButtonValue.icon}
                 description={toggleButtonValue.description}
             />
         {/each}
     </div>
-    <!-- <RepositoryForm mode="create" modelList={data.modelList} /> -->
     <div class="mt-2">
         <Button primary onclick={() => goto(`/repository/create/${selectedProvider}`)}>Next</Button>
     </div>

@@ -4,6 +4,7 @@ import {
     deleteAccessById,
     getAccessById,
     getAccessList,
+    getRepositoryListByAccessId,
     testAccess,
     updateAccessById,
     updateAccessTokenById,
@@ -13,6 +14,7 @@ export const accessRouter = new Hono();
 
 accessRouter.get("/", getAccessList);
 accessRouter.get("/:id", getAccessById);
+accessRouter.get("/:id/repository", getRepositoryListByAccessId);
 accessRouter.post("/", createAccess);
 accessRouter.put("/:id", updateAccessById);
 accessRouter.patch("/:id/access-token", updateAccessTokenById);

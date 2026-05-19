@@ -16,6 +16,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitRepositoryListItem,
 } from "./types.js";
 
 export class GitHubProvider implements GitProvider {
@@ -434,6 +435,20 @@ export class GitHubProvider implements GitProvider {
             pull_number: prNumber,
             reviewers: [user.username],
         });
+    }
+
+    public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+        const { data: repos } = await this.octokit.repos.listForAuthenticatedUser({
+            per_page: 100,
+        });
+
+        return repos.map((repo) => ({
+            id: repo.id,
+            name: repo.name,
+            fullName: repo.full_name,
+            description: repo.description,
+            defaultBranch: repo.default_branch ?? "main",
+        }));
     }
 
     private mapPRState(state: string, merged: boolean | null): GitMergeRequestState {

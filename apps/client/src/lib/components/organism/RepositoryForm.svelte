@@ -39,12 +39,19 @@
         initialData?: InitialData;
     }
 
-    let { mode, repositoryId, provider: initialProvider, modelList, accessList = [], initialData }: Props = $props();
+    let {
+        mode,
+        repositoryId,
+        provider: initialProvider,
+        modelList,
+        accessList = [],
+        initialData
+    }: Props = $props();
 
     let name = $state(initialData?.name ?? '');
     let botUsername = $state(initialData?.botUsername ?? '');
     let language = $state(initialData?.language ?? 'English');
-    let gitlabRepositoryId = $state(initialData?.gitlabRepositoryId?.toString() ?? '');
+    let gitProviderRepositoryId = $state(initialData?.gitProviderRepositoryId?.toString() ?? '');
     let githubRepositoryPath = $state(initialData?.githubRepositoryPath ?? '');
     let modelId = $state(initialData?.modelId?.toString() ?? '');
     let provider = $state(initialData?.provider ?? initialProvider ?? '');
@@ -58,6 +65,17 @@
     );
     let replyToIssueComment = $state<ReplyThreadPolicy>(initialData?.replyToIssueComment ?? 'all');
     let inlineReview = $state(initialData?.inlineReview ?? true);
+
+    // Repository list from provider
+    type RepositoryListItem = {
+        id: number;
+        name: string;
+        fullName: string;
+        description: string | null;
+        defaultBranch: string;
+    };
+    let repositoryList = $state<RepositoryListItem[]>([]);
+    let isLoadingRepositoryList = $state(false);
 
     let webhookSecretModalOpen = $state(false);
 
@@ -135,8 +153,8 @@
             await openAlert('Git provider access is required');
             return;
         }
-        if (provider === 'gitlab' && !gitlabRepositoryId) {
-            await openAlert('GitLab Repository ID is required');
+        if ((provider === 'gitlab' || provider === 'forgejo') && !gitProviderRepositoryId) {
+            await openAlert('Repository ID is required');
             return;
         }
 
@@ -149,7 +167,9 @@
                 gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
                 botUsername: botUsername || null,
                 language,
-                gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId, 10) : null,
+                gitProviderRepositoryId: gitProviderRepositoryId
+                    ? parseInt(gitProviderRepositoryId, 10)
+                    : null,
                 githubRepositoryPath: githubRepositoryPath || null,
                 modelId: modelId ? parseInt(modelId, 10) : null,
                 reviewOnMergeRequestOpen,
@@ -174,7 +194,9 @@
                 gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
                 botUsername: botUsername || null,
                 language,
-                gitlabRepositoryId: gitlabRepositoryId ? parseInt(gitlabRepositoryId, 10) : null,
+                gitProviderRepositoryId: gitProviderRepositoryId
+                    ? parseInt(gitProviderRepositoryId, 10)
+                    : null,
                 githubRepositoryPath: githubRepositoryPath || null,
                 modelId: modelId ? parseInt(modelId, 10) : null,
                 reviewOnMergeRequestOpen,
@@ -204,6 +226,33 @@
         await openAlert('Repository removed successfully');
         goto('/repository');
     }
+
+    async function loadRepositoryList(accessId: string) {
+        if (!accessId) {
+            repositoryList = [];
+            return;
+        }
+        isLoadingRepositoryList = true;
+        try {
+            const res = await fetchApi(`/access/${accessId}/repository`);
+            if (res.ok) {
+                repositoryList = await res.json();
+            } else {
+                repositoryList = [];
+            }
+        } catch {
+            repositoryList = [];
+        } finally {
+            isLoadingRepositoryList = false;
+        }
+    }
+
+    // Load repository list when access is pre-selected (edit mode)
+    $effect(() => {
+        if (gitProviderAccessId && (provider === 'gitlab' || provider === 'forgejo')) {
+            loadRepositoryList(gitProviderAccessId);
+        }
+    });
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
@@ -273,8 +322,12 @@
                         <select
                             {id}
                             value={gitProviderAccessId}
-                            onchange={(e) =>
-                                (gitProviderAccessId = (e.target as HTMLSelectElement).value)}
+                            onchange={(e) => {
+                                const newValue = (e.target as HTMLSelectElement).value;
+                                gitProviderAccessId = newValue;
+                                gitProviderRepositoryId = '';
+                                loadRepositoryList(newValue);
+                            }}
                             class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
                         >
                             <option value="">Select an access</option>
@@ -287,13 +340,36 @@
                     {/snippet}
                 </FormField>
             </div>
-        {/if}
 
-        {#if provider === 'gitlab'}
             <div>
-                <FormField label="GitLab Repository ID" description="ID of the GitLab project">
+                <FormField
+                    label="Repository"
+                    description={isLoadingRepositoryList
+                        ? 'Loading repository list...'
+                        : 'Select a repository from the list'}
+                >
                     {#snippet children({ id })}
-                        <InputText {id} placeholder="12345" bind:value={gitlabRepositoryId} />
+                        <select
+                            {id}
+                            bind:value={gitProviderRepositoryId}
+                            disabled={!gitProviderAccessId ||
+                                repositoryList.length === 0 ||
+                                isLoadingRepositoryList}
+                            class="h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800"
+                        >
+                            <option value="">
+                                {isLoadingRepositoryList
+                                    ? 'Loading...'
+                                    : repositoryList.length === 0
+                                      ? 'Select access first'
+                                      : 'Select a repository'}
+                            </option>
+                            {#each repositoryList as repo}
+                                <option value={repo.id.toString()}>
+                                    {repo.fullName}
+                                </option>
+                            {/each}
+                        </select>
                     {/snippet}
                 </FormField>
             </div>

@@ -15,7 +15,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
         .from(repositoryTable)
         .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
         .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
-        .where(eq(repositoryTable.gitlabRepositoryId, payload.project?.id));
+        .where(eq(repositoryTable.gitProviderRepositoryId, payload.project?.id));
 
     if (result.length === 0) {
         return c.json({ error: "Repository not found" }, 404);
