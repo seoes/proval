@@ -8,7 +8,12 @@ function verifyForgejoSignature(secret: string, rawBody: string, signatureHeader
     if (!signatureHeader) {
         return false;
     }
-    const receivedBuf = Buffer.from(signatureHeader, "hex");
+    let receivedBuf: Buffer;
+    try {
+        receivedBuf = Buffer.from(signatureHeader, "hex");
+    } catch {
+        return false;
+    }
     const digest = createHmac("sha256", secret).update(rawBody, "utf8").digest();
     if (receivedBuf.length !== digest.length) {
         return false;
