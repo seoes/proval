@@ -2,6 +2,7 @@ import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdate
 import db from "../../db/index.js";
 import { repositoryTable } from "@code-review/db";
 import { desc, eq } from "drizzle-orm";
+import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret.js";
 
 export class RepositoryService {
     public async findAll(): Promise<Repository[]> {
@@ -18,7 +19,14 @@ export class RepositoryService {
     }
 
     public async create(data: RepositoryInsert): Promise<Repository> {
-        const result = await db.insert(repositoryTable).values(data).returning();
+        const isGitHub = data.provider === "github";
+        const isWebhookSecretEmpty =
+            data.webhookSecret === undefined || data.webhookSecret === null || data.webhookSecret.trim() === "";
+        const values =
+            isGitHub && isWebhookSecretEmpty
+                ? { ...data, webhookSecret: generateUnusedRepositoryWebhookSecret() }
+                : data;
+        const result = await db.insert(repositoryTable).values(values).returning();
         return result[0];
     }
 

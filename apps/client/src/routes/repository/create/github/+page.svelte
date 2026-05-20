@@ -153,7 +153,6 @@
                 provider: 'github',
                 baseUrl: 'https://api.github.com',
                 gitlabAccessToken: null,
-                webhookSecret: null,
                 botUsername: null,
                 language,
                 githubInstallationId: parseInt(selectedInstallationId, 10),

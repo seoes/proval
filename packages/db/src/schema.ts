@@ -58,7 +58,7 @@ export const repositoryTable = sqliteTable(
 
         name: text().notNull(),
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
-        webhookSecret: text(),
+        webhookSecret: text().notNull(),
         botUsername: text(),
         language: text().notNull().default("English"),
 

@@ -77,6 +77,7 @@
     let repositoryList = $state<RepositoryListItem[]>([]);
     let isLoadingRepositoryList = $state(false);
 
+    let webhookSecret = $state('');
     let webhookSecretModalOpen = $state(false);
 
     const providerOptionList = [
@@ -157,11 +158,19 @@
             await openAlert('Repository ID is required');
             return;
         }
+        if (
+            mode === 'create' &&
+            (provider === 'gitlab' || provider === 'forgejo') &&
+            !webhookSecret.trim()
+        ) {
+            await openAlert('Webhook secret is required');
+            return;
+        }
 
         if (mode === 'create') {
             const confirm = await openConfirm('Create this repository?');
             if (!confirm) return;
-            const body = {
+            const body: Record<string, unknown> = {
                 name,
                 provider,
                 gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
@@ -179,6 +188,9 @@
                 inlineReview,
                 deepResearchOnMergeRequest
             };
+            if (provider === 'gitlab' || provider === 'forgejo') {
+                body.webhookSecret = webhookSecret.trim();
+            }
 
             await fetchApi('/repository', {
                 method: 'POST',
@@ -391,7 +403,25 @@
             </div>
         {/if}
 
-        {#if mode === 'edit' && repositoryId}
+        {#if mode === 'create' && (provider === 'gitlab' || provider === 'forgejo')}
+            <div>
+                <FormField
+                    label="Webhook secret"
+                    description="Must match the Secret Token in your GitLab or Forgejo webhook settings"
+                >
+                    {#snippet children({ id })}
+                        <InputText
+                            {id}
+                            password
+                            placeholder="secret"
+                            bind:value={webhookSecret}
+                            required
+                        />
+                    {/snippet}
+                </FormField>
+            </div>
+        {/if}
+        {#if mode === 'edit' && repositoryId && (provider === 'gitlab' || provider === 'forgejo')}
             <div class="pt-2">
                 <Button
                     secondary
@@ -501,7 +531,7 @@
     </div>
 </form>
 
-{#if repositoryId}
+{#if repositoryId && (provider === 'gitlab' || provider === 'forgejo')}
     <Modal bind:open={webhookSecretModalOpen}>
         <PatchSecret
             label="Update Webhook Secret"

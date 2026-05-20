@@ -56,12 +56,13 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
 
     const { repository, model, access } = result[0];
 
-    // Verify webhook signature if secret is configured
-    if (repository.webhookSecret) {
-        const signature = c.req.header("X-Forgejo-Signature") ?? c.req.header("X-Gitea-Signature");
-        if (!verifyForgejoSignature(repository.webhookSecret, rawBody, signature)) {
-            return c.json({ error: "Invalid webhook signature" }, 401);
-        }
+    const secret = repository.webhookSecret.trim();
+    if (!secret) {
+        return c.json({ error: "Webhook secret not configured" }, 401);
+    }
+    const signature = c.req.header("X-Forgejo-Signature") ?? c.req.header("X-Gitea-Signature");
+    if (!verifyForgejoSignature(secret, rawBody, signature)) {
+        return c.json({ error: "Invalid webhook signature" }, 401);
     }
 
     c.set("repository", repository);

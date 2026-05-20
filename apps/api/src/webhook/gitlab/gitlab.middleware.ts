@@ -23,7 +23,11 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
 
     const { repository, model, access } = result[0];
 
-    if (repository.webhookSecret && repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
+    const secret = repository.webhookSecret.trim();
+    if (!secret) {
+        return c.json({ error: "Webhook secret not configured" }, 401);
+    }
+    if (secret !== c.req.header("X-Gitlab-Token")) {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
