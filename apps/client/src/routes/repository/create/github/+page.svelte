@@ -70,9 +70,6 @@
             if (res.ok) {
                 installationList = await res.json();
 
-                console.log('installationList', installationList);
-                // Filter only saved installations
-
                 if (installationList.length === 0) {
                     await openAlert(
                         'Installation is not found. Please add it in Settings > Integration.'

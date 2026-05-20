@@ -5,8 +5,6 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async () => {
     const response = await fetchApi('/repository');
     const result: RepositoryResponse[] = await response.json();
-    console.log('call');
-    console.log(result);
     return {
         repositoryList: result
     };
