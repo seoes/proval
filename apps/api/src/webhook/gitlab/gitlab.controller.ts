@@ -23,16 +23,6 @@ export const handleGitLabWebhook = async (c: Context) => {
     const model = c.get("model") as Model;
     const access = c.get("access") as Access;
 
-    console.log("--------------------------------");
-    console.log(`GitLab Webhook received: ${event}`);
-    console.log("Repository:", repository.name);
-    console.log("Model:", model.name);
-    console.log("Inline Review:", repository.inlineReview);
-    console.log("Deep Research:", repository.deepResearchOnMergeRequest);
-    console.log("Review On Merge Request Open:", repository.reviewOnMergeRequestOpen);
-    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
-
     try {
         // Handle Merge Request Hook
         if (event === "Merge Request Hook") {
@@ -190,14 +180,6 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
     const noteBody: string = payload.object_attributes?.note;
     const mrIid = payload.merge_request.iid;
 
-    console.log("--------------------------------");
-    console.log("New Comment on Merge Request");
-    console.log("Comment Body:", noteBody);
-    console.log("Commenter Username:", commenterUsername);
-    console.log("Merge Request IID:", mrIid);
-    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
-
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
         model.baseUrl,
@@ -209,7 +191,6 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
 
     if (repository.replyToMergeRequestComment === "mentioned_only") {
         if (!noteBody.includes(`@${botUsername}`)) {
-            console.log("Skipped: bot username is not mentioned");
             return new Response(JSON.stringify({ message: "Skipped: commenter is not mentioned" }), { status: 200 });
         }
     }

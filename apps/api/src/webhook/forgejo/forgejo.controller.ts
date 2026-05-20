@@ -69,16 +69,6 @@ export const handleForgejoWebhook = async (c: Context) => {
     const model = c.get("model") as Model;
     const access = c.get("access") as Access;
 
-    console.log("--------------------------------");
-    console.log(`Forgejo Webhook received: ${event}`);
-    console.log("Repository:", repository.name);
-    console.log("Model:", model.name);
-    console.log("Inline Review:", repository.inlineReview);
-    console.log("Deep Research:", repository.deepResearchOnMergeRequest);
-    console.log("Review On PR Open:", repository.reviewOnMergeRequestOpen);
-    console.log("Reply To PR Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
-
     try {
         // Handle Pull Request Hook
         if (event === "pull_request") {
@@ -208,17 +198,8 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const noteBody = payload.comment.body;
         const prNumber = payload.issue.number;
 
-        console.log("--------------------------------");
-        console.log("New Comment on Pull Request");
-        console.log("Comment Body:", noteBody);
-        console.log("Commenter Username:", commenterUsername);
-        console.log("PR Number:", prNumber);
-        console.log("Reply To PR Comment:", repository.replyToMergeRequestComment);
-        console.log("--------------------------------");
-
         if (repository.replyToMergeRequestComment === "mentioned_only") {
             if (!noteBody.includes(`@${botUsername}`)) {
-                console.log("Skipped: bot username is not mentioned");
                 return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
                     status: 200,
                 });
