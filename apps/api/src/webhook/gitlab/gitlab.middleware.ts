@@ -15,7 +15,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
         .from(repositoryTable)
         .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
         .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
-        .where(eq(repositoryTable.gitlabRepositoryId, payload.project?.id));
+        .where(eq(repositoryTable.gitProviderRepositoryId, payload.project?.id));
 
     if (result.length === 0) {
         return c.json({ error: "Repository not found" }, 404);
@@ -23,7 +23,11 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
 
     const { repository, model, access } = result[0];
 
-    if (repository.webhookSecret && repository.webhookSecret !== c.req.header("X-Gitlab-Token")) {
+    const secret = repository.webhookSecret.trim();
+    if (!secret) {
+        return c.json({ error: "Webhook secret not configured" }, 401);
+    }
+    if (secret !== c.req.header("X-Gitlab-Token")) {
         return c.json({ error: "Unauthorized" }, 401);
     }
 

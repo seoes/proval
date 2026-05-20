@@ -1,33 +1,57 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
 
+const MAX_LINES = 300;
+
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_file_content",
-        description: `Read the full content of a file at repository ref ${ref}. Use for imports, callers, types, and surrounding logic before making claims about the codebase.`,
+        description: `Read file content at repository ref ${ref}. At most ${MAX_LINES} lines per call. Optional 1-based inclusive fromLine/toLine; spans over ${MAX_LINES} lines are clamped from fromLine. Use fromLine and toLine only when file is over ${MAX_LINES} lines.`,
         parameters: {
             type: "object",
             properties: {
-                filePath: {
-                    type: "string",
-                    description: "Repository-relative path to the file.",
+                filePath: { type: "string", description: "Repository-relative path to the file." },
+                fromLine: {
+                    type: "number",
+                    description: `First line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
+                },
+                toLine: {
+                    type: "number",
+                    description: `Last line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
                 },
             },
             required: ["filePath"],
         },
         execute: async (args) => {
             const filePath = String(args.filePath);
-            const content = await provider.fetchFileContent(filePath, ref);
+            const fromLine = args.fromLine != null ? Math.max(1, Math.floor(Number(args.fromLine))) : undefined;
+            const toLine = args.toLine != null ? Math.max(1, Math.floor(Number(args.toLine))) : undefined;
 
-            const lines = content.split("\n");
-            if (lines.length > 1000) {
+            const lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
+
+            if (fromLine === undefined && toLine === undefined) {
+                if (lines.length <= MAX_LINES) return lines.join("\n");
                 return {
-                    warning: `File is too large to read. (${lines.length} lines) Showing first 1000 lines.`,
-                    content: lines.slice(0, 1000).join("\n"),
+                    warning: `File is too large (${lines.length} lines). Showing first ${MAX_LINES} lines. Use 'fromLine' and 'toLine' to read large file.`,
+                    content: lines.slice(0, MAX_LINES).join("\n"),
                     totalLines: lines.length,
                 };
             }
-            return content;
+
+            let from = fromLine ?? 1;
+            let to = toLine ?? lines.length;
+            if (from > to) [from, to] = [to, from];
+            if (from > lines.length) return "";
+
+            to = Math.min(to, lines.length);
+            let warning: string | undefined;
+            if (to - from + 1 > MAX_LINES) {
+                to = from + MAX_LINES - 1;
+                warning = `Line range exceeds ${MAX_LINES} lines. Showing ${from}-${to}.`;
+            }
+
+            const content = lines.slice(from - 1, to).join("\n");
+            return warning ? { warning, content } : content;
         },
     };
 }

@@ -140,4 +140,23 @@ export class GitLabAccessService {
         }
         return { success: true, message: "Authorized" };
     }
+
+    public async testForgejo(baseUrl: string, accessToken: string) {
+        const url = new URL(baseUrl);
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+            throw new Error("Invalid base URL");
+        }
+        if (url.pathname.endsWith("/")) {
+            url.pathname = url.pathname.slice(0, -1);
+        }
+        const response = await fetch(`${url.toString()}/api/v1/user`, {
+            headers: {
+                Authorization: `token ${accessToken}`,
+            },
+        });
+        if (response.status === 401) {
+            return { success: false, message: "Unauthorized" };
+        }
+        return { success: true, message: "Authorized" };
+    }
 }

@@ -7,6 +7,8 @@ import {
     getMergeRequestCommentListTool,
     getDirectoryTreeTool,
     getFileContentTool,
+    searchCodeListTool,
+    searchLineByKeywordTool,
     postMergeRequestCommentTool,
     postMergeRequestReplyTool,
     getMergeRequestVersionTool,
@@ -111,7 +113,10 @@ export class MergeRequestService {
                 `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=${reviewResult}`,
             );
             if (!reviewResult) {
-                throw new Error("Failed to run deep review sub agent");
+                console.error(
+                    `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=null`,
+                );
+                continue;
             }
             reviewResultList.push(reviewResult);
         }
@@ -151,7 +156,7 @@ export class MergeRequestService {
         );
 
         if (!stats.finalMessage) {
-            throw new Error("Failed to run deep review sub agent");
+            throw new Error("Sub agent failed to return final message");
         }
 
         return stats.finalMessage;
@@ -190,6 +195,8 @@ export class MergeRequestService {
             getMergeRequestDetailTool(this.provider, mrIid),
             getChangedFileListTool(this.provider, mrIid),
             getFileDiffTool(this.provider, mrIid),
+            ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, sourceBranch)] : []),
+            searchLineByKeywordTool(this.provider, sourceBranch),
             getDirectoryTreeTool(this.provider, sourceBranch),
             getFileContentTool(this.provider, sourceBranch),
             getMergeRequestVersionTool(this.provider, mrIid),

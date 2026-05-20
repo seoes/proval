@@ -16,6 +16,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitRepositoryListItem,
 } from "./types.js";
 
 export class GitLabProvider implements GitProvider {
@@ -155,7 +156,9 @@ export class GitLabProvider implements GitProvider {
                 web_url?: string;
                 author?: { username?: string };
             }>
-        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues?state=all&search=${encodeURIComponent(query)}`);
+        >(
+            `/projects/${encodeURIComponent(String(this.projectId))}/issues?state=all&search=${encodeURIComponent(query)}`,
+        );
 
         return result.map((issue) => ({
             number: issue.iid,
@@ -205,10 +208,32 @@ export class GitLabProvider implements GitProvider {
 
         return result.map((item) => ({
             path: item.path ?? item.filename ?? "",
-            name: item.filename ?? item.path?.split("/").at(-1) ?? "",
             ref: item.ref ?? ref,
             snippet: item.data ?? "",
         }));
+    }
+
+    public isCodeSearchSupported(): boolean {
+        return true;
+    }
+
+    public async searchLineByKeyword(
+        keyword: string,
+        filePath: string,
+        ref: string,
+    ): Promise<GitCodeSearchResult[]> {
+        const content = await this.fetchFileContent(filePath, ref);
+        const results: GitCodeSearchResult[] = [];
+        const lines = content.split("\n");
+        const maxMatches = 50;
+
+        for (let i = 0; i < lines.length && results.length < maxMatches; i++) {
+            const line = lines[i];
+            if (line.includes(keyword)) {
+                results.push({ path: filePath, ref, snippet: line, line: i + 1 });
+            }
+        }
+        return results;
     }
 
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
@@ -357,6 +382,26 @@ export class GitLabProvider implements GitProvider {
             reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
         });
         console.log("assigned");
+    }
+
+    public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+        const projects = await this.requestJson<
+            Array<{
+                id: number;
+                name: string;
+                path_with_namespace: string;
+                description: string | null;
+                default_branch: string;
+            }>
+        >("/projects?membership=true&per_page=100");
+
+        return projects.map((project) => ({
+            id: project.id,
+            name: project.name,
+            fullName: project.path_with_namespace,
+            description: project.description,
+            defaultBranch: project.default_branch ?? "main",
+        }));
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {

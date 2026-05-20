@@ -1,6 +1,7 @@
 import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
 import type { RepositoryResponse, RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@code-review/types";
+import { normalizeWebhookSecret } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {
     const repositoryService = new RepositoryService();
@@ -25,6 +26,20 @@ export const findById: Handler = async (c) => {
 export const createRepository: Handler = async (c) => {
     const repositoryService = new RepositoryService();
     const body = await c.req.json<RepositoryInsert>();
+
+    if (body.provider === "gitlab" || body.provider === "forgejo") {
+        const secret = normalizeWebhookSecret(body.webhookSecret);
+        if (!secret) {
+            return c.json({ error: "Webhook secret is required" }, 400);
+        }
+        body.webhookSecret = secret;
+    } else if (body.provider === "github") {
+        const { webhookSecret: _ignored, ...githubBody } = body;
+        const repository = await repositoryService.create(githubBody as RepositoryInsert);
+        const repositoryResponse = repositoryService.toResponse(repository);
+        return c.json(repositoryResponse, 201);
+    }
+
     const repository = await repositoryService.create(body);
     const repositoryResponse = repositoryService.toResponse(repository);
     return c.json(repositoryResponse, 201);
@@ -49,11 +64,23 @@ export const updateWebhookSecret: Handler = async (c) => {
     if (!repositoryId) {
         return c.json({ error: "Repository ID is required" }, 400);
     }
-    const { value: webhookSecret } = await c.req.json<SecretInput>();
-    if (!webhookSecret) {
+    const { value } = await c.req.json<SecretInput>();
+    const secret = normalizeWebhookSecret(value);
+    if (!secret) {
         return c.json({ error: "Webhook secret is required" }, 400);
     }
-    await repositoryService.updateWebhookSecret(parseInt(repositoryId), webhookSecret);
+
+    let repository;
+    try {
+        repository = await repositoryService.findById(parseInt(repositoryId));
+    } catch {
+        return c.json({ error: "Repository not found" }, 404);
+    }
+    if (repository.provider !== "gitlab" && repository.provider !== "forgejo") {
+        return c.json({ error: "Webhook secret is only configurable for GitLab and Forgejo repositories" }, 400);
+    }
+
+    await repositoryService.updateWebhookSecret(parseInt(repositoryId), secret);
     return c.json({ message: "Webhook secret updated" }, 200);
 };
 

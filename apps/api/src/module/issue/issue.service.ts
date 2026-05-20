@@ -8,6 +8,7 @@ import {
     postIssueCommentTool,
     postIssueReplyTool,
     searchCodeListTool,
+    searchLineByKeywordTool,
     searchIssueListTool,
     searchMergeRequestListTool,
 } from "../../agent/tool/index.js";
@@ -78,7 +79,8 @@ export class IssueService {
 
     private createCodeToolList(ref: string): AgentTool[] {
         return [
-            searchCodeListTool(this.provider, ref),
+            ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, ref)] : []),
+            searchLineByKeywordTool(this.provider, ref),
             getDirectoryTreeTool(this.provider, ref),
             getFileContentTool(this.provider, ref),
         ];

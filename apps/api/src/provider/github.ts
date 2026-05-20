@@ -16,6 +16,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitRepositoryListItem,
 } from "./types.js";
 
 export class GitHubProvider implements GitProvider {
@@ -232,16 +233,35 @@ export class GitHubProvider implements GitProvider {
 
         return data.items.map((item: {
             path: string;
-            name: string;
-            html_url?: string;
             text_matches?: Array<{ fragment?: string }>;
         }) => ({
             path: item.path,
-            name: item.name,
             ref,
             snippet: item.text_matches?.[0]?.fragment ?? "",
-            url: item.html_url,
         }));
+    }
+
+    public isCodeSearchSupported(): boolean {
+        return true;
+    }
+
+    public async searchLineByKeyword(
+        keyword: string,
+        filePath: string,
+        ref: string,
+    ): Promise<GitCodeSearchResult[]> {
+        const content = await this.fetchFileContent(filePath, ref);
+        const results: GitCodeSearchResult[] = [];
+        const lines = content.split("\n");
+        const maxMatches = 50;
+
+        for (let i = 0; i < lines.length && results.length < maxMatches; i++) {
+            const line = lines[i];
+            if (line.includes(keyword)) {
+                results.push({ path: filePath, ref, snippet: line, line: i + 1 });
+            }
+        }
+        return results;
     }
 
     public async fetchMergeRequestReviewerList(prNumber: number): Promise<string[]> {
@@ -434,6 +454,20 @@ export class GitHubProvider implements GitProvider {
             pull_number: prNumber,
             reviewers: [user.username],
         });
+    }
+
+    public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+        const { data: repos } = await this.octokit.repos.listForAuthenticatedUser({
+            per_page: 100,
+        });
+
+        return repos.map((repo) => ({
+            id: repo.id,
+            name: repo.name,
+            fullName: repo.full_name,
+            description: repo.description,
+            defaultBranch: repo.default_branch ?? "main",
+        }));
     }
 
     private mapPRState(state: string, merged: boolean | null): GitMergeRequestState {

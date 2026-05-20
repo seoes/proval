@@ -18,7 +18,7 @@
             gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
             botUsername: data.repository.botUsername ?? '',
             language: data.repository.language,
-            gitlabRepositoryId: data.repository.gitlabRepositoryId,
+            gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
             githubRepositoryPath: data.repository.githubRepositoryPath ?? '',
             githubRepositoryId: data.repository.githubRepositoryId ?? null,
             modelId: data.repository.modelId,

@@ -16,14 +16,15 @@
     let value = $state('');
 
     async function handleSubmit() {
-        if (!value) {
+        const trimmed = value.trim();
+        if (!trimmed) {
             await openAlert('Please enter a value');
             return;
         }
         const response = await fetchApi(patchEndpoint, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ value })
+            body: JSON.stringify({ value: trimmed })
         });
         if (response.ok) {
             await openAlert('Updated successfully');

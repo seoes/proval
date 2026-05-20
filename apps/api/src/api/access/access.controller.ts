@@ -1,5 +1,7 @@
 import type { Context } from "hono";
 import { GitLabAccessService } from "./access.service";
+import { GitLabProvider } from "../../provider/gitlab";
+import { ForgejoProvider } from "../../provider/forgejo";
 
 const accessService = new GitLabAccessService();
 
@@ -69,8 +71,9 @@ export const testAccess = async (c: Context) => {
     if (access.provider === "gitlab") {
         const testResult = await accessService.testGitLab(access.baseUrl, accessToken);
         result = testResult;
-        // } else if (access.provider === "forgejo") {
-        //     const access = await accessService.testForgejo(access.id);
+    } else if (access.provider === "forgejo") {
+        const testResult = await accessService.testForgejo(access.baseUrl, accessToken);
+        result = testResult;
     } else {
         return c.json({ error: "Invalid provider" }, 400);
     }
@@ -145,5 +148,32 @@ export const updateAccessTokenById = async (c: Context) => {
             return c.json({ error: "Access configuration not found" }, 404);
         }
         throw e;
+    }
+};
+
+export const getRepositoryListByAccessId = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid access configuration id" }, 400);
+    }
+
+    const access = await accessService.findById(id);
+    const accessToken = await accessService.getAccessToken(id);
+
+    try {
+        if (access.provider === "gitlab") {
+            const provider = new GitLabProvider(access.baseUrl, accessToken, 0); // projectId 0 for listing
+            const repositoryList = await provider.fetchRepositoryList();
+            return c.json(repositoryList, 200);
+        } else if (access.provider === "forgejo") {
+            const provider = new ForgejoProvider(access.baseUrl, accessToken, "", "");
+            const repositoryList = await provider.fetchRepositoryList();
+            return c.json(repositoryList, 200);
+        } else {
+            return c.json({ error: "Invalid provider" }, 400);
+        }
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: "Failed to fetch repository list", message: msg }, 500);
     }
 };

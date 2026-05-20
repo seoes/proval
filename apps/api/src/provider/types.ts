@@ -37,10 +37,9 @@ export interface GitRelatedItem {
 
 export interface GitCodeSearchResult {
     path: string;
-    name: string;
     ref: string;
     snippet: string;
-    url?: string;
+    line?: number;
 }
 
 // git diff
@@ -128,6 +127,14 @@ export interface GitUser {
     username: string;
 }
 
+export interface GitRepositoryListItem {
+    id: number;
+    name: string;
+    fullName: string;
+    description: string | null;
+    defaultBranch: string;
+}
+
 export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
     fetchRepositoryDetail(): Promise<GitRepository>;
@@ -143,6 +150,9 @@ export interface GitProvider {
     searchIssueList(query: string): Promise<GitRelatedItem[]>;
     searchMergeRequestList(query: string): Promise<GitRelatedItem[]>;
     searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]>;
+    searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]>;
+    isCodeSearchSupported(): boolean;
+
     fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]>;
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;
@@ -153,4 +163,5 @@ export interface GitProvider {
     approveMergeRequest(mrIid: number): Promise<void>;
     unapproveMergeRequest(mrIid: number): Promise<void>;
     assignMergeRequestReviewer(mrIid: number): Promise<void>;
+    fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
 }

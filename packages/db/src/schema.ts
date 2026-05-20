@@ -58,7 +58,7 @@ export const repositoryTable = sqliteTable(
 
         name: text().notNull(),
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
-        webhookSecret: text(),
+        webhookSecret: text().notNull(),
         botUsername: text(),
         language: text().notNull().default("English"),
 
@@ -69,9 +69,7 @@ export const repositoryTable = sqliteTable(
 
         // other git provider access configs
         gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, { onDelete: "restrict" }),
-
-        // gitlab
-        gitlabRepositoryId: integer(),
+        gitProviderRepositoryId: integer(),
 
         // merge request
         reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
@@ -91,5 +89,5 @@ export const repositoryTable = sqliteTable(
 
         ...timeStamp,
     },
-    (table) => [unique().on(table.gitlabRepositoryId, table.gitProviderAccessId)],
+    (table) => [unique().on(table.gitProviderRepositoryId, table.gitProviderAccessId)],
 );

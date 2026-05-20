@@ -134,6 +134,20 @@
       "when": 1779029530146,
       "tag": "0018_slimy_may_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1779106617362,
+      "tag": "0019_abnormal_dreadnoughts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1779247244070,
+      "tag": "0020_perfect_lila_cheney",
+      "breakpoints": true
     }
   ]
 }
