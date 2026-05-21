@@ -1,3 +1,6 @@
+import pc from "picocolors";
+import { log, logAgentResult, logError } from "../util/log.js";
+
 export interface AgentTool {
     name: string;
     description: string;
@@ -38,17 +41,19 @@ export async function runAgentLoop(
     sender: LlmSender,
     system: string,
     prompt: string,
+    label: string,
     options: {
         toolList?: AgentTool[];
         maxSteps?: number;
     },
 ): Promise<AgentRunResult> {
-    try {
-        const messages: Message[] = [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-        ];
+    const startedAt = performance.now();
 
+    const messages: Message[] = [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+    ];
+    try {
         const maxSteps = options.maxSteps ?? 50;
 
         const toolList = options.toolList ?? [];
@@ -70,19 +75,19 @@ export async function runAgentLoop(
             const response = await sender.send(messagesWithStepInfo, toolList);
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
-                console.log(`[Agent] Completed in ${stepCount} steps`);
-                return {
+                const result: AgentRunResult = {
                     finalMessage: response.message.content,
                     messages,
                     stepCount,
                     toolCallCounts,
                 };
+                logAgentResult(label, result, performance.now() - startedAt, "completed");
+                return result;
             }
 
             // Check if approaching max steps - stop gracefully
             if (step >= maxSteps - 1) {
-                console.log(`[Agent] Reached max steps (${maxSteps}), stopping with current response`);
-                return {
+                const result: AgentRunResult = {
                     finalMessage:
                         response.message.content ??
                         "Maximum steps reached. The agent was unable to complete the task within the allowed steps.",
@@ -90,6 +95,9 @@ export async function runAgentLoop(
                     stepCount,
                     toolCallCounts,
                 };
+                log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
+                logAgentResult(label, result, performance.now() - startedAt, "max_steps");
+                return result;
             }
 
             messages.push({
@@ -98,13 +106,16 @@ export async function runAgentLoop(
                 toolCalls: response.message.toolCalls,
             });
 
-            console.log(`\n  [Step ${stepCount}] ${response.message.toolCalls.length} tool call(s)`);
+            log(
+                `step ${pc.bold(String(stepCount))}: ${pc.bold(String(response.message.toolCalls.length))} tool call(s)`,
+                label,
+            );
 
             const results = await Promise.all(
                 response.message.toolCalls.map(async (tc) => {
                     const tool = toolList.find((t) => t.name === tc.name);
                     if (!tool) {
-                        console.log(`    → ${tc.name} — unknown tool, skipping`);
+                        log(`  ${pc.dim("→")} ${pc.yellow(tc.name)} ${pc.dim("— unknown tool, skipping")}`, label);
                         return {
                             toolCallId: tc.id,
                             content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
@@ -112,17 +123,18 @@ export async function runAgentLoop(
                     }
 
                     const args = JSON.parse(tc.arguments);
-                    console.log(`    → ${tool.name}(${JSON.stringify(args)})`);
+                    log(`  ${pc.dim("→")} ${pc.cyan(tool.name)}${pc.dim(`(${JSON.stringify(args)})`)}`, label);
 
                     try {
                         const result = await tool.execute(args);
                         toolCallCounts[tool.name] = (toolCallCounts[tool.name] ?? 0) + 1;
                         const content = typeof result === "string" ? result : JSON.stringify(result);
-                        console.log(`      result: ${content.slice(0, 50)}${content.length > 50 ? "..." : ""}`);
+                        const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
+                        log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);
                         return { toolCallId: tc.id, content };
                     } catch (err) {
                         const errorMsg = err instanceof Error ? err.message : String(err);
-                        console.log(`      error: ${errorMsg}`);
+                        log(`    ${pc.red("error")}: ${errorMsg}`, label);
                         return { toolCallId: tc.id, content: JSON.stringify({ error: errorMsg }) };
                     }
                 }),
@@ -137,14 +149,10 @@ export async function runAgentLoop(
             }
         }
     } catch (error: unknown) {
-        if (error instanceof Error) {
-            console.error(`[Agent] Error: ${error.message}`);
-        } else {
-            console.error(`[Agent] Error: ${String(error)}`);
-        }
+        logError("agent loop failed", error, label);
         throw error;
     }
 
     // This should never be reached due to the forced completion above
-    throw new Error("Agent loop exited unexpectedly");
+    throw new Error(`${label} loop exited unexpectedly`);
 }

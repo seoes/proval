@@ -1,10 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import pc from "picocolors";
 import { mentionReply } from "../mock/input/mention-reply.js";
 import { newFeature } from "../mock/input/new-feature.js";
 import { securityIssue } from "../mock/input/security-issue.js";
 import { simpleBugfix } from "../mock/input/simple-bugfix.js";
 import { MergeRequestService } from "../src/module/merge-request/merge-request.service.js";
+import { log, logError } from "../src/util/log.js";
 import { MockProvider, type PostedAction, type TestInput } from "../mock/provider.js";
 
 type ReviewEntry = {
@@ -112,8 +114,10 @@ function buildMarkdownReport(args: {
 
 async function main() {
     if (!hasOpenAiEnv()) {
-        console.error(
+        logError(
             "Missing OPENAI_BASE_URL, OPENAI_API_KEY, or OPENAI_MODEL. Copy env.test.example to .env.test and fill in.",
+            undefined,
+            "demo",
         );
         process.exit(1);
     }
@@ -122,19 +126,19 @@ async function main() {
     let scenarioKey = process.argv[2];
 
     if (!scenarioKey) {
-        console.log("Available scenarios:\n");
+        log("Available scenarios:", "demo");
         for (const k of keys) {
-            console.log(`  ${k}`);
+            log(`  ${pc.cyan(k)}`, "demo");
         }
         if (!process.stdin.isTTY) {
-            console.error("\nUsage: bun run demo <scenario-key>");
+            logError("Usage: bun run demo <scenario-key>", undefined, "demo");
             process.exit(1);
         }
         scenarioKey = (prompt("Enter scenario name: ") ?? "").trim();
     }
 
     if (!scenarioKey || !registry[scenarioKey]) {
-        console.error(`Unknown scenario: ${scenarioKey ?? "(empty)"}`);
+        logError(`Unknown scenario: ${scenarioKey ?? "(empty)"}`, undefined, "demo");
         process.exit(1);
     }
 
@@ -149,7 +153,7 @@ async function main() {
         model,
     });
 
-    console.log(`Running demo: ${scenarioKey} (${entry.mode})…`);
+    log(`running ${pc.bold(scenarioKey)} (${pc.yellow(entry.mode)})`, "demo");
 
     if (entry.mode === "review") {
         await service.generateStandardReview(1);
@@ -159,7 +163,7 @@ async function main() {
 
     const body = lastCommentBody(provider.posted);
     if (!body) {
-        console.error("No comment was posted by the model (posted:", provider.posted, ")");
+        logError("No comment was posted by the model", provider.posted, "demo");
         process.exit(1);
     }
 
@@ -181,10 +185,10 @@ async function main() {
     const outPath = path.join(resultDir, fileName);
     await Bun.write(outPath, md);
 
-    console.log(`Wrote ${outPath}`);
+    log(`wrote ${pc.green(outPath)}`, "demo");
 }
 
 main().catch((err) => {
-    console.error(err);
+    logError("Demo failed", err, "demo");
     process.exit(1);
 });

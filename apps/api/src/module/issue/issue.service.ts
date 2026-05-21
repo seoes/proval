@@ -42,9 +42,9 @@ export class IssueService {
             ...this.createCommentToolList(issueIid),
         ];
 
-        const stats = await runAgentLoop(this.sender, system, prompt, { toolList });
-
-        console.log(`[Issue open] iid=${issueIid} steps=${stats.stepCount} tools=${JSON.stringify(stats.toolCallCounts)}`);
+        await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Comment On Open`, {
+            toolList,
+        });
     }
 
     public async reply(issueIid: number, commenterUsername: string, commentBody: string): Promise<void> {
@@ -63,9 +63,7 @@ export class IssueService {
             ...this.createReplyToolList(issueIid, commenterUsername),
         ];
 
-        const stats = await runAgentLoop(this.sender, system, prompt, { toolList });
-
-        console.log(`[Issue reply] iid=${issueIid} steps=${stats.stepCount} tools=${JSON.stringify(stats.toolCallCounts)}`);
+        await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Reply`, { toolList });
     }
 
     private createIssueToolList(issueIid: number): AgentTool[] {

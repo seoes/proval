@@ -62,17 +62,13 @@ export class MergeRequestService {
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        const stats = await runAgentLoop(this.sender, system, prompt, {
+        await runAgentLoop(this.sender, system, prompt, `[MR #${mrIid}] Standard Review Agent`, {
             toolList: [
                 ...this.createCodeToolList(mrIid, sourceBranch),
                 ...this.createReviewToolList(mrIid, this.inlineReview),
             ],
             maxSteps: 200,
         });
-
-        console.log(
-            `[MR review] iid=${mrIid} steps=${stats.stepCount} inlineReview=${this.inlineReview} tools=${JSON.stringify(stats.toolCallCounts)}`,
-        );
     }
 
     // #########################################################
@@ -84,17 +80,14 @@ export class MergeRequestService {
 
         const reviewTargetList: ReviewTarget[] = [];
 
-        const stats = await runAgentLoop(
+        await runAgentLoop(
             this.sender,
             DEEP_REVIEW_PLAN_PROMPT,
             await this.generateMergeRequestPrompt(mrIid),
+            `[MR #${mrIid}] Deep Plan`,
             {
                 toolList: [...this.createCodeToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
             },
-        );
-
-        console.log(
-            `[MR deep-plan] iid=${mrIid} steps=${stats.stepCount} targets=${reviewTargetList.length} tools=${JSON.stringify(stats.toolCallCounts)} finalMessage=${stats.finalMessage ?? "(none)"}`,
         );
 
         return reviewTargetList;
@@ -103,56 +96,57 @@ export class MergeRequestService {
     public async generateDeepReview(mrIid: number, reviewTargetList: ReviewTarget[]): Promise<void> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        const reviewResultList: string[] = [];
-        for (const [index, reviewTarget] of reviewTargetList.entries()) {
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            console.log(`@ Sub-Agent ${index + 1} of ${reviewTargetList.length} - ${reviewTarget.description}`);
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            const reviewResult = await this.runDeepReviewSubAgent(mrIid, reviewTarget);
-            console.log(
-                `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=${reviewResult}`,
-            );
-            if (!reviewResult) {
-                console.error(
-                    `[MR review] iid=${mrIid} reviewTarget=${JSON.stringify(reviewTarget)} reviewResult=null`,
-                );
-                continue;
-            }
-            reviewResultList.push(reviewResult);
-        }
+        // const reviewResultList: string[] = [];
+        const reviewResultList = await Promise.all(
+            reviewTargetList.map(async (reviewTarget, index) =>
+                this.runDeepReviewSubAgent(mrIid, reviewTarget, index + 1, reviewTargetList.length),
+            ),
+        );
 
         const inlineModeTag = this.inlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
         const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
-        const stats = await runAgentLoop(this.sender, system, await this.generateMergeRequestPrompt(mrIid), {
-            toolList: [
-                ...this.createCodeToolList(mrIid, sourceBranch),
-                ...this.createReviewToolList(mrIid, this.inlineReview),
-            ],
-        });
-
-        console.log(
-            `[MR review] iid=${mrIid} steps=${stats.stepCount} inlineReview=${this.inlineReview} tools=${JSON.stringify(stats.toolCallCounts)}`,
+        await runAgentLoop(
+            this.sender,
+            system,
+            await this.generateMergeRequestPrompt(mrIid),
+            `[MR #${mrIid}] Deep Writing`,
+            {
+                toolList: [
+                    ...this.createCodeToolList(mrIid, sourceBranch),
+                    ...this.createReviewToolList(mrIid, this.inlineReview),
+                ],
+            },
         );
     }
 
-    private async runDeepReviewSubAgent(mrIid: number, reviewTarget: ReviewTarget): Promise<string> {
+    private async runDeepReviewSubAgent(
+        mrIid: number,
+        reviewTarget: ReviewTarget,
+        index: number,
+        totalIndex: number,
+    ): Promise<string> {
         const maxSteps = 100;
 
         const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
-        const prompt = `Review target: ${JSON.stringify(reviewTarget)}`;
+        const prompt = [
+            await this.generateMergeRequestPrompt(mrIid),
+            `Review target: ${JSON.stringify(reviewTarget)}`,
+        ].join("\n\n");
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        const stats = await runAgentLoop(this.sender, system, prompt, {
-            toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
-            maxSteps,
-        });
-
-        console.log(
-            `[MR review] iid=${mrIid} steps=${stats.stepCount} inlineReview=${this.inlineReview} tools=${JSON.stringify(stats.toolCallCounts)}`,
+        const stats = await runAgentLoop(
+            this.sender,
+            system,
+            prompt,
+            `[MR #${mrIid}] Deep Sub Agent ${index + 1}/${totalIndex}`,
+            {
+                toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
+                maxSteps,
+            },
         );
 
         if (!stats.finalMessage) {
@@ -178,12 +172,7 @@ export class MergeRequestService {
             ...this.createReplyToolList(mrIid, commenterUsername),
         ];
 
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        console.log(`@ Tool List: ${JSON.stringify(toolList)}`);
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        const stats = await runAgentLoop(this.sender, system, prompt, { toolList });
-
-        console.log(`[MR reply] iid=${mrIid} steps=${stats.stepCount} tools=${JSON.stringify(stats.toolCallCounts)}`);
+        await runAgentLoop(this.sender, system, prompt, `MR #${mrIid} - Reply Agent`, { toolList });
     }
 
     // #########################################################
@@ -192,14 +181,14 @@ export class MergeRequestService {
 
     private createCodeToolList(mrIid: number, sourceBranch: string): AgentTool[] {
         return [
-            getMergeRequestDetailTool(this.provider, mrIid),
-            getChangedFileListTool(this.provider, mrIid),
+            // getMergeRequestDetailTool(this.provider, mrIid),
+            // getChangedFileListTool(this.provider, mrIid),
             getFileDiffTool(this.provider, mrIid),
             ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, sourceBranch)] : []),
             searchLineByKeywordTool(this.provider, sourceBranch),
             getDirectoryTreeTool(this.provider, sourceBranch),
             getFileContentTool(this.provider, sourceBranch),
-            getMergeRequestVersionTool(this.provider, mrIid),
+            // getMergeRequestVersionTool(this.provider, mrIid),
         ];
     }
 
@@ -227,9 +216,11 @@ export class MergeRequestService {
     private async generateMergeRequestPrompt(mrIid: number): Promise<string> {
         const detail = await this.provider.fetchMergeRequestDetail(mrIid);
         const changedFiles = await this.provider.fetchChangedFileList(mrIid);
+        const version = await this.provider.fetchMergeRequestVersion(mrIid);
 
         const mrIidPrompt = `Merge Request IID: ${mrIid}`;
         const detailPrompt = `Merge request: ${JSON.stringify(detail)}`;
+        const versionPrompt = `Merge request version: ${JSON.stringify(version)}`;
         const changedFileList = changedFiles
             .map((d) => d.newPath ?? d.oldPath)
             .filter((path) => path !== null)
@@ -237,6 +228,6 @@ export class MergeRequestService {
 
         const changedFileListPrompt = `Changed files: ${changedFileList}`;
 
-        return [mrIidPrompt, detailPrompt, changedFileListPrompt].join("\n\n");
+        return [mrIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt].join("\n\n");
     }
 }

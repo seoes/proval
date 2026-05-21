@@ -11,6 +11,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
+import { logError } from "../../util/log.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -68,7 +69,7 @@ export const handleGitLabWebhook = async (c: Context) => {
             }
         }
     } catch (error) {
-        console.error(error);
+        logError("GitLab webhook handler failed", error);
         return c.json({ error: "Internal server error" }, 500);
     }
 };
@@ -120,11 +121,11 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
                         mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList),
                     )
                     .catch((err) => {
-                        console.error("Deep review failed:", err);
+                        logError("Deep review failed", err);
                     });
             } else {
                 mergeRequestService.generateStandardReview(mergeRequest.iid).catch((err) => {
-                    console.error("Review failed:", err);
+                    logError("Review failed", err);
                 });
             }
             return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
@@ -196,7 +197,7 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
     }
 
     mergeRequestService.reply(mrIid, commenterUsername, noteBody).catch((err) => {
-        console.error("Reply failed:", err);
+        logError("Reply failed", err);
     });
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };
@@ -233,7 +234,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.commentOnOpen(issueIid).catch((err) => {
-        console.error("Issue comment failed:", err);
+        logError("Issue comment failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
@@ -282,7 +283,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.reply(issueIid, commenterUsername, noteBody).catch((err) => {
-        console.error("Issue reply failed:", err);
+        logError("Issue reply failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });

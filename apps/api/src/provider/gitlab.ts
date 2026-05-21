@@ -217,11 +217,7 @@ export class GitLabProvider implements GitProvider {
         return true;
     }
 
-    public async searchLineByKeyword(
-        keyword: string,
-        filePath: string,
-        ref: string,
-    ): Promise<GitCodeSearchResult[]> {
+    public async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
         const content = await this.fetchFileContent(filePath, ref);
         const results: GitCodeSearchResult[] = [];
         const lines = content.split("\n");
@@ -373,15 +369,11 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
-        console.log("assignMergeRequestReviewer", mrIid);
         const user = await this.gitlab.Users.showCurrentUser();
-        console.log("user", user);
         const reviewerList = await this.gitlab.MergeRequests.showReviewers(this.projectId, mrIid);
-        console.log("reviewerList", reviewerList);
         await this.gitlab.MergeRequests.edit(this.projectId, mrIid, {
             reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
         });
-        console.log("assigned");
     }
 
     public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {

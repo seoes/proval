@@ -3,6 +3,7 @@ import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@code-
 import db from "../../db/index.js";
 import { desc, eq } from "drizzle-orm";
 import OpenAI from "openai";
+import { log } from "../../util/log.js";
 
 export class ModelService {
     public async findAll(): Promise<Model[]> {
@@ -56,7 +57,7 @@ export class ModelService {
             max_tokens: 1,
         });
         if (completion.choices[0]?.message?.content !== undefined) {
-            console.log("API key is valid");
+            log("API key is valid", "Model API Verification");
             return;
         }
         throw new Error("Invalid API key or base URL");

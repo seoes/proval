@@ -2,22 +2,23 @@ import { apiApp, webhookApp } from "./app.js";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import db from "./db/index.js";
 import { serveStatic } from "hono/bun";
+import { log, logError } from "./util/log.js";
+import pc from "picocolors";
 
+log(pc.bgGreen(pc.bold(" PROVAL IS RUNNING ")));
 if (process.env.NODE_ENV === "production") {
-    console.log("Production environment");
-
     try {
         migrate(db, { migrationsFolder: "./migration" });
-        console.log("Database migrated successfully");
+        log(pc.bgGreen(pc.bold(" Database migrated successfully ")));
     } catch (error) {
-        console.error("Error migrating database", error);
+        logError("Error migrating database", error);
         process.exit(1);
     }
 
     apiApp.use("/*", serveStatic({ root: "./public" }));
     apiApp.get("*", serveStatic({ path: "./public/index.html" }));
 } else {
-    console.log("Development environment");
+    log(pc.bgGreen(pc.bold(" Development environment ")));
     apiApp.get("/", (c) => {
         return c.text("Hello Hono!");
     });

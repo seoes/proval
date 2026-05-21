@@ -4,6 +4,8 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { ForgejoProvider } from "../../provider/forgejo.js";
 import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
+import { logError } from "../../util/log.js";
+import { startTimer } from "../../util/timer.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -93,7 +95,7 @@ export const handleForgejoWebhook = async (c: Context) => {
 
         return c.json({ message: `Skipped: event '${event}' is not supported` }, 200);
     } catch (error) {
-        console.error(error);
+        logError("Forgejo webhook handler failed", error);
         return c.json({ error: "Internal server error" }, 500);
     }
 };
@@ -108,7 +110,7 @@ type HandleForgejoPullRequestWebhook = (
 const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, model, access) => {
     const action = payload.action;
 
-    if (action !== "opened" && action !== "reopened") {
+    if (action !== "opened") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
     }
 
@@ -135,18 +137,19 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const prNumber = payload.pull_request.number;
 
-    if (repository.deepResearchOnMergeRequest) {
-        mergeRequestService
-            .planDeepReview(prNumber)
-            .then((reviewTargetList) => mergeRequestService.generateDeepReview(prNumber, reviewTargetList))
-            .catch((err) => {
-                console.error("Deep review failed:", err);
-            });
-    } else {
-        mergeRequestService.generateStandardReview(prNumber).catch((err) => {
-            console.error("Review failed:", err);
-        });
-    }
+    const stopTimer = startTimer(`Forgejo Pull Request Review: ${prNumber}`);
+
+    const review = repository.deepResearchOnMergeRequest
+        ? mergeRequestService
+              .planDeepReview(prNumber)
+              .then((reviewTargetList) => mergeRequestService.generateDeepReview(prNumber, reviewTargetList))
+        : mergeRequestService.generateStandardReview(prNumber);
+
+    review
+        .catch((error) => {
+            logError("Review failed", error);
+        })
+        .finally(stopTimer);
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
@@ -215,9 +218,14 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             repository.inlineReview,
         );
 
-        mergeRequestService.reply(prNumber, commenterUsername, noteBody).catch((err) => {
-            console.error("Reply failed:", err);
-        });
+        const stopTimer = startTimer(`Forgejo Pull Request Reply: ${prNumber}`);
+
+        mergeRequestService
+            .reply(prNumber, commenterUsername, noteBody)
+            .catch((err) => {
+                logError("Reply failed", err);
+            })
+            .finally(stopTimer);
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     } else {
@@ -261,7 +269,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         );
 
         issueService.reply(issueNumber, commenterUsername, noteBody).catch((err) => {
-            console.error("Issue reply failed:", err);
+            logError("Issue reply failed", err);
         });
 
         return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
@@ -306,7 +314,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
     );
 
     issueService.commentOnOpen(issueNumber).catch((err) => {
-        console.error("Issue comment failed:", err);
+        logError("Issue comment failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });

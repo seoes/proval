@@ -3,6 +3,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
+import { log } from "../util/log.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -83,29 +84,34 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
         ? parseGitLabWebhook(c)
         : parseGiteaWebhook(c, c.req.path.includes("forgejo"));
 
-    const line = (label: string, value: string) =>
-        console.log(`  ${pc.bold(label.padEnd(22))} ${value}`);
+    const W = 22;
+    const row = (label: string, value: string) => `  ${pc.bold(label.padEnd(W))} ${value}`;
+    const divider = pc.dim("─".repeat(60));
 
-    const rows: [string, string][] = [
-        ["Provider:", pc.cyan((repository.provider ?? "unknown").toUpperCase())],
-        ["Event Type:", pc.cyan(ingress.eventType)],
-        ["Webhook Event:", pc.yellow(ingress.webhookEvent)],
-        ["Action:", ingress.action ?? "-"],
-        ["Number:", String(ingress.number ?? "-")],
-        ["Title:", ingress.title ? ingress.title.slice(0, 80) : "-"],
-        ["Repository Name:", repository.name],
-        ["Repository ID:", String(repository.id)],
-        ["Repository Path:", repository.githubRepositoryPath ?? "-"],
-        ["Git Provider Repository ID:", String(repository.gitProviderRepositoryId ?? "-")],
-        ["Model Label:", model.label],
-        ["Model Name:", model.name],
-        ["Model ID:", String(model.id)],
+    const lineList: string[] = [
+        "",
+        divider,
+        pc.bold("  [PROVAL:WEBHOOK]"),
+        "",
+        row("Provider:", pc.cyan((repository.provider ?? "unknown").toUpperCase())),
+        row("Event Type:", pc.cyan(ingress.eventType)),
+        row("Webhook Event:", pc.yellow(ingress.webhookEvent)),
+        row("Action:", ingress.action ?? "-"),
+        row("Number:", String(ingress.number ?? "-")),
+        row("Title:", ingress.title ? ingress.title.slice(0, 80) : "-"),
+        row("Repository Name:", repository.name),
+        row("Repository ID:", String(repository.id)),
+        row("Repository Path:", repository.githubRepositoryPath ?? "-"),
+        row("Git Provider Repository ID:", String(repository.gitProviderRepositoryId ?? "-")),
+        row("Model Label:", model.label),
+        row("Model Name:", model.name),
+        row("Model ID:", String(model.id)),
+        "",
+        divider,
+        "",
     ];
 
-    console.log(`\n${pc.dim("─".repeat(60))}`);
-    console.log(pc.bold(`  [PROVAL:WEBHOOK]  ${pc.dim(new Date().toISOString())}\n`));
-    for (const [label, value] of rows) line(label, value);
-    console.log(`\n${pc.dim("─".repeat(60))}\n`);
+    for (const line of lineList) log(line);
 
     await next();
 });
