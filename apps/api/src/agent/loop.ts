@@ -24,6 +24,11 @@ export interface Message {
 export interface LlmResponse {
     message: Message;
     finishReason: string;
+    requestId: string | null;
+    tokenUsage: {
+        input: number;
+        output: number;
+    };
 }
 
 export interface LlmSender {
@@ -34,7 +39,9 @@ export interface AgentRunResult {
     finalMessage: string | null;
     messages: Message[];
     stepCount: number;
-    toolCallCounts: Record<string, number>;
+    toolCallCount: Record<string, number>;
+    totalInputToken: number;
+    totalOutputToken: number;
 }
 
 export async function runAgentLoop(
@@ -49,15 +56,19 @@ export async function runAgentLoop(
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
 
-    const messages: Message[] = [
-        { role: "system", content: system },
-        { role: "user", content: prompt },
-    ];
+    let totalInputToken = 0;
+    let totalOutputToken = 0;
+
     try {
+        const messages: Message[] = [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+        ];
+
         const maxSteps = options.maxSteps ?? 50;
 
         const toolList = options.toolList ?? [];
-        const toolCallCounts: Record<string, number> = {};
+        const toolCallCount: Record<string, number> = {};
         let stepCount = 0;
         for (let step = 0; step < maxSteps; step++) {
             stepCount++;
@@ -74,12 +85,17 @@ export async function runAgentLoop(
 
             const response = await sender.send(messagesWithStepInfo, toolList);
 
+            totalInputToken += response.tokenUsage.input;
+            totalOutputToken += response.tokenUsage.output;
+
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
                 const result: AgentRunResult = {
                     finalMessage: response.message.content,
                     messages,
                     stepCount,
-                    toolCallCounts,
+                    toolCallCount,
+                    totalInputToken,
+                    totalOutputToken,
                 };
                 logAgentResult(label, result, performance.now() - startedAt, "completed");
                 return result;
@@ -93,7 +109,9 @@ export async function runAgentLoop(
                         "Maximum steps reached. The agent was unable to complete the task within the allowed steps.",
                     messages,
                     stepCount,
-                    toolCallCounts,
+                    toolCallCount,
+                    totalInputToken,
+                    totalOutputToken,
                 };
                 log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
                 logAgentResult(label, result, performance.now() - startedAt, "max_steps");
@@ -127,7 +145,7 @@ export async function runAgentLoop(
 
                     try {
                         const result = await tool.execute(args);
-                        toolCallCounts[tool.name] = (toolCallCounts[tool.name] ?? 0) + 1;
+                        toolCallCount[tool.name] = (toolCallCount[tool.name] ?? 0) + 1;
                         const content = typeof result === "string" ? result : JSON.stringify(result);
                         const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
                         log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);

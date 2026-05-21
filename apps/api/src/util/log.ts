@@ -43,7 +43,7 @@ export const logAgentResult = (
 ): void => {
     const secs = (elapsedMs / 1000).toFixed(1);
     const status = reason === "completed" ? pc.green("completed") : pc.yellow("max steps");
-    const toolEntries = Object.entries(result.toolCallCounts);
+    const toolEntries = Object.entries(result.toolCallCount);
     const tools =
         toolEntries.length === 0
             ? pc.dim("none")
@@ -57,6 +57,10 @@ export const logAgentResult = (
         `${pc.bold(String(result.stepCount))} steps`,
         pc.dim("·"),
         `tools: ${tools}`,
+        pc.dim("·"),
+        `input tokens: ${result.totalInputToken}`,
+        pc.dim("·"),
+        `output tokens: ${result.totalOutputToken}`,
     ];
 
     if (result.finalMessage) {
