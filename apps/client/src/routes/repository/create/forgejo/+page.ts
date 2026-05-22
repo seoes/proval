@@ -7,7 +7,6 @@ type AccessItem = {
     provider: 'gitlab' | 'forgejo';
     name: string;
     baseUrl: string;
-    botUsername: string | null;
     createdAt: string;
     updatedAt: string;
 };

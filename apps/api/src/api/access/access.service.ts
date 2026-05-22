@@ -8,7 +8,6 @@ export class GitLabAccessService {
         provider: gitProviderAccessTable.provider,
         name: gitProviderAccessTable.name,
         baseUrl: gitProviderAccessTable.baseUrl,
-        botUsername: gitProviderAccessTable.botUsername,
         createdAt: gitProviderAccessTable.createdAt,
         updatedAt: gitProviderAccessTable.updatedAt,
     };
@@ -51,13 +50,7 @@ export class GitLabAccessService {
         return access[0].accessToken;
     }
 
-    public async create(
-        provider: "gitlab" | "forgejo",
-        name: string,
-        baseUrl: string,
-        accessToken: string,
-        botUsername?: string,
-    ) {
+    public async create(provider: "gitlab" | "forgejo", name: string, baseUrl: string, accessToken: string) {
         const newAccess = await db
             .insert(gitProviderAccessTable)
             .values({
@@ -65,17 +58,15 @@ export class GitLabAccessService {
                 name,
                 baseUrl,
                 accessToken,
-                botUsername,
             })
             .returning(this.query);
         return newAccess[0];
     }
 
-    public async updateById(id: number, name: string, baseUrl: string, botUsername?: string, accessToken?: string) {
+    public async updateById(id: number, name: string, baseUrl: string, accessToken?: string) {
         const patch = {
             name,
             baseUrl,
-            botUsername: botUsername ?? null,
             ...(accessToken !== undefined && accessToken.trim() !== "" ? { accessToken: accessToken.trim() } : {}),
         };
         const updatedAccess = await db

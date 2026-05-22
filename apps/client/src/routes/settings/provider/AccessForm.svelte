@@ -9,7 +9,6 @@
         formName = $bindable(''),
         formBaseUrl = $bindable(''),
         formAccessToken = $bindable(''),
-        formBotUsername = $bindable(''),
         editingId,
         isSavingAccess,
         onSubmit,
@@ -19,7 +18,6 @@
         formName: string;
         formBaseUrl: string;
         formAccessToken: string;
-        formBotUsername: string;
         editingId: number | null;
         isSavingAccess: boolean;
         onSubmit: () => void;
@@ -52,11 +50,6 @@
         formProvider === 'gitlab'
             ? 'Root URL of your GitLab instance'
             : 'Root URL of your Forgejo instance'
-    );
-    const accessFormBotPlaceholder = $derived(
-        formProvider === 'gitlab'
-            ? 'project_123_bot_abcd1234'
-            : 'Optional bot username for mentions'
     );
 </script>
 
@@ -101,14 +94,6 @@
             {/snippet}
         </FormField>
     {/if}
-    <FormField
-        label="Bot username"
-        description="Optional — used for mention detection in reply mode"
-    >
-        {#snippet children({ id })}
-            <InputText {id} placeholder={accessFormBotPlaceholder} bind:value={formBotUsername} />
-        {/snippet}
-    </FormField>
     <div class="flex items-center gap-2 pt-2">
         <Button primary onclick={onSubmit} disabled={isSavingAccess} class="w-auto">
             {isSavingAccess ? 'Saving...' : editingId !== null ? 'Update' : 'Save'}

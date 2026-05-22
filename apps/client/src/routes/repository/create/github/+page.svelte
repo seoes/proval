@@ -150,7 +150,6 @@
                 provider: 'github',
                 baseUrl: 'https://api.github.com',
                 gitlabAccessToken: null,
-                botUsername: null,
                 language,
                 githubInstallationId: parseInt(selectedInstallationId, 10),
                 githubRepositoryPath: selectedRepoPath,

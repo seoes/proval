@@ -23,7 +23,6 @@
         provider: 'gitlab' | 'forgejo';
         name: string;
         baseUrl: string;
-        botUsername: string | null;
     };
 
     type InitialData = Partial<RepositoryResponse> & {
@@ -49,7 +48,6 @@
     }: Props = $props();
 
     let name = $state(initialData?.name ?? '');
-    let botUsername = $state(initialData?.botUsername ?? '');
     let language = $state(initialData?.language ?? 'English');
     let gitProviderRepositoryId = $state(initialData?.gitProviderRepositoryId?.toString() ?? '');
     let githubRepositoryPath = $state(initialData?.githubRepositoryPath ?? '');
@@ -174,7 +172,6 @@
                 name,
                 provider,
                 gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
-                botUsername: botUsername || null,
                 language,
                 gitProviderRepositoryId: gitProviderRepositoryId
                     ? parseInt(gitProviderRepositoryId, 10)
@@ -204,7 +201,6 @@
                 name,
                 provider,
                 gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
-                botUsername: botUsername || null,
                 language,
                 gitProviderRepositoryId: gitProviderRepositoryId
                     ? parseInt(gitProviderRepositoryId, 10)
@@ -495,18 +491,6 @@
                             />
                         {/each}
                     </div>
-                {/snippet}
-            </FormField>
-        </div>
-    </Card>
-    <Card title="Bot" spaceY>
-        <div>
-            <FormField
-                label="Bot username (optional)"
-                description="If set, used for @mention matching and display"
-            >
-                {#snippet children({ id })}
-                    <InputText {id} placeholder="code-review-bot" bind:value={botUsername} />
                 {/snippet}
             </FormField>
         </div>

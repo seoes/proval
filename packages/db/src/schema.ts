@@ -45,7 +45,6 @@ export const gitProviderAccessTable = sqliteTable(
         name: text().notNull(),
         baseUrl: text().notNull(),
         accessToken: text().notNull(),
-        botUsername: text(),
         ...timeStamp,
     },
     (table) => [unique().on(table.provider, table.baseUrl)],
@@ -59,7 +58,6 @@ export const repositoryTable = sqliteTable(
         name: text().notNull(),
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
         webhookSecret: text().notNull(),
-        botUsername: text(),
         language: text().notNull().default("English"),
 
         // github access configs

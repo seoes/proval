@@ -16,7 +16,6 @@
             name: data.repository.name,
             provider: data.repository.provider,
             gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
-            botUsername: data.repository.botUsername ?? '',
             language: data.repository.language,
             gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
             githubRepositoryPath: data.repository.githubRepositoryPath ?? '',

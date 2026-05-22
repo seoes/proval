@@ -183,9 +183,9 @@ async function handleIssueCommentWebhook(
 
     const sender = payload.sender;
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const botLogin = (await gitHubProvider.fetchCurrentUser()).username;
+    const botUsername = (await gitHubProvider.fetchCurrentUser()).username;
 
-    if (sender?.type === "Bot" || sender?.login === botLogin) {
+    if (sender?.type === "Bot" || sender?.login === botUsername) {
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
     }
 
@@ -199,7 +199,7 @@ async function handleIssueCommentWebhook(
 
         if (
             repository.replyToMergeRequestComment === "mentioned_only" &&
-            !isBotMentioned(noteBody, botLogin, githubApp.slug)
+            !isBotMentioned(noteBody, botUsername, githubApp.slug)
         ) {
             return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
         }
@@ -221,7 +221,7 @@ async function handleIssueCommentWebhook(
         return new Response(JSON.stringify({ message: "Issue reply mode is off" }), { status: 200 });
     }
 
-    if (repository.replyToIssueComment === "mentioned_only" && !isBotMentioned(noteBody, botLogin, githubApp.slug)) {
+    if (repository.replyToIssueComment === "mentioned_only" && !isBotMentioned(noteBody, botUsername, githubApp.slug)) {
         return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
     }
 

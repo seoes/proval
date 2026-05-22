@@ -16,7 +16,6 @@
         provider: 'gitlab' | 'forgejo';
         name: string;
         baseUrl: string;
-        botUsername: string | null;
         createdAt: string;
         updatedAt: string;
     };
@@ -35,7 +34,6 @@
     let formName = $state('');
     let formBaseUrl = $state('');
     let formAccessToken = $state('');
-    let formBotUsername = $state('');
 
     let updateAccessTokenModalOpen = $state(false);
     let selectedAccessId = $state<number | null>(null);
@@ -48,7 +46,6 @@
         formName = '';
         formBaseUrl = '';
         formAccessToken = '';
-        formBotUsername = '';
         testResult = null;
         showModal = true;
     }
@@ -59,7 +56,6 @@
         formName = item.name;
         formBaseUrl = item.baseUrl;
         formAccessToken = '';
-        formBotUsername = item.botUsername ?? '';
         testResult = null;
         showModal = true;
     }
@@ -84,8 +80,7 @@
             if (editingId !== null) {
                 const payload = {
                     name: formName.trim(),
-                    baseUrl: formBaseUrl.trim(),
-                    botUsername: formBotUsername.trim() || undefined
+                    baseUrl: formBaseUrl.trim()
                 };
                 const res = await fetchApi(`/access/${editingId}`, {
                     method: 'PUT',
@@ -104,8 +99,7 @@
                     provider: formProvider,
                     name: formName.trim(),
                     baseUrl: formBaseUrl.trim(),
-                    accessToken: formAccessToken,
-                    botUsername: formBotUsername.trim() || undefined
+                    accessToken: formAccessToken
                 };
                 const res = await fetchApi('/access', {
                     method: 'POST',
@@ -276,7 +270,6 @@
             bind:formName
             bind:formBaseUrl
             bind:formAccessToken
-            bind:formBotUsername
             {editingId}
             {isSavingAccess}
             onSubmit={saveAccess}

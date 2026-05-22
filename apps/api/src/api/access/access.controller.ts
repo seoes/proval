@@ -31,9 +31,8 @@ export const createAccess = async (c: Context) => {
         name: string;
         baseUrl: string;
         accessToken: string;
-        botUsername?: string;
     }>();
-    const { provider, name, baseUrl, accessToken, botUsername } = body;
+    const { provider, name, baseUrl, accessToken } = body;
     if (!provider) {
         return c.json({ error: "Provider is required" }, 400);
     }
@@ -47,7 +46,7 @@ export const createAccess = async (c: Context) => {
         return c.json({ error: "Access token is required" }, 400);
     }
     try {
-        const access = await accessService.create(provider, name, baseUrl, accessToken, botUsername);
+        const access = await accessService.create(provider, name, baseUrl, accessToken);
         return c.json(access, 201);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -89,9 +88,8 @@ export const updateAccessById = async (c: Context) => {
         name: string;
         baseUrl: string;
         accessToken?: string;
-        botUsername?: string;
     }>();
-    const { name, baseUrl, accessToken, botUsername } = body;
+    const { name, baseUrl, accessToken } = body;
     if (!name) {
         return c.json({ error: "Name is required" }, 400);
     }
@@ -99,7 +97,7 @@ export const updateAccessById = async (c: Context) => {
         return c.json({ error: "Base URL is required" }, 400);
     }
     try {
-        const access = await accessService.updateById(id, name, baseUrl, botUsername, accessToken);
+        const access = await accessService.updateById(id, name, baseUrl, accessToken);
         return c.json(access, 200);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

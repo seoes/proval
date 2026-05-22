@@ -7,7 +7,6 @@
         provider: 'gitlab' | 'forgejo';
         name: string;
         baseUrl: string;
-        botUsername: string | null;
     };
 
     type TestResult = { id: number; success: boolean; message: string };
@@ -57,11 +56,6 @@
                 <p class="truncate text-sm text-neutral-500">
                     {item.baseUrl}
                 </p>
-                {#if item.botUsername}
-                    <p class="text-xs text-neutral-400">
-                        Bot: @{item.botUsername}
-                    </p>
-                {/if}
             </div>
         </div>
         <div>
