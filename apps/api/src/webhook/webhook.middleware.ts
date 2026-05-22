@@ -41,11 +41,11 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
     return { webhookEvent, eventType, action, number, title };
 }
 
-function parseGiteaWebhook(c: Context, forgejo: boolean): WebhookIngress {
-    const p = c.get(forgejo ? "forgejoPayload" : "githubPayload") as any;
+function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
+    const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const pr = p?.pull_request;
     const issue = p?.issue;
-    const webhookEvent = forgejo
+    const webhookEvent = isForgejo
         ? (c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event") ?? "unknown")
         : (c.req.header("X-GitHub-Event") ?? "unknown");
 
@@ -54,7 +54,7 @@ function parseGiteaWebhook(c: Context, forgejo: boolean): WebhookIngress {
     let number: number | undefined;
     let title: string | undefined;
 
-    if (!forgejo && webhookEvent === "ping") {
+    if (!isForgejo && webhookEvent === "ping") {
         eventType = "CONNECTIVITY CHECK";
     } else if (webhookEvent === "pull_request") {
         eventType = "MERGE REQUEST";
@@ -80,9 +80,17 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
     const repository = c.get("repository") as Repository;
     const model = c.get("model") as Model;
 
-    const ingress = c.req.path.includes("gitlab")
-        ? parseGitLabWebhook(c)
-        : parseGiteaWebhook(c, c.req.path.includes("forgejo"));
+    let ingress: WebhookIngress;
+
+    if (repository.provider === "gitlab") {
+        ingress = parseGitLabWebhook(c);
+    } else if (repository.provider === "github") {
+        ingress = parseGitHubWebhook(c, false);
+    } else if (repository.provider === "forgejo") {
+        ingress = parseGitHubWebhook(c, true);
+    } else {
+        return c.json({ error: "Invalid repository provider" }, 400);
+    }
 
     const W = 22;
     const row = (label: string, value: string) => `  ${pc.bold(label.padEnd(W))} ${value}`;
