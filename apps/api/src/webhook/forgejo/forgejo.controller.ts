@@ -132,24 +132,16 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     const prNumber = payload.pull_request.number;
 
-    const stopTimer = startTimer(`Forgejo Pull Request Review: ${prNumber}`);
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
 
-    const review = repository.deepResearchOnMergeRequest
-        ? mergeRequestService
-              .planDeepReview(prNumber)
-              .then((reviewTargetList) => mergeRequestService.generateDeepReview(prNumber, reviewTargetList))
-        : mergeRequestService.generateStandardReview(prNumber);
-
-    review
-        .catch((error) => {
-            logError("Review failed", error);
-        })
-        .finally(stopTimer);
+    mergeRequestService.review(prNumber, reviewOptions);
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
@@ -215,7 +207,6 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             model.apiKey,
             model.name,
             repository.language,
-            repository.inlineReview,
         );
 
         const stopTimer = startTimer(`Forgejo Pull Request Reply: ${prNumber}`);

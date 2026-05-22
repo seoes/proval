@@ -95,7 +95,6 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     const mergeRequest = payload.object_attributes;
@@ -106,40 +105,22 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         return new Response(JSON.stringify({ message: "No action found" }), { status: 200 });
     }
 
-    switch (action) {
-        case "open": {
-            // If review is off, skip
-            if (!repository.reviewOnMergeRequestOpen) {
-                return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
-            }
-
-            // If review is on, review the merge request
-            if (repository.deepResearchOnMergeRequest) {
-                mergeRequestService
-                    .planDeepReview(mergeRequest.iid)
-                    .then((reviewTargetList) =>
-                        mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList),
-                    )
-                    .catch((err) => {
-                        logError("Deep review failed", err);
-                    });
-            } else {
-                mergeRequestService.generateStandardReview(mergeRequest.iid).catch((err) => {
-                    logError("Review failed", err);
-                });
-            }
-            return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
-        }
-        case "update": {
-        }
-        case "reopen": {
-        }
-        case "close": {
-        }
-        default: {
-            return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
-        }
+    if (action !== "open") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
     }
+
+    if (!repository.reviewOnMergeRequestOpen) {
+        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+    }
+
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
+
+    mergeRequestService.review(mergeRequest.iid, reviewOptions);
+
+    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
 
 type HandleGitLabMergeRequestNoteWebhook = (
@@ -187,7 +168,6 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     if (repository.replyToMergeRequestComment === "mentioned_only") {
@@ -196,9 +176,8 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         }
     }
 
-    mergeRequestService.reply(mrIid, commenterUsername, noteBody).catch((err) => {
-        logError("Reply failed", err);
-    });
+    mergeRequestService.reply(mrIid, commenterUsername, noteBody);
+
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };
 

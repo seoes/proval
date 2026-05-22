@@ -1,17 +1,13 @@
 import { runAgentLoop, type AgentTool } from "../../agent/loop.js";
 import { createOpenAiSender } from "../../agent/openai.js";
 import {
-    getChangedFileListTool,
-    getMergeRequestDetailTool,
     getFileDiffTool,
-    getMergeRequestCommentListTool,
     getDirectoryTreeTool,
     getFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
     postMergeRequestCommentTool,
     postMergeRequestReplyTool,
-    getMergeRequestVersionTool,
     createSingleLineCommentTool,
     createMultiLineCommentTool,
     approveMergeRequestTool,
@@ -27,6 +23,8 @@ import {
     REPLY_PROMPT,
     STANDARD_REVIEW_PROMPT,
 } from "./prompt/index.js";
+import { startTimer } from "../../util/timer.js";
+import { logError } from "../../util/log.js";
 
 export type { ReviewTarget } from "./review-target.schema.js";
 
@@ -39,7 +37,6 @@ export class MergeRequestService {
         modelApiKey: string,
         modelName: string,
         private readonly language: string,
-        private readonly inlineReview: boolean,
     ) {
         this.sender = createOpenAiSender({
             apiKey: modelApiKey,
@@ -48,12 +45,32 @@ export class MergeRequestService {
         });
     }
 
+    public async review(
+        mrIid: number,
+        { isInlineReview, isDeepResearch }: { isInlineReview: boolean; isDeepResearch: boolean },
+    ): Promise<void> {
+        const stopTimer = startTimer(this.getLabel(mrIid));
+
+        try {
+            if (isDeepResearch) {
+                const reviewTargetList = await this.planDeepReview(mrIid);
+                await this.generateDeepReview(mrIid, reviewTargetList, isInlineReview);
+            } else {
+                await this.generateStandardReview(mrIid, isInlineReview);
+            }
+        } catch (err) {
+            logError("Review failed", err, this.getLabel(mrIid));
+        } finally {
+            stopTimer();
+        }
+    }
+
     // #########################################################
     // # Standard Review
     // #########################################################
 
-    public async generateStandardReview(mrIid: number): Promise<void> {
-        const inlineModeTag = this.inlineReview
+    public async generateStandardReview(mrIid: number, isInlineReview: boolean): Promise<void> {
+        const inlineModeTag = isInlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
@@ -62,10 +79,10 @@ export class MergeRequestService {
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        await runAgentLoop(this.sender, system, prompt, `[MR #${mrIid}] Standard Review Agent`, {
+        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Standard Review`, {
             toolList: [
                 ...this.createCodeToolList(mrIid, sourceBranch),
-                ...this.createReviewToolList(mrIid, this.inlineReview),
+                ...this.createReviewToolList(mrIid, isInlineReview),
             ],
             maxSteps: 200,
         });
@@ -84,7 +101,7 @@ export class MergeRequestService {
             this.sender,
             DEEP_REVIEW_PLAN_PROMPT,
             await this.generateMergeRequestPrompt(mrIid),
-            `[MR #${mrIid}] Deep Plan`,
+            `${this.getLabel(mrIid)} Deep Plan`,
             {
                 toolList: [...this.createCodeToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
             },
@@ -93,17 +110,20 @@ export class MergeRequestService {
         return reviewTargetList;
     }
 
-    public async generateDeepReview(mrIid: number, reviewTargetList: ReviewTarget[]): Promise<void> {
+    public async generateDeepReview(
+        mrIid: number,
+        reviewTargetList: ReviewTarget[],
+        isInlineReview: boolean,
+    ): Promise<void> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        // const reviewResultList: string[] = [];
         const reviewResultList = await Promise.all(
             reviewTargetList.map(async (reviewTarget, index) =>
                 this.runDeepReviewSubAgent(mrIid, reviewTarget, index + 1, reviewTargetList.length),
             ),
         );
 
-        const inlineModeTag = this.inlineReview
+        const inlineModeTag = isInlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
@@ -112,11 +132,11 @@ export class MergeRequestService {
             this.sender,
             system,
             await this.generateMergeRequestPrompt(mrIid),
-            `[MR #${mrIid}] Deep Writing`,
+            `${this.getLabel(mrIid)} Deep Writing`,
             {
                 toolList: [
                     ...this.createCodeToolList(mrIid, sourceBranch),
-                    ...this.createReviewToolList(mrIid, this.inlineReview),
+                    ...this.createReviewToolList(mrIid, isInlineReview),
                 ],
             },
         );
@@ -142,7 +162,7 @@ export class MergeRequestService {
             this.sender,
             system,
             prompt,
-            `[MR #${mrIid}] Deep Sub Agent ${index + 1}/${totalIndex}`,
+            `${this.getLabel(mrIid)} Deep Sub Agent ${index}/${totalIndex}`,
             {
                 toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
                 maxSteps,
@@ -172,7 +192,7 @@ export class MergeRequestService {
             ...this.createReplyToolList(mrIid, commenterUsername),
         ];
 
-        await runAgentLoop(this.sender, system, prompt, `MR #${mrIid} - Reply Agent`, { toolList });
+        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, { toolList });
     }
 
     // #########################################################
@@ -181,14 +201,11 @@ export class MergeRequestService {
 
     private createCodeToolList(mrIid: number, sourceBranch: string): AgentTool[] {
         return [
-            // getMergeRequestDetailTool(this.provider, mrIid),
-            // getChangedFileListTool(this.provider, mrIid),
             getFileDiffTool(this.provider, mrIid),
             ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, sourceBranch)] : []),
             searchLineByKeywordTool(this.provider, sourceBranch),
             getDirectoryTreeTool(this.provider, sourceBranch),
             getFileContentTool(this.provider, sourceBranch),
-            // getMergeRequestVersionTool(this.provider, mrIid),
         ];
     }
 
@@ -210,7 +227,7 @@ export class MergeRequestService {
     }
 
     // #########################################################
-    // # Utils
+    // # Prompt Builder
     // #########################################################
 
     private async generateMergeRequestPrompt(mrIid: number): Promise<string> {
@@ -229,5 +246,13 @@ export class MergeRequestService {
         const changedFileListPrompt = `Changed files: ${changedFileList}`;
 
         return [mrIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt].join("\n\n");
+    }
+
+    // #########################################################
+    // # Utils
+    // #########################################################
+
+    private getLabel(mrIid: number): string {
+        return `[MR #${mrIid}]`;
     }
 }

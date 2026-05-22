@@ -119,17 +119,14 @@ async function handlePullRequestWebhook(
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
-    if (repository.deepResearchOnMergeRequest) {
-        mergeRequestService
-            .planDeepReview(prNumber)
-            .then((targets) => mergeRequestService.generateDeepReview(prNumber, targets))
-            .catch((err) => logError("Deep review failed", err));
-    } else {
-        mergeRequestService.generateStandardReview(prNumber).catch((err) => logError("Review failed", err));
-    }
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
+
+    mergeRequestService.review(prNumber, reviewOptions);
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 }
@@ -160,13 +157,7 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const issueService = new IssueService(
-        gitHubProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
-        repository.language,
-    );
+    const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.commentOnOpen(issueNumber).catch((err) => logError("Issue comment failed", err));
 
@@ -219,12 +210,9 @@ async function handleIssueCommentWebhook(
             model.apiKey,
             model.name,
             repository.language,
-            repository.inlineReview,
         );
 
-        mergeRequestService
-            .reply(issueNumber, commenterUsername, noteBody)
-            .catch((err) => logError("Reply failed", err));
+        mergeRequestService.reply(issueNumber, commenterUsername, noteBody);
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     }
