@@ -5,7 +5,6 @@ import { ForgejoProvider } from "../../provider/forgejo.js";
 import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
 import { logError } from "../../util/log.js";
-import { startTimer } from "../../util/timer.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -209,14 +208,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             repository.language,
         );
 
-        const stopTimer = startTimer(`Forgejo Pull Request Reply: ${prNumber}`);
-
-        mergeRequestService
-            .reply(prNumber, commenterUsername, noteBody)
-            .catch((err) => {
-                logError("Reply failed", err);
-            })
-            .finally(stopTimer);
+        mergeRequestService.reply(prNumber, commenterUsername, noteBody);
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     } else {
