@@ -4,6 +4,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { ForgejoProvider } from "../../provider/forgejo.js";
 import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
+import { logError } from "../../util/log.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -69,16 +70,6 @@ export const handleForgejoWebhook = async (c: Context) => {
     const model = c.get("model") as Model;
     const access = c.get("access") as Access;
 
-    console.log("--------------------------------");
-    console.log(`Forgejo Webhook received: ${event}`);
-    console.log("Repository:", repository.name);
-    console.log("Model:", model.name);
-    console.log("Inline Review:", repository.inlineReview);
-    console.log("Deep Research:", repository.deepResearchOnMergeRequest);
-    console.log("Review On PR Open:", repository.reviewOnMergeRequestOpen);
-    console.log("Reply To PR Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
-
     try {
         // Handle Pull Request Hook
         if (event === "pull_request") {
@@ -103,7 +94,7 @@ export const handleForgejoWebhook = async (c: Context) => {
 
         return c.json({ message: `Skipped: event '${event}' is not supported` }, 200);
     } catch (error) {
-        console.error(error);
+        logError("Forgejo webhook handler failed", error);
         return c.json({ error: "Internal server error" }, 500);
     }
 };
@@ -118,7 +109,7 @@ type HandleForgejoPullRequestWebhook = (
 const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, model, access) => {
     const action = payload.action;
 
-    if (action !== "opened" && action !== "reopened") {
+    if (action !== "opened") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
     }
 
@@ -140,23 +131,16 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     const prNumber = payload.pull_request.number;
 
-    if (repository.deepResearchOnMergeRequest) {
-        mergeRequestService
-            .planDeepReview(prNumber)
-            .then((reviewTargetList) => mergeRequestService.generateDeepReview(prNumber, reviewTargetList))
-            .catch((err) => {
-                console.error("Deep review failed:", err);
-            });
-    } else {
-        mergeRequestService.generateStandardReview(prNumber).catch((err) => {
-            console.error("Review failed:", err);
-        });
-    }
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
+
+    mergeRequestService.review(prNumber, reviewOptions);
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
@@ -208,17 +192,8 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const noteBody = payload.comment.body;
         const prNumber = payload.issue.number;
 
-        console.log("--------------------------------");
-        console.log("New Comment on Pull Request");
-        console.log("Comment Body:", noteBody);
-        console.log("Commenter Username:", commenterUsername);
-        console.log("PR Number:", prNumber);
-        console.log("Reply To PR Comment:", repository.replyToMergeRequestComment);
-        console.log("--------------------------------");
-
         if (repository.replyToMergeRequestComment === "mentioned_only") {
             if (!noteBody.includes(`@${botUsername}`)) {
-                console.log("Skipped: bot username is not mentioned");
                 return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
                     status: 200,
                 });
@@ -231,12 +206,9 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             model.apiKey,
             model.name,
             repository.language,
-            repository.inlineReview,
         );
 
-        mergeRequestService.reply(prNumber, commenterUsername, noteBody).catch((err) => {
-            console.error("Reply failed:", err);
-        });
+        mergeRequestService.reply(prNumber, commenterUsername, noteBody);
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     } else {
@@ -280,7 +252,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         );
 
         issueService.reply(issueNumber, commenterUsername, noteBody).catch((err) => {
-            console.error("Issue reply failed:", err);
+            logError("Issue reply failed", err);
         });
 
         return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
@@ -325,7 +297,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
     );
 
     issueService.commentOnOpen(issueNumber).catch((err) => {
-        console.error("Issue comment failed:", err);
+        logError("Issue comment failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });

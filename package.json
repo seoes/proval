@@ -4,7 +4,7 @@
     "license": "AGPL-3.0",
     "packageManager": "bun@1.3.11",
     "scripts": {
-        "dev": "bun run --parallel --filter '*' dev",
+        "dev": "FORCE_COLOR=1 bun run --parallel --filter '*' dev",
         "build": "bun run --parallel --filter '*' build",
         "test": "bun run --parallel --filter '*' test",
         "tunnel": "cloudflared tunnel --url http://localhost:7901",

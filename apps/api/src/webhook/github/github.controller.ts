@@ -6,6 +6,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { GitHubProvider } from "../../provider/github.js";
 import { githubAppTable, modelTable, repositoryTable } from "@code-review/db";
 import type { InferSelectModel } from "drizzle-orm";
+import { logError } from "../../util/log.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -85,7 +86,7 @@ export const handleGitHubWebhook = async (c: Context) => {
 
         return c.json({ message: `Unhandled event: ${event}` }, 200);
     } catch (error) {
-        console.error(error);
+        logError("GitHub webhook handler failed", error);
         return c.json({ error: "Internal server error" }, 500);
     }
 };
@@ -118,17 +119,14 @@ async function handlePullRequestWebhook(
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
-    if (repository.deepResearchOnMergeRequest) {
-        mergeRequestService
-            .planDeepReview(prNumber)
-            .then((targets) => mergeRequestService.generateDeepReview(prNumber, targets))
-            .catch((err) => console.error("Deep review failed:", err));
-    } else {
-        mergeRequestService.generateStandardReview(prNumber).catch((err) => console.error("Review failed:", err));
-    }
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
+
+    mergeRequestService.review(prNumber, reviewOptions);
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 }
@@ -159,15 +157,9 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const issueService = new IssueService(
-        gitHubProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
-        repository.language,
-    );
+    const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
-    issueService.commentOnOpen(issueNumber).catch((err) => console.error("Issue comment failed:", err));
+    issueService.commentOnOpen(issueNumber).catch((err) => logError("Issue comment failed", err));
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
 }
@@ -218,12 +210,9 @@ async function handleIssueCommentWebhook(
             model.apiKey,
             model.name,
             repository.language,
-            repository.inlineReview,
         );
 
-        mergeRequestService
-            .reply(issueNumber, commenterUsername, noteBody)
-            .catch((err) => console.error("Reply failed:", err));
+        mergeRequestService.reply(issueNumber, commenterUsername, noteBody);
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     }
@@ -238,7 +227,7 @@ async function handleIssueCommentWebhook(
 
     const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
-    issueService.reply(issueNumber, commenterUsername, noteBody).catch((err) => console.error("Reply failed:", err));
+    issueService.reply(issueNumber, commenterUsername, noteBody).catch((err) => logError("Reply failed", err));
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
 }

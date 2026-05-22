@@ -11,6 +11,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { GitLabProvider } from "../../provider/gitlab.js";
 import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
 import { type InferSelectModel } from "drizzle-orm";
+import { logError } from "../../util/log.js";
 
 type Repository = InferSelectModel<typeof repositoryTable>;
 type Model = InferSelectModel<typeof modelTable>;
@@ -22,16 +23,6 @@ export const handleGitLabWebhook = async (c: Context) => {
     const repository = c.get("repository") as Repository;
     const model = c.get("model") as Model;
     const access = c.get("access") as Access;
-
-    console.log("--------------------------------");
-    console.log(`GitLab Webhook received: ${event}`);
-    console.log("Repository:", repository.name);
-    console.log("Model:", model.name);
-    console.log("Inline Review:", repository.inlineReview);
-    console.log("Deep Research:", repository.deepResearchOnMergeRequest);
-    console.log("Review On Merge Request Open:", repository.reviewOnMergeRequestOpen);
-    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
 
     try {
         // Handle Merge Request Hook
@@ -78,7 +69,7 @@ export const handleGitLabWebhook = async (c: Context) => {
             }
         }
     } catch (error) {
-        console.error(error);
+        logError("GitLab webhook handler failed", error);
         return c.json({ error: "Internal server error" }, 500);
     }
 };
@@ -104,7 +95,6 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     const mergeRequest = payload.object_attributes;
@@ -115,40 +105,22 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         return new Response(JSON.stringify({ message: "No action found" }), { status: 200 });
     }
 
-    switch (action) {
-        case "open": {
-            // If review is off, skip
-            if (!repository.reviewOnMergeRequestOpen) {
-                return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
-            }
-
-            // If review is on, review the merge request
-            if (repository.deepResearchOnMergeRequest) {
-                mergeRequestService
-                    .planDeepReview(mergeRequest.iid)
-                    .then((reviewTargetList) =>
-                        mergeRequestService.generateDeepReview(mergeRequest.iid, reviewTargetList),
-                    )
-                    .catch((err) => {
-                        console.error("Deep review failed:", err);
-                    });
-            } else {
-                mergeRequestService.generateStandardReview(mergeRequest.iid).catch((err) => {
-                    console.error("Review failed:", err);
-                });
-            }
-            return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
-        }
-        case "update": {
-        }
-        case "reopen": {
-        }
-        case "close": {
-        }
-        default: {
-            return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
-        }
+    if (action !== "open") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
     }
+
+    if (!repository.reviewOnMergeRequestOpen) {
+        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+    }
+
+    const reviewOptions = {
+        isInlineReview: repository.inlineReview,
+        isDeepResearch: repository.deepResearchOnMergeRequest,
+    };
+
+    mergeRequestService.review(mergeRequest.iid, reviewOptions);
+
+    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
 
 type HandleGitLabMergeRequestNoteWebhook = (
@@ -190,33 +162,22 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
     const noteBody: string = payload.object_attributes?.note;
     const mrIid = payload.merge_request.iid;
 
-    console.log("--------------------------------");
-    console.log("New Comment on Merge Request");
-    console.log("Comment Body:", noteBody);
-    console.log("Commenter Username:", commenterUsername);
-    console.log("Merge Request IID:", mrIid);
-    console.log("Reply To Merge Request Comment:", repository.replyToMergeRequestComment);
-    console.log("--------------------------------");
-
     const mergeRequestService = new MergeRequestService(
         gitlabProvider,
         model.baseUrl,
         model.apiKey,
         model.name,
         repository.language,
-        repository.inlineReview,
     );
 
     if (repository.replyToMergeRequestComment === "mentioned_only") {
         if (!noteBody.includes(`@${botUsername}`)) {
-            console.log("Skipped: bot username is not mentioned");
             return new Response(JSON.stringify({ message: "Skipped: commenter is not mentioned" }), { status: 200 });
         }
     }
 
-    mergeRequestService.reply(mrIid, commenterUsername, noteBody).catch((err) => {
-        console.error("Reply failed:", err);
-    });
+    mergeRequestService.reply(mrIid, commenterUsername, noteBody);
+
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };
 
@@ -252,7 +213,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.commentOnOpen(issueIid).catch((err) => {
-        console.error("Issue comment failed:", err);
+        logError("Issue comment failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
@@ -301,7 +262,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
     issueService.reply(issueIid, commenterUsername, noteBody).catch((err) => {
-        console.error("Issue reply failed:", err);
+        logError("Issue reply failed", err);
     });
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });

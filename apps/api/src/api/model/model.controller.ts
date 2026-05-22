@@ -3,11 +3,9 @@ import { ModelService } from "./model.service.js";
 import type { ModelResponse, ModelInsert, ModelUpdateInput, SecretInput } from "@code-review/types";
 
 export const findAllModel: Handler = async (c) => {
-    console.log("findAllModel");
     const modelService = new ModelService();
     const modelList = await modelService.findAll();
     const modelResponseList: ModelResponse[] = modelList.map((model) => modelService.toResponse(model));
-    console.log(modelResponseList);
     return c.json(modelResponseList, 200);
 };
 

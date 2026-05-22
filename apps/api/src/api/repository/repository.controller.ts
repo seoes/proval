@@ -46,7 +46,6 @@ export const createRepository: Handler = async (c) => {
 };
 
 export const updateRepository: Handler = async (c) => {
-    console.log("updateRepository");
     const repositoryService = new RepositoryService();
     const repositoryId = c.req.param("id");
     if (!repositoryId) {
