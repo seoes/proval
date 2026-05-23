@@ -1,5 +1,5 @@
 {
-    "name": "@code-review/db",
+    "name": "@proval/db",
     "version": "0.0.1",
     "type": "module",
     "main": "./dist/index.js",
@@ -20,7 +20,7 @@
         "drizzle-orm": "^0.45.1"
     },
     "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "drizzle-kit": "^0.31.9",
         "eslint": "^9.39.2",
         "prettier": "^3.8.1",

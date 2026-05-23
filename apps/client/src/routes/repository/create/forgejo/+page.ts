@@ -1,5 +1,5 @@
 import fetchApi from "$lib/utils";
-import type { ModelResponse } from "@code-review/types";
+import type { ModelResponse } from "@proval/types";
 import type { PageLoad } from "./$types";
 
 type AccessItem = {

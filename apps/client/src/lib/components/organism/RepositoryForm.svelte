@@ -2,7 +2,7 @@
     import InputText from "../atom/InputText.svelte";
     import { goto } from "$app/navigation";
     import fetchApi from "$lib/utils";
-    import type { ModelResponse, RepositoryResponse } from "@code-review/types";
+    import type { ModelResponse, RepositoryResponse } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import ToggleButton from "../atom/ToggleButton.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";

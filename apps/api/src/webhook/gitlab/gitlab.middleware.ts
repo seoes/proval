@@ -1,4 +1,4 @@
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";

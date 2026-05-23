@@ -1,4 +1,4 @@
-// Database types (re-exported from @code-review/db)
+// Database types (re-exported from @proval/db)
 export type {
     Repository,
     Model,

@@ -1,3 +1,3 @@
-import { createNodeConfig } from "@code-review/config/eslint/node";
+import { createNodeConfig } from "@proval/config/eslint/node";
 
 export default createNodeConfig({ ignores: ["dist/**", "src/migration/**"] });

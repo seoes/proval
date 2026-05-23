@@ -2,7 +2,7 @@ import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { eq, isNotNull } from "drizzle-orm";
 import db from "../../db/index.js";
-import { githubAppTable, githubInstallationTable, repositoryTable } from "@code-review/db";
+import { githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
 import type { GitHubInstallationResponse, GitHubRepositoryResponse } from "./types.js";
 
 export class GitHubInstallationService {

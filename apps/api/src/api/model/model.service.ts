@@ -1,5 +1,5 @@
-import { modelTable } from "@code-review/db";
-import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@code-review/types";
+import { modelTable } from "@proval/db";
+import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
 import { desc, eq } from "drizzle-orm";
 import OpenAI from "openai";

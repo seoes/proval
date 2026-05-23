@@ -1,6 +1,6 @@
-import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdateInput } from "@code-review/types";
+import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
-import { repositoryTable } from "@code-review/db";
+import { repositoryTable } from "@proval/db";
 import { desc, eq } from "drizzle-orm";
 import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret.js";
 

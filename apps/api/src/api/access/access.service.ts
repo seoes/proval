@@ -1,4 +1,4 @@
-import { gitProviderAccessTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, repositoryTable } from "@proval/db";
 import db from "../../db";
 import { count, eq } from "drizzle-orm";
 

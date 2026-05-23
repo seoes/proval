@@ -17,8 +17,8 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 
 RUN bun run --filter api generate
-RUN bun run --filter @code-review/db build
-RUN bun run --filter @code-review/types build
+RUN bun run --filter @proval/db build
+RUN bun run --filter @proval/types build
 
 COPY apps/client ./apps/client
 
@@ -51,5 +51,6 @@ ENV PORT=7900
 ENV NODE_ENV=production
 
 EXPOSE 7900
+EXPOSE 7901
 
 CMD ["./server"]

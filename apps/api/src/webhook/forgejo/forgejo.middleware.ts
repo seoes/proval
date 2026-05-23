@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
 import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";

@@ -1,4 +1,4 @@
-import type { repositoryTable, modelTable } from "@code-review/db";
+import type { repositoryTable, modelTable } from "@proval/db";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 // Select types (for reading from DB)

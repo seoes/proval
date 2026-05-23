@@ -1,6 +1,6 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@import 'tw-animate-css';
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -9,6 +9,11 @@ select {
     -moz-appearance: none;
     appearance: none;
 }
+
+/* 
+코발트블루 #0047AB
+애져블루 3B82F6
+*/
 
 :root {
     /* Light Mode Primary */
@@ -138,8 +143,8 @@ select {
     * {
         box-sizing: border-box;
         font-family:
-            'Wanted Sans Variable', 'Pretendard', Arial, Helvetica, sans-serif, BlinkMacSystemFont,
-            'Segoe UI', Roboto, sans-serif;
+            "Wanted Sans Variable", "Pretendard", Arial, Helvetica, sans-serif, BlinkMacSystemFont, "Segoe UI", Roboto,
+            sans-serif;
 
         @apply border-neutral-200;
         @apply dark:border-neutral-800;
@@ -163,136 +168,136 @@ select {
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 900;
     font-display: swap;
     src:
-        local('Pretendard Black'),
-        url(/font/Pretendard-Black.subset.woff2) format('woff2');
+        local("Pretendard Black"),
+        url(/font/Pretendard-Black.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 800;
     font-display: swap;
     src:
-        local('Pretendard ExtraBold'),
-        url(/font/Pretendard-ExtraBold.subset.woff2) format('woff2');
+        local("Pretendard ExtraBold"),
+        url(/font/Pretendard-ExtraBold.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 700;
     font-display: swap;
     src:
-        local('Pretendard Bold'),
-        url(/font/Pretendard-Bold.subset.woff2) format('woff2');
+        local("Pretendard Bold"),
+        url(/font/Pretendard-Bold.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 600;
     font-display: swap;
     src:
-        local('Pretendard SemiBold'),
-        url(/font/Pretendard-SemiBold.subset.woff2) format('woff2');
+        local("Pretendard SemiBold"),
+        url(/font/Pretendard-SemiBold.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 500;
     font-display: swap;
     src:
-        local('Pretendard Medium'),
-        url(/font/Pretendard-Medium.subset.woff2) format('woff2');
+        local("Pretendard Medium"),
+        url(/font/Pretendard-Medium.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 400;
     font-display: swap;
     src:
-        local('Pretendard Regular'),
-        url(/font/Pretendard-Regular.subset.woff2) format('woff2');
+        local("Pretendard Regular"),
+        url(/font/Pretendard-Regular.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 300;
     font-display: swap;
     src:
-        local('Pretendard Light'),
-        url(/font/Pretendard-Light.subset.woff2) format('woff2');
+        local("Pretendard Light"),
+        url(/font/Pretendard-Light.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 200;
     font-display: swap;
     src:
-        local('Pretendard ExtraLight'),
-        url(/font/Pretendard-ExtraLight.subset.woff2) format('woff2');
+        local("Pretendard ExtraLight"),
+        url(/font/Pretendard-ExtraLight.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Pretendard';
+    font-family: "Pretendard";
     font-weight: 100;
     font-display: swap;
     src:
-        local('Pretendard Thin'),
-        url(/font/Pretendard-Thin.subset.woff2) format('woff2');
+        local("Pretendard Thin"),
+        url(/font/Pretendard-Thin.subset.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 400;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-Regular.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-Regular.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 500;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-Medium.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-Medium.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 600;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-SemiBold.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-SemiBold.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 700;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-Regular.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-Regular.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 800;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-Medium.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-Medium.woff2) format("woff2");
 }
 
 @font-face {
-    font-family: 'Wanted Sans Variable';
+    font-family: "Wanted Sans Variable";
     font-weight: 900;
     font-display: swap;
     src:
-        local('Wanted Sans Variable'),
-        url(/font/WantedSans-SemiBold.woff2) format('woff2');
+        local("Wanted Sans Variable"),
+        url(/font/WantedSans-SemiBold.woff2) format("woff2");
 }

@@ -1,6 +1,6 @@
 import type { Context, Handler } from "hono";
 import { ModelService } from "./model.service.js";
-import type { ModelResponse, ModelInsert, ModelUpdateInput, SecretInput } from "@code-review/types";
+import type { ModelResponse, ModelInsert, ModelUpdateInput, SecretInput } from "@proval/types";
 
 export const findAllModel: Handler = async (c) => {
     const modelService = new ModelService();

@@ -1,5 +1,5 @@
 import fetchApi from "$lib/utils";
-import type { RepositoryResponse, ModelResponse } from "@code-review/types";
+import type { RepositoryResponse, ModelResponse } from "@proval/types";
 import type { PageLoad } from "./$types";
 import { error } from "@sveltejs/kit";
 

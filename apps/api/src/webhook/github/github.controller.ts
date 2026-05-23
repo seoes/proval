@@ -4,7 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitHubProvider } from "../../provider/github.js";
-import { githubAppTable, modelTable, repositoryTable } from "@code-review/db";
+import { githubAppTable, modelTable, repositoryTable } from "@proval/db";
 import type { InferSelectModel } from "drizzle-orm";
 import { logError } from "../../util/log.js";
 

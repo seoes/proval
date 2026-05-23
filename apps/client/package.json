@@ -14,12 +14,12 @@
         "format": "prettier --write ."
     },
     "dependencies": {
-        "@code-review/types": "workspace:*",
+        "@proval/types": "workspace:*",
         "phosphor-svelte": "^3.1.0",
         "simple-icons": "^16.12.0"
     },
     "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "@sveltejs/adapter-auto": "^7.0.0",
         "@sveltejs/adapter-static": "^3.0.10",
         "@sveltejs/kit": "^2.50.2",

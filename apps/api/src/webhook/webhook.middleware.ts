@@ -1,4 +1,4 @@
-import { modelTable, repositoryTable } from "@code-review/db";
+import { modelTable, repositoryTable } from "@proval/db";
 import type { InferSelectModel } from "drizzle-orm";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";

@@ -1,5 +1,5 @@
 {
-    "name": "@code-review/types",
+    "name": "@proval/types",
     "version": "0.0.1",
     "type": "module",
     "main": "./dist/index.js",
@@ -20,10 +20,10 @@
         "drizzle-orm": "^0.45.1"
     },
     "dependencies": {
-        "@code-review/db": "workspace:*"
+        "@proval/db": "workspace:*"
     },
     "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "eslint": "^9.39.2",
         "prettier": "^3.8.1",

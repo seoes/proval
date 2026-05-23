@@ -9,7 +9,7 @@ import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@code-review/db";
+import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
 import { type InferSelectModel } from "drizzle-orm";
 import { logError } from "../../util/log.js";
 

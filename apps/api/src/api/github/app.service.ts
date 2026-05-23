@@ -1,7 +1,7 @@
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import db from "../../db/index.js";
-import { githubAppTable } from "@code-review/db";
+import { githubAppTable } from "@proval/db";
 import { eq } from "drizzle-orm";
 import type { GitHubAppResponse, CreateAppInput } from "./types.js";
 

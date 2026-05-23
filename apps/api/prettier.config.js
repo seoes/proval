@@ -1,1 +1,1 @@
-export { default } from "@code-review/config/prettier/base";
+export { default } from "@proval/config/prettier/base";

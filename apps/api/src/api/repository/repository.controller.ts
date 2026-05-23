@@ -1,6 +1,6 @@
 import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
-import type { RepositoryResponse, RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@code-review/types";
+import type { RepositoryResponse, RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
 import { normalizeWebhookSecret } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {

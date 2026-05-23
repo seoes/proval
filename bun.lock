@@ -8,11 +8,11 @@
     "apps/api": {
       "name": "api",
       "dependencies": {
-        "@code-review/db": "workspace:*",
-        "@code-review/types": "workspace:*",
         "@gitbeaker/rest": "^43.8.0",
         "@octokit/app": "^16.1.2",
         "@octokit/rest": "^22.0.1",
+        "@proval/db": "workspace:*",
+        "@proval/types": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "hono": "^4.12.7",
         "openai": "^4.100.0",
@@ -20,7 +20,7 @@
         "zod": "^4.3.6",
       },
       "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "@types/bun": "^1.3.11",
         "drizzle-kit": "^0.31.9",
         "eslint": "^9.39.2",
@@ -32,12 +32,12 @@
       "name": "client",
       "version": "0.0.1",
       "dependencies": {
-        "@code-review/types": "workspace:*",
+        "@proval/types": "workspace:*",
         "phosphor-svelte": "^3.1.0",
         "simple-icons": "^16.12.0",
       },
       "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "@sveltejs/adapter-auto": "^7.0.0",
         "@sveltejs/adapter-static": "^3.0.10",
         "@sveltejs/kit": "^2.50.2",
@@ -58,7 +58,7 @@
       },
     },
     "packages/config": {
-      "name": "@code-review/config",
+      "name": "@proval/config",
       "version": "0.0.1",
       "dependencies": {
         "@eslint/compat": "^2.0.2",
@@ -76,13 +76,13 @@
       },
     },
     "packages/db": {
-      "name": "@code-review/db",
+      "name": "@proval/db",
       "version": "0.0.1",
       "dependencies": {
         "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "drizzle-kit": "^0.31.9",
         "eslint": "^9.39.2",
         "prettier": "^3.8.1",
@@ -90,13 +90,13 @@
       },
     },
     "packages/types": {
-      "name": "@code-review/types",
+      "name": "@proval/types",
       "version": "0.0.1",
       "dependencies": {
-        "@code-review/db": "workspace:*",
+        "@proval/db": "workspace:*",
       },
       "devDependencies": {
-        "@code-review/config": "workspace:*",
+        "@proval/config": "workspace:*",
         "drizzle-orm": "^0.45.1",
         "eslint": "^9.39.2",
         "prettier": "^3.8.1",
@@ -108,12 +108,6 @@
     },
   },
   "packages": {
-    "@code-review/config": ["@code-review/config@workspace:packages/config"],
-
-    "@code-review/db": ["@code-review/db@workspace:packages/db"],
-
-    "@code-review/types": ["@code-review/types@workspace:packages/types"],
-
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 
     "@esbuild-kit/core-utils": ["@esbuild-kit/core-utils@3.3.2", "", { "dependencies": { "esbuild": "0.18.20", "source-map-support": "0.5.21" } }, "sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ=="],
@@ -295,6 +289,12 @@
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
     "@polka/url": ["@polka/url@1.0.0-next.29", "", {}, "sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww=="],
+
+    "@proval/config": ["@proval/config@workspace:packages/config"],
+
+    "@proval/db": ["@proval/db@workspace:packages/db"],
+
+    "@proval/types": ["@proval/types@workspace:packages/types"],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.59.0", "", { "os": "android", "cpu": "arm" }, "sha512-upnNBkA6ZH2VKGcBj9Fyl9IGNPULcjXRlg0LLeaioQWueH30p6IXtJEbKAgvyv+mJaMxSm1l6xwDXYjpEMiLMg=="],
 
