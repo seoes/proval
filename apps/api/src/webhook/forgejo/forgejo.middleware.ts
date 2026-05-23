@@ -34,7 +34,7 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
     }
 
     const repositoryId = payload.repository?.id;
-    if (repositoryId == null) {
+    if (repositoryId === undefined) {
         return c.json({ error: "Missing repository in payload" }, 400);
     }
 
