@@ -13,6 +13,7 @@ import {
     approveMergeRequestTool,
     unapproveMergeRequestTool,
     appendReviewTargetTool,
+    getMergeRequestDetailTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
 import type { ReviewTarget } from "./review-target.schema.js";
@@ -201,6 +202,7 @@ export class MergeRequestService {
 
     private createCodeToolList(mrIid: number, sourceBranch: string): AgentTool[] {
         return [
+            getMergeRequestDetailTool(this.provider, mrIid),
             getFileDiffTool(this.provider, mrIid),
             ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, sourceBranch)] : []),
             searchLineByKeywordTool(this.provider, sourceBranch),
@@ -231,7 +233,7 @@ export class MergeRequestService {
     // #########################################################
 
     private async generateMergeRequestPrompt(mrIid: number): Promise<string> {
-        const detail = await this.provider.fetchMergeRequestDetail(mrIid);
+        const { title, description, ...detail } = await this.provider.fetchMergeRequestDetail(mrIid);
         const changedFiles = await this.provider.fetchChangedFileList(mrIid);
         const version = await this.provider.fetchMergeRequestVersion(mrIid);
 
