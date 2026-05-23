@@ -4,8 +4,15 @@ import type { GitProvider } from "../../provider/types.js";
 export function createSingleLineCommentTool(provider: GitProvider, mrIid: number): AgentTool {
     return {
         name: "create_single_line_comment",
-        description:
-            "Create one inline thread on a specific line of the MR diff. Call get_merge_request_version first; use its baseSha/startSha/headSha. Paths must match the diff (old_path/new_path). Prefer newLine for additions/changes on the new file; use oldLine for pure deletions on the old side.",
+        description: [
+            "Create one inline thread on a single line of the MR diff.",
+            "Use this for findings that pin to exactly one line.",
+            "Do NOT use this for findings spanning 2+ consecutive lines — use create_multi_line_comment for that.",
+            "Paths must match the diff (old_path/new_path).",
+            "Prefer newLine for additions/changes on the new file.",
+            "Use oldLine for pure deletions on the old side.",
+            "Use baseSha/startSha/headSha.",
+        ].join("\n"),
         parameters: {
             type: "object",
             properties: {

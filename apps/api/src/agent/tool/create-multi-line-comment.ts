@@ -4,8 +4,16 @@ import type { GitProvider } from "../../provider/types.js";
 export function createMultiLineCommentTool(provider: GitProvider, mrIid: number): AgentTool {
     return {
         name: "create_multi_line_comment",
-        description:
-            "Create one inline thread that spans MULTIPLE lines of the MR diff. Call get_merge_request_version first; use its baseSha/startSha/headSha. Paths must match the diff (old_path/new_path). Provide start and end positions where each has a side (new/old) and the matching line number; start must come before end on the same side. Prefer covering additions/changes on the new side (type='new' with newLine); use type='old' only for pure deletions.",
+        description: [
+            "Create one inline thread that spans MULTIPLE lines of the MR diff.",
+            "Use this for findings that span 2+ consecutive lines.",
+            "Do NOT use this for findings that pin to exactly one line — use create_single_line_comment for that.",
+            "Paths must match the diff (old_path/new_path).",
+            "Provide start and end positions where each has a side (new/old) and the matching line number; start must come before end on the same side.",
+            "Prefer covering additions/changes on the new side (type='new' with newLine).",
+            "Use type='old' only for pure deletions on the old side.",
+            "Use baseSha/startSha/headSha.",
+        ].join("\n"),
         parameters: {
             type: "object",
             properties: {
