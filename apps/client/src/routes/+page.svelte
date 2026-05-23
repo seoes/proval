@@ -1,5 +1,5 @@
 <script lang="ts">
-    import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
+    import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
 </script>
 
 <DefaultLayout title="Welcome to SvelteKit">

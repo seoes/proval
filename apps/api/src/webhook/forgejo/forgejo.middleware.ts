@@ -47,12 +47,7 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
         .from(repositoryTable)
         .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
         .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
-        .where(
-            and(
-                eq(repositoryTable.gitProviderRepositoryId, repositoryId),
-                eq(repositoryTable.provider, "forgejo"),
-            ),
-        )
+        .where(and(eq(repositoryTable.gitProviderRepositoryId, repositoryId), eq(repositoryTable.provider, "forgejo")))
         .limit(1);
 
     if (result.length === 0) {

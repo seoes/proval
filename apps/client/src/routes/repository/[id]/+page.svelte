@@ -1,7 +1,7 @@
 <script lang="ts">
-    import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
-    import RepositoryForm from '$lib/components/organism/RepositoryForm.svelte';
-    import type { PageProps } from './$types';
+    import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
+    import RepositoryForm from "$lib/components/organism/RepositoryForm.svelte";
+    import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
 </script>
@@ -18,7 +18,7 @@
             gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
             language: data.repository.language,
             gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
-            githubRepositoryPath: data.repository.githubRepositoryPath ?? '',
+            githubRepositoryPath: data.repository.githubRepositoryPath ?? "",
             githubRepositoryId: data.repository.githubRepositoryId ?? null,
             modelId: data.repository.modelId,
             reviewOnMergeRequestOpen: data.repository.reviewOnMergeRequestOpen,
@@ -26,7 +26,6 @@
             replyToMergeRequestComment: data.repository.replyToMergeRequestComment,
             replyToIssueComment: data.repository.replyToIssueComment,
             inlineReview: data.repository.inlineReview,
-            deepResearchOnMergeRequest: data.repository.deepResearchOnMergeRequest
-        }}
-    />
+            deepResearchOnMergeRequest: data.repository.deepResearchOnMergeRequest,
+        }} />
 </DefaultLayout>

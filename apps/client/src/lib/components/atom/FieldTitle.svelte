@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { twMerge } from 'tailwind-merge';
-    import type { Snippet } from 'svelte';
+    import { twMerge } from "tailwind-merge";
+    import type { Snippet } from "svelte";
 
     interface Props {
         /** If set, renders a `<label>` for the control with this `id` (a11y). */
@@ -10,7 +10,7 @@
     }
     let { forId, class: className, children }: Props = $props();
 
-    const titleClass = 'mb-0.5 block text-sm font-medium text-neutral-700';
+    const titleClass = "mb-0.5 block text-sm font-medium text-neutral-700";
 </script>
 
 {#if forId}

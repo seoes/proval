@@ -22,13 +22,6 @@ export type GitHubRepositoryResponse = {
     alreadyConnected: boolean;
 };
 
-type ManifestConversionResult = {
-    id: number;
-    slug: string;
-    pem: string;
-    webhook_secret?: string;
-};
-
 export type CreateAppInput = {
     appId: number;
     slug: string;

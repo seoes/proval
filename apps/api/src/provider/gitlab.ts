@@ -336,13 +336,21 @@ export class GitLabProvider implements GitProvider {
                 lineRange: {
                     start: {
                         type: position.start.type,
-                        ...(position.start.newLine !== undefined && { newLine: position.start.newLine }),
-                        ...(position.start.oldLine !== undefined && { oldLine: position.start.oldLine }),
+                        ...(position.start.newLine !== undefined && {
+                            newLine: position.start.newLine,
+                        }),
+                        ...(position.start.oldLine !== undefined && {
+                            oldLine: position.start.oldLine,
+                        }),
                     },
                     end: {
                         type: position.end.type,
-                        ...(position.end.newLine !== undefined && { newLine: position.end.newLine }),
-                        ...(position.end.oldLine !== undefined && { oldLine: position.end.oldLine }),
+                        ...(position.end.newLine !== undefined && {
+                            newLine: position.end.newLine,
+                        }),
+                        ...(position.end.oldLine !== undefined && {
+                            oldLine: position.end.oldLine,
+                        }),
                     },
                 },
             },

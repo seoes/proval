@@ -11,7 +11,9 @@
         "demo": "bun --env-file=.env.demo demo/index.ts",
         "generate": "drizzle-kit generate",
         "migrate": "drizzle-kit migrate",
-        "studio": "drizzle-kit studio"
+        "studio": "drizzle-kit studio",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write ."
     },
     "dependencies": {
         "@code-review/db": "workspace:*",
@@ -26,8 +28,11 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
+        "@code-review/config": "workspace:*",
         "@types/bun": "^1.3.11",
         "drizzle-kit": "^0.31.9",
+        "eslint": "^9.39.2",
+        "prettier": "^3.8.1",
         "typescript": "^5.8.3"
     }
 }

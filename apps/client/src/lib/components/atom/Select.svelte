@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { HTMLSelectAttributes } from 'svelte/elements';
-    import FormField from '../molecule/FormField.svelte';
-    import { twMerge } from 'tailwind-merge';
+    import type { HTMLSelectAttributes } from "svelte/elements";
+    import FormField from "../molecule/FormField.svelte";
+    import { twMerge } from "tailwind-merge";
 
     type Option = { value: string; label: string };
 
@@ -36,12 +36,11 @@
             {disabled}
             {required}
             class={twMerge(
-                'h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800',
-                disabled ? 'cursor-not-allowed opacity-60' : '',
-                className
+                "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800",
+                disabled ? "cursor-not-allowed opacity-60" : "",
+                className,
             )}
-            {...selectProps}
-        >
+            {...selectProps}>
             {#each options as opt (opt.value)}
                 <option value={opt.value}>{opt.label}</option>
             {/each}

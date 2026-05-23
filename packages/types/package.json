@@ -12,7 +12,9 @@
     },
     "scripts": {
         "build": "tsc",
-        "dev": "tsc --watch"
+        "dev": "tsc --watch",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write ."
     },
     "peerDependencies": {
         "drizzle-orm": "^0.45.1"
@@ -21,7 +23,10 @@
         "@code-review/db": "workspace:*"
     },
     "devDependencies": {
+        "@code-review/config": "workspace:*",
         "drizzle-orm": "^0.45.1",
+        "eslint": "^9.39.2",
+        "prettier": "^3.8.1",
         "typescript": "^5.8.3"
     }
 }

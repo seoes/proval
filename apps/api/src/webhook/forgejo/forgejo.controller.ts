@@ -109,17 +109,22 @@ type HandleForgejoPullRequestWebhook = (
 const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, model, access) => {
     const action = payload.action;
 
-    if (action !== "opened") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
-    }
-
     if (!repository.reviewOnMergeRequestOpen) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
+    if (action !== "opened" && action !== "reopened") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
+    }
+
     const token = access.accessToken;
+
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no access token" }), {
+            status: 500,
+        });
     }
 
     const [owner, repo] = payload.repository.full_name.split("/");
@@ -159,7 +164,9 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
     access,
 ) => {
     if (payload.action !== "created") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${payload.action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${payload.action}'` }), {
+            status: 200,
+        });
     }
 
     const isPullRequest = payload.issue.pull_request != null;
@@ -167,12 +174,16 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
     if (isPullRequest) {
         // Handle PR comment
         if (repository.replyToMergeRequestComment === "off") {
-            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
+                status: 200,
+            });
         }
 
         const token = access.accessToken;
         if (!token) {
-            return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+            return new Response(JSON.stringify({ error: "Repository has no access token" }), {
+                status: 500,
+            });
         }
 
         const [owner, repo] = payload.repository.full_name.split("/");
@@ -184,7 +195,9 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         if (botUsername === commenterUsername) {
             return new Response(
-                JSON.stringify({ message: "Skipped: bot username is the same as the commenter username" }),
+                JSON.stringify({
+                    message: "Skipped: bot username is the same as the commenter username",
+                }),
                 { status: 200 },
             );
         }
@@ -214,12 +227,16 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
     } else {
         // Handle Issue comment
         if (repository.replyToIssueComment === "off") {
-            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
+                status: 200,
+            });
         }
 
         const token = access.accessToken;
         if (!token) {
-            return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+            return new Response(JSON.stringify({ error: "Repository has no access token" }), {
+                status: 500,
+            });
         }
 
         const [owner, repo] = payload.repository.full_name.split("/");
@@ -231,7 +248,9 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         if (botUsername === commenterUsername) {
             return new Response(
-                JSON.stringify({ message: "Skipped: bot username is the same as the commenter username" }),
+                JSON.stringify({
+                    message: "Skipped: bot username is the same as the commenter username",
+                }),
                 { status: 200 },
             );
         }
@@ -269,16 +288,22 @@ type HandleForgejoIssuesWebhook = (
 const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, repository, model, access) => {
     const action = payload.action;
     if (action !== "opened") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     if (!repository.commentOnIssueOpen) {
-        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
+            status: 200,
+        });
     }
 
     const token = access.accessToken;
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no access token" }), {
+            status: 500,
+        });
     }
 
     const issueNumber = payload.issue.number;

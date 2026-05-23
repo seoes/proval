@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Snippet } from 'svelte';
+    import type { Snippet } from "svelte";
 
     interface Props {
         children: Snippet;
@@ -19,8 +19,7 @@
     <div
         class="rounded-lg {spaceY ? 'space-y-6' : ''} {border
             ? 'border'
-            : 'border-none'} border-neutral-200 bg-white px-6 py-5 dark:border-neutral-700 dark:bg-neutral-800"
-    >
+            : 'border-none'} border-neutral-200 bg-white px-6 py-5 dark:border-neutral-700 dark:bg-neutral-800">
         {@render children()}
     </div>
 </div>

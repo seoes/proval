@@ -80,12 +80,12 @@ export function createMultiLineCommentTool(provider: GitProvider, mrIid: number)
             if (endError) return { error: endError };
 
             if (start.type === end.type) {
-                const startLine =
-                    start.type === "new" ? Number(start.newLine) : Number(start.oldLine);
-                const endLine =
-                    end.type === "new" ? Number(end.newLine) : Number(end.oldLine);
+                const startLine = start.type === "new" ? Number(start.newLine) : Number(start.oldLine);
+                const endLine = end.type === "new" ? Number(end.newLine) : Number(end.oldLine);
                 if (startLine > endLine) {
-                    return { error: "position.start line must be <= position.end line on the same side." };
+                    return {
+                        error: "position.start line must be <= position.end line on the same side.",
+                    };
                 }
             }
 

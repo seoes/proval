@@ -1,11 +1,11 @@
 <script lang="ts">
-    import TableCell from '$lib/components/atom/TableCell.svelte';
-    import TableHeaderCell from '$lib/components/atom/TableHeaderCell.svelte';
-    import Table from '$lib/components/organism/Table.svelte';
-    import { GearIcon } from 'phosphor-svelte';
-    import type { PageProps } from './$types';
-    import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
-    import { formatTimeAgo } from '$lib/utils';
+    import TableCell from "$lib/components/atom/TableCell.svelte";
+    import TableHeaderCell from "$lib/components/atom/TableHeaderCell.svelte";
+    import Table from "$lib/components/organism/Table.svelte";
+    import { GearIcon } from "phosphor-svelte";
+    import type { PageProps } from "./$types";
+    import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
+    import { formatTimeAgo } from "$lib/utils";
 
     let { data }: PageProps = $props();
 </script>
@@ -27,17 +27,14 @@
                 {#snippet renderBody(repository)}
                     <TableCell>{repository.id}</TableCell>
                     <TableCell>{repository.name}</TableCell>
-                    <TableCell>{repository.reviewOnMergeRequestOpen ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>{repository.replyToMergeRequestComment.replace(/_/g, ' ')}</TableCell>
-                    <TableCell>{repository.replyToIssueComment.replace(/_/g, ' ')}</TableCell>
+                    <TableCell>{repository.reviewOnMergeRequestOpen ? "Yes" : "No"}</TableCell>
+                    <TableCell>{repository.replyToMergeRequestComment.replace(/_/g, " ")}</TableCell>
+                    <TableCell>{repository.replyToIssueComment.replace(/_/g, " ")}</TableCell>
                     <TableCell>{repository.language}</TableCell>
                     <TableCell>{formatTimeAgo(new Date(repository.updatedAt))}</TableCell>
                     <TableCell>
                         <div class="flex items-center gap-2 text-center">
-                            <a
-                                class="transition-colors hover:text-neutral-400"
-                                href={`/repository/${repository.id}`}
-                            >
+                            <a class="transition-colors hover:text-neutral-400" href={`/repository/${repository.id}`}>
                                 <GearIcon class="size-5" />
                             </a>
                         </div>
@@ -46,10 +43,7 @@
             </Table>
         </div>
         <div class="mt-4">
-            <a
-                href="/repository/create"
-                class="text-sm text-neutral-600 transition-colors hover:text-neutral-400"
-            >
+            <a href="/repository/create" class="text-sm text-neutral-600 transition-colors hover:text-neutral-400">
                 Add Repository
             </a>
         </div>

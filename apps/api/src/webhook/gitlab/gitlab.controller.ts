@@ -85,7 +85,9 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
+            status: 500,
+        });
     }
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
@@ -106,7 +108,9 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
     }
 
     if (action !== "open") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     if (!repository.reviewOnMergeRequestOpen) {
@@ -138,13 +142,17 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
 ) => {
     // If reply to merge request comment is off, skip
     if (repository.replyToMergeRequestComment === "off") {
-        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
+            status: 200,
+        });
     }
 
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
+            status: 500,
+        });
     }
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
@@ -154,7 +162,9 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
 
     if (botUsername === commenterUsername) {
         return new Response(
-            JSON.stringify({ message: "Skipped: bot username is the same as the commenter username, skipping" }),
+            JSON.stringify({
+                message: "Skipped: bot username is the same as the commenter username, skipping",
+            }),
             { status: 200 },
         );
     }
@@ -191,17 +201,23 @@ type HandleGitLabIssueWebhook = (
 const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, model, access) => {
     const action = payload.object_attributes?.action ?? "";
     if (action !== "open") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     if (!repository.commentOnIssueOpen) {
-        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
+            status: 200,
+        });
     }
 
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
+            status: 500,
+        });
     }
 
     const issueIid = payload.object_attributes?.iid;
@@ -229,13 +245,17 @@ type HandleGitLabIssueNoteWebhook = (
 const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, model, access) => {
     // If reply to issue comment is off, skip
     if (repository.replyToIssueComment === "off") {
-        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
+            status: 200,
+        });
     }
 
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
-        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
+            status: 500,
+        });
     }
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
@@ -244,7 +264,9 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
     const commenterUsername: string = payload.user?.username ?? "";
     if (botUsername === commenterUsername) {
         return new Response(
-            JSON.stringify({ message: "Skipped: bot username is the same as the commenter username, skipping" }),
+            JSON.stringify({
+                message: "Skipped: bot username is the same as the commenter username, skipping",
+            }),
             { status: 200 },
         );
     }
@@ -256,7 +278,9 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
     }
 
     if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
-        return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
+            status: 200,
+        });
     }
 
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);

@@ -35,7 +35,7 @@ export class GitHubInstallationService {
             try {
                 const { data: ghInstallation } = await appAuth.octokit.request(
                     "GET /app/installations/{installation_id}",
-                    { installation_id: inst.installationId }
+                    { installation_id: inst.installationId },
                 );
                 const account = ghInstallation.account as { login?: string; type?: string } | null;
                 results.push({

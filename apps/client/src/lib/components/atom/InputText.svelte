@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { twMerge } from 'tailwind-merge';
+    import { twMerge } from "tailwind-merge";
 
     interface Props {
         value?: string;
@@ -24,7 +24,7 @@
         name,
         onkeydown,
         id,
-        required
+        required,
     }: Props = $props();
 </script>
 
@@ -35,12 +35,11 @@
     {required}
     {disabled}
     class={twMerge(
-        'h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800',
-        disabled ? 'cursor-not-allowed opacity-60' : '',
-        className
+        "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800",
+        disabled ? "cursor-not-allowed opacity-60" : "",
+        className,
     )}
-    type={password ? 'password' : 'text'}
+    type={password ? "password" : "text"}
     {onchange}
     {name}
-    {onkeydown}
-/>
+    {onkeydown} />

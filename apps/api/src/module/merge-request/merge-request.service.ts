@@ -193,7 +193,9 @@ export class MergeRequestService {
             ...this.createReplyToolList(mrIid, commenterUsername),
         ];
 
-        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, { toolList });
+        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, {
+            toolList,
+        });
     }
 
     // #########################################################
@@ -233,7 +235,11 @@ export class MergeRequestService {
     // #########################################################
 
     private async generateMergeRequestPrompt(mrIid: number): Promise<string> {
-        const { title, description, ...detail } = await this.provider.fetchMergeRequestDetail(mrIid);
+        const {
+            title: _title,
+            description: _description,
+            ...detail
+        } = await this.provider.fetchMergeRequestDetail(mrIid);
         const changedFiles = await this.provider.fetchChangedFileList(mrIid);
         const version = await this.provider.fetchMergeRequestVersion(mrIid);
 

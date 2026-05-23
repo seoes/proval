@@ -99,8 +99,8 @@ export class MockProvider implements GitProvider {
         return this.input.comments ?? [];
     }
 
-    async createIssueComment(_issueIid: number, body: string): Promise<GitComment> {
-        return this.createMergeRequestComment(_issueIid, body);
+    async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
+        return this.createMergeRequestComment(issueIid, body);
     }
 
     async searchIssueList(_query: string): Promise<GitRelatedItem[]> {

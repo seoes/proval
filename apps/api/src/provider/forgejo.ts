@@ -438,11 +438,7 @@ export class ForgejoProvider implements GitProvider {
         return [];
     }
 
-    public async searchLineByKeyword(
-        keyword: string,
-        filePath: string,
-        ref: string,
-    ): Promise<GitCodeSearchResult[]> {
+    public async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
         const content = await this.fetchFileContent(filePath, ref);
         const results: GitCodeSearchResult[] = [];
         const lines = content.split("\n");
@@ -457,7 +453,7 @@ export class ForgejoProvider implements GitProvider {
         return results;
     }
 
-    public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
+    public async fetchDirectoryTree(filePath: string, ref: string, _recursive?: boolean): Promise<GitTree[]> {
         const contents = await this.requestJson<
             | Array<{
                   name: string;

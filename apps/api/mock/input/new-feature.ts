@@ -82,5 +82,12 @@ export default app;
         { name: "hello.ts", type: "file", path: "src/routes/hello.ts" },
         { name: "index.ts", type: "file", path: "src/index.ts" },
     ],
-    comments: [{ id: 1, body: "Nice split into a sub-app.", author: "carol", createdAt: "2025-01-01T00:00:00Z" }],
+    comments: [
+        {
+            id: 1,
+            body: "Nice split into a sub-app.",
+            author: "carol",
+            createdAt: "2025-01-01T00:00:00Z",
+        },
+    ],
 };

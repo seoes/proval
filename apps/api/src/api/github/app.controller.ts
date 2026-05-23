@@ -1,8 +1,5 @@
 import type { Context } from "hono";
-import { App } from "@octokit/app";
 import { GitHubAppService } from "./app.service.js";
-import db from "../../db/index.js";
-import { githubAppTable } from "@code-review/db";
 
 const appService = new GitHubAppService();
 

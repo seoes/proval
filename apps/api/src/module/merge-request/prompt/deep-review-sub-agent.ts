@@ -16,7 +16,7 @@ export const DEEP_REVIEW_SUB_AGENT_PROMPT = [
     "- Skip optional investigation steps.",
     "- Use partial evidence rather than none.",
     "- An incomplete finding is better than no finding.",
-    "- State clearly if more investigation was needed: \"Due to step budget constraints, deeper analysis of X was not possible.\"",
+    '- State clearly if more investigation was needed: "Due to step budget constraints, deeper analysis of X was not possible."',
     "",
     "# Task",
     "You will receive a single review target as JSON: { id, category, file, description, severity }",

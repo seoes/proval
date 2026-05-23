@@ -1,7 +1,7 @@
 <script lang="ts">
-    import { page } from '$app/stores';
-    import { HouseIcon, GitForkIcon, CubeIcon, PlugsIcon, GitBranchIcon } from 'phosphor-svelte';
-    import type { Component } from 'svelte';
+    import { page } from "$app/stores";
+    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon } from "phosphor-svelte";
+    import type { Component } from "svelte";
 
     interface SidebarItem {
         label: string;
@@ -14,40 +14,40 @@
     }
     const sidebarItemList: SidebarItemGroup[] = [
         {
-            label: 'CONFIG',
+            label: "CONFIG",
             items: [
                 {
-                    label: 'Dashboard',
-                    href: '/dashboard',
-                    icon: HouseIcon
+                    label: "Dashboard",
+                    href: "/dashboard",
+                    icon: HouseIcon,
                 },
                 {
-                    label: 'Project',
-                    href: '/repository',
-                    icon: GitForkIcon
+                    label: "Project",
+                    href: "/repository",
+                    icon: GitForkIcon,
                 },
                 {
-                    label: 'Model',
-                    href: '/model',
-                    icon: CubeIcon
+                    label: "Model",
+                    href: "/model",
+                    icon: CubeIcon,
                 },
                 {
-                    label: 'Git Provider',
-                    href: '/settings/provider',
-                    icon: GitBranchIcon
-                }
-            ]
+                    label: "Git Provider",
+                    href: "/settings/provider",
+                    icon: GitBranchIcon,
+                },
+            ],
         },
         {
-            label: 'PLACEHOLDER',
+            label: "PLACEHOLDER",
             items: [
                 {
-                    label: 'Test',
-                    href: '/placeholder',
-                    icon: CubeIcon
-                }
-            ]
-        }
+                    label: "Test",
+                    href: "/placeholder",
+                    icon: CubeIcon,
+                },
+            ],
+        },
     ];
 </script>
 
@@ -69,8 +69,7 @@
                                     class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm leading-8 tracking-wide transition-colors hover:bg-primary hover:text-neutral-100 {$page
                                         .url.pathname === item.href
                                         ? 'bg-primary text-neutral-100'
-                                        : 'text-neutral-500'}"
-                                >
+                                        : 'text-neutral-500'}">
                                     <svelte:component this={item.icon} class="size-5" />
                                     {item.label}
                                 </span>

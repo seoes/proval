@@ -12,8 +12,7 @@
 <label
     class="relative inline-flex cursor-pointer items-center"
     class:cursor-not-allowed={disabled}
-    class:opacity-40={disabled}
->
+    class:opacity-40={disabled}>
     <input type="checkbox" class="peer sr-only" bind:checked {disabled} />
     <div class={classList}></div>
 </label>

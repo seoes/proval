@@ -100,7 +100,9 @@ async function handlePullRequestWebhook(
 ): Promise<Response> {
     const action = payload.action ?? "";
     if (action !== "opened") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     if (!repository.reviewOnMergeRequestOpen) {
@@ -140,15 +142,21 @@ async function handleIssueWebhook(
 ): Promise<Response> {
     const action = payload.action ?? "";
     if (action !== "opened") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     if (!repository.commentOnIssueOpen) {
-        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
+            status: 200,
+        });
     }
 
     if (payload.issue?.pull_request) {
-        return new Response(JSON.stringify({ message: "Skipped: pull request issue payload" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: pull request issue payload" }), {
+            status: 200,
+        });
     }
 
     const issueNumber = payload.issue?.number;
@@ -173,7 +181,9 @@ async function handleIssueCommentWebhook(
 ): Promise<Response> {
     const action = payload.action ?? "";
     if (action !== "created") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
     }
 
     const issueNumber = payload.issue?.number;
@@ -201,7 +211,9 @@ async function handleIssueCommentWebhook(
             repository.replyToMergeRequestComment === "mentioned_only" &&
             !isBotMentioned(noteBody, botUsername, githubApp.slug)
         ) {
-            return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+            return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
+                status: 200,
+            });
         }
 
         const mergeRequestService = new MergeRequestService(
@@ -218,11 +230,15 @@ async function handleIssueCommentWebhook(
     }
 
     if (repository.replyToIssueComment === "off") {
-        return new Response(JSON.stringify({ message: "Issue reply mode is off" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Issue reply mode is off" }), {
+            status: 200,
+        });
     }
 
     if (repository.replyToIssueComment === "mentioned_only" && !isBotMentioned(noteBody, botUsername, githubApp.slug)) {
-        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
+            status: 200,
+        });
     }
 
     const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);

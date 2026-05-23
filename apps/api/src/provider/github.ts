@@ -155,7 +155,7 @@ export class GitHubProvider implements GitProvider {
             description: issue.body ?? null,
             author: issue.user?.login ?? "",
             state: this.mapIssueState(issue.state, issue.locked ?? false),
-            labels: issue.labels.map((label) => (typeof label === "string" ? label : label.name ?? "")),
+            labels: issue.labels.map((label) => (typeof label === "string" ? label : (label.name ?? ""))),
         };
     }
 
@@ -231,10 +231,7 @@ export class GitHubProvider implements GitProvider {
             },
         });
 
-        return data.items.map((item: {
-            path: string;
-            text_matches?: Array<{ fragment?: string }>;
-        }) => ({
+        return data.items.map((item: { path: string; text_matches?: Array<{ fragment?: string }> }) => ({
             path: item.path,
             ref,
             snippet: item.text_matches?.[0]?.fragment ?? "",
@@ -245,11 +242,7 @@ export class GitHubProvider implements GitProvider {
         return true;
     }
 
-    public async searchLineByKeyword(
-        keyword: string,
-        filePath: string,
-        ref: string,
-    ): Promise<GitCodeSearchResult[]> {
+    public async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
         const content = await this.fetchFileContent(filePath, ref);
         const results: GitCodeSearchResult[] = [];
         const lines = content.split("\n");

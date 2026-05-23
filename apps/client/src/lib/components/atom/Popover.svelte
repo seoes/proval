@@ -1,7 +1,7 @@
 <script lang="ts">
-    import type { Snippet } from 'svelte';
-    import { twMerge } from 'tailwind-merge';
-    import Button from './Button.svelte';
+    import type { Snippet } from "svelte";
+    import { twMerge } from "tailwind-merge";
+    import Button from "./Button.svelte";
 
     interface ButtonItem {
         onclick: () => void;
@@ -35,11 +35,11 @@
 
     $effect(() => {
         if (open) {
-            document.addEventListener('click', handleClickOutside);
+            document.addEventListener("click", handleClickOutside);
         }
 
         return () => {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
         };
     });
 </script>
@@ -52,16 +52,12 @@
     {#if open}
         <div
             class={twMerge(
-                'absolute top-full right-0 z-50 mt-1 w-max divide-y rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800'
-            )}
-        >
+                "absolute top-full right-0 z-50 mt-1 w-max divide-y rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800",
+            )}>
             {#each buttonList as item}
                 <div>
-                    <Button
-                        text
-                        class="border-none px-4 py-2"
-                        onclick={() => handleButtonClick(item)}>{item.label}</Button
-                    >
+                    <Button text class="border-none px-4 py-2" onclick={() => handleButtonClick(item)}
+                        >{item.label}</Button>
                 </div>
                 <!-- <button
                     type="button"

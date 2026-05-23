@@ -38,7 +38,7 @@ export class ModelService {
     }
 
     public toResponse(model: Model): ModelResponse {
-        const { apiKey, ...rest } = model;
+        const { apiKey: _apiKey, ...rest } = model;
         return rest;
     }
 

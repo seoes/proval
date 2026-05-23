@@ -1,20 +1,20 @@
 <script lang="ts">
-    import Button from '$lib/components/atom/Button.svelte';
-    import InputText from '$lib/components/atom/InputText.svelte';
-    import FormField from '$lib/components/molecule/FormField.svelte';
-    import Select from '$lib/components/atom/Select.svelte';
+    import Button from "$lib/components/atom/Button.svelte";
+    import InputText from "$lib/components/atom/InputText.svelte";
+    import FormField from "$lib/components/molecule/FormField.svelte";
+    import Select from "$lib/components/atom/Select.svelte";
 
     let {
-        formProvider = $bindable<'gitlab' | 'forgejo'>(),
-        formName = $bindable(''),
-        formBaseUrl = $bindable(''),
-        formAccessToken = $bindable(''),
+        formProvider = $bindable<"gitlab" | "forgejo">(),
+        formName = $bindable(""),
+        formBaseUrl = $bindable(""),
+        formAccessToken = $bindable(""),
         editingId,
         isSavingAccess,
         onSubmit,
-        onCancel
+        onCancel,
     }: {
-        formProvider: 'gitlab' | 'forgejo';
+        formProvider: "gitlab" | "forgejo";
         formName: string;
         formBaseUrl: string;
         formAccessToken: string;
@@ -26,30 +26,26 @@
 
     const title = $derived(
         editingId !== null
-            ? 'Edit Access'
-            : formProvider === 'gitlab'
-              ? 'Add GitLab connection'
-              : 'Add Forgejo connection'
+            ? "Edit Access"
+            : formProvider === "gitlab"
+              ? "Add GitLab connection"
+              : "Add Forgejo connection",
     );
 
-    const accessFormNamePlaceholder = $derived(
-        formProvider === 'gitlab' ? 'Production GitLab' : 'Team Forgejo'
-    );
+    const accessFormNamePlaceholder = $derived(formProvider === "gitlab" ? "Production GitLab" : "Team Forgejo");
     const accessFormBaseUrlPlaceholder = $derived(
-        formProvider === 'gitlab' ? 'https://gitlab.example.com' : 'https://forgejo.example.com'
+        formProvider === "gitlab" ? "https://gitlab.example.com" : "https://forgejo.example.com",
     );
     const accessFormTokenPlaceholder = $derived(
-        formProvider === 'gitlab' ? 'glpat-xxxxxxxxxxxxxxxxxxxx' : 'Forgejo personal access token'
+        formProvider === "gitlab" ? "glpat-xxxxxxxxxxxxxxxxxxxx" : "Forgejo personal access token",
     );
     const accessFormTokenDescription = $derived(
-        formProvider === 'gitlab'
-            ? 'Personal or project token with api scope'
-            : 'Personal access token with API scope (e.g. read_api, write_repository)'
+        formProvider === "gitlab"
+            ? "Personal or project token with api scope"
+            : "Personal access token with API scope (e.g. read_api, write_repository)",
     );
     const accessFormBaseUrlDescription = $derived(
-        formProvider === 'gitlab'
-            ? 'Root URL of your GitLab instance'
-            : 'Root URL of your Forgejo instance'
+        formProvider === "gitlab" ? "Root URL of your GitLab instance" : "Root URL of your Forgejo instance",
     );
 </script>
 
@@ -62,14 +58,12 @@
             <Select
                 {id}
                 options={[
-                    { value: 'gitlab', label: 'GitLab' },
-                    { value: 'forgejo', label: 'Forgejo' }
+                    { value: "gitlab", label: "GitLab" },
+                    { value: "forgejo", label: "Forgejo" },
                 ]}
                 value={formProvider}
                 disabled={editingId !== null}
-                onchange={(e) =>
-                    (formProvider = (e.target as HTMLSelectElement).value as 'gitlab' | 'forgejo')}
-            />
+                onchange={(e) => (formProvider = (e.target as HTMLSelectElement).value as "gitlab" | "forgejo")} />
         {/snippet}
     </FormField>
     <FormField label="Name" description="A friendly label for this connection">
@@ -85,21 +79,14 @@
     {#if editingId === null}
         <FormField label="Access token" description={accessFormTokenDescription}>
             {#snippet children({ id })}
-                <InputText
-                    {id}
-                    placeholder={accessFormTokenPlaceholder}
-                    bind:value={formAccessToken}
-                    password
-                />
+                <InputText {id} placeholder={accessFormTokenPlaceholder} bind:value={formAccessToken} password />
             {/snippet}
         </FormField>
     {/if}
     <div class="flex items-center gap-2 pt-2">
         <Button primary onclick={onSubmit} disabled={isSavingAccess} class="w-auto">
-            {isSavingAccess ? 'Saving...' : editingId !== null ? 'Update' : 'Save'}
+            {isSavingAccess ? "Saving..." : editingId !== null ? "Update" : "Save"}
         </Button>
-        <Button secondary onclick={onCancel} disabled={isSavingAccess} class="w-auto">
-            Cancel
-        </Button>
+        <Button secondary onclick={onCancel} disabled={isSavingAccess} class="w-auto">Cancel</Button>
     </div>
 </div>

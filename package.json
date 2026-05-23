@@ -7,6 +7,8 @@
         "dev": "FORCE_COLOR=1 bun run --parallel --filter '*' dev",
         "build": "bun run --parallel --filter '*' build",
         "test": "bun run --parallel --filter '*' test",
+        "lint": "bun run --parallel --filter '*' --filter '!@code-review/config' lint",
+        "format": "bun run --parallel --filter '*' --filter '!@code-review/config' format",
         "tunnel": "cloudflared tunnel --url http://localhost:7901",
         "studio": "bun run --filter 'api' studio"
     },

@@ -1,19 +1,19 @@
 <script lang="ts">
-    import DefaultLayout from '$lib/components/layout/DefaultLayout.svelte';
-    import Card from '$lib/components/layout/Card.svelte';
-    import Button from '$lib/components/atom/Button.svelte';
-    import Modal from '$lib/components/atom/Modal.svelte';
-    import AccessItem from './AccessItem.svelte';
-    import AccessForm from './AccessForm.svelte';
-    import GitHubCard from './GitHubCard.svelte';
-    import fetchApi from '$lib/utils';
-    import PatchSecret from '$lib/components/molecule/PatchSecret.svelte';
-    import { openAlert, openConfirm } from '$lib/store/modal';
-    import type { PageProps } from './$types';
+    import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
+    import Card from "$lib/components/layout/Card.svelte";
+    import Button from "$lib/components/atom/Button.svelte";
+    import Modal from "$lib/components/atom/Modal.svelte";
+    import AccessItem from "./AccessItem.svelte";
+    import AccessForm from "./AccessForm.svelte";
+    import GitHubCard from "./GitHubCard.svelte";
+    import fetchApi from "$lib/utils";
+    import PatchSecret from "$lib/components/molecule/PatchSecret.svelte";
+    import { openAlert, openConfirm } from "$lib/store/modal";
+    import type { PageProps } from "./$types";
 
     type Access = {
         id: number;
-        provider: 'gitlab' | 'forgejo';
+        provider: "gitlab" | "forgejo";
         name: string;
         baseUrl: string;
         createdAt: string;
@@ -30,22 +30,22 @@
     let isTestingId = $state<number | null>(null);
     let testResult = $state<{ id: number; success: boolean; message: string } | null>(null);
 
-    let formProvider = $state<'gitlab' | 'forgejo'>('gitlab');
-    let formName = $state('');
-    let formBaseUrl = $state('');
-    let formAccessToken = $state('');
+    let formProvider = $state<"gitlab" | "forgejo">("gitlab");
+    let formName = $state("");
+    let formBaseUrl = $state("");
+    let formAccessToken = $state("");
 
     let updateAccessTokenModalOpen = $state(false);
     let selectedAccessId = $state<number | null>(null);
-    let selectedAccessProvider = $state<'gitlab' | 'forgejo' | null>(null);
+    let selectedAccessProvider = $state<"gitlab" | "forgejo" | null>(null);
 
     // Access functions
-    function openAddModal(provider: 'gitlab' | 'forgejo') {
+    function openAddModal(provider: "gitlab" | "forgejo") {
         editingId = null;
         formProvider = provider;
-        formName = '';
-        formBaseUrl = '';
-        formAccessToken = '';
+        formName = "";
+        formBaseUrl = "";
+        formAccessToken = "";
         testResult = null;
         showModal = true;
     }
@@ -55,7 +55,7 @@
         formProvider = item.provider;
         formName = item.name;
         formBaseUrl = item.baseUrl;
-        formAccessToken = '';
+        formAccessToken = "";
         testResult = null;
         showModal = true;
     }
@@ -68,11 +68,11 @@
 
     async function saveAccess() {
         if (!formName.trim() || !formBaseUrl.trim()) {
-            await openAlert('Name and base URL are required');
+            await openAlert("Name and base URL are required");
             return;
         }
         if (editingId === null && !formAccessToken.trim()) {
-            await openAlert('Access token is required');
+            await openAlert("Access token is required");
             return;
         }
         isSavingAccess = true;
@@ -80,16 +80,16 @@
             if (editingId !== null) {
                 const payload = {
                     name: formName.trim(),
-                    baseUrl: formBaseUrl.trim()
+                    baseUrl: formBaseUrl.trim(),
                 };
                 const res = await fetchApi(`/access/${editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
                 });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
-                    await openAlert(body.error || 'Failed to update access');
+                    await openAlert(body.error || "Failed to update access");
                     return;
                 }
                 const result = await res.json();
@@ -99,16 +99,16 @@
                     provider: formProvider,
                     name: formName.trim(),
                     baseUrl: formBaseUrl.trim(),
-                    accessToken: formAccessToken
+                    accessToken: formAccessToken,
                 };
-                const res = await fetchApi('/access', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                const res = await fetchApi("/access", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
                 });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
-                    await openAlert(body.error || 'Failed to create access');
+                    await openAlert(body.error || "Failed to create access");
                     return;
                 }
                 const result = await res.json();
@@ -116,30 +116,26 @@
             }
             closeAccessModal();
         } catch {
-            await openAlert('Failed to save access');
+            await openAlert("Failed to save access");
         } finally {
             isSavingAccess = false;
         }
     }
 
     async function deleteAccess(id: number) {
-        if (
-            !(await openConfirm(
-                'Delete this access configuration? Repositories using it may break.'
-            ))
-        ) {
+        if (!(await openConfirm("Delete this access configuration? Repositories using it may break."))) {
             return;
         }
         try {
-            const res = await fetchApi(`/access/${id}`, { method: 'DELETE' });
+            const res = await fetchApi(`/access/${id}`, { method: "DELETE" });
             if (res.ok) {
                 accessList = accessList.filter((a) => a.id !== id);
             } else {
                 const body = await res.json().catch(() => ({}));
-                await openAlert(body.error || 'Failed to delete access');
+                await openAlert(body.error || "Failed to delete access");
             }
         } catch {
-            await openAlert('Failed to delete access');
+            await openAlert("Failed to delete access");
         }
     }
 
@@ -147,20 +143,18 @@
         isTestingId = id;
         testResult = null;
         try {
-            const res = await fetchApi(`/access/${id}/test`, { method: 'POST' });
-            const body = await res
-                .json()
-                .catch(() => ({ success: false, message: 'Unknown error' }));
+            const res = await fetchApi(`/access/${id}/test`, { method: "POST" });
+            const body = await res.json().catch(() => ({ success: false, message: "Unknown error" }));
             testResult = { id, success: body.success, message: body.message };
         } catch {
-            testResult = { id, success: false, message: 'Request failed' };
+            testResult = { id, success: false, message: "Request failed" };
         } finally {
             isTestingId = null;
         }
     }
 
-    const gitlabList = $derived(accessList.filter((a) => a.provider === 'gitlab'));
-    const forgejoList = $derived(accessList.filter((a) => a.provider === 'forgejo'));
+    const gitlabList = $derived(accessList.filter((a) => a.provider === "gitlab"));
+    const forgejoList = $derived(accessList.filter((a) => a.provider === "forgejo"));
 
     function openUpdateAccessTokenModal(item: Access) {
         selectedAccessId = item.id;
@@ -175,14 +169,12 @@
     }
 
     const patchSecretTokenPlaceholder = $derived(
-        selectedAccessProvider === 'forgejo'
-            ? 'Forgejo personal access token'
-            : 'glpat-xxxxxxxxxxxxxxxxxxxx'
+        selectedAccessProvider === "forgejo" ? "Forgejo personal access token" : "glpat-xxxxxxxxxxxxxxxxxxxx",
     );
     const patchSecretTokenDescription = $derived(
-        selectedAccessProvider === 'forgejo'
-            ? 'Personal access token with API scope (e.g. read_api, write_repository)'
-            : 'Personal or project token with api scope'
+        selectedAccessProvider === "forgejo"
+            ? "Personal access token with API scope (e.g. read_api, write_repository)"
+            : "Personal or project token with api scope",
     );
 </script>
 
@@ -201,8 +193,7 @@
                                 onTest={() => testAccess(item.id)}
                                 onUpdateToken={() => openUpdateAccessTokenModal(item)}
                                 onEdit={() => openEditForm(item)}
-                                onDelete={() => deleteAccess(item.id)}
-                            />
+                                onDelete={() => deleteAccess(item.id)} />
                         {/each}
                     </div>
                 {:else}
@@ -217,9 +208,7 @@
                 {/if}
 
                 <div class="mt-8 flex items-center justify-center gap-2">
-                    <Button text onclick={() => openAddModal('gitlab')}
-                        >Add GitLab connection</Button
-                    >
+                    <Button text onclick={() => openAddModal("gitlab")}>Add GitLab connection</Button>
                 </div>
             </div>
         </Card>
@@ -237,8 +226,7 @@
                                 onTest={() => testAccess(item.id)}
                                 onUpdateToken={() => openUpdateAccessTokenModal(item)}
                                 onEdit={() => openEditForm(item)}
-                                onDelete={() => deleteAccess(item.id)}
-                            />
+                                onDelete={() => deleteAccess(item.id)} />
                         {/each}
                     </div>
                 {:else}
@@ -253,9 +241,7 @@
                 {/if}
 
                 <div class="mt-8 flex items-center justify-center gap-2">
-                    <Button text onclick={() => openAddModal('forgejo')}
-                        >Add Forgejo connection</Button
-                    >
+                    <Button text onclick={() => openAddModal("forgejo")}>Add Forgejo connection</Button>
                 </div>
             </div>
         </Card>
@@ -273,8 +259,7 @@
             {editingId}
             {isSavingAccess}
             onSubmit={saveAccess}
-            onCancel={closeAccessModal}
-        />
+            onCancel={closeAccessModal} />
     </Modal>
 
     <!-- Update Access Token Modal -->
@@ -285,8 +270,7 @@
                 description={patchSecretTokenDescription}
                 placeholder={patchSecretTokenPlaceholder}
                 patchEndpoint={`/access/${selectedAccessId}/access-token`}
-                onSuccess={closeUpdateAccessTokenModal}
-            />
+                onSuccess={closeUpdateAccessTokenModal} />
         {/if}
     </Modal>
 </DefaultLayout>

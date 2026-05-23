@@ -34,7 +34,7 @@ export const createRepository: Handler = async (c) => {
         }
         body.webhookSecret = secret;
     } else if (body.provider === "github") {
-        const { webhookSecret: _ignored, ...githubBody } = body;
+        const { webhookSecret: _webhookSecret, ...githubBody } = body;
         const repository = await repositoryService.create(githubBody as RepositoryInsert);
         const repositoryResponse = repositoryService.toResponse(repository);
         return c.json(repositoryResponse, 201);

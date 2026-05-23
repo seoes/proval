@@ -66,7 +66,9 @@ export const repositoryTable = sqliteTable(
         githubRepositoryId: integer(),
 
         // other git provider access configs
-        gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, { onDelete: "restrict" }),
+        gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, {
+            onDelete: "restrict",
+        }),
         gitProviderRepositoryId: integer(),
 
         // merge request

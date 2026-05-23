@@ -1,5 +1,5 @@
-import type { PageLoad } from './$types';
-import fetchApi from '$lib/utils';
+import type { PageLoad } from "./$types";
+import fetchApi from "$lib/utils";
 
 type GitHubApp = {
     id: number;
@@ -13,12 +13,12 @@ type GitHubInstallation = {
     id: number;
     installationId: number;
     accountName: string;
-    accountType: 'User' | 'Organization';
+    accountType: "User" | "Organization";
 };
 
 type AccessItem = {
     id: number;
-    provider: 'gitlab' | 'forgejo';
+    provider: "gitlab" | "forgejo";
     name: string;
     baseUrl: string;
     createdAt: string;
@@ -26,10 +26,7 @@ type AccessItem = {
 };
 
 export const load: PageLoad = async () => {
-    const [appRes, accessRes] = await Promise.all([
-        fetchApi('/github/app'),
-        fetchApi('/access')
-    ]);
+    const [appRes, accessRes] = await Promise.all([fetchApi("/github/app"), fetchApi("/access")]);
 
     const appList: GitHubApp[] = appRes.ok ? await appRes.json() : [];
     const accessList: AccessItem[] = accessRes.ok ? await accessRes.json() : [];
@@ -38,20 +35,17 @@ export const load: PageLoad = async () => {
         return {
             app: null,
             installationList: [],
-            accessList
+            accessList,
         };
     }
 
     const app = appList[0];
     const installationRes = await fetchApi(`/github/app/${app.id}/installation`);
-    const installationList: GitHubInstallation[] = installationRes.ok
-        ? await installationRes.json()
-        : [];
+    const installationList: GitHubInstallation[] = installationRes.ok ? await installationRes.json() : [];
 
     return {
         app,
         installationList,
-        accessList
+        accessList,
     };
 };
-

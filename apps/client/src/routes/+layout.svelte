@@ -1,8 +1,8 @@
 <script lang="ts">
-    import './layout.css';
-    import favicon from '$lib/assets/favicon.svg';
-    import Sidebar from '$lib/components/Sidebar.svelte';
-    import ModalRoot from '$lib/components/organism/ModalRoot.svelte';
+    import "./layout.css";
+    import favicon from "$lib/assets/favicon.svg";
+    import Sidebar from "$lib/components/Sidebar.svelte";
+    import ModalRoot from "$lib/components/organism/ModalRoot.svelte";
 
     let { children } = $props();
 </script>

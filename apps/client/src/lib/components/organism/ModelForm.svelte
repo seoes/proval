@@ -1,16 +1,15 @@
 <script lang="ts">
-    import InputText from '../atom/InputText.svelte';
-    import { goto } from '$app/navigation';
-    import fetchApi from '$lib/utils';
-    import FormField from '../molecule/FormField.svelte';
-    import ToggleButton from '../atom/ToggleButton.svelte';
-    import { siAnthropic, siOllama } from 'simple-icons';
-    import Card from '../layout/Card.svelte';
-    import { openAlert, openConfirm } from '$lib/store/modal';
-    import Button from '../atom/Button.svelte';
+    import InputText from "../atom/InputText.svelte";
+    import { goto } from "$app/navigation";
+    import fetchApi from "$lib/utils";
+    import FormField from "../molecule/FormField.svelte";
+    import ToggleButton from "../atom/ToggleButton.svelte";
+    import Card from "../layout/Card.svelte";
+    import { openAlert, openConfirm } from "$lib/store/modal";
+    import Button from "../atom/Button.svelte";
 
     interface Props {
-        mode: 'create' | 'edit';
+        mode: "create" | "edit";
         modelId?: number;
         initialData?: {
             provider: string;
@@ -24,37 +23,37 @@
 
     let { mode, modelId, initialData, border = true }: Props = $props();
 
-    let provider = $state(initialData?.provider ?? 'openai');
-    let name = $state(initialData?.name ?? '');
-    let label = $state(initialData?.label ?? '');
-    let baseUrl = $state(initialData?.baseUrl ?? '');
-    let apiKey = $state(initialData?.apiKey ?? '');
+    let provider = $state(initialData?.provider ?? "openai");
+    let name = $state(initialData?.name ?? "");
+    let label = $state(initialData?.label ?? "");
+    let baseUrl = $state(initialData?.baseUrl ?? "");
+    let apiKey = $state(initialData?.apiKey ?? "");
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
         if (!label) {
-            await openAlert('Display Name is required');
+            await openAlert("Display Name is required");
             return;
         }
         if (!name) {
-            await openAlert('Model ID is required');
+            await openAlert("Model ID is required");
             return;
         }
         if (!baseUrl) {
-            await openAlert('Base URL is required');
+            await openAlert("Base URL is required");
             return;
         }
         if (!provider) {
-            await openAlert('API Provider is required');
+            await openAlert("API Provider is required");
             return;
         }
-        if (mode === 'create') {
+        if (mode === "create") {
             if (!apiKey) {
-                await openAlert('API Key is required');
+                await openAlert("API Key is required");
                 return;
             }
 
-            const confirm = await openConfirm('Create this model?');
+            const confirm = await openConfirm("Create this model?");
             if (!confirm) return;
 
             const body = {
@@ -62,50 +61,50 @@
                 name,
                 label,
                 baseUrl,
-                apiKey
+                apiKey,
             };
 
-            await fetchApi('/model', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+            await fetchApi("/model", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
             });
         } else {
-            const confirm = await openConfirm('Update this model?');
+            const confirm = await openConfirm("Update this model?");
             if (!confirm) return;
             const body = {
                 provider,
                 name,
                 label,
-                baseUrl
+                baseUrl,
             };
 
             await fetchApi(`/model/${modelId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
             });
         }
 
-        goto('/model');
+        goto("/model");
     }
 
     async function removeModel(modelId: number) {
-        const confirmed = await openConfirm('Are you sure you want to remove this model?');
+        const confirmed = await openConfirm("Are you sure you want to remove this model?");
         if (!confirmed) return;
         await fetchApi(`/model/${modelId}`, {
-            method: 'DELETE'
+            method: "DELETE",
         });
-        await openAlert('Model removed successfully');
-        goto('/model');
+        await openAlert("Model removed successfully");
+        goto("/model");
     }
 
     const apiProviderToggleButtonValueList = [
         {
-            label: 'OpenAI',
-            description: 'Chat Completions API',
-            value: 'openai'
-        }
+            label: "OpenAI",
+            description: "Chat Completions API",
+            value: "openai",
+        },
     ];
 
     let isTestingConnection = $state(false);
@@ -113,33 +112,30 @@
     async function testConnection() {
         isTestingConnection = true;
         const response = await fetchApi(`/model/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 provider,
                 model: name,
                 baseUrl,
-                apiKey
-            })
+                apiKey,
+            }),
         });
 
         if (response.ok) {
-            await openAlert('Connection successful');
+            await openAlert("Connection successful");
         } else {
             isTestingConnection = false;
-            await openAlert('Connection failed');
+            await openAlert("Connection failed");
         }
         isTestingConnection = false;
     }
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
-    <Card>
+    <Card {border}>
         <div>
-            <FormField
-                label="Display Name"
-                description="The display name of the model"
-            >
+            <FormField label="Display Name" description="The display name of the model">
                 {#snippet children({ id })}
                     <InputText {id} name="label" placeholder="Main Reviewer" bind:value={label} />
                 {/snippet}
@@ -150,8 +146,7 @@
             <FormField
                 label="API Provider"
                 description="LLM's API (ex. OpenAI compatible, Ollama...)"
-                linkLabelToControl={false}
-            >
+                linkLabelToControl={false}>
                 {#snippet children({ id: _id })}
                     <div class="mt-4 grid grid-cols-3 gap-2" id={_id} role="group">
                         {#each apiProviderToggleButtonValueList as toggleButtonValue}
@@ -160,39 +155,28 @@
                                 label={toggleButtonValue.label}
                                 description={toggleButtonValue.description}
                                 selected={provider === toggleButtonValue.value}
-                                onclick={() => (provider = toggleButtonValue.value)}
-                            />
+                                onclick={() => (provider = toggleButtonValue.value)} />
                         {/each}
                     </div>
                 {/snippet}
             </FormField>
         </div>
         <div>
-            <FormField
-                label="Model ID"
-                description="Model's name to call from API"
-            >
+            <FormField label="Model ID" description="Model's name to call from API">
                 {#snippet children({ id })}
-                    <InputText
-                        {id}
-                        placeholder="anthropic/claude-opus-4.6"
-                        bind:value={name}
-                    />
+                    <InputText {id} placeholder="anthropic/claude-opus-4.6" bind:value={name} />
                 {/snippet}
             </FormField>
         </div>
         <div>
-            <FormField
-                label="Base URL"
-                description="Server Host to use LLM through API"
-            >
+            <FormField label="Base URL" description="Server Host to use LLM through API">
                 {#snippet children({ id })}
                     <InputText {id} placeholder="https://api.anthropic.com" bind:value={baseUrl} />
                 {/snippet}
             </FormField>
         </div>
 
-        {#if mode === 'create'}
+        {#if mode === "create"}
             <div>
                 <FormField label="API Key">
                     {#snippet children({ id })}
@@ -204,27 +188,24 @@
     </Card>
     <div class="-mt-2 flex justify-between">
         <div class="flex gap-4 text-sm">
-            <Button primary type="submit">{mode === 'create' ? 'Create' : 'Save'}</Button>
-            {#if mode === 'create'}
+            <Button primary type="submit">{mode === "create" ? "Create" : "Save"}</Button>
+            {#if mode === "create"}
                 {#if isTestingConnection}
                     <Button text>Testing...</Button>
                 {:else}
-                    <Button text class="whitespace-nowrap" onclick={testConnection}
-                        >Test Connection</Button
-                    >
+                    <Button text class="whitespace-nowrap" onclick={testConnection}>Test Connection</Button>
                 {/if}
             {/if}
         </div>
         <div class="mr-4">
-            {#if mode === 'edit' && modelId}
+            {#if mode === "edit" && modelId}
                 <Button
                     text
                     onclick={() => {
                         removeModel(modelId);
-                    }}>Remove Model</Button
-                >
-            {:else if mode === 'create'}
-                <Button text onclick={() => goto('/model')}>Cancel</Button>
+                    }}>Remove Model</Button>
+            {:else if mode === "create"}
+                <Button text onclick={() => goto("/model")}>Cancel</Button>
             {/if}
         </div>
     </div>

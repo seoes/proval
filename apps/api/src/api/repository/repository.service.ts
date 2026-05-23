@@ -48,7 +48,7 @@ export class RepositoryService {
     }
 
     public toResponse(repository: Repository): RepositoryResponse {
-        const { webhookSecret, ...rest } = repository;
+        const { webhookSecret: _webhookSecret, ...rest } = repository;
         return rest;
     }
 

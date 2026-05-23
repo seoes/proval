@@ -1,9 +1,9 @@
 <script lang="ts">
-    import FieldTitle from '../atom/FieldTitle.svelte';
-    import Description from '../atom/Description.svelte';
-    import { nextFieldControlId } from '$lib/field-ids';
-    import type { Snippet } from 'svelte';
-    import { twMerge } from 'tailwind-merge';
+    import FieldTitle from "../atom/FieldTitle.svelte";
+    import Description from "../atom/Description.svelte";
+    import { nextFieldControlId } from "$lib/field-ids";
+    import type { Snippet } from "svelte";
+    import { twMerge } from "tailwind-merge";
 
     type ControlChild = Snippet<[{ id: string }]>;
 
@@ -25,19 +25,18 @@
         id,
         class: className,
         linkLabelToControl = true,
-        children: control
+        children: control,
     }: Props = $props();
 
-    const idFallback = nextFieldControlId('field');
+    const idFallback = nextFieldControlId("field");
     const controlId = $derived(id ?? idFallback);
     const forIdValue = $derived(linkLabelToControl && label && control ? controlId : undefined);
 </script>
 
-<div class={twMerge('block', className)}>
+<div class={twMerge("block", className)}>
     {#if upper}
         {#if label}
-            <FieldTitle class={description ? 'mb-1' : 'mb-2'} forId={forIdValue}>{label}</FieldTitle
-            >
+            <FieldTitle class={description ? "mb-1" : "mb-2"} forId={forIdValue}>{label}</FieldTitle>
         {/if}
         {#if description}
             <Description class="mb-2" placement="above">{description}</Description>

@@ -9,7 +9,10 @@ export function searchLineByKeywordTool(provider: GitProvider, ref: string): Age
             type: "object",
             properties: {
                 filePath: { type: "string", description: "Repository-relative path to the file." },
-                keyword: { type: "string", description: "Text to search for within the file (case-sensitive)." },
+                keyword: {
+                    type: "string",
+                    description: "Text to search for within the file (case-sensitive).",
+                },
             },
             required: ["filePath", "keyword"],
         },

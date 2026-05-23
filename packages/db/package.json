@@ -12,13 +12,18 @@
     },
     "scripts": {
         "build": "tsc",
-        "dev": "tsc --watch"
+        "dev": "tsc --watch",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write ."
     },
     "dependencies": {
         "drizzle-orm": "^0.45.1"
     },
     "devDependencies": {
+        "@code-review/config": "workspace:*",
         "drizzle-kit": "^0.31.9",
+        "eslint": "^9.39.2",
+        "prettier": "^3.8.1",
         "typescript": "^5.8.3"
     }
 }

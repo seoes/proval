@@ -1,0 +1,26 @@
+{
+    "name": "@code-review/config",
+    "version": "0.0.1",
+    "type": "module",
+    "exports": {
+        "./eslint/base": "./eslint/base.js",
+        "./eslint/node": "./eslint/node.js",
+        "./eslint/svelte": "./eslint/svelte.js",
+        "./prettier/base": "./prettier/base.js",
+        "./prettier/svelte": "./prettier/svelte.js"
+    },
+    "dependencies": {
+        "@eslint/compat": "^2.0.2",
+        "@eslint/js": "^9.39.2",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-svelte": "^3.14.0",
+        "globals": "^17.3.0",
+        "prettier-plugin-svelte": "^3.4.1",
+        "prettier-plugin-tailwindcss": "^0.7.2",
+        "typescript-eslint": "^8.54.0"
+    },
+    "peerDependencies": {
+        "eslint": "^9",
+        "prettier": "^3"
+    }
+}
