@@ -18,8 +18,7 @@
 
 <DefaultLayout title="Model">
     <div class="rounded-lg border border-neutral-200 bg-white p-4">
-        <div class="overflow-visible rounded-lg border border-neutral-200">
-            <Table body={data.modelList}>
+        <Table body={data.modelList}>
                 {#snippet renderHeader()}
                     <TableHeaderCell>ID</TableHeaderCell>
                     <TableHeaderCell>Name</TableHeaderCell>
@@ -56,8 +55,7 @@
                         </div>
                     </TableCell>
                 {/snippet}
-            </Table>
-        </div>
+        </Table>
         <div class="mt-4">
             <a href="/model/create" class="text-sm text-neutral-600 transition-colors hover:text-neutral-400"
                 >Add Model</a>

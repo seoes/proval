@@ -12,8 +12,7 @@
 
 <DefaultLayout title="Repository">
     <div class="rounded-lg border border-neutral-200 bg-white p-4">
-        <div class="relative overflow-visible rounded-lg border border-neutral-200 bg-neutral-50">
-            <Table body={data.repositoryList}>
+        <Table body={data.repositoryList}>
                 {#snippet renderHeader()}
                     <TableHeaderCell>ID</TableHeaderCell>
                     <TableHeaderCell>Name</TableHeaderCell>
@@ -40,8 +39,7 @@
                         </div>
                     </TableCell>
                 {/snippet}
-            </Table>
-        </div>
+        </Table>
         <div class="mt-4">
             <a href="/repository/create" class="text-sm text-neutral-600 transition-colors hover:text-neutral-400">
                 Add Repository
