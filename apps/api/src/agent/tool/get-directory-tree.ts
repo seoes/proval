@@ -4,7 +4,12 @@ import type { GitProvider } from "../../provider/types.js";
 export function getDirectoryTreeTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_directory_tree",
-        description: "Get the directory tree of a repository",
+        description: [
+            "Get the directory tree of a repository at a given path.",
+            "Use this when exploring folder structure or finding sibling/related files.",
+            "Do NOT use this to read file contents — use get_file_content for that.",
+            "Do NOT use this to search for code patterns — use search_code_list for that.",
+        ].join("\n"),
         parameters: {
             type: "object",
             properties: {
