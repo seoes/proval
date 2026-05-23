@@ -8,4 +8,5 @@ export default createSvelteConfig({
     svelteConfig,
     gitignorePath,
     ignores: ["dist/**"],
+    tsconfigRootDir: import.meta.dirname,
 });

@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import pc from "picocolors";
 import type { AgentRunResult } from "../agent/loop.js";
 

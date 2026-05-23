@@ -45,13 +45,26 @@ function hasOpenAiEnv(): boolean {
 
 function createService(input: TestInput, opts: { model?: string; language?: string; allowApproval?: boolean }) {
     const provider = new MockProvider(input);
+    const model = opts.model ?? Bun.env.OPENAI_MODEL;
+
+    const baseUrl = Bun.env.OPENAI_BASE_URL;
+    const apiKey = Bun.env.OPENAI_API_KEY;
+
+    if (!baseUrl || !apiKey || !model) {
+        logError(
+            "Missing OPENAI_BASE_URL, OPENAI_API_KEY, or OPENAI_MODEL. Copy env.demo.example to .env.demo and fill in.",
+            undefined,
+            "demo",
+        );
+        process.exit(1);
+    }
+
     const service = new MergeRequestService(
         provider,
-        Bun.env.OPENAI_BASE_URL!,
-        Bun.env.OPENAI_API_KEY!,
-        opts.model ?? Bun.env.OPENAI_MODEL!,
+        baseUrl,
+        apiKey,
+        model,
         opts.language ?? Bun.env.LANGUAGE ?? "English",
-        true,
     );
     return { provider, service };
 }
@@ -142,10 +155,21 @@ async function main() {
         process.exit(1);
     }
 
-    const entry = registry[scenarioKey]!;
+    const model = Bun.env.OPENAI_MODEL;
+
+    if (!model) {
+        logError("Missing OPENAI_MODEL. Copy env.demo.example to .env.demo and fill in.", undefined, "demo");
+        process.exit(1);
+    }
+
+    const entry = registry[scenarioKey];
+    if (!entry) {
+        logError(`Unknown scenario: ${scenarioKey ?? "(empty)"}`, undefined, "demo");
+        process.exit(1);
+    }
+
     const language = entry.language ?? Bun.env.LANGUAGE ?? "English";
     const allowApproval = entry.mode === "review" ? (entry.allowApproval ?? false) : false;
-    const model = Bun.env.OPENAI_MODEL!;
 
     const { provider, service } = createService(entry.data, {
         language,

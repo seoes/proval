@@ -276,7 +276,7 @@ export class ForgejoProvider implements GitProvider {
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
         this.resetReviewBufferIfMrMismatch(mrIid);
-        if (this.reviewBufferCommitId === null) {
+        if (!this.reviewBufferCommitId) {
             this.reviewBufferCommitId = position.headSha;
         }
 
@@ -298,7 +298,7 @@ export class ForgejoProvider implements GitProvider {
         position: GitDiffMultiLine,
     ): Promise<GitComment> {
         this.resetReviewBufferIfMrMismatch(mrIid);
-        if (this.reviewBufferCommitId === null) {
+        if (this.reviewBufferCommitId !== null) {
             this.reviewBufferCommitId = position.headSha;
         }
 

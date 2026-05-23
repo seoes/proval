@@ -17,6 +17,7 @@ export type WebhookIngress = {
 };
 
 function parseGitLabWebhook(c: Context): WebhookIngress {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = c.get("gitlabPayload") as any;
     const oa = p?.object_attributes;
     const webhookEvent = c.req.header("X-Gitlab-Event") ?? "unknown";
@@ -42,6 +43,7 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
 }
 
 function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const pr = p?.pull_request;
     const issue = p?.issue;

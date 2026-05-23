@@ -169,7 +169,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         });
     }
 
-    const isPullRequest = payload.issue.pull_request != null;
+    const isPullRequest = payload.issue.pull_request !== null && payload.issue.pull_request !== undefined;
 
     if (isPullRequest) {
         // Handle PR comment
@@ -307,7 +307,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
     }
 
     const issueNumber = payload.issue.number;
-    if (issueNumber == null) {
+    if (!issueNumber) {
         return new Response(JSON.stringify({ message: "No issue number found" }), { status: 200 });
     }
 

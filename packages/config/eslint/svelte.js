@@ -1,15 +1,20 @@
-import { includeIgnoreFile } from '@eslint/compat';
-import prettier from 'eslint-config-prettier';
-import svelte from 'eslint-plugin-svelte';
-import { defineConfig } from 'eslint/config';
-import globals from 'globals';
-import ts from 'typescript-eslint';
-import { baseConfigs } from './base.js';
+import { includeIgnoreFile } from "@eslint/compat";
+import prettier from "eslint-config-prettier";
+import svelte from "eslint-plugin-svelte";
+import { defineConfig } from "eslint/config";
+import globals from "globals";
+import ts from "typescript-eslint";
+import { baseConfigs, typedRules } from "./base.js";
 
 /**
- * @param {{ svelteConfig: import('@sveltejs/kit').Config, gitignorePath: string, ignores?: string[] }} options
+ * @param {{
+ *   svelteConfig: import('@sveltejs/kit').Config;
+ *   gitignorePath: string;
+ *   ignores?: string[];
+ *   tsconfigRootDir: string;
+ * }} options
  */
-export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [] }) {
+export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [], tsconfigRootDir }) {
     return defineConfig(
         includeIgnoreFile(gitignorePath),
         ...(ignores.length ? [{ ignores }] : []),
@@ -19,23 +24,44 @@ export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [] }
         ...svelte.configs.prettier,
         {
             rules: {
-                'svelte/no-navigation-without-resolve': 'off',
-                'svelte/require-each-key': 'off'
-            }
+                "svelte/no-navigation-without-resolve": "off",
+                "svelte/require-each-key": "off",
+                "svelte/prefer-svelte-reactivity": "error",
+            },
         },
         {
-            languageOptions: { globals: { ...globals.browser, ...globals.node } }
+            languageOptions: { globals: { ...globals.browser, ...globals.node } },
         },
         {
-            files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
+            files: ["**/*.{ts,tsx,mts,cts}"],
             languageOptions: {
                 parserOptions: {
-                    projectService: true,
-                    extraFileExtensions: ['.svelte'],
+                    projectService: {
+                        allowDefaultProject: ["*.config.ts"],
+                    },
+                    tsconfigRootDir,
+                },
+            },
+            rules: typedRules,
+        },
+        {
+            files: ["**/*.svelte", "**/*.svelte.ts", "**/*.svelte.js"],
+            languageOptions: {
+                parserOptions: {
+                    projectService: {
+                        allowDefaultProject: ["*.config.ts"],
+                    },
+                    tsconfigRootDir,
+                    extraFileExtensions: [".svelte"],
                     parser: ts.parser,
-                    svelteConfig
-                }
-            }
-        }
+                    svelteConfig,
+                },
+            },
+            rules: typedRules,
+        },
+        {
+            files: ["**/*.{js,mjs,cjs}"],
+            extends: [ts.configs.disableTypeChecked],
+        },
     );
 }

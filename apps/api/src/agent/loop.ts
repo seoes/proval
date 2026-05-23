@@ -77,7 +77,7 @@ export async function runAgentLoop(
             // Inject remaining steps info into messages for this call only
             const messagesWithStepInfo: Message[] = [
                 {
-                    ...messages[0]!,
+                    ...messages[0],
                     content: `${system}\n\n[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
                 },
                 ...messages.slice(1),

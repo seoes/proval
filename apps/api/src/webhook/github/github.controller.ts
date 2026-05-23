@@ -45,7 +45,7 @@ async function createGitHubProvider(
     }
 
     const { data: repo } = await octokit.request("GET /repositories/:repository_id", {
-        repository_id: repository.githubRepositoryId!,
+        repository_id: repository.githubRepositoryId,
     });
     const owner = repo.owner.login;
     const repoName = repo.name;
@@ -110,7 +110,7 @@ async function handlePullRequestWebhook(
     }
 
     const prNumber = payload.pull_request?.number;
-    if (prNumber == null) {
+    if (prNumber === undefined) {
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
 
@@ -160,7 +160,7 @@ async function handleIssueWebhook(
     }
 
     const issueNumber = payload.issue?.number;
-    if (issueNumber == null) {
+    if (issueNumber === undefined) {
         return new Response(JSON.stringify({ message: "No issue number" }), { status: 200 });
     }
 
@@ -187,7 +187,7 @@ async function handleIssueCommentWebhook(
     }
 
     const issueNumber = payload.issue?.number;
-    if (issueNumber == null) {
+    if (issueNumber === undefined) {
         return new Response(JSON.stringify({ message: "No issue number" }), { status: 200 });
     }
 

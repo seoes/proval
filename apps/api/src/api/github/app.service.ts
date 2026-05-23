@@ -37,11 +37,11 @@ export class GitHubAppService {
         const appAuth = new App({ appId: input.appId, privateKey: input.privateKey });
         const { data } = await appAuth.octokit.request("GET /app", {});
 
-        if (!data || data.id !== input.appId) {
+        if (data?.id !== input.appId) {
             throw new Error("GitHub returned a different app id than expected");
         }
 
-        const slug = data.slug || input.slug;
+        const slug = data.slug ?? input.slug;
         const inserted = await db
             .insert(githubAppTable)
             .values({
