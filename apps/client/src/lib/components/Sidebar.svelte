@@ -51,13 +51,13 @@
     ];
 </script>
 
-<div class="h-full min-h-screen w-full bg-slate-100 px-4 py-4">
-    <div>
+<div class="h-full min-h-screen w-full bg-slate-100 px-4 pt-14 pb-4 lg:py-4">
+    <div class="hidden lg:block">
         <div class="px-4 text-3xl font-semibold tracking-tight text-neutral-800">
             <a href="/">Proval</a>
         </div>
     </div>
-    <div class="mt-4 divide-y divide-neutral-300">
+    <div class="divide-y divide-neutral-300 lg:mt-4">
         {#each sidebarItemList as itemGroup}
             <div class="py-3">
                 <!-- <h2 class="h-6 leading-6 tracking-tight cursor-default text-neutral-500 text-sm px-2">{itemGroup.label}</h2> -->
