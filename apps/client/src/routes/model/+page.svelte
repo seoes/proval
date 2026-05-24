@@ -1,76 +1,37 @@
 <script lang="ts">
-    import TableHeaderCell from "$lib/components/atom/TableHeaderCell.svelte";
-    import TableCell from "$lib/components/atom/TableCell.svelte";
-    import Table from "$lib/components/organism/Table.svelte";
-    import { GearIcon, LockIcon } from "phosphor-svelte";
+    import ModelCard from "$lib/components/molecule/ModelCard.svelte";
+    import { PlusIcon } from "phosphor-svelte";
     import type { PageProps } from "./$types";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
-    import Popover from "$lib/components/atom/Popover.svelte";
-    import Modal from "$lib/components/atom/Modal.svelte";
-    import PatchSecret from "$lib/components/molecule/PatchSecret.svelte";
-    import { formatTimeAgo } from "$lib/utils";
 
-    let { data }: PageProps = $props();
-
-    let updateApiKeyModalOpen = $state(false);
-    let selectedModelId = $state<number | null>(null);
+    const { data }: PageProps = $props();
 </script>
 
-<DefaultLayout title="Model">
-    <div class="rounded-lg border border-neutral-200 bg-white p-4">
-        <Table body={data.modelList}>
-                {#snippet renderHeader()}
-                    <TableHeaderCell>ID</TableHeaderCell>
-                    <TableHeaderCell>Name</TableHeaderCell>
-                    <TableHeaderCell>Provider</TableHeaderCell>
-                    <TableHeaderCell>Model</TableHeaderCell>
-                    <TableHeaderCell>Base URL</TableHeaderCell>
-                    <TableHeaderCell>Updated</TableHeaderCell>
-                    <TableHeaderCell>Config</TableHeaderCell>
-                {/snippet}
-                {#snippet renderBody(model)}
-                    <TableCell>{model.id}</TableCell>
-                    <TableCell>{model.label}</TableCell>
-                    <TableCell>{model.provider}</TableCell>
-                    <TableCell>{model.name}</TableCell>
-                    <TableCell>{model.baseUrl}</TableCell>
-                    <TableCell>{formatTimeAgo(new Date(model.updatedAt))}</TableCell>
-                    <TableCell>
-                        <div class="flex items-center gap-2">
-                            <a class="transition-colors hover:text-neutral-400" href={`/model/${model.id}`}>
-                                <GearIcon class="size-5" />
-                            </a>
-                            <Popover
-                                buttonList={[
-                                    {
-                                        label: "Update API Key",
-                                        onclick: () => {
-                                            selectedModelId = model.id;
-                                            updateApiKeyModalOpen = true;
-                                        },
-                                    },
-                                ]}>
-                                <LockIcon class="size-5" />
-                            </Popover>
-                        </div>
-                    </TableCell>
-                {/snippet}
-        </Table>
-        <div class="mt-4">
-            <a href="/model/create" class="text-sm text-neutral-600 transition-colors hover:text-neutral-400"
-                >Add Model</a>
-        </div>
-    </div>
-</DefaultLayout>
+{#snippet addModelAction()}
+    <a
+        href="/model/create"
+        class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-neutral-900 hover:text-neutral-900/70 transition-colors ">
+        <PlusIcon class="size-4" />
+        Add Model
+    </a>
+{/snippet}
 
-{#if selectedModelId}
-    <Modal bind:open={updateApiKeyModalOpen}>
-        <PatchSecret
-            label="Update API key"
-            placeholder="sk-..."
-            patchEndpoint={`/model/${selectedModelId}/api-key`}
-            onSuccess={() => {
-                updateApiKeyModalOpen = false;
-            }} />
-    </Modal>
-{/if}
+<DefaultLayout title="Model" actions={addModelAction}>
+    {#if data.modelList.length === 0}
+        <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center">
+            <p class="text-sm text-neutral-500">No models connected yet.</p>
+            <a
+                href="/model/create"
+                class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90">
+                <PlusIcon class="size-4" />
+                Add your first model
+            </a>
+        </div>
+    {:else}
+        <div class="space-y-3">
+            {#each data.modelList as model (model.id)}
+                <ModelCard {model} />
+            {/each}
+        </div>
+    {/if}
+</DefaultLayout>

@@ -38,7 +38,7 @@
         initialData?: InitialData;
     }
 
-    let { mode, repositoryId, provider: initialProvider, modelList, accessList = [], initialData }: Props = $props();
+    const { mode, repositoryId, provider: initialProvider, modelList, accessList = [], initialData }: Props = $props();
 
     let name = $state(initialData?.name ?? "");
     let language = $state(initialData?.language ?? "English");
@@ -388,7 +388,7 @@
     <Card title="Merge request" spaceY>
         <div class="space-y-4">
             <div class="flex items-center justify-between gap-2">
-                <FieldTitle>Review on Merge Request Open</FieldTitle>
+                <FieldTitle>Review when PR opens</FieldTitle>
                 <ToggleSwitch bind:checked={reviewOnMergeRequestOpen} />
             </div>
             <div class="flex items-center justify-between">
@@ -396,14 +396,16 @@
                 <ToggleSwitch bind:checked={inlineReview} />
             </div>
             <div class="flex items-center justify-between">
-                <FieldTitle>Deep Research</FieldTitle>
+                <div>
+                    <FieldTitle>Deep Research</FieldTitle>
+                    <Description>Sub agents will be used to analyze the code</Description>
+                </div>
                 <ToggleSwitch bind:checked={deepResearchOnMergeRequest} />
-                <Description>If enabled, sub agents will be used to research the code</Description>
             </div>
         </div>
         <div>
             <FormField
-                label="Reply to merge request comments"
+                label="Reply to comments"
                 description="How the bot responds in MR discussion threads"
                 linkLabelToControl={false}
                 upper>
@@ -423,7 +425,7 @@
     </Card>
     <Card title="Issue" spaceY>
         <div class="flex items-center justify-between gap-2">
-            <FieldTitle>Comment on Issue Open</FieldTitle>
+            <FieldTitle>Comment when issue opens</FieldTitle>
             <ToggleSwitch bind:checked={commentOnIssueOpen} />
         </div>
         <div>

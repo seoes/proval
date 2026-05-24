@@ -1,49 +1,37 @@
 <script lang="ts">
-    import TableCell from "$lib/components/atom/TableCell.svelte";
-    import TableHeaderCell from "$lib/components/atom/TableHeaderCell.svelte";
-    import Table from "$lib/components/organism/Table.svelte";
-    import { GearIcon } from "phosphor-svelte";
+    import RepositoryCard from "$lib/components/molecule/RepositoryCard.svelte";
+    import { PlusIcon } from "phosphor-svelte";
     import type { PageProps } from "./$types";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
-    import { formatTimeAgo } from "$lib/utils";
 
-    let { data }: PageProps = $props();
+    const { data }: PageProps = $props();
 </script>
 
-<DefaultLayout title="Repository">
-    <div class="rounded-lg border border-neutral-200 bg-white p-4">
-        <Table body={data.repositoryList}>
-                {#snippet renderHeader()}
-                    <TableHeaderCell>ID</TableHeaderCell>
-                    <TableHeaderCell>Name</TableHeaderCell>
-                    <TableHeaderCell>Review on MR open</TableHeaderCell>
-                    <TableHeaderCell>MR replies</TableHeaderCell>
-                    <TableHeaderCell>Issue replies</TableHeaderCell>
-                    <TableHeaderCell>Language</TableHeaderCell>
-                    <TableHeaderCell>Updated</TableHeaderCell>
-                    <TableHeaderCell>Actions</TableHeaderCell>
-                {/snippet}
-                {#snippet renderBody(repository)}
-                    <TableCell>{repository.id}</TableCell>
-                    <TableCell>{repository.name}</TableCell>
-                    <TableCell>{repository.reviewOnMergeRequestOpen ? "Yes" : "No"}</TableCell>
-                    <TableCell>{repository.replyToMergeRequestComment.replace(/_/g, " ")}</TableCell>
-                    <TableCell>{repository.replyToIssueComment.replace(/_/g, " ")}</TableCell>
-                    <TableCell>{repository.language}</TableCell>
-                    <TableCell>{formatTimeAgo(new Date(repository.updatedAt))}</TableCell>
-                    <TableCell>
-                        <div class="flex items-center gap-2 text-center">
-                            <a class="transition-colors hover:text-neutral-400" href={`/repository/${repository.id}`}>
-                                <GearIcon class="size-5" />
-                            </a>
-                        </div>
-                    </TableCell>
-                {/snippet}
-        </Table>
-        <div class="mt-4">
-            <a href="/repository/create" class="text-sm text-neutral-600 transition-colors hover:text-neutral-400">
-                Add Repository
+{#snippet addRepositoryAction()}
+    <a
+        href="/repository/create"
+        class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors text-neutral-900 hover:text-neutral-900/70">
+        <PlusIcon class="size-4" />
+        Add Repository
+    </a>
+{/snippet}
+
+<DefaultLayout title="Repository" actions={addRepositoryAction}>
+    {#if data.repositoryList.length === 0}
+        <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center">
+            <p class="text-sm text-neutral-500">No repositories connected yet.</p>
+            <a
+                href="/repository/create"
+                class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90">
+                <PlusIcon class="size-4" />
+                Add your first repository
             </a>
         </div>
-    </div>
+    {:else}
+        <div class="space-y-3">
+            {#each data.repositoryList as repository (repository.id)}
+                <RepositoryCard {repository} />
+            {/each}
+        </div>
+    {/if}
 </DefaultLayout>
