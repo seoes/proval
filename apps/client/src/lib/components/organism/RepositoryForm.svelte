@@ -7,7 +7,6 @@
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
     import PatchSecret from "../molecule/PatchSecret.svelte";
     import GitProviderIcon from "../atom/GitProviderIcon.svelte";
-    import Badge from "../atom/Badge.svelte";
     import Card from "../layout/Card.svelte";
     import Button from "../atom/Button.svelte";
     import Modal from "../atom/Modal.svelte";
@@ -79,6 +78,9 @@
     let webhookSecretModalOpen = $state(false);
     let repositoryList = $state<RepositorySelectItem[]>([]);
     let isLoadingRepositoryList = $state(false);
+
+    let access = $derived(accessList.find((a) => a.id.toString() === gitProviderAccessId));
+    let installation = $derived(installationList.find((i) => i.id.toString() === githubInstallationId));
 
     let repositorySelectId = $state(
         provider === "github"
@@ -338,36 +340,26 @@
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
-    <Card title="Git Provider" spaceY>
+    <Card spaceY>
         <div class="flex items-center gap-2">
             <GitProviderIcon {provider} />
+            {#if provider === "gitlab" || provider === "forgejo"}
+            <div>
+                    <FieldTitle>{access?.name}</FieldTitle>
+                    <Description>{access?.baseUrl}</Description>
+                </div>
+            {:else if provider === "github"}
+                <div>
+                    <FieldTitle>{installation?.accountName}</FieldTitle>
+                    <Description>{installation?.accountType}</Description>
+                </div>
+            {/if}
         </div>
-
-        {#if provider === "gitlab" || provider === "forgejo"}
-            <FormField label="Git Provider Access" description="Access configuration for this repository">
-                {#snippet children({ id })}
-                    {@const access = accessList.find((a) => a.id.toString() === gitProviderAccessId)}
-                    <p {id} class="text-sm text-neutral-700 dark:text-neutral-300">
-                        {access ? `${access.name} — ${access.baseUrl}` : gitProviderAccessId || "—"}
-                    </p>
-                {/snippet}
-            </FormField>
-        {:else if provider === "github"}
-            <FormField label="GitHub Installation" description="Installation connected to this repository">
-                {#snippet children({ id })}
-                    {@const installation = installationList.find((i) => i.id.toString() === githubInstallationId)}
-                    <p {id} class="text-sm text-neutral-700 dark:text-neutral-300">
-                        {installation
-                            ? `${installation.accountName} (${installation.accountType})`
-                            : githubInstallationId || "—"}
-                    </p>
-                {/snippet}
-            </FormField>
-        {/if}
 
         {#if mode === "create"}
             <FormField label="Repository" description="Selected in the previous step">
                 {#snippet children({ id })}
+                <!-- TODO: change to user/repo -->
                     <p {id} class="text-sm text-neutral-700 dark:text-neutral-300">{repositoryDisplayName}</p>
                 {/snippet}
             </FormField>
@@ -410,8 +402,8 @@
                     {/snippet}
                 </FormField>
             {:else if repositoryId}
-                <div class="pt-2">
-                    <Button text onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto">
+                <div class="pt-2 flex justify-end">
+                    <Button text onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto text-xs">
                         Update Webhook Secret
                     </Button>
                 </div>
