@@ -341,7 +341,6 @@
     <Card title="Git Provider" spaceY>
         <div class="flex items-center gap-2">
             <GitProviderIcon {provider} />
-            <Badge variant="neutral">{providerLabel[provider]}</Badge>
         </div>
 
         {#if provider === "gitlab" || provider === "forgejo"}
@@ -412,7 +411,7 @@
                 </FormField>
             {:else if repositoryId}
                 <div class="pt-2">
-                    <Button secondary onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto">
+                    <Button text onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto">
                         Update Webhook Secret
                     </Button>
                 </div>
