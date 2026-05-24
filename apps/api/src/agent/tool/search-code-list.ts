@@ -5,7 +5,7 @@ export function searchCodeListTool(provider: GitProvider, ref: string): AgentToo
     return {
         name: "search_code_list",
         description:
-            "Search repository code at the current ref. Use this to locate likely files before reading them in full.",
+            "Search repository code at the MR source branch by symbol, phrase, or keyword. Returns matching file paths with code snippets. Use this to: (1) locate function/class definitions referenced in the diff, (2) find API endpoints or route handlers by path pattern, (3) discover usages of a changed interface/export. Does NOT support regex. After locating relevant files, use get_file_content to read their full content.",
         parameters: {
             type: "object",
             properties: {

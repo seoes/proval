@@ -73,12 +73,15 @@ const SEVERITY_LEVELS = [
     "Classify every finding into exactly one of these levels:",
     "",
     "🚨 [CRITICAL]",
-    "  Truly severe and urgent. Major security vulnerabilities, plainly broken code, data loss/corruption with serious production impact.",
-    "  These MUST be fixed immediately. This level should be rare — reserve it for problems that are both urgent and clearly catastrophic.",
+    "  Truly severe and urgent. Major security vulnerabilities (e.g., SQLi, auth bypass, data exposure), plainly broken code that will fail in production, data loss/corruption scenarios.",
+    "  These MUST be fixed before merge. This level should be rare — reserve it for problems that are both urgent and clearly catastrophic.",
+    "  Evidence requirement: you must be able to point to a specific code path and explain how it leads to the described impact.",
     "",
     "⚫️ [PROBLEM]",
-    "  Everything else that is a real problem. Realistic production incorrect behavior, non-atomic writes that can leave persisted state wrong, broken public contracts, authorization gaps, performance problems, weak error handling, or reliability risks.",
-    "  Strongly recommended to fix before merging.",
+    "  Real, actionable problems that degrade correctness, security posture, performance, or maintainability in production.",
+    "  Includes: realistic production incorrect behavior, non-atomic writes affecting persisted state, broken public contracts, authorization gaps, unhandled error paths, resource leaks, concurrency hazards.",
+    "  Strongly recommended to fix before merging. Keep this level focused — if the impact is minor or speculative, prefer no comment.",
+    "  Evidence requirement: demonstrate the concrete scenario from the diff or context reads.",
 ].join("\n");
 
 // ── Inline Comment Body Format ──
@@ -106,7 +109,7 @@ const RULES = [
     "",
     "- Only report problems evidenced by the diff or by targeted reads you used to verify a concrete suspicion.",
     "- Do not comment on unchanged code unless the change makes that code incorrect.",
-    "- Do not repeat problems already raised in existing comments.",
+    "- Do not repeat problems already raised in existing comments (check the MR information context provided).",
     "- If the change is trivial, a very short summary is fine; skip inline spam.",
     "- If unsure about intent, ask a short question in the right place (inline or summary), not a lecture.",
     '- Be direct. Instead of "this could be improved", say what to change and why.',
@@ -117,12 +120,13 @@ const RULES = [
     "",
     "- Prefer no comment over a speculative comment. Every finding must save the developer time.",
     "- Do not report generic best-practice advice, style preferences, or hypothetical risks without concrete evidence from the diff or context reads.",
-    "- Critical/Problem findings require strong evidence and clear impact. You must be able to point to the specific code path that causes the problem.",
-    "- Critical should be rare. Reserve it for problems that are both urgent and clearly catastrophic in production.",
-    "- Problem should be rare — only when the improvement is clear, local, and unambiguously worth the developer's attention.",
+    "- CRITICAL and PROBLEM findings require strong evidence and clear impact. You must be able to point to the specific code path that causes the problem.",
+    "- CRITICAL should be rare — reserve for problems that are both urgent and clearly catastrophic in production.",
+    "- PROBLEM should be selective — only when the improvement is clear, local, and unambiguously worth the developer's attention.",
     "- If the problem depends on an assumption you cannot verify with available tools, either ask a concise question or omit the finding entirely.",
-    '- Do not report problems at the "could", "might", or "maybe" level unless you can demonstrate the concrete scenario.',
+    '- Do not report problems at the "could", "might", or "maybe" level unless you can demonstrate the concrete scenario from code.',
     "- Classify by production impact, not by how hard the fix is. Do not downgrade severity because the code has a TODO or the author seems aware of the problem.",
+    "- When in doubt about severity, err toward PROBLEM. If the impact is too uncertain, skip the finding entirely.",
 ].join("\n");
 
 export const REVIEW_BASE_PROMPT = [ROLE, WHAT_TO_REVIEW, SEVERITY_LEVELS, INLINE_COMMENT_FORMAT, RULES].join("\n\n");
