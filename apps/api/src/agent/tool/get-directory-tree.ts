@@ -4,12 +4,8 @@ import type { GitProvider } from "../../provider/types.js";
 export function getDirectoryTreeTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_directory_tree",
-        description: [
-            "Get the directory tree of a repository at a given path.",
-            "Use this when exploring folder structure or finding sibling/related files.",
-            "Do NOT use this to read file contents — use get_file_content for that.",
-            "Do NOT use this to search for code patterns — use search_code_list for that.",
-        ].join("\n"),
+        description:
+            "Get the directory tree of a repository at the MR source branch. Use this to understand project structure: locate related modules, config files, test directories, or sibling components. Specify a filePath to scope to a subdirectory; set recursive=true for full depth. Useful for cross-file investigation (same-directory peers, sibling handlers, adjacent tests).",
         parameters: {
             type: "object",
             properties: {

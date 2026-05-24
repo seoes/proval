@@ -4,12 +4,8 @@ import type { GitProvider } from "../../provider/types.js";
 export function searchCodeListTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "search_code_list",
-        description: [
-            "Search repository code by symbol, keyword, or pattern at the current ref.",
-            "Use this to locate likely files before reading them, or to find usages/references.",
-            "Do NOT use this to read file contents — use get_file_content for that.",
-            "Do NOT use this to navigate directory structure — use get_directory_tree for that.",
-        ].join("\n"),
+        description:
+            "Search repository code at the MR source branch by symbol, phrase, or keyword. Returns matching file paths with code snippets. Use this to: (1) locate function/class definitions referenced in the diff, (2) find API endpoints or route handlers by path pattern, (3) discover usages of a changed interface/export. Does NOT support regex. After locating relevant files, use get_file_content to read their full content.",
         parameters: {
             type: "object",
             properties: {
