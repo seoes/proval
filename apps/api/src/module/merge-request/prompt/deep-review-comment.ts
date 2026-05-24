@@ -13,7 +13,7 @@ const WORKFLOW = [
     "  Read the provided specialist findings carefully. Understand each problem and its severity.",
     "",
     "Step 2 — Check existing comments",
-    "  Call get_merge_request_comment_list. Do NOT post findings that are already covered by existing comments.",
+    "  Review any existing comments from the context. Do NOT post findings that are already covered by existing comments.",
     "",
     "Step 3 — Get SHAs for inline positioning (if inline comments enabled)",
     "  Call get_merge_request_version once to get baseSha, startSha, headSha for inline comment positioning.",
