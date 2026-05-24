@@ -35,6 +35,9 @@ export const createRepository: Handler = async (c) => {
         body.webhookSecret = secret;
     } else if (body.provider === "github") {
         const { webhookSecret: _webhookSecret, ...githubBody } = body;
+        if (githubBody.githubRepositoryId == null) {
+            return c.json({ error: "GitHub repository ID is required" }, 400);
+        }
         const repository = await repositoryService.create(githubBody as RepositoryInsert);
         const repositoryResponse = repositoryService.toResponse(repository);
         return c.json(repositoryResponse, 201);
@@ -52,6 +55,20 @@ export const updateRepository: Handler = async (c) => {
         return c.json({ error: "Repository ID is required" }, 400);
     }
     const body = await c.req.json<RepositoryUpdateInput>();
+
+    if (body.provider === "github" || body.githubRepositoryPath !== undefined) {
+        const existing = await repositoryService.findById(parseInt(repositoryId));
+        if (existing.provider === "github") {
+            const pathChanged =
+                body.githubRepositoryPath != null &&
+                body.githubRepositoryPath.trim() !== (existing.githubRepositoryPath ?? "").trim();
+
+            if (pathChanged && body.githubRepositoryId == null) {
+                return c.json({ error: "GitHub repository ID is required when repository path changes" }, 400);
+            }
+        }
+    }
+
     const repository = await repositoryService.update(parseInt(repositoryId), body);
     const repositoryResponse = repositoryService.toResponse(repository);
     return c.json(repositoryResponse, 200);

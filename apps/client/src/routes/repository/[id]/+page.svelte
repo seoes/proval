@@ -10,14 +10,18 @@
     <RepositoryForm
         mode="edit"
         repositoryId={data.repository.id}
+        provider={data.repository.provider}
         modelList={data.modelList}
         accessList={data.accessList}
+        installationList={data.installationList}
+        githubAppId={data.githubApp?.id ?? null}
         initialData={{
             name: data.repository.name,
             provider: data.repository.provider,
             gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
             language: data.repository.language,
             gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
+            githubInstallationId: data.repository.githubInstallationId ?? null,
             githubRepositoryPath: data.repository.githubRepositoryPath ?? "",
             githubRepositoryId: data.repository.githubRepositoryId ?? null,
             modelId: data.repository.modelId,

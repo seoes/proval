@@ -112,6 +112,17 @@ export class GitLabAccessService {
         return updatedAccess[0].id;
     }
 
+    public async getConnectedGitProviderRepositoryIds(accessId: number): Promise<Set<number>> {
+        const rows = await db
+            .select({ gitProviderRepositoryId: repositoryTable.gitProviderRepositoryId })
+            .from(repositoryTable)
+            .where(eq(repositoryTable.gitProviderAccessId, accessId));
+
+        return new Set(
+            rows.map((row) => row.gitProviderRepositoryId).filter((id): id is number => id != null),
+        );
+    }
+
     public async testGitLab(baseUrl: string, accessToken: string) {
         // new URL(baseUrl) 파싱 검증, https: 프로토콜 확인, trailing slash 정규화.
         const url = new URL(baseUrl);
