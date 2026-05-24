@@ -242,7 +242,7 @@ export class MergeRequestService {
         } = await this.provider.fetchMergeRequestDetail(mrIid);
         const changedFiles = await this.provider.fetchChangedFileList(mrIid);
         const version = await this.provider.fetchMergeRequestVersion(mrIid);
-        const existingComments = await this.provider.fetchMergeRequestCommentList(mrIid);
+        const existingCommentList = await this.provider.fetchMergeRequestCommentList(mrIid);
 
         const mrIidPrompt = `Merge Request IID: ${mrIid}`;
         const detailPrompt = `Merge request: ${JSON.stringify(detail)}`;
@@ -253,9 +253,11 @@ export class MergeRequestService {
             .join(", ");
 
         const changedFileListPrompt = `Changed files: ${changedFileList}`;
-        const existingCommentsPrompt = `Existing comments: ${JSON.stringify(existingComments)}`;
+        const existingCommentListPrompt = `Existing comments: ${JSON.stringify(existingCommentList)}`;
 
-        return [mrIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt, existingCommentsPrompt].join("\n\n");
+        return [mrIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt, existingCommentListPrompt].join(
+            "\n\n",
+        );
     }
 
     // #########################################################
