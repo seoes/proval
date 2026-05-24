@@ -6,7 +6,7 @@ import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret
 
 export class RepositoryService {
     public async findAll(): Promise<Repository[]> {
-        const repositoryList = await db.select().from(repositoryTable).orderBy(desc(repositoryTable.createdAt));
+        const repositoryList = await db.select().from(repositoryTable).orderBy(desc(repositoryTable.updatedAt));
         return repositoryList;
     }
 
