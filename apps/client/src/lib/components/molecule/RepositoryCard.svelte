@@ -17,10 +17,9 @@
 </script>
 
 {#snippet header()}
-    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ml-1.5">
         <GitProviderIcon provider={repository.provider} />
         <span class="truncate text-neutral-800">{repository.name}</span>
-        <Badge variant="neutral">{providerLabel(repository.provider)}</Badge>
     </div>
     <span class="text-xs whitespace-nowrap text-neutral-500">
         Updated {formatTimeAgo(new Date(repository.updatedAt))}

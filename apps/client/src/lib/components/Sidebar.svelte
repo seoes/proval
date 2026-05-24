@@ -33,7 +33,7 @@
                 },
                 {
                     label: "Git Provider",
-                    href: "/settings/provider",
+                    href: "/provider",
                     icon: GitBranchIcon,
                 },
             ],

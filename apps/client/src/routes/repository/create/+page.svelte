@@ -77,8 +77,8 @@
 
     onMount(async () => {
         if (data.unifiedAccessOptions.length === 0) {
-            await openAlert("No access or GitHub installation found. Please configure one in Settings > Integration.");
-            goto("/settings/integration");
+            await openAlert("No access or GitHub installation found. Configure one in Git Provider first.");
+            goto("/provider");
         }
     });
 

@@ -114,8 +114,8 @@
                 url: `${normalizedWebhookUrl}/webhook/github`,
                 active: true,
             },
-            redirect_url: `${clientOrigin}/repository/create/github/app/callback`,
-            setup_url: `${clientOrigin}/repository/create/github/app/setup`,
+            redirect_url: `${clientOrigin}/provider/github/app/callback`,
+            setup_url: `${clientOrigin}/provider/github/app/setup`,
             public: false,
             default_permissions: {
                 contents: "read",

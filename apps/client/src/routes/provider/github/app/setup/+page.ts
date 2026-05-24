@@ -9,11 +9,11 @@ export const load: PageLoad = async ({ url }) => {
     const setupAction = url.searchParams.get("setup_action");
 
     if (!installationId) {
-        redirect(303, "/settings/integration?error=missing_installation_id");
+        redirect(303, "/provider?error=missing_installation_id");
     }
 
     if (setupAction !== "install") {
-        redirect(303, "/settings/integration?error=invalid_setup_action");
+        redirect(303, "/provider?error=invalid_setup_action");
     }
 
     const response = await fetchApi("/github/app/setup", {
@@ -24,8 +24,8 @@ export const load: PageLoad = async ({ url }) => {
 
     if (!response.ok) {
         const data = (await response.json()) as { error?: string };
-        redirect(303, `/settings/integration?error=${encodeURIComponent(data.error || "installation_failed")}`);
+        redirect(303, `/provider?error=${encodeURIComponent(data.error || "installation_failed")}`);
     }
 
-    redirect(303, "/settings/integration?success=installation_added");
+    redirect(303, "/provider?success=installation_added");
 };

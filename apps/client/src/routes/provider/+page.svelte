@@ -10,6 +10,22 @@
     import PatchSecret from "$lib/components/molecule/PatchSecret.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import type { PageProps } from "./$types";
+    import { onMount } from "svelte";
+    import { replaceState } from "$app/navigation";
+    import { page } from "$app/state";
+
+    const FLASH_SUCCESS_MESSAGES: Record<string, string> = {
+        installation_added: "GitHub installation added.",
+    };
+
+    const FLASH_ERROR_MESSAGES: Record<string, string> = {
+        missing_code: "GitHub authorization code was missing.",
+        missing_slug: "GitHub App registration completed without an app slug.",
+        missing_installation_id: "GitHub installation ID was missing.",
+        invalid_setup_action: "Invalid GitHub installation setup action.",
+        app_creation_failed: "Failed to register the GitHub App.",
+        installation_failed: "Failed to save the GitHub installation.",
+    };
 
     type Access = {
         id: number;
@@ -38,6 +54,22 @@
     let updateAccessTokenModalOpen = $state(false);
     let selectedAccessId = $state<number | null>(null);
     let selectedAccessProvider = $state<"gitlab" | "forgejo" | null>(null);
+
+    onMount(async () => {
+        const success = page.url.searchParams.get("success");
+        const error = page.url.searchParams.get("error");
+        if (!success && !error) {
+            return;
+        }
+
+        if (success) {
+            await openAlert(FLASH_SUCCESS_MESSAGES[success] ?? "Success.");
+        } else if (error) {
+            await openAlert(FLASH_ERROR_MESSAGES[error] ?? error);
+        }
+
+        replaceState("/provider", {});
+    });
 
     // Access functions
     function openAddModal(provider: "gitlab" | "forgejo") {
