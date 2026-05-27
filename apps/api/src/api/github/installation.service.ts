@@ -3,7 +3,7 @@ import { Octokit } from "@octokit/rest";
 import { eq, isNotNull } from "drizzle-orm";
 import db from "../../db/index.js";
 import { githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
-import type { GitHubInstallationResponse, GitHubRepositoryResponse } from "./types.js";
+import type { GitHubInstallationResponse, GitHubRepositoryResponse } from "@proval/types";
 
 export class GitHubInstallationService {
     async getInstallationList(appId: number): Promise<GitHubInstallationResponse[]> {

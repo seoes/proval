@@ -1,11 +1,9 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-
-type ReplyPolicy = "all" | "mentioned_only" | "off";
-type GitProvider = "gitlab" | "github" | "forgejo";
+import type { ModelProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
-export function replyOptionBadge(label: string, mode: ReplyPolicy): OptionBadge | null {
+export function replyOptionBadge(label: string, mode: ReplyThreadPolicy): OptionBadge | null {
     if (mode === "off") return null;
     const suffix = mode === "mentioned_only" ? " (Mentioned Only)" : "";
     return {
@@ -14,23 +12,21 @@ export function replyOptionBadge(label: string, mode: ReplyPolicy): OptionBadge 
     };
 }
 
-const providerLabelList: Record<GitProvider, string> = {
+const providerLabelList: Record<RepositoryProvider, string> = {
     gitlab: "GitLab",
     github: "GitHub",
     forgejo: "Forgejo",
 };
 
-export function providerLabel(provider: GitProvider): string {
+export function providerLabel(provider: RepositoryProvider): string {
     return providerLabelList[provider] ?? provider;
 }
-
-type ModelProvider = "openai";
 
 const modelProviderLabelList: Record<ModelProvider, string> = {
     openai: "OpenAI",
 };
 
-export function modelProviderLabel(provider: string): string {
+export function modelProviderLabel(provider: ModelProvider | string): string {
     return modelProviderLabelList[provider as ModelProvider] ?? provider;
 }
 

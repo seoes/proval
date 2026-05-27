@@ -1,13 +1,7 @@
 <script lang="ts">
     import Button from "$lib/components/atom/Button.svelte";
     import { TrashIcon, GitlabLogoIcon, GitForkIcon, PencilIcon } from "phosphor-svelte";
-
-    type Item = {
-        id: number;
-        provider: "gitlab" | "forgejo";
-        name: string;
-        baseUrl: string;
-    };
+    import type { AccessResponse } from "@proval/types";
 
     type TestResult = { id: number; success: boolean; message: string };
 
@@ -20,7 +14,7 @@
         onEdit,
         onDelete,
     }: {
-        item: Item;
+        item: AccessResponse;
         testResult: TestResult | null;
         isTesting: boolean;
         onTest: () => void;

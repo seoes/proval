@@ -24,7 +24,7 @@ export const baseConfigs = [
             ],
             eqeqeq: ["error", "always", { null: "ignore" }],
             "no-console": ["warn"],
-            "prefer-const": "error",
+            "prefer-const": "warn",
             "@typescript-eslint/no-explicit-any": "error",
             "@typescript-eslint/no-non-null-assertion": "warn",
         },

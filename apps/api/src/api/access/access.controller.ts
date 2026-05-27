@@ -2,12 +2,13 @@ import type { Context } from "hono";
 import { GitLabAccessService } from "./access.service";
 import { GitLabProvider } from "../../provider/gitlab";
 import { ForgejoProvider } from "../../provider/forgejo";
+import type { AccessInsert, AccessProvider, AccessUpdateInput, GitProviderRepositoryListResponse, SecretInput } from "@proval/types";
 
 const accessService = new GitLabAccessService();
 
 export const getAccessList = async (c: Context) => {
     const query = c.req.query();
-    const provider = query.provider as "gitlab" | "forgejo";
+    const provider = query.provider as AccessProvider;
     if (provider) {
         const accessList = await accessService.findByProvider(provider);
         return c.json(accessList, 200);
@@ -26,12 +27,7 @@ export const getAccessById = async (c: Context) => {
 };
 
 export const createAccess = async (c: Context) => {
-    const body = await c.req.json<{
-        provider: "gitlab" | "forgejo";
-        name: string;
-        baseUrl: string;
-        accessToken: string;
-    }>();
+    const body = await c.req.json<AccessInsert>();
     const { provider, name, baseUrl, accessToken } = body;
     if (!provider) {
         return c.json({ error: "Provider is required" }, 400);
@@ -84,11 +80,7 @@ export const updateAccessById = async (c: Context) => {
     if (!Number.isFinite(id)) {
         return c.json({ error: "Invalid access configuration id" }, 400);
     }
-    const body = await c.req.json<{
-        name: string;
-        baseUrl: string;
-        accessToken?: string;
-    }>();
+    const body = await c.req.json<AccessUpdateInput & { accessToken?: string }>();
     const { name, baseUrl, accessToken } = body;
     if (!name) {
         return c.json({ error: "Name is required" }, 400);
@@ -133,7 +125,7 @@ export const updateAccessTokenById = async (c: Context) => {
     if (!Number.isFinite(id)) {
         return c.json({ error: "Invalid access configuration id" }, 400);
     }
-    const { value: accessToken } = await c.req.json<{ value: string }>();
+    const { value: accessToken } = await c.req.json<SecretInput>();
     if (!accessToken) {
         return c.json({ error: "Access token is required" }, 400);
     }
@@ -172,13 +164,11 @@ export const getRepositoryListByAccessId = async (c: Context) => {
         }
 
         const repositoryList = await provider.fetchRepositoryList();
-        return c.json(
-            repositoryList.map((repo) => ({
-                ...repo,
-                alreadyConnected: connectedRepositoryIdList.has(repo.id),
-            })),
-            200,
-        );
+        const response: GitProviderRepositoryListResponse[] = repositoryList.map((repo) => ({
+            ...repo,
+            alreadyConnected: connectedRepositoryIdList.has(repo.id),
+        }));
+        return c.json(response, 200);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return c.json({ error: "Failed to fetch repository list", message: msg }, 500);

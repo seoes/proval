@@ -1,12 +1,8 @@
-import { modelTable, repositoryTable } from "@proval/db";
-import type { InferSelectModel } from "drizzle-orm";
+import type { Model, Repository } from "@proval/types";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
 import { log } from "../util/log.js";
-
-type Repository = InferSelectModel<typeof repositoryTable>;
-type Model = InferSelectModel<typeof modelTable>;
 
 export type WebhookIngress = {
     webhookEvent: string;

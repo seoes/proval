@@ -3,7 +3,7 @@ import { Octokit } from "@octokit/rest";
 import db from "../../db/index.js";
 import { githubAppTable } from "@proval/db";
 import { eq } from "drizzle-orm";
-import type { GitHubAppResponse, CreateAppInput } from "./types.js";
+import type { GitHubAppResponse, GitHubAppCreateInput } from "@proval/types";
 
 type ManifestConversionResult = {
     id: number;
@@ -27,7 +27,7 @@ export class GitHubAppService {
         }));
     }
 
-    async create(input: CreateAppInput): Promise<{ id: number; slug: string }> {
+    async create(input: GitHubAppCreateInput): Promise<{ id: number; slug: string }> {
         const existingAppList = await db.select().from(githubAppTable).limit(1);
         if (existingAppList.length > 0) {
             throw new Error("App already exists. Only one app per instance.");

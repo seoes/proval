@@ -4,13 +4,8 @@ import { Octokit } from "@octokit/rest";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitHubProvider } from "../../provider/github.js";
-import { githubAppTable, modelTable, repositoryTable } from "@proval/db";
-import type { InferSelectModel } from "drizzle-orm";
+import type { GitHubApp, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
-
-type Repository = InferSelectModel<typeof repositoryTable>;
-type Model = InferSelectModel<typeof modelTable>;
-type GithubApp = InferSelectModel<typeof githubAppTable>;
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -31,7 +26,7 @@ type IssueCommentWebhookPayload = {
 
 async function createGitHubProvider(
     repository: Repository,
-    githubApp: GithubApp,
+    githubApp: GitHubApp,
     installationId: number,
 ): Promise<GitHubProvider> {
     const app = new App({
@@ -59,7 +54,7 @@ export const handleGitHubWebhook = async (c: Context) => {
 
     const repository = c.get("repository") as Repository;
     const model = c.get("model") as Model;
-    const githubApp = c.get("githubApp") as GithubApp;
+    const githubApp = c.get("githubApp") as GitHubApp;
     const githubInstallation = c.get("githubInstallation");
 
     const installationId = githubInstallation.installationId;
@@ -95,7 +90,7 @@ async function handlePullRequestWebhook(
     payload: PullRequestWebhookPayload,
     repository: Repository,
     model: Model,
-    githubApp: GithubApp,
+    githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";
@@ -137,7 +132,7 @@ async function handleIssueWebhook(
     payload: IssueWebhookPayload,
     repository: Repository,
     model: Model,
-    githubApp: GithubApp,
+    githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";
@@ -176,7 +171,7 @@ async function handleIssueCommentWebhook(
     payload: IssueCommentWebhookPayload,
     repository: Repository,
     model: Model,
-    githubApp: GithubApp,
+    githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";

@@ -10,6 +10,7 @@
     import PatchSecret from "$lib/components/molecule/PatchSecret.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import type { PageProps } from "./$types";
+    import type { AccessProvider, AccessResponse } from "@proval/types";
     import { onMount } from "svelte";
     import { replaceState } from "$app/navigation";
     import { page } from "$app/state";
@@ -27,33 +28,24 @@
         installation_failed: "Failed to save the GitHub installation.",
     };
 
-    type Access = {
-        id: number;
-        provider: "gitlab" | "forgejo";
-        name: string;
-        baseUrl: string;
-        createdAt: string;
-        updatedAt: string;
-    };
-
     let { data }: PageProps = $props();
 
     // Access states
-    let accessList = $state<Access[]>(data.accessList);
+    let accessList = $state<AccessResponse[]>(data.accessList);
     let showModal = $state(false);
     let editingId = $state<number | null>(null);
     let isSavingAccess = $state(false);
     let isTestingId = $state<number | null>(null);
     let testResult = $state<{ id: number; success: boolean; message: string } | null>(null);
 
-    let formProvider = $state<"gitlab" | "forgejo">("gitlab");
+    let formProvider = $state<AccessProvider>("gitlab");
     let formName = $state("");
     let formBaseUrl = $state("");
     let formAccessToken = $state("");
 
     let updateAccessTokenModalOpen = $state(false);
     let selectedAccessId = $state<number | null>(null);
-    let selectedAccessProvider = $state<"gitlab" | "forgejo" | null>(null);
+    let selectedAccessProvider = $state<AccessProvider | null>(null);
 
     onMount(async () => {
         const success = page.url.searchParams.get("success");
@@ -72,7 +64,7 @@
     });
 
     // Access functions
-    function openAddModal(provider: "gitlab" | "forgejo") {
+    function openAddModal(provider: AccessProvider) {
         editingId = null;
         formProvider = provider;
         formName = "";
@@ -82,7 +74,7 @@
         showModal = true;
     }
 
-    function openEditForm(item: Access) {
+    function openEditForm(item: AccessResponse) {
         editingId = item.id;
         formProvider = item.provider;
         formName = item.name;
@@ -188,7 +180,7 @@
     const gitlabList = $derived(accessList.filter((a) => a.provider === "gitlab"));
     const forgejoList = $derived(accessList.filter((a) => a.provider === "forgejo"));
 
-    function openUpdateAccessTokenModal(item: Access) {
+    function openUpdateAccessTokenModal(item: AccessResponse) {
         selectedAccessId = item.id;
         selectedAccessProvider = item.provider;
         updateAccessTokenModalOpen = true;

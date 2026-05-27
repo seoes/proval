@@ -10,26 +10,22 @@
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Button from "../atom/Button.svelte";
 
+    import type { ModelProvider, ModelResponse } from "@proval/types";
+
     interface Props {
         mode: "create" | "edit";
         modelId?: number;
-        initialData?: {
-            provider: string;
-            name: string;
-            label: string;
-            baseUrl: string;
-            apiKey?: string;
-        };
+        initialData?: Pick<ModelResponse, "provider" | "name" | "label" | "baseUrl">;
         border?: boolean;
     }
 
     const { mode, modelId, initialData, border = true }: Props = $props();
 
-    let provider = $state(initialData?.provider ?? "openai");
+    let provider = $state<ModelProvider>(initialData?.provider ?? "openai");
     let name = $state(initialData?.name ?? "");
     let label = $state(initialData?.label ?? "");
     let baseUrl = $state(initialData?.baseUrl ?? "");
-    let apiKey = $state(initialData?.apiKey ?? "");
+    let apiKey = $state("");
     let apiKeyModalOpen = $state(false);
 
     async function handleSubmit(e: Event) {
@@ -117,7 +113,11 @@
         goto("/model");
     }
 
-    const apiProviderToggleButtonValueList = [
+    const apiProviderToggleButtonValueList: {
+        label: string;
+        description: string;
+        value: ModelProvider;
+    }[] = [
         {
             label: "OpenAI",
             description: "Chat Completions API",

@@ -9,13 +9,8 @@ import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
-import { type InferSelectModel } from "drizzle-orm";
+import type { Access, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
-
-type Repository = InferSelectModel<typeof repositoryTable>;
-type Model = InferSelectModel<typeof modelTable>;
-type Access = InferSelectModel<typeof gitProviderAccessTable>;
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");

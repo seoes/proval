@@ -1,23 +1,13 @@
 import fetchApi from "$lib/utils";
-import type { RepositoryResponse, ModelResponse } from "@proval/types";
+import type {
+    AccessResponse,
+    GitHubAppResponse,
+    GitHubInstallationResponse,
+    ModelResponse,
+    RepositoryResponse,
+} from "@proval/types";
 import type { PageLoad } from "./$types";
 import { error } from "@sveltejs/kit";
-
-type AccessItem = {
-    id: number;
-    provider: "gitlab" | "forgejo";
-    name: string;
-    baseUrl: string;
-    createdAt: string;
-    updatedAt: string;
-};
-
-type InstallationItem = {
-    id: number;
-    installationId: number;
-    accountName: string;
-    accountType: "User" | "Organization";
-};
 
 export const load: PageLoad = async ({ params }) => {
     const [repositoryResponse, modelListResponse, accessResponse] = await Promise.all([
@@ -32,15 +22,15 @@ export const load: PageLoad = async ({ params }) => {
 
     const repository: RepositoryResponse = await repositoryResponse.json();
     const modelList: ModelResponse[] = await modelListResponse.json();
-    const accessList: AccessItem[] = accessResponse.ok
-        ? (await accessResponse.json()).filter((a: AccessItem) => a.provider === repository.provider)
+    const accessList: AccessResponse[] = accessResponse.ok
+        ? (await accessResponse.json()).filter((access: AccessResponse) => access.provider === repository.provider)
         : [];
 
-    let installationList: InstallationItem[] = [];
-    let githubApp: { id: number; appId: number; slug: string } | null = null;
+    let installationList: GitHubInstallationResponse[] = [];
+    let githubApp: GitHubAppResponse | null = null;
     if (repository.provider === "github") {
         const appRes = await fetchApi("/github/app");
-        const appList = appRes.ok ? await appRes.json() : [];
+        const appList: GitHubAppResponse[] = appRes.ok ? await appRes.json() : [];
         githubApp = appList.length > 0 ? appList[0] : null;
         if (githubApp) {
             const installationRes = await fetchApi(`/github/app/${githubApp.id}/installation`);

@@ -3,9 +3,10 @@
     import InputText from "$lib/components/atom/InputText.svelte";
     import FormField from "$lib/components/molecule/FormField.svelte";
     import Select from "$lib/components/atom/Select.svelte";
+    import type { AccessProvider } from "@proval/types";
 
     let {
-        formProvider = $bindable<"gitlab" | "forgejo">(),
+        formProvider = $bindable<AccessProvider>(),
         formName = $bindable(""),
         formBaseUrl = $bindable(""),
         formAccessToken = $bindable(""),
@@ -14,7 +15,7 @@
         onSubmit,
         onCancel,
     }: {
-        formProvider: "gitlab" | "forgejo";
+        formProvider: AccessProvider;
         formName: string;
         formBaseUrl: string;
         formAccessToken: string;
@@ -63,7 +64,7 @@
                 ]}
                 value={formProvider}
                 disabled={editingId !== null}
-                onchange={(e) => (formProvider = (e.target as HTMLSelectElement).value as "gitlab" | "forgejo")} />
+                onchange={(e) => (formProvider = (e.target as HTMLSelectElement).value as AccessProvider)} />
         {/snippet}
     </FormField>
     <FormField label="Name" description="A friendly label for this connection">

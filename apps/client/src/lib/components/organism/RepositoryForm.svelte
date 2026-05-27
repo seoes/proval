@@ -2,7 +2,13 @@
     import InputText from "../atom/InputText.svelte";
     import { goto } from "$app/navigation";
     import fetchApi from "$lib/utils";
-    import type { ModelResponse, RepositoryResponse } from "@proval/types";
+    import type {
+        AccessResponse,
+        GitHubInstallationResponse,
+        ModelResponse,
+        ReplyThreadPolicy,
+        RepositoryResponse,
+    } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
     import PatchSecret from "../molecule/PatchSecret.svelte";
@@ -11,26 +17,11 @@
     import Button from "../atom/Button.svelte";
     import Modal from "../atom/Modal.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
-    import { loadRepositoryList, type RepositorySelectItem } from "$lib/utils/repository-list";
+    import type { RepositorySelectItem } from "@proval/types";
+    import { loadRepositoryList } from "$lib/utils/repository-list";
     import Description from "../atom/Description.svelte";
     import ToggleSwitch from "../atom/ToggleSwitch.svelte";
     import FieldTitle from "../atom/FieldTitle.svelte";
-
-    type ReplyThreadPolicy = "all" | "mentioned_only" | "off";
-
-    type AccessItem = {
-        id: number;
-        provider: "gitlab" | "forgejo";
-        name: string;
-        baseUrl: string;
-    };
-
-    type InstallationItem = {
-        id: number;
-        installationId: number;
-        accountName: string;
-        accountType: "User" | "Organization";
-    };
 
     type RepositoryFormInitialData = Partial<
         Pick<
@@ -57,8 +48,8 @@
         repositoryId?: number;
         provider: RepositoryResponse["provider"];
         modelList: ModelResponse[];
-        accessList?: AccessItem[];
-        installationList?: InstallationItem[];
+        accessList?: AccessResponse[];
+        installationList?: GitHubInstallationResponse[];
         githubAppId?: number | null;
         initialData?: RepositoryFormInitialData;
     }

@@ -8,8 +8,8 @@
     import { goto } from "$app/navigation";
     import { openAlert } from "$lib/store/modal";
     import { onMount } from "svelte";
-    import { type UnifiedAccessOption } from "./+page";
-    import { loadRepositoryList, type RepositorySelectItem } from "$lib/utils/repository-list";
+    import type { RepositoryProvider, RepositorySelectItem, UnifiedAccessOption } from "@proval/types";
+    import { loadRepositoryList } from "$lib/utils/repository-list";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
@@ -17,7 +17,7 @@
     let step = $state(1);
     let selectedAccessKey = $state("");
 
-    let provider = $state<"gitlab" | "github" | "forgejo" | "">("");
+    let provider = $state<RepositoryProvider | "">("");
     let gitProviderAccessId = $state("");
     let gitProviderRepositoryId = $state("");
     let githubInstallationId = $state("");

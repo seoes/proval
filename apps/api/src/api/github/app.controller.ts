@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { GitHubAppService } from "./app.service.js";
+import type { GitHubAppCreateInput } from "@proval/types";
 
 const appService = new GitHubAppService();
 
@@ -9,7 +10,7 @@ export const getGitHubApp = async (c: Context) => {
 };
 
 export const createGitHubApp = async (c: Context) => {
-    const body = await c.req.json();
+    const body = await c.req.json<Partial<GitHubAppCreateInput>>();
     const appId = Number(body.appId);
     const slugInput = String(body.slug ?? "").trim();
     const privateKey = String(body.privateKey ?? "").trim();
@@ -25,7 +26,7 @@ export const createGitHubApp = async (c: Context) => {
             slug: slugInput,
             privateKey,
             webhookSecret,
-        });
+        } satisfies GitHubAppCreateInput);
         return c.json(result, 201);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

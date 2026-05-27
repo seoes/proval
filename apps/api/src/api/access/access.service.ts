@@ -1,4 +1,5 @@
 import { gitProviderAccessTable, repositoryTable } from "@proval/db";
+import type { Access, AccessInsert, AccessProvider, AccessResponse, GitProviderRepositoryListResponse } from "@proval/types";
 import db from "../../db";
 import { count, eq } from "drizzle-orm";
 
@@ -12,12 +13,17 @@ export class GitLabAccessService {
         updatedAt: gitProviderAccessTable.updatedAt,
     };
 
-    public async findAll() {
+    public toResponse(access: Access): AccessResponse {
+        const { accessToken: _accessToken, ...rest } = access;
+        return rest;
+    }
+
+    public async findAll(): Promise<AccessResponse[]> {
         const accessList = await db.select(this.query).from(gitProviderAccessTable);
         return accessList;
     }
 
-    public async findById(id: number) {
+    public async findById(id: number): Promise<AccessResponse> {
         const accessList = await db
             .select(this.query)
             .from(gitProviderAccessTable)
@@ -28,7 +34,7 @@ export class GitLabAccessService {
         return accessList[0];
     }
 
-    public async findByProvider(provider: "gitlab" | "forgejo") {
+    public async findByProvider(provider: AccessProvider): Promise<AccessResponse[]> {
         const accessList = await db
             .select(this.query)
             .from(gitProviderAccessTable)
@@ -50,7 +56,12 @@ export class GitLabAccessService {
         return access[0].accessToken;
     }
 
-    public async create(provider: "gitlab" | "forgejo", name: string, baseUrl: string, accessToken: string) {
+    public async create(
+        provider: AccessInsert["provider"],
+        name: string,
+        baseUrl: string,
+        accessToken: string,
+    ): Promise<AccessResponse> {
         const newAccess = await db
             .insert(gitProviderAccessTable)
             .values({
@@ -63,7 +74,12 @@ export class GitLabAccessService {
         return newAccess[0];
     }
 
-    public async updateById(id: number, name: string, baseUrl: string, accessToken?: string) {
+    public async updateById(
+        id: number,
+        name: string,
+        baseUrl: string,
+        accessToken?: string,
+    ): Promise<AccessResponse> {
         const patch = {
             name,
             baseUrl,
