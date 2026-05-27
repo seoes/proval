@@ -8,7 +8,7 @@ export const load: PageLoad = async ({ url }) => {
     const code = url.searchParams.get("code");
 
     if (!code) {
-        redirect(303, "/settings/integration?error=missing_code");
+        redirect(303, "/provider?error=missing_code");
     }
 
     const response = await fetchApi("/github/app/callback", {
@@ -19,13 +19,13 @@ export const load: PageLoad = async ({ url }) => {
 
     if (!response.ok) {
         const data = (await response.json()) as { error?: string };
-        redirect(303, `/settings/integration?error=${encodeURIComponent(data.error || "app_creation_failed")}`);
+        redirect(303, `/provider?error=${encodeURIComponent(data.error || "app_creation_failed")}`);
     }
 
     const data = (await response.json()) as { slug: string };
     if (!data.slug) {
-        redirect(303, "/settings/integration?error=missing_slug");
+        redirect(303, "/provider?error=missing_slug");
     }
 
-    redirect(303, `/settings/integration`);
+    redirect(303, "/provider");
 };

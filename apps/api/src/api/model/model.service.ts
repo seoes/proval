@@ -7,7 +7,7 @@ import { log } from "../../util/log.js";
 
 export class ModelService {
     public async findAll(): Promise<Model[]> {
-        const models = await db.select().from(modelTable).orderBy(desc(modelTable.createdAt));
+        const models = await db.select().from(modelTable).orderBy(desc(modelTable.updatedAt));
         return models;
     }
 

@@ -49,6 +49,18 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
+    public async fetchRepositoryPath(): Promise<string> {
+        const { data: repository } = await this.octokit.repos.get({
+            owner: this.owner,
+            repo: this.repo,
+        });
+        const path = repository.full_name?.trim();
+        if (!path) {
+            throw new Error("GitHub repository path is missing");
+        }
+        return path;
+    }
+
     public async fetchMergeRequestDetail(prNumber: number): Promise<GitMergeRequest> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,

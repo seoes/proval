@@ -164,4 +164,5 @@ export interface GitProvider {
     unapproveMergeRequest(mrIid: number): Promise<void>;
     assignMergeRequestReviewer(mrIid: number): Promise<void>;
     fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
+    fetchRepositoryPath(): Promise<string>;
 }

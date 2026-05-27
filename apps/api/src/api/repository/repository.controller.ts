@@ -33,8 +33,14 @@ export const createRepository: Handler = async (c) => {
             return c.json({ error: "Webhook secret is required" }, 400);
         }
         body.webhookSecret = secret;
+        if (body.gitProviderRepositoryId == null) {
+            return c.json({ error: "Git provider repository ID is required" }, 400);
+        }
     } else if (body.provider === "github") {
         const { webhookSecret: _webhookSecret, ...githubBody } = body;
+        if (githubBody.githubRepositoryId == null) {
+            return c.json({ error: "GitHub repository ID is required" }, 400);
+        }
         const repository = await repositoryService.create(githubBody as RepositoryInsert);
         const repositoryResponse = repositoryService.toResponse(repository);
         return c.json(repositoryResponse, 201);
@@ -52,6 +58,7 @@ export const updateRepository: Handler = async (c) => {
         return c.json({ error: "Repository ID is required" }, 400);
     }
     const body = await c.req.json<RepositoryUpdateInput>();
+
     const repository = await repositoryService.update(parseInt(repositoryId), body);
     const repositoryResponse = repositoryService.toResponse(repository);
     return c.json(repositoryResponse, 200);
@@ -81,6 +88,33 @@ export const updateWebhookSecret: Handler = async (c) => {
 
     await repositoryService.updateWebhookSecret(parseInt(repositoryId), secret);
     return c.json({ message: "Webhook secret updated" }, 200);
+};
+
+export const refreshRepositoryPath: Handler = async (c) => {
+    const repositoryService = new RepositoryService();
+    const repositoryId = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(repositoryId)) {
+        return c.json({ error: "Repository ID is required" }, 400);
+    }
+
+    try {
+        const path = await repositoryService.refreshPathFromGitProvider(repositoryId);
+        return c.json({ path }, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("not found") || msg.includes("Not found")) {
+            return c.json({ error: "Repository not found" }, 404);
+        }
+        if (
+            msg.includes("missing") ||
+            msg.includes("Unsupported") ||
+            msg.includes("not found") ||
+            msg.includes("Not found")
+        ) {
+            return c.json({ error: msg }, 400);
+        }
+        return c.json({ error: "Failed to refresh repository path from Git provider", message: msg }, 502);
+    }
 };
 
 export const removeRepository: Handler = async (c) => {

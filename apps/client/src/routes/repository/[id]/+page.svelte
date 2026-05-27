@@ -10,22 +10,10 @@
     <RepositoryForm
         mode="edit"
         repositoryId={data.repository.id}
+        provider={data.repository.provider}
         modelList={data.modelList}
         accessList={data.accessList}
-        initialData={{
-            name: data.repository.name,
-            provider: data.repository.provider,
-            gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
-            language: data.repository.language,
-            gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
-            githubRepositoryPath: data.repository.githubRepositoryPath ?? "",
-            githubRepositoryId: data.repository.githubRepositoryId ?? null,
-            modelId: data.repository.modelId,
-            reviewOnMergeRequestOpen: data.repository.reviewOnMergeRequestOpen,
-            commentOnIssueOpen: data.repository.commentOnIssueOpen,
-            replyToMergeRequestComment: data.repository.replyToMergeRequestComment,
-            replyToIssueComment: data.repository.replyToIssueComment,
-            inlineReview: data.repository.inlineReview,
-            deepResearchOnMergeRequest: data.repository.deepResearchOnMergeRequest,
-        }} />
+        installationList={data.installationList}
+        githubAppId={data.githubApp?.id ?? null}
+        initialData={data.repository} />
 </DefaultLayout>

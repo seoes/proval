@@ -55,6 +55,10 @@ export class MockProvider implements GitProvider {
         };
     }
 
+    async fetchRepositoryPath(): Promise<string> {
+        return "mock-org/mock-repo";
+    }
+
     async fetchMergeRequestDetail(_mrIid: number): Promise<GitMergeRequest> {
         return this.input.detail;
     }

@@ -4,7 +4,9 @@
     import fetchApi from "$lib/utils";
     import FormField from "../molecule/FormField.svelte";
     import ToggleButton from "../atom/ToggleButton.svelte";
+    import PatchSecret from "../molecule/PatchSecret.svelte";
     import Card from "../layout/Card.svelte";
+    import Modal from "../atom/Modal.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Button from "../atom/Button.svelte";
 
@@ -21,13 +23,14 @@
         border?: boolean;
     }
 
-    let { mode, modelId, initialData, border = true }: Props = $props();
+    const { mode, modelId, initialData, border = true }: Props = $props();
 
     let provider = $state(initialData?.provider ?? "openai");
     let name = $state(initialData?.name ?? "");
     let label = $state(initialData?.label ?? "");
     let baseUrl = $state(initialData?.baseUrl ?? "");
     let apiKey = $state(initialData?.apiKey ?? "");
+    let apiKeyModalOpen = $state(false);
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
@@ -64,11 +67,16 @@
                 apiKey,
             };
 
-            await fetchApi("/model", {
+            const res = await fetchApi("/model", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
+            if (!res.ok) {
+                const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+                await openAlert(errBody.error ?? "Failed to create model");
+                return;
+            }
         } else {
             const confirm = await openConfirm("Update this model?");
             if (!confirm) return;
@@ -79,22 +87,32 @@
                 baseUrl,
             };
 
-            await fetchApi(`/model/${modelId}`, {
+            const res = await fetchApi(`/model/${modelId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
+            if (!res.ok) {
+                const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+                await openAlert(errBody.error ?? "Failed to update model");
+                return;
+            }
         }
 
         goto("/model");
     }
 
-    async function removeModel(modelId: number) {
+    async function removeModel(rid: number) {
         const confirmed = await openConfirm("Are you sure you want to remove this model?");
         if (!confirmed) return;
-        await fetchApi(`/model/${modelId}`, {
+        const res = await fetchApi(`/model/${rid}`, {
             method: "DELETE",
         });
+        if (!res.ok) {
+            const errBody = (await res.json().catch(() => ({}))) as { error?: string };
+            await openAlert(errBody.error ?? "Failed to remove model");
+            return;
+        }
         await openAlert("Model removed successfully");
         goto("/model");
     }
@@ -111,78 +129,79 @@
 
     async function testConnection() {
         isTestingConnection = true;
-        const response = await fetchApi(`/model/verify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                provider,
-                model: name,
-                baseUrl,
-                apiKey,
-            }),
-        });
+        try {
+            const response = await fetchApi(`/model/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    provider,
+                    model: name,
+                    baseUrl,
+                    apiKey,
+                }),
+            });
 
-        if (response.ok) {
-            await openAlert("Connection successful");
-        } else {
+            if (response.ok) {
+                await openAlert("Connection successful");
+            } else {
+                await openAlert("Connection failed");
+            }
+        } finally {
             isTestingConnection = false;
-            await openAlert("Connection failed");
         }
-        isTestingConnection = false;
     }
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
-    <Card {border}>
-        <div>
-            <FormField label="Display Name" description="The display name of the model">
-                {#snippet children({ id })}
-                    <InputText {id} name="label" placeholder="Main Reviewer" bind:value={label} />
-                {/snippet}
-            </FormField>
-        </div>
+    <Card {border} spaceY>
+        <FormField label="Display Name" description="The display name of the model">
+            {#snippet children({ id })}
+                <InputText {id} name="label" placeholder="Main Reviewer" bind:value={label} />
+            {/snippet}
+        </FormField>
 
-        <div>
-            <FormField
-                label="API Provider"
-                description="LLM's API (ex. OpenAI compatible, Ollama...)"
-                linkLabelToControl={false}>
-                {#snippet children({ id: _id })}
-                    <div class="mt-4 grid grid-cols-3 gap-2" id={_id} role="group">
-                        {#each apiProviderToggleButtonValueList as toggleButtonValue}
-                            <ToggleButton
-                                class="h-full w-full"
-                                label={toggleButtonValue.label}
-                                description={toggleButtonValue.description}
-                                selected={provider === toggleButtonValue.value}
-                                onclick={() => (provider = toggleButtonValue.value)} />
-                        {/each}
-                    </div>
-                {/snippet}
-            </FormField>
-        </div>
-        <div>
-            <FormField label="Model ID" description="Model's name to call from API">
-                {#snippet children({ id })}
-                    <InputText {id} placeholder="anthropic/claude-opus-4.6" bind:value={name} />
-                {/snippet}
-            </FormField>
-        </div>
-        <div>
-            <FormField label="Base URL" description="Server Host to use LLM through API">
-                {#snippet children({ id })}
-                    <InputText {id} placeholder="https://api.anthropic.com" bind:value={baseUrl} />
-                {/snippet}
-            </FormField>
-        </div>
+        <FormField
+            label="API Provider"
+            description="LLM API provider (e.g. OpenAI compatible, Ollama)"
+            linkLabelToControl={false}
+            upper>
+            {#snippet children({ id: _id })}
+                <div class="grid grid-cols-3 gap-2" id={_id} role="group">
+                    {#each apiProviderToggleButtonValueList as toggleButtonValue}
+                        <ToggleButton
+                            class="h-full w-full"
+                            label={toggleButtonValue.label}
+                            description={toggleButtonValue.description}
+                            selected={provider === toggleButtonValue.value}
+                            onclick={() => (provider = toggleButtonValue.value)} />
+                    {/each}
+                </div>
+            {/snippet}
+        </FormField>
+
+        <FormField label="Model ID" description="Model name sent to the API">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="anthropic/claude-opus-4.6" bind:value={name} />
+            {/snippet}
+        </FormField>
+
+        <FormField label="Base URL" description="Server host for the LLM API">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="https://api.anthropic.com" bind:value={baseUrl} />
+            {/snippet}
+        </FormField>
 
         {#if mode === "create"}
-            <div>
-                <FormField label="API Key">
-                    {#snippet children({ id })}
-                        <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
-                    {/snippet}
-                </FormField>
+            <FormField label="API Key" description="Required when creating a model">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
+                {/snippet}
+            </FormField>
+        {:else if modelId}
+            <div class="flex justify-end pt-2">
+                <Button text onclick={() => (apiKeyModalOpen = true)} type="button" class="w-auto text-xs">
+                    Update API Key
+                </Button>
             </div>
         {/if}
     </Card>
@@ -193,7 +212,9 @@
                 {#if isTestingConnection}
                     <Button text>Testing...</Button>
                 {:else}
-                    <Button text class="whitespace-nowrap" onclick={testConnection}>Test Connection</Button>
+                    <Button text class="whitespace-nowrap" onclick={testConnection} type="button">
+                        Test Connection
+                    </Button>
                 {/if}
             {/if}
         </div>
@@ -203,10 +224,21 @@
                     text
                     onclick={() => {
                         removeModel(modelId);
-                    }}>Remove Model</Button>
+                    }}
+                    type="button">Remove Model</Button>
             {:else if mode === "create"}
-                <Button text onclick={() => goto("/model")}>Cancel</Button>
+                <Button text onclick={() => goto("/model")} type="button">Cancel</Button>
             {/if}
         </div>
     </div>
 </form>
+
+{#if modelId && mode === "edit"}
+    <Modal bind:open={apiKeyModalOpen}>
+        <PatchSecret
+            label="Update API Key"
+            placeholder="sk-..."
+            patchEndpoint={`/model/${modelId}/api-key`}
+            onSuccess={() => (apiKeyModalOpen = false)} />
+    </Modal>
+{/if}

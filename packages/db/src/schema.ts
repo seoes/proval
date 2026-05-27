@@ -55,14 +55,14 @@ export const repositoryTable = sqliteTable(
     {
         id: integer().primaryKey({ autoIncrement: true }),
 
-        name: text().notNull(),
+        path: text().notNull(),
+        description: text(),
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
         webhookSecret: text().notNull(),
         language: text().notNull().default("English"),
 
         // github access configs
         githubInstallationId: integer().references(() => githubInstallationTable.id),
-        githubRepositoryPath: text(),
         githubRepositoryId: integer(),
 
         // other git provider access configs

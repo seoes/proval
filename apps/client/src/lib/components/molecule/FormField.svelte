@@ -36,7 +36,7 @@
 <div class={twMerge("block", className)}>
     {#if upper}
         {#if label}
-            <FieldTitle class={description ? "mb-1" : "mb-2"} forId={forIdValue}>{label}</FieldTitle>
+            <FieldTitle class="ml-1 {description ? "mb-1" : "mb-2"}" forId={forIdValue}>{label}</FieldTitle>
         {/if}
         {#if description}
             <Description class="mb-2" placement="above">{description}</Description>
@@ -46,7 +46,7 @@
         {/if}
     {:else}
         {#if label}
-            <FieldTitle class="mb-1.5" forId={forIdValue}>{label}</FieldTitle>
+            <FieldTitle class="ml-1 mb-1.5" forId={forIdValue}>{label}</FieldTitle>
         {/if}
         {#if control}
             {@render control({ id: controlId })}

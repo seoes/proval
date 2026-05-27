@@ -5,13 +5,19 @@
         children: Snippet;
         title: string;
         narrow?: boolean;
+        actions?: Snippet;
     }
-    let { children, title, narrow = false }: Props = $props();
+    const { children, title, narrow = false, actions }: Props = $props();
 </script>
 
 <div class="mx-auto {narrow ? 'max-w-lg' : 'max-w-6xl'}">
-    <div>
+    <div class="flex items-center justify-between gap-4">
         <h2 class="text-lg font-semibold">{title}</h2>
+        {#if actions}
+            <div class="shrink-0">
+                {@render actions()}
+            </div>
+        {/if}
     </div>
     <div class="mt-8">
         {@render children?.()}

@@ -154,22 +154,31 @@ export const getRepositoryListByAccessId = async (c: Context) => {
     if (!Number.isFinite(id)) {
         return c.json({ error: "Invalid access configuration id" }, 400);
     }
-
-    const access = await accessService.findById(id);
-    const accessToken = await accessService.getAccessToken(id);
-
     try {
+        const access = await accessService.findById(id);
+        const accessToken = await accessService.getAccessToken(id);
+        const connectedRepositoryIdList = await accessService.getConnectedGitProviderRepositoryIds(id);
+
+        let provider: GitLabProvider | ForgejoProvider | null = null;
+
         if (access.provider === "gitlab") {
-            const provider = new GitLabProvider(access.baseUrl, accessToken, 0); // projectId 0 for listing
-            const repositoryList = await provider.fetchRepositoryList();
-            return c.json(repositoryList, 200);
+            provider = new GitLabProvider(access.baseUrl, accessToken, 0);
         } else if (access.provider === "forgejo") {
-            const provider = new ForgejoProvider(access.baseUrl, accessToken, "", "");
-            const repositoryList = await provider.fetchRepositoryList();
-            return c.json(repositoryList, 200);
-        } else {
+            provider = new ForgejoProvider(access.baseUrl, accessToken, "", "");
+        }
+
+        if (!provider) {
             return c.json({ error: "Invalid provider" }, 400);
         }
+
+        const repositoryList = await provider.fetchRepositoryList();
+        return c.json(
+            repositoryList.map((repo) => ({
+                ...repo,
+                alreadyConnected: connectedRepositoryIdList.has(repo.id),
+            })),
+            200,
+        );
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return c.json({ error: "Failed to fetch repository list", message: msg }, 500);

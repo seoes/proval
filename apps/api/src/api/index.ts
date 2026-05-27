@@ -5,6 +5,7 @@ import {
     createRepository,
     updateRepository,
     updateWebhookSecret,
+    refreshRepositoryPath,
     removeRepository,
 } from "./repository/repository.controller.js";
 import {
@@ -41,6 +42,7 @@ apiRouter.get("/repository/:id", findRepositoryById);
 apiRouter.post("/repository", createRepository);
 apiRouter.put("/repository/:id", updateRepository);
 apiRouter.patch("/repository/:id/webhook-secret", updateWebhookSecret);
+apiRouter.post("/repository/:id/refresh-path", refreshRepositoryPath);
 apiRouter.delete("/repository/:id", removeRepository);
 
 // GitHub routes
