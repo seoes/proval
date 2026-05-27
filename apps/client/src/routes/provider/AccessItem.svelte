@@ -1,6 +1,7 @@
 <script lang="ts">
     import Button from "$lib/components/atom/Button.svelte";
-    import { TrashIcon, GitlabLogoIcon, GitForkIcon, PencilIcon } from "phosphor-svelte";
+    import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
+    import { TrashIcon, PencilIcon } from "phosphor-svelte";
     import type { AccessResponse } from "@proval/types";
 
     type TestResult = { id: number; success: boolean; message: string };
@@ -27,13 +28,7 @@
 <div class="py-4 first:pt-0 last:pb-0">
     <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-            <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
-                {#if item.provider === "gitlab"}
-                    <GitlabLogoIcon class="size-5" />
-                {:else}
-                    <GitForkIcon class="size-5" />
-                {/if}
-            </div>
+            <GitProviderIcon provider={item.provider} boxed />
             <div class="min-w-0">
                 <div class="flex items-center gap-2">
                     <p class="truncate font-medium text-neutral-800">

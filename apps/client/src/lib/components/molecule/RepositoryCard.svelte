@@ -19,7 +19,7 @@
 {#snippet header()}
     <div class="flex min-w-0 flex-col gap-0.5 ml-1.5">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <GitProviderIcon provider={repository.provider} />
+            <GitProviderIcon provider={repository.provider} boxed />
             <span class="truncate text-neutral-800">{repository.path}</span>
         </div>
         {#if repository.description}

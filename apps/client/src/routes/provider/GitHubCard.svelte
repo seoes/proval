@@ -4,7 +4,8 @@
     import InputText from "$lib/components/atom/InputText.svelte";
     import FormField from "$lib/components/molecule/FormField.svelte";
     import ToggleButton from "$lib/components/atom/ToggleButton.svelte";
-    import { TrashIcon, GithubLogoIcon } from "phosphor-svelte";
+    import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
+    import { TrashIcon } from "phosphor-svelte";
     import fetchApi from "$lib/utils";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import type { PageData } from "./$types";
@@ -192,9 +193,7 @@
         <div class="space-y-5">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="flex size-10 items-center justify-center rounded-lg bg-neutral-100">
-                        <GithubLogoIcon class="size-5 text-neutral-600" />
-                    </div>
+                    <GitProviderIcon provider="github" boxed />
                     <div>
                         <p class="font-medium text-neutral-800">{app.slug}</p>
                         <p class="text-sm text-neutral-500">App ID: {app.appId}</p>
