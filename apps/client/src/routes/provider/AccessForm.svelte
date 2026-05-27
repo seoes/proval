@@ -3,6 +3,8 @@
     import InputText from "$lib/components/atom/InputText.svelte";
     import FormField from "$lib/components/molecule/FormField.svelte";
     import Select from "$lib/components/atom/Select.svelte";
+    import fetchApi from "$lib/utils";
+    import { openAlert } from "$lib/store/modal";
     import type { AccessProvider } from "@proval/types";
 
     let {
@@ -24,6 +26,9 @@
         onSubmit: () => void;
         onCancel: () => void;
     } = $props();
+
+    let isTesting = $state(false);
+    let testResult = $state<{ success: boolean; message: string } | null>(null);
 
     const title = $derived(
         editingId !== null
@@ -48,6 +53,32 @@
     const accessFormBaseUrlDescription = $derived(
         formProvider === "gitlab" ? "Root URL of your GitLab instance" : "Root URL of your Forgejo instance",
     );
+
+    async function testConnection() {
+        if (!formBaseUrl.trim() || !formAccessToken.trim()) {
+            await openAlert("Base URL and access token are required to test");
+            return;
+        }
+        isTesting = true;
+        testResult = null;
+        try {
+            const res = await fetchApi("/access/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    provider: formProvider,
+                    baseUrl: formBaseUrl.trim(),
+                    accessToken: formAccessToken,
+                }),
+            });
+            const body = await res.json().catch(() => ({ success: false, message: "Unknown error" }));
+            testResult = { success: body.success, message: body.message ?? body.error ?? "Unknown error" };
+        } catch {
+            testResult = { success: false, message: "Request failed" };
+        } finally {
+            isTesting = false;
+        }
+    }
 </script>
 
 <h3 class="mb-4 text-lg font-semibold tracking-tight dark:text-neutral-50">
@@ -84,10 +115,32 @@
             {/snippet}
         </FormField>
     {/if}
-    <div class="flex items-center gap-2 pt-2">
-        <Button primary onclick={onSubmit} disabled={isSavingAccess} class="w-auto">
-            {isSavingAccess ? "Saving..." : editingId !== null ? "Update" : "Save"}
-        </Button>
-        <Button secondary onclick={onCancel} disabled={isSavingAccess} class="w-auto">Cancel</Button>
+    {#if editingId === null && testResult}
+        <div
+            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm {testResult.success
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-red-50 text-red-700'}">
+            <span class="font-medium">{testResult.success ? "Connected" : "Failed"}:</span>
+            {testResult.message}
+        </div>
+    {/if}
+    <div class="mt-8 flex justify-between">
+        <div class="flex gap-4">
+            <Button primary onclick={onSubmit} disabled={isSavingAccess} class="w-auto">
+                {isSavingAccess ? "Saving..." : editingId !== null ? "Update" : "Create"}
+            </Button>
+            <Button text onclick={onCancel} disabled={isSavingAccess} class="w-auto">Cancel</Button>
+        </div>
+        <div class="h-full">
+            {#if editingId === null}
+                <Button
+                    text
+                    onclick={testConnection}
+                    disabled={isTesting || isSavingAccess}
+                    class="h-11 w-auto px-0 py-0">
+                    {isTesting ? "Testing..." : "Test Connection"}
+                </Button>
+            {/if}
+        </div>
     </div>
 </div>

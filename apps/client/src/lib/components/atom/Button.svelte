@@ -25,7 +25,7 @@
     }: Props = $props();
 
     let buttonClass = twMerge(
-        "cursor-pointer rounded-lg px-6 py-3 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 h-auto w-auto",
+        "cursor-pointer rounded-lg px-6 py-3 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 h-auto w-auto focus:outline-none focus-visible:outline-none",
         primary && "bg-primary",
         secondary && "border border-neutral-200 bg-white text-neutral-600",
         text && "text-neutral-500 hover:text-neutral-700 px-0 py-0",

@@ -27,21 +27,41 @@ export class GitHubAppService {
         }));
     }
 
+    async verifyCredentials(
+        appId: number,
+        privateKey: string,
+    ): Promise<{ success: boolean; message: string; slug?: string }> {
+        try {
+            const appAuth = new App({ appId, privateKey });
+            const { data } = await appAuth.octokit.request("GET /app", {});
+
+            if (data?.id !== appId) {
+                return { success: false, message: "GitHub returned a different app id than expected" };
+            }
+
+            const name = data.name ?? data.slug ?? "GitHub App";
+            return { success: true, message: `Connected as ${name}`, slug: data.slug ?? undefined };
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            return {
+                success: false,
+                message: msg || "Could not verify App with GitHub; check appId and privateKey",
+            };
+        }
+    }
+
     async create(input: GitHubAppCreateInput): Promise<{ id: number; slug: string }> {
         const existingAppList = await db.select().from(githubAppTable).limit(1);
         if (existingAppList.length > 0) {
             throw new Error("App already exists. Only one app per instance.");
         }
 
-        // Verify with GitHub
-        const appAuth = new App({ appId: input.appId, privateKey: input.privateKey });
-        const { data } = await appAuth.octokit.request("GET /app", {});
-
-        if (data?.id !== input.appId) {
-            throw new Error("GitHub returned a different app id than expected");
+        const verified = await this.verifyCredentials(input.appId, input.privateKey);
+        if (!verified.success) {
+            throw new Error(verified.message);
         }
 
-        const slug = data.slug ?? input.slug;
+        const slug = verified.slug ?? input.slug;
         const inserted = await db
             .insert(githubAppTable)
             .values({

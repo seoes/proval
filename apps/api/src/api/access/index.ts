@@ -6,6 +6,7 @@ import {
     getAccessList,
     getRepositoryListByAccessId,
     testAccess,
+    testAccessCredentials,
     updateAccessById,
     updateAccessTokenById,
 } from "./access.controller";
@@ -16,6 +17,7 @@ accessRouter.get("/", getAccessList);
 accessRouter.get("/:id", getAccessById);
 accessRouter.get("/:id/repository", getRepositoryListByAccessId);
 accessRouter.post("/", createAccess);
+accessRouter.post("/test", testAccessCredentials);
 accessRouter.put("/:id", updateAccessById);
 accessRouter.patch("/:id/access-token", updateAccessTokenById);
 accessRouter.delete("/:id", deleteAccessById);

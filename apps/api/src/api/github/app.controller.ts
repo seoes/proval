@@ -63,6 +63,19 @@ export const handleGitHubAppCallback = async (c: Context) => {
     }
 };
 
+export const testGitHubApp = async (c: Context) => {
+    const body = await c.req.json();
+    const appId = Number(body.appId);
+    const privateKey = String(body.privateKey ?? "").trim();
+
+    if (!Number.isFinite(appId) || appId <= 0 || !privateKey) {
+        return c.json({ error: "appId and privateKey are required" }, 400);
+    }
+
+    const result = await appService.verifyCredentials(appId, privateKey);
+    return c.json(result, result.success ? 200 : 401);
+};
+
 export const deleteGitHubApp = async (c: Context) => {
     try {
         await appService.delete();

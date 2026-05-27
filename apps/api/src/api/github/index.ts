@@ -7,6 +7,7 @@ export const githubRouter = new Hono();
 // App routes
 githubRouter.get("/app", appController.getGitHubApp);
 githubRouter.post("/app", appController.createGitHubApp);
+githubRouter.post("/app/test", appController.testGitHubApp);
 githubRouter.delete("/app", appController.deleteGitHubApp);
 githubRouter.post("/app/callback", appController.handleGitHubAppCallback);
 githubRouter.post("/app/setup", installationController.handleSetup);

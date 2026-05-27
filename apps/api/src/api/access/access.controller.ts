@@ -75,6 +75,34 @@ export const testAccess = async (c: Context) => {
     return c.json(result, result.success ? 200 : 401);
 };
 
+export const testAccessCredentials = async (c: Context) => {
+    const body = await c.req.json<{ provider?: AccessProvider; baseUrl?: string; accessToken?: string }>();
+    const provider = body.provider;
+    const baseUrl = String(body.baseUrl ?? "").trim();
+    const accessToken = String(body.accessToken ?? "").trim();
+
+    if (!provider || !baseUrl || !accessToken) {
+        return c.json({ error: "provider, baseUrl, and accessToken are required" }, 400);
+    }
+
+    let result = { success: false, message: "Unknown error" };
+
+    try {
+        if (provider === "gitlab") {
+            result = await accessService.testGitLab(baseUrl, accessToken);
+        } else if (provider === "forgejo") {
+            result = await accessService.testForgejo(baseUrl, accessToken);
+        } else {
+            return c.json({ error: "Invalid provider" }, 400);
+        }
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ success: false, message: msg }, 400);
+    }
+
+    return c.json(result, result.success ? 200 : 401);
+};
+
 export const updateAccessById = async (c: Context) => {
     const id = parseInt(c.req.param("id") ?? "", 10);
     if (!Number.isFinite(id)) {

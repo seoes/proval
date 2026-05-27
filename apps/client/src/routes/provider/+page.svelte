@@ -16,16 +16,16 @@
     import { page } from "$app/state";
 
     const FLASH_SUCCESS_MESSAGES: Record<string, string> = {
-        installation_added: "GitHub installation added.",
+        installation_added: "GitHub account connected.",
     };
 
     const FLASH_ERROR_MESSAGES: Record<string, string> = {
         missing_code: "GitHub authorization code was missing.",
         missing_slug: "GitHub App registration completed without an app slug.",
-        missing_installation_id: "GitHub installation ID was missing.",
-        invalid_setup_action: "Invalid GitHub installation setup action.",
+        missing_installation_id: "GitHub account connection was incomplete.",
+        invalid_setup_action: "Invalid GitHub account connection action.",
         app_creation_failed: "Failed to register the GitHub App.",
-        installation_failed: "Failed to save the GitHub installation.",
+        installation_failed: "Failed to connect the GitHub account.",
     };
 
     let { data }: PageProps = $props();
@@ -33,6 +33,7 @@
     // Access states
     let accessList = $state<AccessResponse[]>(data.accessList);
     let showModal = $state(false);
+    let accessFormKey = $state(0);
     let editingId = $state<number | null>(null);
     let isSavingAccess = $state(false);
     let isTestingId = $state<number | null>(null);
@@ -65,6 +66,7 @@
 
     // Access functions
     function openAddModal(provider: AccessProvider) {
+        accessFormKey += 1;
         editingId = null;
         formProvider = provider;
         formName = "";
@@ -75,6 +77,7 @@
     }
 
     function openEditForm(item: AccessResponse) {
+        accessFormKey += 1;
         editingId = item.id;
         formProvider = item.provider;
         formName = item.name;
@@ -275,15 +278,17 @@
 
     <!-- Add/Edit Modal -->
     <Modal bind:open={showModal} onclose={closeAccessModal}>
-        <AccessForm
-            bind:formProvider
-            bind:formName
-            bind:formBaseUrl
-            bind:formAccessToken
-            {editingId}
-            {isSavingAccess}
-            onSubmit={saveAccess}
-            onCancel={closeAccessModal} />
+        {#key accessFormKey}
+            <AccessForm
+                bind:formProvider
+                bind:formName
+                bind:formBaseUrl
+                bind:formAccessToken
+                {editingId}
+                {isSavingAccess}
+                onSubmit={saveAccess}
+                onCancel={closeAccessModal} />
+        {/key}
     </Modal>
 
     <!-- Update Access Token Modal -->
