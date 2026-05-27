@@ -5,6 +5,7 @@ node_modules
 .vscode
 .turbo
 .svelte-kit
+.bruno
 
 .env
 .env.development
