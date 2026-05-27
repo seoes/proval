@@ -38,6 +38,7 @@ export class ForgejoProvider implements GitProvider {
         private readonly token: string,
         private readonly owner: string,
         private readonly repo: string,
+        private readonly repositoryId = 0,
     ) {}
 
     public async fetchCurrentUser(): Promise<GitUser> {
@@ -61,6 +62,23 @@ export class ForgejoProvider implements GitProvider {
             description: repository.description,
             defaultBranch: repository.default_branch ?? "main",
         };
+    }
+
+    public async fetchRepositoryPath(): Promise<string> {
+        if (this.repositoryId > 0) {
+            const repository = await this.requestJson<{ full_name: string }>(`/repositories/${this.repositoryId}`);
+            const path = repository.full_name?.trim();
+            if (!path) {
+                throw new Error("Forgejo repository path is missing");
+            }
+            return path;
+        }
+        const repository = await this.requestJson<{ full_name: string }>(`/repos/${this.owner}/${this.repo}`);
+        const path = repository.full_name?.trim();
+        if (!path) {
+            throw new Error("Forgejo repository path is missing");
+        }
+        return path;
     }
 
     public async fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest> {

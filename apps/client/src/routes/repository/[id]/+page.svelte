@@ -15,21 +15,5 @@
         accessList={data.accessList}
         installationList={data.installationList}
         githubAppId={data.githubApp?.id ?? null}
-        initialData={{
-            name: data.repository.name,
-            provider: data.repository.provider,
-            gitProviderAccessId: data.repository.gitProviderAccessId ?? null,
-            language: data.repository.language,
-            gitProviderRepositoryId: data.repository.gitProviderRepositoryId ?? null,
-            githubInstallationId: data.repository.githubInstallationId ?? null,
-            githubRepositoryPath: data.repository.githubRepositoryPath ?? "",
-            githubRepositoryId: data.repository.githubRepositoryId ?? null,
-            modelId: data.repository.modelId,
-            reviewOnMergeRequestOpen: data.repository.reviewOnMergeRequestOpen,
-            commentOnIssueOpen: data.repository.commentOnIssueOpen,
-            replyToMergeRequestComment: data.repository.replyToMergeRequestComment,
-            replyToIssueComment: data.repository.replyToIssueComment,
-            inlineReview: data.repository.inlineReview,
-            deepResearchOnMergeRequest: data.repository.deepResearchOnMergeRequest,
-        }} />
+        initialData={data.repository} />
 </DefaultLayout>

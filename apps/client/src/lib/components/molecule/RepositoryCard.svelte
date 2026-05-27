@@ -17,9 +17,14 @@
 </script>
 
 {#snippet header()}
-    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ml-1.5">
-        <GitProviderIcon provider={repository.provider} />
-        <span class="truncate text-neutral-800">{repository.name}</span>
+    <div class="flex min-w-0 flex-col gap-0.5 ml-1.5">
+        <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <GitProviderIcon provider={repository.provider} />
+            <span class="truncate text-neutral-800">{repository.path}</span>
+        </div>
+        {#if repository.description}
+            <span class="truncate text-xs text-neutral-500">{repository.description}</span>
+        {/if}
     </div>
     <span class="text-xs whitespace-nowrap text-neutral-500">
         Updated {formatTimeAgo(new Date(repository.updatedAt))}

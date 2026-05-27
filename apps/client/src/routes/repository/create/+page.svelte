@@ -22,9 +22,8 @@
     let gitProviderRepositoryId = $state("");
     let githubInstallationId = $state("");
     let githubRepositoryId = $state<number | null>(null);
-    let githubRepositoryPath = $state("");
+    let repositoryPath = $state("");
     let selectedRepositoryId = $state("");
-    let repositoryFullName = $state("");
 
     let repositoryList = $state<RepositorySelectItem[]>([]);
     let isLoadingRepositoryList = $state(false);
@@ -87,9 +86,8 @@
         provider = option.provider;
         gitProviderRepositoryId = "";
         githubRepositoryId = null;
-        githubRepositoryPath = "";
+        repositoryPath = "";
         selectedRepositoryId = "";
-        repositoryFullName = "";
 
         if (option.kind === "git-provider") {
             gitProviderAccessId = option.id.toString();
@@ -125,13 +123,12 @@
             return;
         }
 
-        repositoryFullName = selected.fullName;
+        repositoryPath = selected.fullName;
 
         if (provider === "gitlab" || provider === "forgejo") {
             gitProviderRepositoryId = selected.id.toString();
         } else if (provider === "github") {
             githubRepositoryId = selected.id;
-            githubRepositoryPath = selected.fullName;
         }
 
         step = 3;
@@ -247,15 +244,13 @@
                     installationList={data.installationList}
                     githubAppId={data.app?.id ?? null}
                     initialData={{
-                        provider,
                         gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
                         gitProviderRepositoryId: gitProviderRepositoryId
                             ? parseInt(gitProviderRepositoryId, 10)
                             : null,
                         githubInstallationId: githubInstallationId ? parseInt(githubInstallationId, 10) : null,
                         githubRepositoryId,
-                        githubRepositoryPath,
-                        repositoryFullName,
+                        path: repositoryPath,
                     }} />
                 <Button secondary onclick={() => (step = 2)} type="button">Back</Button>
             </div>

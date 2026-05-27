@@ -42,6 +42,15 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
+    public async fetchRepositoryPath(): Promise<string> {
+        const repository = await this.gitlab.Projects.show(this.projectId);
+        const path = repository.path_with_namespace?.trim();
+        if (!path) {
+            throw new Error("GitLab project path is missing");
+        }
+        return path;
+    }
+
     public async fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest> {
         const mergeRequest = await this.gitlab.MergeRequests.show(this.projectId, mrIid);
         return {

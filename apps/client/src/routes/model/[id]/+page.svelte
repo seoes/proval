@@ -6,6 +6,6 @@
     let { data }: PageProps = $props();
 </script>
 
-<DefaultLayout narrow title="Config Model ">
+<DefaultLayout narrow title="Config Model">
     <ModelForm mode="edit" modelId={data.model.id} initialData={data.model} />
 </DefaultLayout>
