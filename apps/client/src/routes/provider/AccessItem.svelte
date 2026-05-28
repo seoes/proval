@@ -34,10 +34,6 @@
                     <p class="truncate font-medium text-neutral-800">
                         {item.name}
                     </p>
-                    <span
-                        class="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 uppercase">
-                        {item.provider}
-                    </span>
                 </div>
                 <p class="truncate text-sm text-neutral-500">
                     {item.baseUrl}
