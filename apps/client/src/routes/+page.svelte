@@ -72,11 +72,7 @@
     const completedSetupCount = $derived(setupSteps.filter((step) => step.complete).length);
     const isSetupComplete = $derived(completedSetupCount === SETUP_TOTAL);
 
-    const recentRepositories = $derived(
-        [...data.repositoryList]
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-            .slice(0, 5),
-    );
+    const recentRepositoryList = $derived(data.repositoryList.slice(0, 5));
 
     const activeReviewCount = $derived(
         data.repositoryList.filter((repository) => repository.reviewOnMergeRequestOpen).length,
@@ -86,10 +82,7 @@
 <DefaultLayout title="Dashboard">
     <div class="space-y-8">
         {#if !isSetupComplete}
-            <SetupCheckList
-                steps={setupSteps}
-                completedCount={completedSetupCount}
-                totalCount={SETUP_TOTAL} />
+            <SetupCheckList steps={setupSteps} completedCount={completedSetupCount} totalCount={SETUP_TOTAL} />
         {/if}
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -122,7 +115,7 @@
                     </a>
                 </div>
                 <div class="space-y-3">
-                    {#each recentRepositories as repository (repository.id)}
+                    {#each recentRepositoryList as repository (repository.id)}
                         <RepositoryCard {repository} />
                     {/each}
                 </div>

@@ -1,4 +1,5 @@
 import type {
+    activityTable,
     repositoryTable,
     modelTable,
     gitProviderAccessTable,
@@ -19,12 +20,15 @@ export type GitHubApp = InferSelectModel<typeof githubAppTable>;
 
 export type GitHubInstallation = InferSelectModel<typeof githubInstallationTable>;
 
+export type Activity = InferSelectModel<typeof activityTable>;
+
 // Insert types (for creating new records)
 export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
 export type ModelInsert = InferInsertModel<typeof modelTable>;
 export type AccessInsert = InferInsertModel<typeof gitProviderAccessTable>;
 export type GitHubAppInsert = InferInsertModel<typeof githubAppTable>;
 export type GitHubInstallationInsert = InferInsertModel<typeof githubInstallationTable>;
+export type ActivityInsert = InferInsertModel<typeof activityTable>;
 
 // API response types (sensitive fields omitted)
 export type RepositoryResponse = Omit<Repository, "webhookSecret">;

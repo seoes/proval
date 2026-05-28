@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const timeStamp = {
@@ -90,4 +90,29 @@ export const repositoryTable = sqliteTable(
         ...timeStamp,
     },
     (table) => [unique().on(table.gitProviderRepositoryId, table.gitProviderAccessId)],
+);
+
+export const activityTable = sqliteTable(
+    "activity",
+    {
+        id: integer().primaryKey({ autoIncrement: true }),
+        repositoryId: integer()
+            .notNull()
+            .references(() => repositoryTable.id),
+        modelId: integer()
+            .notNull()
+            .references(() => modelTable.id),
+        type: text({ enum: ["mr_review", "mr_reply", "issue_open", "issue_reply"] }).notNull(),
+        status: text({ enum: ["started", "completed", "failed"] }).notNull(),
+        targetIid: integer().notNull(),
+        inputToken: integer(),
+        outputToken: integer(),
+        errorMessage: text(),
+        completedAt: integer({ mode: "timestamp" }),
+        ...timeStamp,
+    },
+    (table) => [
+        index("activity_repository_id_created_at_idx").on(table.repositoryId, table.createdAt),
+        index("activity_model_id_created_at_idx").on(table.modelId, table.createdAt),
+    ],
 );

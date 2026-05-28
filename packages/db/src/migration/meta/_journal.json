@@ -169,6 +169,13 @@
       "when": 1779844666220,
       "tag": "0023_github_app_webhook_secret",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1779963653514,
+      "tag": "0024_blushing_metal_master",
+      "breakpoints": true
     }
   ]
 }

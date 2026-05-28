@@ -1,7 +1,7 @@
 import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
 import { githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret.js";
@@ -15,7 +15,7 @@ const accessService = new GitLabAccessService();
 
 export class RepositoryService {
     public async findAll(): Promise<Repository[]> {
-        const repositoryList = await db.select().from(repositoryTable).orderBy(desc(repositoryTable.updatedAt));
+        const repositoryList = await db.select().from(repositoryTable);
         return repositoryList;
     }
 

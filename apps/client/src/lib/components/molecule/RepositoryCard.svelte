@@ -2,8 +2,7 @@
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
     import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
-    import { formatTimeAgo } from "$lib/utils";
-    import { providerLabel, replyOptionBadge } from "$lib/utils/label";
+    import { replyOptionBadge } from "$lib/utils/label";
     import type { RepositoryResponse } from "@proval/types";
 
     interface Props {
@@ -17,7 +16,7 @@
 </script>
 
 {#snippet header()}
-    <div class="flex min-w-0 flex-col gap-0.5 ml-1.5">
+    <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <GitProviderIcon provider={repository.provider} boxed />
             <span class="truncate text-neutral-800">{repository.path}</span>
@@ -26,9 +25,6 @@
             <span class="truncate text-xs text-neutral-500">{repository.description}</span>
         {/if}
     </div>
-    <span class="text-xs whitespace-nowrap text-neutral-500">
-        Updated {formatTimeAgo(new Date(repository.updatedAt))}
-    </span>
 {/snippet}
 
 {#snippet badges()}

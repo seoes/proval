@@ -1,14 +1,14 @@
 import { modelTable } from "@proval/db";
 import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import OpenAI from "openai";
 import { log } from "../../util/log.js";
 
 export class ModelService {
     public async findAll(): Promise<Model[]> {
-        const models = await db.select().from(modelTable).orderBy(desc(modelTable.updatedAt));
-        return models;
+        const modelList = await db.select().from(modelTable);
+        return modelList;
     }
 
     public async findById(modelId: number): Promise<Model> {
