@@ -11,6 +11,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { GitLabProvider } from "../../provider/gitlab.js";
 import type { Access, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
+import { runWithActivity } from "../../api/activity/activity.runner.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -117,7 +118,17 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         isDeepResearch: repository.deepResearchOnMergeRequest,
     };
 
-    mergeRequestService.review(mergeRequest.iid, reviewOptions);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "mr_review",
+            targetIid: mergeRequest.iid,
+        },
+        () => mergeRequestService.review(mergeRequest.iid, reviewOptions),
+    ).catch((error) => {
+        logError("Merge request review failed", error);
+    });
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
@@ -181,7 +192,17 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         }
     }
 
-    mergeRequestService.reply(mrIid, commenterUsername, noteBody);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "mr_reply",
+            targetIid: mrIid,
+        },
+        () => mergeRequestService.reply(mrIid, commenterUsername, noteBody),
+    ).catch((error) => {
+        logError("Merge request reply failed", error);
+    });
 
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };
@@ -223,8 +244,16 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
-    issueService.commentOnOpen(issueIid).catch((err) => {
-        logError("Issue comment failed", err);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "issue_open",
+            targetIid: issueIid,
+        },
+        () => issueService.commentOnOpen(issueIid),
+    ).catch((error) => {
+        logError("Issue comment failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
@@ -280,8 +309,16 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
 
     const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
 
-    issueService.reply(issueIid, commenterUsername, noteBody).catch((err) => {
-        logError("Issue reply failed", err);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "issue_reply",
+            targetIid: issueIid,
+        },
+        () => issueService.reply(issueIid, commenterUsername, noteBody),
+    ).catch((error) => {
+        logError("Issue reply failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });

@@ -33,4 +33,5 @@ export type {
     RepositorySelectItem,
     LoadRepositoryListInput,
     UnifiedAccessOption,
+    ActivityTokenUsage,
 } from "./database.js";

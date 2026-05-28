@@ -54,9 +54,7 @@ export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "crea
 export type GitHubAppUpdateInput = Partial<
     Omit<GitHubAppInsert, "privateKey" | "webhookSecret" | "createdAt" | "updatedAt">
 >;
-export type GitHubInstallationUpdateInput = Partial<
-    Omit<GitHubInstallationInsert, "createdAt" | "updatedAt">
->;
+export type GitHubInstallationUpdateInput = Partial<Omit<GitHubInstallationInsert, "createdAt" | "updatedAt">>;
 
 // Create input types (sensitive fields included)
 export type GitHubAppCreateInput = Pick<GitHubAppInsert, "appId" | "slug" | "privateKey" | "webhookSecret">;
@@ -99,3 +97,8 @@ export type UnifiedAccessOption =
           label: string;
           accountType: GitHubInstallationResponse["accountType"];
       };
+
+export type ActivityTokenUsage = {
+    inputToken: number;
+    outputToken: number;
+};

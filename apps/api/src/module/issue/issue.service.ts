@@ -1,3 +1,4 @@
+import type { ActivityTokenUsage } from "@proval/types";
 import { runAgentLoop, type AgentTool } from "../../agent/loop.js";
 import { createOpenAiSender } from "../../agent/openai.js";
 import {
@@ -32,7 +33,7 @@ export class IssueService {
         });
     }
 
-    public async commentOnOpen(issueIid: number): Promise<void> {
+    public async commentOnOpen(issueIid: number): Promise<ActivityTokenUsage> {
         const repository = await this.provider.fetchRepositoryDetail();
         const system = `${COMMENT_ON_OPEN_PROMPT}\n\nLanguage: ${this.language}`;
         const prompt = await this.generateIssuePrompt(issueIid, repository.defaultBranch);
@@ -42,12 +43,16 @@ export class IssueService {
             ...this.createCommentToolList(issueIid),
         ];
 
-        await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Comment On Open`, {
+        const stats = await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Comment On Open`, {
             toolList,
         });
+        return {
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
-    public async reply(issueIid: number, commenterUsername: string, commentBody: string): Promise<void> {
+    public async reply(issueIid: number, commenterUsername: string, commentBody: string): Promise<ActivityTokenUsage> {
         const repository = await this.provider.fetchRepositoryDetail();
         const issueComments = await this.provider.fetchIssueCommentList(issueIid);
         const system = `${ISSUE_REPLY_PROMPT}\n\nLanguage: ${this.language}`;
@@ -63,7 +68,11 @@ export class IssueService {
             ...this.createReplyToolList(issueIid, commenterUsername),
         ];
 
-        await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Reply`, { toolList });
+        const stats = await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Reply`, { toolList });
+        return {
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
     private createIssueToolList(issueIid: number): AgentTool[] {
