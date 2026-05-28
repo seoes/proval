@@ -45,11 +45,11 @@ export const logAgentResult = (
 ): void => {
     const secs = (elapsedMs / 1000).toFixed(1);
     const status = reason === "completed" ? pc.green("completed") : pc.yellow("max steps");
-    const toolEntries = Object.entries(result.toolCallCount);
+    const toolEntryList = Object.entries(result.toolCallCount);
     const tools =
-        toolEntries.length === 0
+        toolEntryList.length === 0
             ? pc.dim("none")
-            : toolEntries.map(([name, n]) => `${pc.yellow(name)}${pc.dim("×")}${n}`).join(pc.dim(", "));
+            : toolEntryList.map(([name, n]) => `${pc.yellow(name)}${pc.dim("×")}${n}`).join(pc.dim(", "));
 
     const parts = [
         status,
