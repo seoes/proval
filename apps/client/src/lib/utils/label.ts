@@ -1,5 +1,5 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-import type { ModelProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
+import type { Activity, ModelProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
@@ -28,6 +28,28 @@ const modelProviderLabelList: Record<ModelProvider, string> = {
 
 export function modelProviderLabel(provider: ModelProvider | string): string {
     return modelProviderLabelList[provider as ModelProvider] ?? provider;
+}
+
+const activityTypeLabelList: Record<Activity["type"], string> = {
+    mr_review: "MR Review",
+    mr_reply: "MR Reply",
+    issue_open: "Issue Open",
+    issue_reply: "Issue Reply",
+};
+
+export function activityTypeLabel(type: Activity["type"]): string {
+    return activityTypeLabelList[type] ?? type;
+}
+
+export function activityStatusBadge(status: Activity["status"]): OptionBadge {
+    if (status === "completed") return { variant: "success", label: "Completed" };
+    if (status === "failed") return { variant: "danger", label: "Failed" };
+    return { variant: "warning", label: "Started" };
+}
+
+export function activityTargetLabel(type: Activity["type"], targetIid: number): string {
+    if (type === "mr_review" || type === "mr_reply") return `!${targetIid}`;
+    return `#${targetIid}`;
 }
 
 export function truncateUrl(url: string, max = 40): string {

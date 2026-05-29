@@ -35,3 +35,4 @@ export type {
     UnifiedAccessOption,
     ActivityTokenUsage,
 } from "./database.js";
+export type { Pagination } from "./pagination.js";

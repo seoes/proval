@@ -5,7 +5,9 @@
         type SetupStepStatus,
     } from "$lib/components/organism/SetupCheckList.svelte";
     import SummaryPannel from "$lib/components/molecule/SummaryPannel.svelte";
-    import RepositoryCard from "$lib/components/molecule/RepositoryCard.svelte";
+    import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
+    import Badge from "$lib/components/atom/Badge.svelte";
+    import { replyOptionBadge } from "$lib/utils/label";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
@@ -116,7 +118,51 @@
                 </div>
                 <div class="space-y-3">
                     {#each recentRepositoryList as repository (repository.id)}
-                        <RepositoryCard {repository} />
+                        {@const pullRequestReply = replyOptionBadge(
+                            "Pull Request Reply",
+                            repository.replyToMergeRequestComment,
+                        )}
+                        {@const issueReply = replyOptionBadge("Issue Reply", repository.replyToIssueComment)}
+                        {#snippet header()}
+                            <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
+                                <span class="truncate text-neutral-800">{repository.path}</span>
+                                {#if repository.description}
+                                    <span class="truncate text-xs text-neutral-500">{repository.description}</span>
+                                {/if}
+                            </div>
+                        {/snippet}
+                        {#snippet badge()}
+                            <div class="flex w-full flex-col gap-2">
+                                <div class="flex flex-wrap gap-1.5">
+                                    {#if repository.reviewOnMergeRequestOpen}
+                                        <Badge variant="success">Pull Request Review</Badge>
+                                    {/if}
+                                    {#if pullRequestReply}
+                                        <Badge variant={pullRequestReply.variant}>{pullRequestReply.label}</Badge>
+                                    {/if}
+                                    {#if repository.commentOnIssueOpen}
+                                        <Badge variant="success">Issue Review</Badge>
+                                    {/if}
+                                    {#if issueReply}
+                                        <Badge variant={issueReply.variant}>{issueReply.label}</Badge>
+                                    {/if}
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    {#if repository.deepResearchOnMergeRequest}
+                                        <Badge variant="warning">Deep Research</Badge>
+                                    {/if}
+                                    {#if repository.inlineReview}
+                                        <Badge variant="warning">Inline Review</Badge>
+                                    {/if}
+                                    <Badge variant="neutral">{repository.language}</Badge>
+                                </div>
+                            </div>
+                        {/snippet}
+                        <ResourceCard
+                            href="/repository/{repository.id}"
+                            provider={repository.provider}
+                            {header}
+                            {badge} />
                     {/each}
                 </div>
             </div>

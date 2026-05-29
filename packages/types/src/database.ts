@@ -20,7 +20,11 @@ export type GitHubApp = InferSelectModel<typeof githubAppTable>;
 
 export type GitHubInstallation = InferSelectModel<typeof githubInstallationTable>;
 
-export type Activity = InferSelectModel<typeof activityTable>;
+export type Activity = InferSelectModel<typeof activityTable> & {
+    repositoryPath: string;
+    modelLabel: string;
+    provider: Repository["provider"];
+};
 
 // Insert types (for creating new records)
 export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
