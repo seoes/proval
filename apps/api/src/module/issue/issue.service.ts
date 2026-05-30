@@ -46,6 +46,20 @@ export class IssueService {
         const stats = await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Comment On Open`, {
             toolList,
         });
+
+        if (process.env.NODE_ENV === "development") {
+            const model = this.sender.getModel();
+
+            const comment = `## Debug Comment\n\n
+                Issue IID: ${issueIid}\n\n
+                Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
+                Input Token: ${stats.totalInputToken}\n
+                Output Token: ${stats.totalOutputToken}\n
+            `;
+
+            await this.provider.createIssueComment(issueIid, comment);
+        }
+
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
@@ -69,6 +83,18 @@ export class IssueService {
         ];
 
         const stats = await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Reply`, { toolList });
+
+        if (process.env.NODE_ENV === "development") {
+            const model = this.sender.getModel();
+            const comment = `## Debug Comment\n\n
+                Issue IID: ${issueIid}\n\n
+                Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
+                Input Token: ${stats.totalInputToken}\n
+                Output Token: ${stats.totalOutputToken}\n
+            `;
+            await this.provider.createIssueComment(issueIid, comment);
+        }
+
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,

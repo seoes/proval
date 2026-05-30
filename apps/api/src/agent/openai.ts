@@ -49,6 +49,9 @@ export function createOpenAiSender(config: OpenAiConfig): LlmSender {
                 },
             };
         },
+        getModel() {
+            return { model: config.model, provider: "openai", baseUrl: config.baseURL };
+        },
     };
 }
 

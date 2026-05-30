@@ -33,6 +33,7 @@ export interface LlmResponse {
 
 export interface LlmSender {
     send(messages: Message[], tools: AgentTool[]): Promise<LlmResponse>;
+    getModel(): { model: string; provider: string; baseUrl: string };
 }
 
 export interface AgentRunResult {

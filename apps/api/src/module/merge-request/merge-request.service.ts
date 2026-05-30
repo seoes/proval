@@ -49,20 +49,38 @@ export class MergeRequestService {
         mrIid: number,
         { isInlineReview, isDeepResearch }: { isInlineReview: boolean; isDeepResearch: boolean },
     ): Promise<ActivityTokenUsage> {
+        let inputToken = 0;
+        let outputToken = 0;
         if (isDeepResearch) {
             const planResult = await this.planDeepReview(mrIid);
             const reviewResult = await this.generateDeepReview(mrIid, planResult.reviewTargetList, isInlineReview);
-            return {
-                inputToken: planResult.inputToken + reviewResult.inputToken,
-                outputToken: planResult.outputToken + reviewResult.outputToken,
-            };
+            inputToken = planResult.inputToken + reviewResult.inputToken;
+            outputToken = planResult.outputToken + reviewResult.outputToken;
         } else {
             const reviewResult = await this.generateStandardReview(mrIid, isInlineReview);
-            return {
-                inputToken: reviewResult.inputToken,
-                outputToken: reviewResult.outputToken,
-            };
+            inputToken = reviewResult.inputToken;
+            outputToken = reviewResult.outputToken;
         }
+
+        if (process.env.NODE_ENV === "development") {
+            // Create debug comment
+            const model = this.sender.getModel();
+            const comment = `## Debug Comment\n\n
+                Merge Request IID: ${mrIid}\n\n
+                Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
+                Deep Research: ${isDeepResearch}\n
+                Inline Review: ${isInlineReview}\n\n
+                Input Token: ${inputToken}\n
+                Output Token: ${outputToken}\n
+            `;
+
+            await this.provider.createMergeRequestComment(mrIid, comment);
+        }
+
+        return {
+            inputToken,
+            outputToken,
+        };
     }
 
     // #########################################################
@@ -215,6 +233,18 @@ export class MergeRequestService {
         const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, {
             toolList,
         });
+
+        if (process.env.NODE_ENV === "development") {
+            const model = this.sender.getModel();
+            const comment = `## Debug Comment\n\n
+                Merge Request IID: ${mrIid}\n\n
+                Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
+                Input Token: ${stats.totalInputToken}\n
+                Output Token: ${stats.totalOutputToken}\n
+            `;
+
+            await this.provider.createMergeRequestComment(mrIid, comment);
+        }
 
         return {
             inputToken: stats.totalInputToken,
