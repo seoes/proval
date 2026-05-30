@@ -1,7 +1,22 @@
 import { activityTable, modelTable, repositoryTable } from "@proval/db";
-import type { Activity, Pagination } from "@proval/types";
+import type { Activity, ActivityLast24HoursStats, Pagination } from "@proval/types";
 import db from "../../db/index.js";
-import { count, desc, eq, getTableColumns } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray } from "drizzle-orm";
+
+const FINISHED_STATUSES = ["completed", "failed"] as const;
+const REVIEW_TYPES = ["pr_review", "issue_open"] as const;
+const REPLY_TYPES = ["pr_reply", "issue_reply"] as const;
+
+function last24HoursSince(): Date {
+    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+}
+
+function finishedInLast24Hours() {
+    return and(
+        gte(activityTable.completedAt, last24HoursSince()),
+        inArray(activityTable.status, [...FINISHED_STATUSES]),
+    );
+}
 
 export type ActivityStartInput = Pick<Activity, "repositoryId" | "modelId" | "type" | "targetIid">;
 
@@ -31,6 +46,41 @@ export class ActivityService {
             .offset(offset);
 
         return { itemList, page, limit, total };
+    }
+
+    public async getLast24HoursStats(): Promise<ActivityLast24HoursStats> {
+        const since = last24HoursSince();
+        const finished = finishedInLast24Hours();
+
+        const [[{ total: totalActivity }], [{ total: errors }], [{ total: reviews }], [{ total: replies }]] =
+            await Promise.all([
+                db.select({ total: count() }).from(activityTable).where(finished),
+                db
+                    .select({ total: count() })
+                    .from(activityTable)
+                    .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "failed"))),
+                db
+                    .select({ total: count() })
+                    .from(activityTable)
+                    .where(and(finished, inArray(activityTable.type, [...REVIEW_TYPES]))),
+                db
+                    .select({ total: count() })
+                    .from(activityTable)
+                    .where(and(finished, inArray(activityTable.type, [...REPLY_TYPES]))),
+            ]);
+
+        return { totalActivity, errors, reviews, replies };
+    }
+
+    public async findInProgress(limit = 10): Promise<Activity[]> {
+        return db
+            .select(activitySelect)
+            .from(activityTable)
+            .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
+            .innerJoin(modelTable, eq(activityTable.modelId, modelTable.id))
+            .where(eq(activityTable.status, "started"))
+            .orderBy(desc(activityTable.createdAt))
+            .limit(limit);
     }
 
     public async findById(id: number): Promise<Activity> {

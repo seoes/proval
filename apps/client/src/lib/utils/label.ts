@@ -44,7 +44,7 @@ export function activityTypeLabel(type: Activity["type"]): string {
 export function activityStatusBadge(status: Activity["status"]): OptionBadge {
     if (status === "completed") return { variant: "success", label: "Completed" };
     if (status === "failed") return { variant: "danger", label: "Failed" };
-    return { variant: "warning", label: "Started" };
+    return { variant: "primary", label: "Started" };
 }
 
 export function activityTargetLabel(type: Activity["type"], targetIid: number): string {

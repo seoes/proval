@@ -7,12 +7,19 @@
     import SummaryPannel from "$lib/components/molecule/SummaryPannel.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
-    import { replyOptionBadge } from "$lib/utils/label";
+    import {
+        activityStatusBadge,
+        activityTargetLabel,
+        activityTypeLabel,
+        replyOptionBadge,
+    } from "$lib/utils/label";
+    import { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
 
     const SETUP_TOTAL = 3;
+    const IN_PROGRESS_LIMIT = 10;
 
     const modelCount = $derived(data.modelList.length);
     const providerCount = $derived(data.accessList.length + data.installationList.length);
@@ -79,6 +86,10 @@
     const activeReviewCount = $derived(
         data.repositoryList.filter((repository) => repository.reviewOnPullRequestOpen).length,
     );
+
+    const last24Hours = $derived(data.activitySummary.last24Hours);
+    const inProgressList = $derived(data.activitySummary.inProgress);
+    const showInProgressViewAll = $derived(inProgressList.length >= IN_PROGRESS_LIMIT);
 </script>
 
 <DefaultLayout title="Dashboard">
@@ -87,23 +98,84 @@
             <SetupCheckList steps={setupSteps} completedCount={completedSetupCount} totalCount={SETUP_TOTAL} />
         {/if}
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SummaryPannel
-                label="Models"
-                value={modelCount}
-                href="/model"
-                actionLabel={modelCount > 0 ? "Manage →" : "Add →"} />
-            <SummaryPannel
-                label="Git Providers"
-                value={providerCount}
-                href="/provider"
-                actionLabel={providerCount > 0 ? "Manage →" : "Set up →"} />
+        <div class="hidden gap-3 sm:grid sm:grid-cols-3">
+            <SummaryPannel label="Models" value={modelCount} />
+            <SummaryPannel label="Git Providers" value={providerCount} />
             <SummaryPannel
                 label="Repositories"
                 value={repositoryCount}
-                sublabel={repositoryCount > 0 ? `${activeReviewCount} with PR review enabled` : undefined}
-                href="/repository"
-                actionLabel={repositoryCount > 0 ? "Manage →" : "Add →"} />
+                sublabel={repositoryCount > 0 ? `${activeReviewCount} with PR review enabled` : undefined} />
+        </div>
+
+        <div>
+            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
+                <h3 class="text-md font-medium text-neutral-800 dark:text-white">
+                    Recent activity (Last 24 hours)
+                </h3>
+                <a
+                    href="/review"
+                    class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                    View all →
+                </a>
+            </div>
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <SummaryPannel label="Total activity" value={last24Hours.totalActivity} />
+                <SummaryPannel
+                    label="Errors"
+                    value={last24Hours.errors}
+                    status={last24Hours.errors > 0 ? "error" : "neutral"} />
+                <SummaryPannel label="Reviews" value={last24Hours.reviews} />
+                <SummaryPannel label="Replies" value={last24Hours.replies} />
+            </div>
+        </div>
+
+        <div>
+            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
+                <h3 class="text-md font-medium text-neutral-800 dark:text-white">In progress</h3>
+                {#if showInProgressViewAll}
+                    <a
+                        href="/review"
+                        class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                        View all →
+                    </a>
+                {/if}
+            </div>
+            {#if inProgressList.length === 0}
+                <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center">
+                    <p class="text-sm text-neutral-500">No reviews in progress.</p>
+                </div>
+            {:else}
+                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+                    {#each inProgressList as activity (activity.id)}
+                        {@const status = activityStatusBadge(activity.status)}
+                        {@const target = activityTargetLabel(activity.type, activity.targetIid)}
+                        {@const typeLabel = activityTypeLabel(activity.type)}
+                        {@const timeLabel = formatTimeAgo(activity.createdAt)}
+                        {#snippet header()}
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-medium text-neutral-800">
+                                    {activity.repositoryPath}
+                                    <span class="font-normal text-neutral-500">· {target} · {typeLabel}</span>
+                                </p>
+                            </div>
+                        {/snippet}
+                        {#snippet badge()}
+                            <Badge variant={status.variant}>{status.label}</Badge>
+                            <span class="text-xs text-neutral-500 lg:hidden">{activity.modelLabel}</span>
+                            <span class="text-sm text-neutral-500 lg:hidden">{timeLabel}</span>
+                            <Badge variant="neutral" class="hidden lg:inline-flex">{activity.modelLabel}</Badge>
+                            <span class="hidden text-sm text-neutral-500 lg:inline">{timeLabel}</span>
+                        {/snippet}
+                        <ResourceCard
+                            compact
+                            embedded
+                            href="/review/{activity.id}"
+                            provider={activity.provider}
+                            {header}
+                            {badge} />
+                    {/each}
+                </div>
+            {/if}
         </div>
 
         {#if repositoryCount > 0}

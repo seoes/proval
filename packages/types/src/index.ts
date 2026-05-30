@@ -36,3 +36,4 @@ export type {
     ActivityTokenUsage,
 } from "./database.js";
 export type { Pagination } from "./pagination.js";
+export type { ActivityLast24HoursStats, ActivitySummaryResponse } from "./activity-summary.js";

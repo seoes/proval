@@ -1,6 +1,7 @@
 import fetchApi from "$lib/utils";
 import type {
     AccessResponse,
+    ActivitySummaryResponse,
     GitHubAppResponse,
     GitHubInstallationResponse,
     ModelResponse,
@@ -8,13 +9,20 @@ import type {
 } from "@proval/types";
 import type { PageLoad } from "./$types";
 
+const emptyActivitySummary: ActivitySummaryResponse = {
+    last24Hours: { totalActivity: 0, errors: 0, reviews: 0, replies: 0 },
+    inProgress: [],
+};
+
 export const load: PageLoad = async () => {
-    const [modelResponse, repositoryResponse, accessResponse, githubAppResponse] = await Promise.all([
-        fetchApi("/model"),
-        fetchApi("/repository"),
-        fetchApi("/access"),
-        fetchApi("/github/app"),
-    ]);
+    const [modelResponse, repositoryResponse, accessResponse, githubAppResponse, activitySummaryResponse] =
+        await Promise.all([
+            fetchApi("/model"),
+            fetchApi("/repository"),
+            fetchApi("/access"),
+            fetchApi("/github/app"),
+            fetchApi("/activity/summary"),
+        ]);
 
     const modelList: ModelResponse[] = modelResponse.ok ? await modelResponse.json() : [];
     const repositoryList: RepositoryResponse[] = repositoryResponse.ok ? await repositoryResponse.json() : [];
@@ -27,10 +35,15 @@ export const load: PageLoad = async () => {
         installationList = installationResponse.ok ? await installationResponse.json() : [];
     }
 
+    const activitySummary: ActivitySummaryResponse = activitySummaryResponse.ok
+        ? await activitySummaryResponse.json()
+        : emptyActivitySummary;
+
     return {
         modelList,
         repositoryList,
         accessList,
         installationList,
+        activitySummary,
     };
 };

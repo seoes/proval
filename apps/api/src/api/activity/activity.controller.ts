@@ -7,6 +7,15 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
     return parsed;
 }
 
+export const getActivitySummary: Handler = async (c) => {
+    const activityService = new ActivityService();
+    const [last24Hours, inProgress] = await Promise.all([
+        activityService.getLast24HoursStats(),
+        activityService.findInProgress(10),
+    ]);
+    return c.json({ last24Hours, inProgress }, 200);
+};
+
 export const findAllActivity: Handler = async (c) => {
     const page = parsePositiveInt(c.req.query("page"), 1);
     const limit = parsePositiveInt(c.req.query("limit"), 10);
