@@ -1,11 +1,11 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
 
-export function createMultiLineCommentTool(provider: GitProvider, mrIid: number): AgentTool {
+export function createMultiLineCommentTool(provider: GitProvider, prIid: number): AgentTool {
     return {
         name: "create_multi_line_comment",
         description: [
-            "Create one inline thread that spans MULTIPLE lines of the MR diff.",
+            "Create one inline thread that spans MULTIPLE lines of the PR diff.",
             "Use this for findings that span 2+ consecutive lines.",
             "Do NOT use this for findings that pin to exactly one line — use create_single_line_comment for that.",
             "Paths must match the diff (old_path/new_path).",
@@ -97,7 +97,7 @@ export function createMultiLineCommentTool(provider: GitProvider, mrIid: number)
                 }
             }
 
-            const comment = await provider.createCommentToMultiLine(mrIid, body, {
+            const comment = await provider.createCommentToMultiLine(prIid, body, {
                 baseSha: String(position.baseSha),
                 headSha: String(position.headSha),
                 startSha: String(position.startSha),

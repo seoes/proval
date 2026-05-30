@@ -34,7 +34,7 @@
             {#each data.repositoryList as repository (repository.id)}
                 {@const pullRequestReply = replyOptionBadge(
                     "Pull Request Reply",
-                    repository.replyToMergeRequestComment,
+                    repository.replyToPullRequestComment,
                 )}
                 {@const issueReply = replyOptionBadge("Issue Reply", repository.replyToIssueComment)}
                 {#snippet header()}
@@ -48,7 +48,7 @@
                 {#snippet badge()}
                     <div class="flex w-full flex-col gap-2">
                         <div class="flex flex-wrap gap-1.5">
-                            {#if repository.reviewOnMergeRequestOpen}
+                            {#if repository.reviewOnPullRequestOpen}
                                 <Badge variant="success">Pull Request Review</Badge>
                             {/if}
                             {#if pullRequestReply}
@@ -62,7 +62,7 @@
                             {/if}
                         </div>
                         <div class="flex flex-wrap gap-1.5">
-                            {#if repository.deepResearchOnMergeRequest}
+                            {#if repository.deepResearchOnPullRequest}
                                 <Badge variant="warning">Deep Research</Badge>
                             {/if}
                             {#if repository.inlineReview}

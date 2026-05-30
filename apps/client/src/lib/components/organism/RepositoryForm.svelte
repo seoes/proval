@@ -34,12 +34,12 @@
             | "githubRepositoryId"
             | "language"
             | "modelId"
-            | "reviewOnMergeRequestOpen"
+            | "reviewOnPullRequestOpen"
             | "inlineReview"
-            | "replyToMergeRequestComment"
+            | "replyToPullRequestComment"
             | "replyToIssueComment"
             | "commentOnIssueOpen"
-            | "deepResearchOnMergeRequest"
+            | "deepResearchOnPullRequest"
         >
     >;
 
@@ -78,11 +78,11 @@
             : initialData?.gitProviderRepositoryId
         )?.toString() ?? "",
     );
-    let deepResearchOnMergeRequest = $state(initialData?.deepResearchOnMergeRequest ?? false);
+    let deepResearchOnPullRequest = $state(initialData?.deepResearchOnPullRequest ?? false);
 
-    let reviewOnMergeRequestOpen = $state(initialData?.reviewOnMergeRequestOpen ?? true);
+    let reviewOnPullRequestOpen = $state(initialData?.reviewOnPullRequestOpen ?? true);
     let commentOnIssueOpen = $state(initialData?.commentOnIssueOpen ?? true);
-    let replyToMergeRequestComment = $state<ReplyThreadPolicy>(initialData?.replyToMergeRequestComment ?? "all");
+    let replyToPullRequestComment = $state<ReplyThreadPolicy>(initialData?.replyToPullRequestComment ?? "all");
     let replyToIssueComment = $state<ReplyThreadPolicy>(initialData?.replyToIssueComment ?? "all");
     let inlineReview = $state(initialData?.inlineReview ?? true);
 
@@ -104,7 +104,7 @@
     const selectClass =
         "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
-    const replyToMergeRequestCommentOptionList: {
+    const replyToPullRequestCommentOptionList: {
         label: string;
         value: ReplyThreadPolicy;
         description: string;
@@ -112,17 +112,17 @@
         {
             label: "All",
             value: "all",
-            description: "Reply on all thread comments on merge requests",
+            description: "Reply on all thread comments on pull requests",
         },
         {
             label: "Mentioned only",
             value: "mentioned_only",
-            description: "Reply only when the bot is @mentioned in MR discussion threads",
+            description: "Reply only when the bot is @mentioned in PR discussion threads",
         },
         {
             label: "Off",
             value: "off",
-            description: "Do not reply to merge request comments",
+            description: "Do not reply to pull request comments",
         },
     ];
 
@@ -285,12 +285,12 @@
                 githubInstallationId: githubInstallationId ? parseInt(githubInstallationId, 10) : null,
                 githubRepositoryId: provider === "github" ? repoId : null,
                 modelId: modelId ? parseInt(modelId, 10) : null,
-                reviewOnMergeRequestOpen,
+                reviewOnPullRequestOpen,
                 commentOnIssueOpen,
-                replyToMergeRequestComment,
+                replyToPullRequestComment,
                 replyToIssueComment,
                 inlineReview,
-                deepResearchOnMergeRequest,
+                deepResearchOnPullRequest,
             };
             if (provider === "gitlab" || provider === "forgejo") {
                 body.webhookSecret = webhookSecret.trim();
@@ -319,12 +319,12 @@
                 githubInstallationId: githubInstallationId ? parseInt(githubInstallationId, 10) : null,
                 githubRepositoryId: provider === "github" ? repoId : null,
                 modelId: modelId ? parseInt(modelId, 10) : null,
-                reviewOnMergeRequestOpen,
+                reviewOnPullRequestOpen,
                 commentOnIssueOpen,
-                replyToMergeRequestComment,
+                replyToPullRequestComment,
                 replyToIssueComment,
                 inlineReview,
-                deepResearchOnMergeRequest,
+                deepResearchOnPullRequest,
             };
 
             const res = await fetchApi(`/repository/${repositoryId}`, {
@@ -458,11 +458,11 @@
         </div>
     </Card>
 
-    <Card title="Merge request" spaceY>
+    <Card title="Pull request" spaceY>
         <div class="space-y-4">
             <div class="flex items-center justify-between gap-2">
                 <FieldTitle>Review when PR opens</FieldTitle>
-                <ToggleSwitch bind:checked={reviewOnMergeRequestOpen} />
+                <ToggleSwitch bind:checked={reviewOnPullRequestOpen} />
             </div>
             <div class="flex items-center justify-between">
                 <FieldTitle>Inline review</FieldTitle>
@@ -473,23 +473,23 @@
                     <FieldTitle>Deep Research</FieldTitle>
                     <Description>Sub agents will be used to analyze the code</Description>
                 </div>
-                <ToggleSwitch bind:checked={deepResearchOnMergeRequest} />
+                <ToggleSwitch bind:checked={deepResearchOnPullRequest} />
             </div>
         </div>
         <div>
             <FormField
                 label="Reply to comments"
-                description="How the bot responds in MR discussion threads"
+                description="How the bot responds in PR discussion threads"
                 linkLabelToControl={false}
                 upper>
                 {#snippet children({ id: _id })}
                     <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each replyToMergeRequestCommentOptionList as opt}
+                        {#each replyToPullRequestCommentOptionList as opt}
                             <SimpleSelectCard
                                 label={opt.label}
                                 description={opt.description}
-                                selected={replyToMergeRequestComment === opt.value}
-                                onclick={() => (replyToMergeRequestComment = opt.value)} />
+                                selected={replyToPullRequestComment === opt.value}
+                                onclick={() => (replyToPullRequestComment = opt.value)} />
                         {/each}
                     </div>
                 {/snippet}

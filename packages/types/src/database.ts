@@ -70,7 +70,7 @@ export type SecretInput = { value: string };
 export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type ModelProvider = Model["provider"];
-export type ReplyThreadPolicy = Repository["replyToMergeRequestComment"];
+export type ReplyThreadPolicy = Repository["replyToPullRequestComment"];
 
 // Composite / list API types
 export type GitProviderRepositoryListResponse = {

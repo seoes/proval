@@ -31,8 +31,8 @@ export function modelProviderLabel(provider: ModelProvider | string): string {
 }
 
 const activityTypeLabelList: Record<Activity["type"], string> = {
-    mr_review: "MR Review",
-    mr_reply: "MR Reply",
+    pr_review: "PR Review",
+    pr_reply: "PR Reply",
     issue_open: "Issue Open",
     issue_reply: "Issue Reply",
 };
@@ -48,7 +48,7 @@ export function activityStatusBadge(status: Activity["status"]): OptionBadge {
 }
 
 export function activityTargetLabel(type: Activity["type"], targetIid: number): string {
-    if (type === "mr_review" || type === "mr_reply") return `!${targetIid}`;
+    if (type === "pr_review" || type === "pr_reply") return `!${targetIid}`;
     return `#${targetIid}`;
 }
 

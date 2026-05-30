@@ -8,9 +8,9 @@ import type {
     GitDiffSingleLine,
     GitIssue,
     GitIssueState,
-    GitMergeRequest,
-    GitMergeRequestState,
-    GitMergeRequestVersion,
+    GitPullRequest,
+    GitPullRequestState,
+    GitPullRequestVersion,
     GitProvider,
     GitRelatedItem,
     GitRepository,
@@ -51,20 +51,20 @@ export class GitLabProvider implements GitProvider {
         return path;
     }
 
-    public async fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest> {
-        const mergeRequest = await this.gitlab.MergeRequests.show(this.projectId, mrIid);
+    public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
+        const mergeRequest = await this.gitlab.MergeRequests.show(this.projectId, prIid);
         return {
             title: mergeRequest.title,
             description: mergeRequest.description,
             sourceBranch: mergeRequest.source_branch,
             targetBranch: mergeRequest.target_branch,
             author: mergeRequest.author.username,
-            state: mergeRequest.state as GitMergeRequestState,
+            state: mergeRequest.state as GitPullRequestState,
         };
     }
 
-    public async fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]> {
-        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, mrIid);
+    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
+        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, prIid);
         return changes.map((change) => ({
             oldPath: change.old_path,
             newPath: change.new_path,
@@ -74,11 +74,11 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
-    public async fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff> {
-        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, mrIid);
+    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
+        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, prIid);
         const change = changes.find((item) => item.new_path === filePath || item.old_path === filePath);
         if (!change) {
-            throw new Error(`Changed file not found in merge request: ${filePath}`);
+            throw new Error(`Changed file not found in pull request: ${filePath}`);
         }
         return {
             oldPath: change.old_path,
@@ -90,8 +90,8 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]> {
-        const comments = await this.gitlab.MergeRequestNotes.all(this.projectId, mrIid);
+    public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
+        const comments = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
         return comments.map((comment) => ({
             id: comment.id,
             body: comment.body,
@@ -179,7 +179,7 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
-    public async searchMergeRequestList(query: string): Promise<GitRelatedItem[]> {
+    public async searchPullRequestList(query: string): Promise<GitRelatedItem[]> {
         const result = await this.requestJson<
             Array<{
                 iid: number;
@@ -197,7 +197,7 @@ export class GitLabProvider implements GitProvider {
             number: mergeRequest.iid,
             title: mergeRequest.title,
             description: mergeRequest.description,
-            state: this.mapMergeRequestState(mergeRequest.state),
+            state: this.mapPullRequestState(mergeRequest.state),
             author: mergeRequest.author?.username ?? "",
             url: mergeRequest.web_url ?? "",
         }));
@@ -263,8 +263,8 @@ export class GitLabProvider implements GitProvider {
         return response.content;
     }
 
-    public async createMergeRequestComment(mrIid: number, body: string): Promise<GitComment> {
-        const comment = await this.gitlab.MergeRequestNotes.create(this.projectId, mrIid, body);
+    public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {
+        const comment = await this.gitlab.MergeRequestNotes.create(this.projectId, prIid, body);
         return {
             id: comment.id,
             body: comment.body,
@@ -278,13 +278,13 @@ export class GitLabProvider implements GitProvider {
         return { username: user.username };
     }
 
-    public async fetchMergeRequestReviewerList(mrIid: number): Promise<string[]> {
-        const mr = await this.gitlab.MergeRequests.show(this.projectId, mrIid);
+    public async fetchPullRequestReviewerList(prIid: number): Promise<string[]> {
+        const mr = await this.gitlab.MergeRequests.show(this.projectId, prIid);
         return (mr.reviewers ?? []).map((r: { username: string }) => r.username);
     }
 
-    public async fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion> {
-        const versions = await this.gitlab.MergeRequests.allDiffVersions(this.projectId, mrIid);
+    public async fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion> {
+        const versions = await this.gitlab.MergeRequests.allDiffVersions(this.projectId, prIid);
         const latest = versions[0];
         return {
             headSha: latest.head_commit_sha,
@@ -294,11 +294,11 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async createCommentToSingleLine(
-        mrIid: number,
+        prIid: number,
         body: string,
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
-        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, mrIid, body, {
+        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
                 baseSha: position.baseSha,
@@ -324,7 +324,7 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async createCommentToMultiLine(
-        mrIid: number,
+        prIid: number,
         body: string,
         position: GitDiffMultiLine,
     ): Promise<GitComment> {
@@ -332,7 +332,7 @@ export class GitLabProvider implements GitProvider {
         const anchorNewLine = position.end.type === "new" ? position.end.newLine : undefined;
         const anchorOldLine = position.end.type === "old" ? position.end.oldLine : undefined;
 
-        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, mrIid, body, {
+        const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
                 baseSha: position.baseSha,
@@ -377,18 +377,18 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async approveMergeRequest(mrIid: number): Promise<void> {
-        await this.gitlab.MergeRequestApprovals.approve(this.projectId, mrIid);
+    public async approvePullRequest(prIid: number): Promise<void> {
+        await this.gitlab.MergeRequestApprovals.approve(this.projectId, prIid);
     }
 
-    public async unapproveMergeRequest(mrIid: number): Promise<void> {
-        await this.gitlab.MergeRequestApprovals.unapprove(this.projectId, mrIid);
+    public async unapprovePullRequest(prIid: number): Promise<void> {
+        await this.gitlab.MergeRequestApprovals.unapprove(this.projectId, prIid);
     }
 
-    public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
+    public async assignPullRequestReviewer(prIid: number): Promise<void> {
         const user = await this.gitlab.Users.showCurrentUser();
-        const reviewerList = await this.gitlab.MergeRequests.showReviewers(this.projectId, mrIid);
-        await this.gitlab.MergeRequests.edit(this.projectId, mrIid, {
+        const reviewerList = await this.gitlab.MergeRequests.showReviewers(this.projectId, prIid);
+        await this.gitlab.MergeRequests.edit(this.projectId, prIid, {
             reviewerIds: [...reviewerList.map((r: MergeRequestReviewerSchema) => r.user.id), user.id],
         });
     }
@@ -437,7 +437,7 @@ export class GitLabProvider implements GitProvider {
         return "opened";
     }
 
-    private mapMergeRequestState(state: string): "opened" | "closed" | "merged" {
+    private mapPullRequestState(state: string): "opened" | "closed" | "merged" {
         if (state === "merged") return "merged";
         if (state === "closed") return "closed";
         return "opened";

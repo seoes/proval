@@ -11,7 +11,7 @@ import {
     searchCodeListTool,
     searchLineByKeywordTool,
     searchIssueListTool,
-    searchMergeRequestListTool,
+    searchPullRequestListTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
 import { COMMENT_ON_OPEN_PROMPT, ISSUE_REPLY_PROMPT } from "./prompt/index.js";
@@ -106,7 +106,7 @@ export class IssueService {
             getIssueDetailTool(this.provider, issueIid),
             getIssueCommentListTool(this.provider, issueIid),
             searchIssueListTool(this.provider),
-            searchMergeRequestListTool(this.provider),
+            searchPullRequestListTool(this.provider),
         ];
     }
 

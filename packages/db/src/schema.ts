@@ -71,13 +71,13 @@ export const repositoryTable = sqliteTable(
         }),
         gitProviderRepositoryId: integer(),
 
-        // merge request
-        reviewOnMergeRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
+        // pull request
+        reviewOnPullRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
         inlineReview: integer({ mode: "boolean" }).notNull().default(true),
-        replyToMergeRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
+        replyToPullRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
             .notNull()
             .default("all"),
-        deepResearchOnMergeRequest: integer({ mode: "boolean" }).notNull().default(false),
+        deepResearchOnPullRequest: integer({ mode: "boolean" }).notNull().default(false),
 
         // issue
         commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
@@ -102,7 +102,7 @@ export const activityTable = sqliteTable(
         modelId: integer()
             .notNull()
             .references(() => modelTable.id),
-        type: text({ enum: ["mr_review", "mr_reply", "issue_open", "issue_reply"] }).notNull(),
+        type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["started", "completed", "failed"] }).notNull(),
         targetIid: integer().notNull(),
         inputToken: integer(),

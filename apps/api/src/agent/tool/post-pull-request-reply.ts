@@ -1,7 +1,7 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
 
-export function postMergeRequestReplyTool(provider: GitProvider, mrIid: number, mentionTarget: string): AgentTool {
+export function postPullRequestReplyTool(provider: GitProvider, prIid: number, mentionTarget: string): AgentTool {
     return {
         name: "post_reply_comment",
         description:
@@ -19,7 +19,7 @@ export function postMergeRequestReplyTool(provider: GitProvider, mrIid: number, 
         execute: async (args) => {
             const body = String(args.body);
             const fullBody = `@${mentionTarget}\n\n${body}`;
-            const comment = await provider.createMergeRequestComment(mrIid, fullBody);
+            const comment = await provider.createPullRequestComment(prIid, fullBody);
             return comment;
         },
     };

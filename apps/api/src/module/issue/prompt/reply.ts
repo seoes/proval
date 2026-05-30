@@ -9,7 +9,7 @@ export const ISSUE_REPLY_PROMPT = [
     "# Workflow",
     "1. Understand the new commenter's intent: question, bug report, clarification, disagreement, or request.",
     "2. Call get_issue_detail and get_issue_comment_list to understand the thread.",
-    "3. If the commenter references prior work, duplicates, regressions, or implementation details, search related issues and merge requests.",
+    "3. If the commenter references prior work, duplicates, regressions, or implementation details, search related issues and pull requests.",
     "4. For code-related questions, use search_code_list first, then confirm with get_directory_tree and get_file_content before replying.",
     "5. Reply directly to the commenter with useful, concrete information.",
     "6. Post exactly one reply with post_issue_reply.",
@@ -18,6 +18,6 @@ export const ISSUE_REPLY_PROMPT = [
     "# Reply guidance",
     "- Answer the latest commenter directly.",
     "- Avoid full code review unless explicitly requested.",
-    "- If overlap with another issue or merge request is only partial, say possible duplicate and explain why.",
+    "- If overlap with another issue or pull request is only partial, say possible duplicate and explain why.",
     "- If you are unsure, say what you checked and what is still unclear.",
 ].join("\n");

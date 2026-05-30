@@ -7,9 +7,9 @@ import type {
     GitDiffSingleLine,
     GitIssue,
     GitIssueState,
-    GitMergeRequest,
-    GitMergeRequestState,
-    GitMergeRequestVersion,
+    GitPullRequest,
+    GitPullRequestState,
+    GitPullRequestVersion,
     GitProvider,
     GitRelatedItem,
     GitRepository,
@@ -27,9 +27,9 @@ type ForgejoPullReviewCommentDraft = {
 };
 
 export class ForgejoProvider implements GitProvider {
-    /** In-memory drafts for one MR review run; submitted by `createMergeRequestComment` via bulk `POST /reviews`. */
+    /** In-memory drafts for one MR review run; submitted by `createPullRequestComment` via bulk `POST /reviews`. */
     private reviewBuffer: ForgejoPullReviewCommentDraft[] = [];
-    private reviewBufferMrIid: number | null = null;
+    private reviewBufferPrIid: number | null = null;
     private reviewBufferCommitId: string | null = null;
     private reviewBufferSeq = 0;
 
@@ -81,7 +81,7 @@ export class ForgejoProvider implements GitProvider {
         return path;
     }
 
-    public async fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest> {
+    public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
         const pr = await this.requestJson<{
             title: string;
             body: string | null;
@@ -90,7 +90,7 @@ export class ForgejoProvider implements GitProvider {
             user: { login: string } | null;
             state: string;
             merged: boolean;
-        }>(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}`);
+        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}`);
 
         return {
             title: pr.title,
@@ -102,14 +102,14 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]> {
+    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
         const files = await this.requestJson<
             Array<{
                 filename: string;
                 previous_filename?: string;
                 status: string;
             }>
-        >(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/files`);
+        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`);
 
         return files.map((file) => ({
             oldPath: file.previous_filename ?? file.filename,
@@ -120,7 +120,7 @@ export class ForgejoProvider implements GitProvider {
         }));
     }
 
-    public async fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff> {
+    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
         const files = await this.requestJson<
             Array<{
                 filename: string;
@@ -128,7 +128,7 @@ export class ForgejoProvider implements GitProvider {
                 status: string;
                 patch?: string;
             }>
-        >(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/files`);
+        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`);
 
         const file = files.find((f) => f.filename === filePath || f.previous_filename === filePath);
         if (!file) {
@@ -145,7 +145,7 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]> {
+    public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
         const [issueCommentList, reviews] = await Promise.all([
             this.requestJson<
                 Array<{
@@ -154,12 +154,12 @@ export class ForgejoProvider implements GitProvider {
                     user: { login: string } | null;
                     created_at: string;
                 }>
-            >(`/repos/${this.owner}/${this.repo}/issues/${mrIid}/comments`),
+            >(`/repos/${this.owner}/${this.repo}/issues/${prIid}/comments`),
             this.requestJson<
                 Array<{
                     id: number;
                 }>
-            >(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews`),
+            >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`),
         ]);
 
         const reviewCommentLists = await Promise.all(
@@ -172,7 +172,7 @@ export class ForgejoProvider implements GitProvider {
                             user: { login: string } | null;
                             created_at: string;
                         }>
-                    >(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews/${review.id}/comments`);
+                    >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
                 } catch {
                     return [];
                 }
@@ -205,20 +205,20 @@ export class ForgejoProvider implements GitProvider {
         return out;
     }
 
-    public async fetchMergeRequestReviewerList(mrIid: number): Promise<string[]> {
+    public async fetchPullRequestReviewerList(prIid: number): Promise<string[]> {
         const pr = await this.requestJson<{
             requested_reviewers?: Array<{ login: string }> | null;
-        }>(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}`);
+        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}`);
 
         return (pr.requested_reviewers ?? []).map((r) => r.login);
     }
 
-    public async fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion> {
+    public async fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion> {
         const pr = await this.requestJson<{
             head: { sha: string };
             base: { sha: string };
             merge_base?: string;
-        }>(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}`);
+        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}`);
 
         return {
             headSha: pr.head.sha,
@@ -283,17 +283,17 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async createMergeRequestComment(mrIid: number, body: string): Promise<GitComment> {
-        await this.flushReviewBuffer(mrIid);
-        return this.createIssueComment(mrIid, body);
+    public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {
+        await this.flushReviewBuffer(prIid);
+        return this.createIssueComment(prIid, body);
     }
 
     public async createCommentToSingleLine(
-        mrIid: number,
+        prIid: number,
         body: string,
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
-        this.resetReviewBufferIfMrMismatch(mrIid);
+        this.resetReviewBufferIfPrMismatch(prIid);
         if (!this.reviewBufferCommitId) {
             this.reviewBufferCommitId = position.headSha;
         }
@@ -311,11 +311,11 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async createCommentToMultiLine(
-        mrIid: number,
+        prIid: number,
         body: string,
         position: GitDiffMultiLine,
     ): Promise<GitComment> {
-        this.resetReviewBufferIfMrMismatch(mrIid);
+        this.resetReviewBufferIfPrMismatch(prIid);
         if (this.reviewBufferCommitId !== null) {
             this.reviewBufferCommitId = position.headSha;
         }
@@ -332,8 +332,8 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async approveMergeRequest(mrIid: number): Promise<void> {
-        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews`, {
+    public async approvePullRequest(prIid: number): Promise<void> {
+        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`, {
             method: "POST",
             body: JSON.stringify({
                 body: "",
@@ -342,7 +342,7 @@ export class ForgejoProvider implements GitProvider {
         });
     }
 
-    public async unapproveMergeRequest(mrIid: number): Promise<void> {
+    public async unapprovePullRequest(prIid: number): Promise<void> {
         // Get existing reviews
         const reviews = await this.requestJson<
             Array<{
@@ -350,7 +350,7 @@ export class ForgejoProvider implements GitProvider {
                 state: string;
                 user: { login: string };
             }>
-        >(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews`);
+        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`);
 
         const currentUser = await this.fetchCurrentUser();
         const userReview = reviews.find((r) => r.user.login === currentUser.username && r.state === "APPROVED");
@@ -358,7 +358,7 @@ export class ForgejoProvider implements GitProvider {
         if (userReview) {
             // Dismiss the review
             await this.requestJson(
-                `/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews/${userReview.id}/dismissals`,
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${userReview.id}/dismissals`,
                 {
                     method: "POST",
                     body: JSON.stringify({
@@ -369,10 +369,10 @@ export class ForgejoProvider implements GitProvider {
         }
     }
 
-    public async assignMergeRequestReviewer(mrIid: number): Promise<void> {
+    public async assignPullRequestReviewer(prIid: number): Promise<void> {
         const user = await this.fetchCurrentUser();
 
-        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/requested_reviewers`, {
+        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/requested_reviewers`, {
             method: "POST",
             body: JSON.stringify({
                 reviewers: [user.username],
@@ -425,7 +425,7 @@ export class ForgejoProvider implements GitProvider {
             }));
     }
 
-    public async searchMergeRequestList(query: string): Promise<GitRelatedItem[]> {
+    public async searchPullRequestList(query: string): Promise<GitRelatedItem[]> {
         const prs = await this.requestJson<
             Array<{
                 number: number;
@@ -515,18 +515,18 @@ export class ForgejoProvider implements GitProvider {
         return response.content ?? "";
     }
 
-    private resetReviewBufferIfMrMismatch(mrIid: number): void {
-        if (this.reviewBufferMrIid !== null && this.reviewBufferMrIid !== mrIid) {
+    private resetReviewBufferIfPrMismatch(prIid: number): void {
+        if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
             this.reviewBuffer = [];
             this.reviewBufferCommitId = null;
             this.reviewBufferSeq = 0;
         }
-        this.reviewBufferMrIid = mrIid;
+        this.reviewBufferPrIid = prIid;
     }
 
     private clearReviewBuffer(): void {
         this.reviewBuffer = [];
-        this.reviewBufferMrIid = null;
+        this.reviewBufferPrIid = null;
         this.reviewBufferCommitId = null;
     }
 
@@ -580,19 +580,19 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    private async flushReviewBuffer(mrIid: number): Promise<void> {
+    private async flushReviewBuffer(prIid: number): Promise<void> {
         if (this.reviewBuffer.length === 0) {
             return;
         }
-        if (this.reviewBufferMrIid !== null && this.reviewBufferMrIid !== mrIid) {
+        if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
             this.clearReviewBuffer();
             this.reviewBufferSeq = 0;
             return;
         }
 
-        const commitId = this.reviewBufferCommitId ?? (await this.fetchMergeRequestVersion(mrIid)).headSha;
+        const commitId = this.reviewBufferCommitId ?? (await this.fetchPullRequestVersion(prIid)).headSha;
 
-        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${mrIid}/reviews`, {
+        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`, {
             method: "POST",
             body: JSON.stringify({
                 event: "COMMENT",
@@ -636,7 +636,7 @@ export class ForgejoProvider implements GitProvider {
         return (await response.json()) as T;
     }
 
-    private mapPRState(state: string, merged: boolean): GitMergeRequestState {
+    private mapPRState(state: string, merged: boolean): GitPullRequestState {
         if (merged) return "merged";
         if (state === "open") return "opened";
         return "closed";

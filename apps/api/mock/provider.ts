@@ -6,8 +6,8 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
-    GitMergeRequest,
-    GitMergeRequestVersion,
+    GitPullRequest,
+    GitPullRequestVersion,
     GitProvider,
     GitRelatedItem,
     GitRepository,
@@ -17,19 +17,19 @@ import type {
 } from "../src/provider/types.js";
 
 export interface TestInput {
-    detail: GitMergeRequest;
+    detail: GitPullRequest;
     diffs: GitDiff[];
     comments?: GitComment[];
     files?: Record<string, string>;
     tree?: GitTree[];
-    version?: GitMergeRequestVersion;
-    /** Returned by fetchMergeRequestReviewerList (default []) */
+    version?: GitPullRequestVersion;
+    /** Returned by fetchPullRequestReviewerList (default []) */
     reviewers?: string[];
     /** Returned by fetchCurrentUser (default test_bot) */
     currentUser?: GitUser;
 }
 
-const defaultVersion: GitMergeRequestVersion = {
+const defaultVersion: GitPullRequestVersion = {
     headSha: "head111111111111111111111111111111111111",
     baseSha: "base222222222222222222222222222222222222",
     startSha: "start333333333333333333333333333333333333",
@@ -59,11 +59,11 @@ export class MockProvider implements GitProvider {
         return "mock-org/mock-repo";
     }
 
-    async fetchMergeRequestDetail(_mrIid: number): Promise<GitMergeRequest> {
+    async fetchPullRequestDetail(_prIid: number): Promise<GitPullRequest> {
         return this.input.detail;
     }
 
-    async fetchChangedFileList(_mrIid: number): Promise<GitChangedFile[]> {
+    async fetchChangedFileList(_prIid: number): Promise<GitChangedFile[]> {
         return this.input.diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
             oldPath,
             newPath,
@@ -73,19 +73,19 @@ export class MockProvider implements GitProvider {
         }));
     }
 
-    async fetchFileDiff(_mrIid: number, filePath: string): Promise<GitDiff> {
+    async fetchFileDiff(_prIid: number, filePath: string): Promise<GitDiff> {
         const diff = this.input.diffs.find((item) => item.newPath === filePath || item.oldPath === filePath);
         if (!diff) {
-            throw new Error(`Changed file not found in merge request: ${filePath}`);
+            throw new Error(`Changed file not found in pull request: ${filePath}`);
         }
         return diff;
     }
 
-    async fetchMergeRequestCommentList(_mrIid: number): Promise<GitComment[]> {
+    async fetchPullRequestCommentList(_prIid: number): Promise<GitComment[]> {
         return this.input.comments ?? [];
     }
 
-    async fetchMergeRequestReviewerList(_mrIid: number): Promise<string[]> {
+    async fetchPullRequestReviewerList(_prIid: number): Promise<string[]> {
         return this.input.reviewers ?? [];
     }
 
@@ -104,14 +104,14 @@ export class MockProvider implements GitProvider {
     }
 
     async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
-        return this.createMergeRequestComment(issueIid, body);
+        return this.createPullRequestComment(issueIid, body);
     }
 
     async searchIssueList(_query: string): Promise<GitRelatedItem[]> {
         return [];
     }
 
-    async searchMergeRequestList(_query: string): Promise<GitRelatedItem[]> {
+    async searchPullRequestList(_query: string): Promise<GitRelatedItem[]> {
         return [];
     }
 
@@ -150,11 +150,11 @@ export class MockProvider implements GitProvider {
         return [];
     }
 
-    async fetchMergeRequestVersion(_mrIid: number): Promise<GitMergeRequestVersion> {
+    async fetchPullRequestVersion(_prIid: number): Promise<GitPullRequestVersion> {
         return this.input.version ?? defaultVersion;
     }
 
-    async createMergeRequestComment(_mrIid: number, body: string): Promise<GitComment> {
+    async createPullRequestComment(_prIid: number, body: string): Promise<GitComment> {
         this.posted.push({ type: "comment", body });
         return {
             id: Date.now(),
@@ -164,7 +164,7 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async createCommentToSingleLine(_mrIid: number, body: string, _position: GitDiffSingleLine): Promise<GitComment> {
+    async createCommentToSingleLine(_prIid: number, body: string, _position: GitDiffSingleLine): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -174,7 +174,7 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async createCommentToMultiLine(_mrIid: number, body: string, _position: GitDiffMultiLine): Promise<GitComment> {
+    async createCommentToMultiLine(_prIid: number, body: string, _position: GitDiffMultiLine): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -184,15 +184,15 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async approveMergeRequest(_mrIid: number): Promise<void> {
+    async approvePullRequest(_prIid: number): Promise<void> {
         this.posted.push({ type: "approve", body: "" });
     }
 
-    async unapproveMergeRequest(_mrIid: number): Promise<void> {
+    async unapprovePullRequest(_prIid: number): Promise<void> {
         this.posted.push({ type: "unapprove", body: "" });
     }
 
-    async assignMergeRequestReviewer(_mrIid: number): Promise<void> {
+    async assignPullRequestReviewer(_prIid: number): Promise<void> {
         // Webhook-only; no-op for demo
     }
 }

@@ -7,7 +7,7 @@ import type {
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
-import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
+import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
 import type { Access, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
@@ -21,10 +21,10 @@ export const handleGitLabWebhook = async (c: Context) => {
     const access = c.get("access") as Access;
 
     try {
-        // Handle Merge Request Hook
+        // Handle Merge Request Hook (GitLab event name)
         if (event === "Merge Request Hook") {
             const payload: WebhookMergeRequestEventSchema = c.get("gitlabPayload");
-            const response = await handleGitLabMergeRequestWebhook(payload, repository, model, access);
+            const response = await handleGitLabPullRequestWebhook(payload, repository, model, access);
             return response;
         }
 
@@ -42,7 +42,7 @@ export const handleGitLabWebhook = async (c: Context) => {
             // Switch on note type
             switch (noteType) {
                 case "MergeRequest": {
-                    const response = await handleGitLabMergeRequestNoteWebhook(
+                    const response = await handleGitLabPullRequestNoteWebhook(
                         payload as WebhookMergeRequestNoteEventSchema,
                         repository,
                         model,
@@ -70,14 +70,14 @@ export const handleGitLabWebhook = async (c: Context) => {
     }
 };
 
-type HandleGitLabMergeRequestWebhook = (
+type HandleGitLabPullRequestWebhook = (
     payload: WebhookMergeRequestEventSchema,
     repository: Repository,
     model: Model,
     access: Access,
 ) => Promise<Response>;
 
-const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (payload, repository, model, access) => {
+const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (payload, repository, model, access) => {
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
@@ -87,7 +87,7 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
     }
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
 
-    const mergeRequestService = new MergeRequestService(
+    const pullRequestService = new PullRequestService(
         gitlabProvider,
         model.baseUrl,
         model.apiKey,
@@ -95,7 +95,7 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         repository.language,
     );
 
-    const mergeRequest = payload.object_attributes;
+    const pullRequest = payload.object_attributes;
 
     const action = payload.object_attributes?.action ?? "";
 
@@ -109,45 +109,45 @@ const handleGitLabMergeRequestWebhook: HandleGitLabMergeRequestWebhook = async (
         });
     }
 
-    if (!repository.reviewOnMergeRequestOpen) {
+    if (!repository.reviewOnPullRequestOpen) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
     const reviewOptions = {
         isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnMergeRequest,
+        isDeepResearch: repository.deepResearchOnPullRequest,
     };
 
     runWithActivity(
         {
             repositoryId: repository.id,
             modelId: model.id,
-            type: "mr_review",
-            targetIid: mergeRequest.iid,
+            type: "pr_review",
+            targetIid: pullRequest.iid,
         },
-        () => mergeRequestService.review(mergeRequest.iid, reviewOptions),
+        () => pullRequestService.review(pullRequest.iid, reviewOptions),
     ).catch((error) => {
-        logError("Merge request review failed", error);
+        logError("Pull request review failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
 
-type HandleGitLabMergeRequestNoteWebhook = (
+type HandleGitLabPullRequestNoteWebhook = (
     payload: WebhookMergeRequestNoteEventSchema,
     repository: Repository,
     model: Model,
     access: Access,
 ) => Promise<Response>;
 
-const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook = async (
+const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = async (
     payload,
     repository,
     model,
     access,
 ) => {
-    // If reply to merge request comment is off, skip
-    if (repository.replyToMergeRequestComment === "off") {
+    // If reply to pull request comment is off, skip
+    if (repository.replyToPullRequestComment === "off") {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
             status: 200,
         });
@@ -176,9 +176,9 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
     }
 
     const noteBody: string = payload.object_attributes?.note;
-    const mrIid = payload.merge_request.iid;
+    const prIid = payload.merge_request.iid;
 
-    const mergeRequestService = new MergeRequestService(
+    const pullRequestService = new PullRequestService(
         gitlabProvider,
         model.baseUrl,
         model.apiKey,
@@ -186,7 +186,7 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         repository.language,
     );
 
-    if (repository.replyToMergeRequestComment === "mentioned_only") {
+    if (repository.replyToPullRequestComment === "mentioned_only") {
         if (!noteBody.includes(`@${botUsername}`)) {
             return new Response(JSON.stringify({ message: "Skipped: commenter is not mentioned" }), { status: 200 });
         }
@@ -196,12 +196,12 @@ const handleGitLabMergeRequestNoteWebhook: HandleGitLabMergeRequestNoteWebhook =
         {
             repositoryId: repository.id,
             modelId: model.id,
-            type: "mr_reply",
-            targetIid: mrIid,
+            type: "pr_reply",
+            targetIid: prIid,
         },
-        () => mergeRequestService.reply(mrIid, commenterUsername, noteBody),
+        () => pullRequestService.reply(prIid, commenterUsername, noteBody),
     ).catch((error) => {
-        logError("Merge request reply failed", error);
+        logError("Pull request reply failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });

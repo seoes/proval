@@ -6,14 +6,14 @@ import {
     getFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-    postMergeRequestCommentTool,
-    postMergeRequestReplyTool,
+    postPullRequestCommentTool,
+    postPullRequestReplyTool,
     createSingleLineCommentTool,
     createMultiLineCommentTool,
-    approveMergeRequestTool,
-    unapproveMergeRequestTool,
+    approvePullRequestTool,
+    unapprovePullRequestTool,
     appendReviewTargetTool,
-    getMergeRequestDetailTool,
+    getPullRequestDetailTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
 import type { ReviewTarget } from "./review-target.schema.js";
@@ -28,7 +28,7 @@ import type { ActivityTokenUsage } from "@proval/types";
 
 export type { ReviewTarget } from "./review-target.schema.js";
 
-export class MergeRequestService {
+export class PullRequestService {
     private readonly sender: ReturnType<typeof createOpenAiSender>;
 
     constructor(
@@ -46,18 +46,18 @@ export class MergeRequestService {
     }
 
     public async review(
-        mrIid: number,
+        prIid: number,
         { isInlineReview, isDeepResearch }: { isInlineReview: boolean; isDeepResearch: boolean },
     ): Promise<ActivityTokenUsage> {
         let inputToken = 0;
         let outputToken = 0;
         if (isDeepResearch) {
-            const planResult = await this.planDeepReview(mrIid);
-            const reviewResult = await this.generateDeepReview(mrIid, planResult.reviewTargetList, isInlineReview);
+            const planResult = await this.planDeepReview(prIid);
+            const reviewResult = await this.generateDeepReview(prIid, planResult.reviewTargetList, isInlineReview);
             inputToken = planResult.inputToken + reviewResult.inputToken;
             outputToken = planResult.outputToken + reviewResult.outputToken;
         } else {
-            const reviewResult = await this.generateStandardReview(mrIid, isInlineReview);
+            const reviewResult = await this.generateStandardReview(prIid, isInlineReview);
             inputToken = reviewResult.inputToken;
             outputToken = reviewResult.outputToken;
         }
@@ -66,7 +66,7 @@ export class MergeRequestService {
             // Create debug comment
             const model = this.sender.getModel();
             const comment = `## Debug Comment\n\n
-                Merge Request IID: ${mrIid}\n\n
+                Pull Request IID: ${prIid}\n\n
                 Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
                 Deep Research: ${isDeepResearch}\n
                 Inline Review: ${isInlineReview}\n\n
@@ -74,7 +74,7 @@ export class MergeRequestService {
                 Output Token: ${outputToken}\n
             `;
 
-            await this.provider.createMergeRequestComment(mrIid, comment);
+            await this.provider.createPullRequestComment(prIid, comment);
         }
 
         return {
@@ -87,20 +87,20 @@ export class MergeRequestService {
     // # Standard Review
     // #########################################################
 
-    public async generateStandardReview(mrIid: number, isInlineReview: boolean): Promise<ActivityTokenUsage> {
+    public async generateStandardReview(prIid: number, isInlineReview: boolean): Promise<ActivityTokenUsage> {
         const inlineModeTag = isInlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
         const system = `${STANDARD_REVIEW_PROMPT}\n\n${inlineModeTag}\n\nLanguage: ${this.language}`;
-        const prompt = await this.generateMergeRequestPrompt(mrIid);
+        const prompt = await this.generatePullRequestPrompt(prIid);
 
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+        const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
-        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Standard Review`, {
+        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(prIid)} Standard Review`, {
             toolList: [
-                ...this.createCodeToolList(mrIid, sourceBranch),
-                ...this.createReviewToolList(mrIid, isInlineReview),
+                ...this.createCodeToolList(prIid, sourceBranch),
+                ...this.createReviewToolList(prIid, isInlineReview),
             ],
             maxSteps: 200,
         });
@@ -116,19 +116,19 @@ export class MergeRequestService {
     // #########################################################
 
     public async planDeepReview(
-        mrIid: number,
+        prIid: number,
     ): Promise<{ reviewTargetList: ReviewTarget[]; inputToken: number; outputToken: number }> {
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+        const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const reviewTargetList: ReviewTarget[] = [];
 
         const stats = await runAgentLoop(
             this.sender,
             DEEP_REVIEW_PLAN_PROMPT,
-            await this.generateMergeRequestPrompt(mrIid),
-            `${this.getLabel(mrIid)} Deep Plan`,
+            await this.generatePullRequestPrompt(prIid),
+            `${this.getLabel(prIid)} Deep Plan`,
             {
-                toolList: [...this.createCodeToolList(mrIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
+                toolList: [...this.createCodeToolList(prIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
             },
         );
 
@@ -140,15 +140,15 @@ export class MergeRequestService {
     }
 
     public async generateDeepReview(
-        mrIid: number,
+        prIid: number,
         reviewTargetList: ReviewTarget[],
         isInlineReview: boolean,
     ): Promise<{ inputToken: number; outputToken: number }> {
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+        const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const reviewResultList = await Promise.all(
             reviewTargetList.map(async (reviewTarget, index) =>
-                this.runDeepReviewSubAgent(mrIid, reviewTarget, index + 1, reviewTargetList.length),
+                this.runDeepReviewSubAgent(prIid, reviewTarget, index + 1, reviewTargetList.length),
             ),
         );
 
@@ -160,12 +160,12 @@ export class MergeRequestService {
         const stats = await runAgentLoop(
             this.sender,
             system,
-            await this.generateMergeRequestPrompt(mrIid),
-            `${this.getLabel(mrIid)} Deep Writing`,
+            await this.generatePullRequestPrompt(prIid),
+            `${this.getLabel(prIid)} Deep Writing`,
             {
                 toolList: [
-                    ...this.createCodeToolList(mrIid, sourceBranch),
-                    ...this.createReviewToolList(mrIid, isInlineReview),
+                    ...this.createCodeToolList(prIid, sourceBranch),
+                    ...this.createReviewToolList(prIid, isInlineReview),
                 ],
             },
         );
@@ -177,7 +177,7 @@ export class MergeRequestService {
     }
 
     private async runDeepReviewSubAgent(
-        mrIid: number,
+        prIid: number,
         reviewTarget: ReviewTarget,
         index: number,
         totalIndex: number,
@@ -186,19 +186,19 @@ export class MergeRequestService {
 
         const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
         const prompt = [
-            await this.generateMergeRequestPrompt(mrIid),
+            await this.generatePullRequestPrompt(prIid),
             `Review target: ${JSON.stringify(reviewTarget)}`,
         ].join("\n\n");
 
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+        const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const stats = await runAgentLoop(
             this.sender,
             system,
             prompt,
-            `${this.getLabel(mrIid)} Deep Sub Agent ${index}/${totalIndex}`,
+            `${this.getLabel(prIid)} Deep Sub Agent ${index}/${totalIndex}`,
             {
-                toolList: [...this.createCodeToolList(mrIid, sourceBranch)],
+                toolList: [...this.createCodeToolList(prIid, sourceBranch)],
                 maxSteps,
             },
         );
@@ -218,32 +218,32 @@ export class MergeRequestService {
     // # Reply
     // #########################################################
 
-    public async reply(mrIid: number, commenterUsername: string, commentBody: string): Promise<ActivityTokenUsage> {
-        const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
+    public async reply(prIid: number, commenterUsername: string, commentBody: string): Promise<ActivityTokenUsage> {
+        const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
-        const commentList = await this.provider.fetchMergeRequestCommentList(mrIid);
+        const commentList = await this.provider.fetchPullRequestCommentList(prIid);
 
         const system = `${REPLY_PROMPT}`;
         const prompt = `Commenter Username: ${commenterUsername}, Comment Body: ${commentBody}, Comment List: ${JSON.stringify(commentList)}`;
         const toolList = [
-            ...this.createCodeToolList(mrIid, sourceBranch),
-            ...this.createReplyToolList(mrIid, commenterUsername),
+            ...this.createCodeToolList(prIid, sourceBranch),
+            ...this.createReplyToolList(prIid, commenterUsername),
         ];
 
-        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, {
+        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(prIid)} Reply`, {
             toolList,
         });
 
         if (process.env.NODE_ENV === "development") {
             const model = this.sender.getModel();
             const comment = `## Debug Comment\n\n
-                Merge Request IID: ${mrIid}\n\n
+                Pull Request IID: ${prIid}\n\n
                 Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
                 Input Token: ${stats.totalInputToken}\n
                 Output Token: ${stats.totalOutputToken}\n
             `;
 
-            await this.provider.createMergeRequestComment(mrIid, comment);
+            await this.provider.createPullRequestComment(prIid, comment);
         }
 
         return {
@@ -256,10 +256,10 @@ export class MergeRequestService {
     // # Tools
     // #########################################################
 
-    private createCodeToolList(mrIid: number, sourceBranch: string): AgentTool[] {
+    private createCodeToolList(prIid: number, sourceBranch: string): AgentTool[] {
         return [
-            getMergeRequestDetailTool(this.provider, mrIid),
-            getFileDiffTool(this.provider, mrIid),
+            getPullRequestDetailTool(this.provider, prIid),
+            getFileDiffTool(this.provider, prIid),
             ...(this.provider.isCodeSearchSupported() ? [searchCodeListTool(this.provider, sourceBranch)] : []),
             searchLineByKeywordTool(this.provider, sourceBranch),
             getDirectoryTreeTool(this.provider, sourceBranch),
@@ -267,40 +267,40 @@ export class MergeRequestService {
         ];
     }
 
-    private createReviewToolList(mrIid: number, inlineReview: boolean): AgentTool[] {
+    private createReviewToolList(prIid: number, inlineReview: boolean): AgentTool[] {
         return [
-            postMergeRequestCommentTool(this.provider, mrIid),
+            postPullRequestCommentTool(this.provider, prIid),
             ...(inlineReview
-                ? [createSingleLineCommentTool(this.provider, mrIid), createMultiLineCommentTool(this.provider, mrIid)]
+                ? [createSingleLineCommentTool(this.provider, prIid), createMultiLineCommentTool(this.provider, prIid)]
                 : []),
         ];
     }
 
-    private createReplyToolList(mrIid: number, commenterUsername: string): AgentTool[] {
-        return [postMergeRequestReplyTool(this.provider, mrIid, commenterUsername)];
+    private createReplyToolList(prIid: number, commenterUsername: string): AgentTool[] {
+        return [postPullRequestReplyTool(this.provider, prIid, commenterUsername)];
     }
 
-    private createApprovalToolList(mrIid: number): AgentTool[] {
-        return [approveMergeRequestTool(this.provider, mrIid), unapproveMergeRequestTool(this.provider, mrIid)];
+    private createApprovalToolList(prIid: number): AgentTool[] {
+        return [approvePullRequestTool(this.provider, prIid), unapprovePullRequestTool(this.provider, prIid)];
     }
 
     // #########################################################
     // # Prompt Builder
     // #########################################################
 
-    private async generateMergeRequestPrompt(mrIid: number): Promise<string> {
+    private async generatePullRequestPrompt(prIid: number): Promise<string> {
         const {
             title: _title,
             description: _description,
             ...detail
-        } = await this.provider.fetchMergeRequestDetail(mrIid);
-        const changedFiles = await this.provider.fetchChangedFileList(mrIid);
-        const version = await this.provider.fetchMergeRequestVersion(mrIid);
-        const existingCommentList = await this.provider.fetchMergeRequestCommentList(mrIid);
+        } = await this.provider.fetchPullRequestDetail(prIid);
+        const changedFiles = await this.provider.fetchChangedFileList(prIid);
+        const version = await this.provider.fetchPullRequestVersion(prIid);
+        const existingCommentList = await this.provider.fetchPullRequestCommentList(prIid);
 
-        const mrIidPrompt = `Merge Request IID: ${mrIid}`;
-        const detailPrompt = `Merge request: ${JSON.stringify(detail)}`;
-        const versionPrompt = `Merge request version: ${JSON.stringify(version)}`;
+        const prIidPrompt = `Pull Request IID: ${prIid}`;
+        const detailPrompt = `Pull request: ${JSON.stringify(detail)}`;
+        const versionPrompt = `Pull request version: ${JSON.stringify(version)}`;
         const changedFileList = changedFiles
             .map((d) => d.newPath ?? d.oldPath)
             .filter((path) => path !== null)
@@ -309,7 +309,7 @@ export class MergeRequestService {
         const changedFileListPrompt = `Changed files: ${changedFileList}`;
         const existingCommentListPrompt = `Existing comments: ${JSON.stringify(existingCommentList)}`;
 
-        return [mrIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt, existingCommentListPrompt].join(
+        return [prIidPrompt, detailPrompt, versionPrompt, changedFileListPrompt, existingCommentListPrompt].join(
             "\n\n",
         );
     }
@@ -318,7 +318,7 @@ export class MergeRequestService {
     // # Utils
     // #########################################################
 
-    private getLabel(mrIid: number): string {
-        return `[MR #${mrIid}]`;
+    private getLabel(prIid: number): string {
+        return `[PR #${prIid}]`;
     }
 }

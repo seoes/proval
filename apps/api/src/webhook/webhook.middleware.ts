@@ -24,15 +24,15 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
     let title: string | undefined;
 
     if (webhookEvent === "Merge Request Hook" || webhookEvent === "Issue Hook") {
-        eventType = webhookEvent === "Merge Request Hook" ? "MERGE REQUEST" : "ISSUE";
+        eventType = webhookEvent === "Merge Request Hook" ? "PULL REQUEST" : "ISSUE";
         action = oa?.action;
         number = oa?.iid;
         title = oa?.title;
     } else if (webhookEvent === "Note Hook") {
-        const onMr = oa?.noteable_type === "MergeRequest";
-        eventType = onMr ? "NOTE ON MERGE REQUEST" : "NOTE ON ISSUE";
+        const onPullRequest = oa?.noteable_type === "MergeRequest";
+        eventType = onPullRequest ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
         action = oa?.action;
-        number = onMr ? p?.merge_request?.iid : p?.issue?.iid;
+        number = onPullRequest ? p?.merge_request?.iid : p?.issue?.iid;
     }
 
     return { webhookEvent, eventType, action, number, title };
@@ -55,7 +55,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     if (!isForgejo && webhookEvent === "ping") {
         eventType = "CONNECTIVITY CHECK";
     } else if (webhookEvent === "pull_request") {
-        eventType = "MERGE REQUEST";
+        eventType = "PULL REQUEST";
         action = p?.action;
         number = pr?.number ?? p?.number;
         title = pr?.title;
@@ -65,7 +65,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
         number = issue?.number;
         title = issue?.title;
     } else if (webhookEvent === "issue_comment") {
-        eventType = issue?.pull_request ? "NOTE ON MERGE REQUEST" : "NOTE ON ISSUE";
+        eventType = issue?.pull_request ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
         action = p?.action;
         number = issue?.number;
     }

@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
-import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
+import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { ForgejoProvider } from "../../provider/forgejo.js";
 import type { Access, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
@@ -105,7 +105,7 @@ type HandleForgejoPullRequestWebhook = (
 const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, model, access) => {
     const action = payload.action;
 
-    if (!repository.reviewOnMergeRequestOpen) {
+    if (!repository.reviewOnPullRequestOpen) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
@@ -126,7 +126,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
 
-    const mergeRequestService = new MergeRequestService(
+    const pullRequestService = new PullRequestService(
         forgejoProvider,
         model.baseUrl,
         model.apiKey,
@@ -138,19 +138,19 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const reviewOptions = {
         isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnMergeRequest,
+        isDeepResearch: repository.deepResearchOnPullRequest,
     };
 
     runWithActivity(
         {
             repositoryId: repository.id,
             modelId: model.id,
-            type: "mr_review",
+            type: "pr_review",
             targetIid: prNumber,
         },
-        () => mergeRequestService.review(prNumber, reviewOptions),
+        () => pullRequestService.review(prNumber, reviewOptions),
     ).catch((error) => {
-        logError("Merge request review failed", error);
+        logError("Pull request review failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
@@ -179,7 +179,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
     if (isPullRequest) {
         // Handle PR comment
-        if (repository.replyToMergeRequestComment === "off") {
+        if (repository.replyToPullRequestComment === "off") {
             return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
                 status: 200,
             });
@@ -211,7 +211,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const noteBody = payload.comment.body;
         const prNumber = payload.issue.number;
 
-        if (repository.replyToMergeRequestComment === "mentioned_only") {
+        if (repository.replyToPullRequestComment === "mentioned_only") {
             if (!noteBody.includes(`@${botUsername}`)) {
                 return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
                     status: 200,
@@ -219,7 +219,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             }
         }
 
-        const mergeRequestService = new MergeRequestService(
+        const pullRequestService = new PullRequestService(
             forgejoProvider,
             model.baseUrl,
             model.apiKey,
@@ -231,12 +231,12 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             {
                 repositoryId: repository.id,
                 modelId: model.id,
-                type: "mr_reply",
+                type: "pr_reply",
                 targetIid: prNumber,
             },
-            () => mergeRequestService.reply(prNumber, commenterUsername, noteBody),
+            () => pullRequestService.reply(prNumber, commenterUsername, noteBody),
         ).catch((error) => {
-            logError("Merge request reply failed", error);
+            logError("Pull request reply failed", error);
         });
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });

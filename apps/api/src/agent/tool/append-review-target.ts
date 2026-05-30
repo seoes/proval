@@ -1,5 +1,5 @@
 import type { AgentTool } from "../loop.js";
-import { reviewTargetAppendSchema, type ReviewTarget } from "../../module/merge-request/review-target.schema.js";
+import { reviewTargetAppendSchema, type ReviewTarget } from "../../module/pull-request/review-target.schema.js";
 
 export function appendReviewTargetTool(reviewTargetList: ReviewTarget[]): AgentTool {
     return {

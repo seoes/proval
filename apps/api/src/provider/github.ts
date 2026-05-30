@@ -8,9 +8,9 @@ import type {
     GitDiffSingleLine,
     GitIssue,
     GitIssueState,
-    GitMergeRequest,
-    GitMergeRequestState,
-    GitMergeRequestVersion,
+    GitPullRequest,
+    GitPullRequestState,
+    GitPullRequestVersion,
     GitProvider,
     GitRelatedItem,
     GitRepository,
@@ -61,7 +61,7 @@ export class GitHubProvider implements GitProvider {
         return path;
     }
 
-    public async fetchMergeRequestDetail(prNumber: number): Promise<GitMergeRequest> {
+    public async fetchPullRequestDetail(prNumber: number): Promise<GitPullRequest> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
             repo: this.repo,
@@ -116,7 +116,7 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchMergeRequestCommentList(prNumber: number): Promise<GitComment[]> {
+    public async fetchPullRequestCommentList(prNumber: number): Promise<GitComment[]> {
         const [issueComments, reviewComments] = await Promise.all([
             this.octokit.issues.listComments({
                 owner: this.owner,
@@ -218,7 +218,7 @@ export class GitHubProvider implements GitProvider {
         }));
     }
 
-    public async searchMergeRequestList(query: string): Promise<GitRelatedItem[]> {
+    public async searchPullRequestList(query: string): Promise<GitRelatedItem[]> {
         const { data } = await this.octokit.search.issuesAndPullRequests({
             q: `${query} repo:${this.owner}/${this.repo} is:pr`,
             per_page: 10,
@@ -269,7 +269,7 @@ export class GitHubProvider implements GitProvider {
         return results;
     }
 
-    public async fetchMergeRequestReviewerList(prNumber: number): Promise<string[]> {
+    public async fetchPullRequestReviewerList(prNumber: number): Promise<string[]> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
             repo: this.repo,
@@ -348,11 +348,11 @@ export class GitHubProvider implements GitProvider {
         throw new Error(`Failed to fetch file content: ${filePath}`);
     }
 
-    public async createMergeRequestComment(prNumber: number, body: string): Promise<GitComment> {
+    public async createPullRequestComment(prNumber: number, body: string): Promise<GitComment> {
         return this.createIssueComment(prNumber, body);
     }
 
-    public async fetchMergeRequestVersion(prNumber: number): Promise<GitMergeRequestVersion> {
+    public async fetchPullRequestVersion(prNumber: number): Promise<GitPullRequestVersion> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
             repo: this.repo,
@@ -422,7 +422,7 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async approveMergeRequest(prNumber: number): Promise<void> {
+    public async approvePullRequest(prNumber: number): Promise<void> {
         await this.octokit.pulls.createReview({
             owner: this.owner,
             repo: this.repo,
@@ -431,7 +431,7 @@ export class GitHubProvider implements GitProvider {
         });
     }
 
-    public async unapproveMergeRequest(prNumber: number): Promise<void> {
+    public async unapprovePullRequest(prNumber: number): Promise<void> {
         const { data: reviews } = await this.octokit.pulls.listReviews({
             owner: this.owner,
             repo: this.repo,
@@ -450,7 +450,7 @@ export class GitHubProvider implements GitProvider {
         }
     }
 
-    public async assignMergeRequestReviewer(prNumber: number): Promise<void> {
+    public async assignPullRequestReviewer(prNumber: number): Promise<void> {
         const user = await this.fetchCurrentUser();
 
         await this.octokit.pulls.requestReviewers({
@@ -475,7 +475,7 @@ export class GitHubProvider implements GitProvider {
         }));
     }
 
-    private mapPRState(state: string, merged: boolean | null): GitMergeRequestState {
+    private mapPRState(state: string, merged: boolean | null): GitPullRequestState {
         if (merged) return "merged";
         if (state === "open") return "opened";
         return "closed";

@@ -176,6 +176,13 @@
       "when": 1779963653514,
       "tag": "0024_blushing_metal_master",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1780110746254,
+      "tag": "0025_yielding_slayback",
+      "breakpoints": true
     }
   ]
 }

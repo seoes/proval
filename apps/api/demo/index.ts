@@ -5,7 +5,7 @@ import { mentionReply } from "../mock/input/mention-reply.js";
 import { newFeature } from "../mock/input/new-feature.js";
 import { securityIssue } from "../mock/input/security-issue.js";
 import { simpleBugfix } from "../mock/input/simple-bugfix.js";
-import { MergeRequestService } from "../src/module/merge-request/merge-request.service.js";
+import { PullRequestService } from "../src/module/pull-request/pull-request.service.js";
 import { log, logError } from "../src/util/log.js";
 import { MockProvider, type PostedAction, type TestInput } from "../mock/provider.js";
 
@@ -59,7 +59,7 @@ function createService(input: TestInput, opts: { model?: string; language?: stri
         process.exit(1);
     }
 
-    const service = new MergeRequestService(
+    const service = new PullRequestService(
         provider,
         baseUrl,
         apiKey,

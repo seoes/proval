@@ -1,11 +1,11 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
 
-export function createSingleLineCommentTool(provider: GitProvider, mrIid: number): AgentTool {
+export function createSingleLineCommentTool(provider: GitProvider, prIid: number): AgentTool {
     return {
         name: "create_single_line_comment",
         description: [
-            "Create one inline thread on a single line of the MR diff.",
+            "Create one inline thread on a single line of the PR diff.",
             "Use this for findings that pin to exactly one line.",
             "Do NOT use this for findings spanning 2+ consecutive lines — use create_multi_line_comment for that.",
             "Paths must match the diff (old_path/new_path).",
@@ -39,7 +39,7 @@ export function createSingleLineCommentTool(provider: GitProvider, mrIid: number
         execute: async (args) => {
             const body = String(args.body);
             const position = args.position as Record<string, unknown>;
-            const comment = await provider.createCommentToSingleLine(mrIid, body, {
+            const comment = await provider.createCommentToSingleLine(prIid, body, {
                 baseSha: String(position.baseSha),
                 headSha: String(position.headSha),
                 startSha: String(position.startSha),

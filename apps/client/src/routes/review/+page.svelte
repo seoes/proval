@@ -2,11 +2,7 @@
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
-    import {
-        activityStatusBadge,
-        activityTargetLabel,
-        activityTypeLabel,
-    } from "$lib/utils/label";
+    import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
 

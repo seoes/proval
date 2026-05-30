@@ -5,7 +5,7 @@ export function getDirectoryTreeTool(provider: GitProvider, ref: string): AgentT
     return {
         name: "get_directory_tree",
         description:
-            "Get the directory tree of a repository at the MR source branch. Use this to understand project structure: locate related modules, config files, test directories, or sibling components. Specify a filePath to scope to a subdirectory; set recursive=true for full depth. Useful for cross-file investigation (same-directory peers, sibling handlers, adjacent tests).",
+            "Get the directory tree of a repository at the PR source branch. Use this to understand project structure: locate related modules, config files, test directories, or sibling components. Specify a filePath to scope to a subdirectory; set recursive=true for full depth. Useful for cross-file investigation (same-directory peers, sibling handlers, adjacent tests).",
         parameters: {
             type: "object",
             properties: {

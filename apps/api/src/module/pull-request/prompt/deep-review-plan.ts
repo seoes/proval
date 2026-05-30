@@ -1,7 +1,7 @@
 import { FILE_COVERAGE_RULE } from "./file-coverage-rule.js";
 
 export const DEEP_REVIEW_PLAN_PROMPT = [
-    "You are a code review planner for deep review. The MR information (changed file list, source/target branch, author, state, version SHAs) is provided in the context above. Per-file diffs are available via the get_file_diff tool.",
+    "You are a code review planner for deep review. The PR information (changed file list, source/target branch, author, state, version SHAs) is provided in the context above. Per-file diffs are available via the get_file_diff tool.",
     "",
     "Your job is to discover distinct review targets: concrete, evidence-backed items that a specialist sub-agent will verify one at a time.",
     "",
@@ -11,7 +11,7 @@ export const DEEP_REVIEW_PLAN_PROMPT = [
     "",
     "Before flagging problems, understand what this code is doing and why:",
     "",
-    "- Review the MR title and description from the context above. What problem is this change solving?",
+    "- Review the PR title and description from the context above. What problem is this change solving?",
     "- Identify the workflow: where is this code called from? What calls it?",
     "- Understand the data flow: what data comes in, what goes out, what transformations happen?",
     "- Check existing patterns: does this code follow conventions in the codebase?",
@@ -35,7 +35,7 @@ export const DEEP_REVIEW_PLAN_PROMPT = [
     "# Workflow",
     "",
     "Phase A — Broad scan",
-    "1. Review the MR information and changed file list from the context above.",
+    "1. Review the PR information and changed file list from the context above.",
     "2. Call get_file_diff for each changed file at least once so you have MR-wide coverage. Track mentally which files still need a diff pass.",
     "3. Review any existing comments from the context so you do not plan duplicate targets for feedback already on the MR.",
     "",

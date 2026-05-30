@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { IssueService } from "../../module/issue/issue.service.js";
-import { MergeRequestService } from "../../module/merge-request/merge-request.service.js";
+import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { GitHubProvider } from "../../provider/github.js";
 import type { GitHubApp, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
@@ -101,7 +101,7 @@ async function handlePullRequestWebhook(
         });
     }
 
-    if (!repository.reviewOnMergeRequestOpen) {
+    if (!repository.reviewOnPullRequestOpen) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
@@ -111,7 +111,7 @@ async function handlePullRequestWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const mergeRequestService = new MergeRequestService(
+    const pullRequestService = new PullRequestService(
         gitHubProvider,
         model.baseUrl,
         model.apiKey,
@@ -121,19 +121,19 @@ async function handlePullRequestWebhook(
 
     const reviewOptions = {
         isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnMergeRequest,
+        isDeepResearch: repository.deepResearchOnPullRequest,
     };
 
     runWithActivity(
         {
             repositoryId: repository.id,
             modelId: model.id,
-            type: "mr_review",
+            type: "pr_review",
             targetIid: prNumber,
         },
-        () => mergeRequestService.review(prNumber, reviewOptions),
+        () => pullRequestService.review(prNumber, reviewOptions),
     ).catch((error) => {
-        logError("Merge request review failed", error);
+        logError("Pull request review failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
@@ -219,12 +219,12 @@ async function handleIssueCommentWebhook(
     const commenterUsername = sender?.login ?? "";
 
     if (payload.issue?.pull_request) {
-        if (repository.replyToMergeRequestComment === "off") {
+        if (repository.replyToPullRequestComment === "off") {
             return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
         }
 
         if (
-            repository.replyToMergeRequestComment === "mentioned_only" &&
+            repository.replyToPullRequestComment === "mentioned_only" &&
             !isBotMentioned(noteBody, botUsername, githubApp.slug)
         ) {
             return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
@@ -232,7 +232,7 @@ async function handleIssueCommentWebhook(
             });
         }
 
-        const mergeRequestService = new MergeRequestService(
+        const pullRequestService = new PullRequestService(
             gitHubProvider,
             model.baseUrl,
             model.apiKey,
@@ -244,12 +244,12 @@ async function handleIssueCommentWebhook(
             {
                 repositoryId: repository.id,
                 modelId: model.id,
-                type: "mr_reply",
+                type: "pr_reply",
                 targetIid: issueNumber,
             },
-            () => mergeRequestService.reply(issueNumber, commenterUsername, noteBody),
+            () => pullRequestService.reply(issueNumber, commenterUsername, noteBody),
         ).catch((error) => {
-            logError("Merge request reply failed", error);
+            logError("Pull request reply failed", error);
         });
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });

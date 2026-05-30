@@ -1,6 +1,6 @@
 import type { TestInput } from "../provider.js";
 
-/** MR with prior discussion; use with MergeRequestService.reply() and a @test_bot mention. */
+/** PR with prior discussion; use with PullRequestService.reply() and a @test_bot mention. */
 export const mentionReply: TestInput = {
     detail: {
         title: "refactor: extract validation helpers",

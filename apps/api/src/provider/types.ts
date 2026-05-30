@@ -1,13 +1,13 @@
-export interface GitMergeRequest {
+export interface GitPullRequest {
     title: string;
     description: string | null;
     sourceBranch: string;
     targetBranch: string;
     author: string;
-    state: GitMergeRequestState;
+    state: GitPullRequestState;
 }
 
-export type GitMergeRequestState = "opened" | "closed" | "merged" | "locked";
+export type GitPullRequestState = "opened" | "closed" | "merged" | "locked";
 
 export interface GitIssue {
     title: string;
@@ -86,7 +86,7 @@ export interface GitDiffLine {
     newLine?: number;
 }
 
-export interface GitMergeRequestVersion {
+export interface GitPullRequestVersion {
     headSha: string;
     baseSha: string;
     startSha: string;
@@ -138,17 +138,17 @@ export interface GitRepositoryListItem {
 export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
     fetchRepositoryDetail(): Promise<GitRepository>;
-    fetchMergeRequestDetail(mrIid: number): Promise<GitMergeRequest>;
-    fetchChangedFileList(mrIid: number): Promise<GitChangedFile[]>;
-    /** Read one changed file's patch from the MR. Accepts either oldPath or newPath. */
-    fetchFileDiff(mrIid: number, filePath: string): Promise<GitDiff>;
-    fetchMergeRequestCommentList(mrIid: number): Promise<GitComment[]>;
-    fetchMergeRequestReviewerList(mrIid: number): Promise<string[]>;
+    fetchPullRequestDetail(prIid: number): Promise<GitPullRequest>;
+    fetchChangedFileList(prIid: number): Promise<GitChangedFile[]>;
+    /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
+    fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
+    fetchPullRequestCommentList(prIid: number): Promise<GitComment[]>;
+    fetchPullRequestReviewerList(prIid: number): Promise<string[]>;
     fetchIssueDetail(issueIid: number): Promise<GitIssue>;
     fetchIssueCommentList(issueIid: number): Promise<GitComment[]>;
     createIssueComment(issueIid: number, body: string): Promise<GitComment>;
     searchIssueList(query: string): Promise<GitRelatedItem[]>;
-    searchMergeRequestList(query: string): Promise<GitRelatedItem[]>;
+    searchPullRequestList(query: string): Promise<GitRelatedItem[]>;
     searchCodeList(query: string, ref: string): Promise<GitCodeSearchResult[]>;
     searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]>;
     isCodeSearchSupported(): boolean;
@@ -156,13 +156,13 @@ export interface GitProvider {
     fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]>;
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;
-    createMergeRequestComment(mrIid: number, body: string): Promise<GitComment>;
-    fetchMergeRequestVersion(mrIid: number): Promise<GitMergeRequestVersion>;
-    createCommentToSingleLine(mrIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
-    createCommentToMultiLine(mrIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
-    approveMergeRequest(mrIid: number): Promise<void>;
-    unapproveMergeRequest(mrIid: number): Promise<void>;
-    assignMergeRequestReviewer(mrIid: number): Promise<void>;
+    createPullRequestComment(prIid: number, body: string): Promise<GitComment>;
+    fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion>;
+    createCommentToSingleLine(prIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
+    createCommentToMultiLine(prIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;
+    approvePullRequest(prIid: number): Promise<void>;
+    unapprovePullRequest(prIid: number): Promise<void>;
+    assignPullRequestReviewer(prIid: number): Promise<void>;
     fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
     fetchRepositoryPath(): Promise<string>;
 }

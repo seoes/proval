@@ -1,11 +1,11 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
 
-export function getFileDiffTool(provider: GitProvider, mrIid: number): AgentTool {
+export function getFileDiffTool(provider: GitProvider, prIid: number): AgentTool {
     return {
         name: "get_file_diff",
         description:
-            "Get the full unified diff for one changed file in the current pull/merge request. Returns patch text with line numbers, context lines, and +/- markers. Use after get_changed_file_list to inspect only relevant patches. The diff shows old_path/new_path — use these paths in inline comment tools.",
+            "Get the full unified diff for one changed file in the current pull request. Returns patch text with line numbers, context lines, and +/- markers. Use after get_changed_file_list to inspect only relevant patches. The diff shows old_path/new_path — use these paths in inline comment tools.",
         parameters: {
             type: "object",
             properties: {
@@ -19,7 +19,7 @@ export function getFileDiffTool(provider: GitProvider, mrIid: number): AgentTool
         },
         execute: async (args) => {
             const filePath = String(args.filePath);
-            const diff = await provider.fetchFileDiff(mrIid, filePath);
+            const diff = await provider.fetchFileDiff(prIid, filePath);
             return diff;
         },
     };

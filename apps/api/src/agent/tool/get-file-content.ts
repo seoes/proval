@@ -6,7 +6,7 @@ const MAX_LINES = 300;
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_file_content",
-        description: `Read file content from the MR source branch (ref: ${ref}). At most ${MAX_LINES} lines per call. For files over ${MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
+        description: `Read file content from the PR source branch (ref: ${ref}). At most ${MAX_LINES} lines per call. For files over ${MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
         parameters: {
             type: "object",
             properties: {
