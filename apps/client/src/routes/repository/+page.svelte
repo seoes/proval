@@ -5,6 +5,7 @@
     import { replyOptionBadge } from "$lib/utils/label";
     import type { PageProps } from "./$types";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
+    import { formatTimeAgo } from "$lib/utils";
 
     const { data }: PageProps = $props();
 </script>
@@ -12,7 +13,7 @@
 {#snippet addRepositoryAction()}
     <a
         href="/repository/create"
-        class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors text-neutral-900 hover:text-neutral-900/70">
+        class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-neutral-900 transition-colors hover:text-neutral-900/70">
         <PlusIcon class="size-4" />
         Add Repository
     </a>
@@ -32,16 +33,21 @@
     {:else}
         <div class="space-y-3">
             {#each data.repositoryList as repository (repository.id)}
-                {@const pullRequestReply = replyOptionBadge(
-                    "Pull Request Reply",
-                    repository.replyToPullRequestComment,
-                )}
+                {@const pullRequestReply = replyOptionBadge("Pull Request Reply", repository.replyToPullRequestComment)}
                 {@const issueReply = replyOptionBadge("Issue Reply", repository.replyToIssueComment)}
                 {#snippet header()}
-                    <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
-                        <span class="truncate text-neutral-800">{repository.path}</span>
-                        {#if repository.description}
-                            <span class="truncate text-xs text-neutral-500">{repository.description}</span>
+                    <div class="flex items-center justify-between">
+                        <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
+                            <span class="truncate text-neutral-800">{repository.path}</span>
+                            {#if repository.description}
+                                <span class="truncate text-xs text-neutral-500">{repository.description}</span>
+                            {/if}
+                        </div>
+                        {#if repository.lastUsedAt}
+                            <span class="text-sm text-neutral-500"
+                                >Last activity: {formatTimeAgo(repository.lastUsedAt)}</span>
+                        {:else}
+                            <span class="text-sm text-neutral-500">Not used</span>
                         {/if}
                     </div>
                 {/snippet}
@@ -72,11 +78,7 @@
                         </div>
                     </div>
                 {/snippet}
-                <ResourceCard
-                    href="/repository/{repository.id}"
-                    provider={repository.provider}
-                    {header}
-                    {badge} />
+                <ResourceCard href="/repository/{repository.id}" provider={repository.provider} {header} {badge} />
             {/each}
         </div>
     {/if}

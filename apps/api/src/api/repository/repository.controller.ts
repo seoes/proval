@@ -1,15 +1,12 @@
 import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
-import type { RepositoryResponse, RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
+import type { RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
 import { normalizeWebhookSecret } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {
     const repositoryService = new RepositoryService();
     const repositoryList = await repositoryService.findAll();
-    const repositoryResponseList: RepositoryResponse[] = repositoryList.map((repository) =>
-        repositoryService.toResponse(repository),
-    );
-    return c.json(repositoryResponseList, 200);
+    return c.json(repositoryList, 200);
 };
 
 export const findById: Handler = async (c) => {
@@ -19,8 +16,7 @@ export const findById: Handler = async (c) => {
         return c.json({ error: "Repository ID is required" }, 400);
     }
     const repository = await repositoryService.findById(parseInt(repositoryId));
-    const repositoryResponse = repositoryService.toResponse(repository);
-    return c.json(repositoryResponse, 200);
+    return c.json(repository, 200);
 };
 
 export const createRepository: Handler = async (c) => {
@@ -42,13 +38,11 @@ export const createRepository: Handler = async (c) => {
             return c.json({ error: "GitHub repository ID is required" }, 400);
         }
         const repository = await repositoryService.create(githubBody as RepositoryInsert);
-        const repositoryResponse = repositoryService.toResponse(repository);
-        return c.json(repositoryResponse, 201);
+        return c.json(repository, 201);
     }
 
     const repository = await repositoryService.create(body);
-    const repositoryResponse = repositoryService.toResponse(repository);
-    return c.json(repositoryResponse, 201);
+    return c.json(repository, 201);
 };
 
 export const updateRepository: Handler = async (c) => {
@@ -60,8 +54,7 @@ export const updateRepository: Handler = async (c) => {
     const body = await c.req.json<RepositoryUpdateInput>();
 
     const repository = await repositoryService.update(parseInt(repositoryId), body);
-    const repositoryResponse = repositoryService.toResponse(repository);
-    return c.json(repositoryResponse, 200);
+    return c.json(repository, 200);
 };
 
 export const updateWebhookSecret: Handler = async (c) => {

@@ -35,7 +35,9 @@ export type GitHubInstallationInsert = InferInsertModel<typeof githubInstallatio
 export type ActivityInsert = InferInsertModel<typeof activityTable>;
 
 // API response types (sensitive fields omitted)
-export type RepositoryResponse = Omit<Repository, "webhookSecret">;
+export type RepositoryResponse = Omit<Repository, "webhookSecret"> & {
+    lastUsedAt: Date | null;
+};
 export type ModelResponse = Omit<Model, "apiKey">;
 export type AccessResponse = Omit<Access, "accessToken">;
 export type GitHubAppResponse = Omit<GitHubApp, "privateKey" | "webhookSecret">;

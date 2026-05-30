@@ -1,7 +1,7 @@
 import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
-import { githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
-import { eq } from "drizzle-orm";
+import { activityTable, githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
+import { desc, eq, getTableColumns, max } from "drizzle-orm";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret.js";
@@ -14,20 +14,36 @@ import type { GitProvider } from "../../provider/types.js";
 const accessService = new GitLabAccessService();
 
 export class RepositoryService {
-    public async findAll(): Promise<Repository[]> {
-        const repositoryList = await db.select().from(repositoryTable);
-        return repositoryList;
+    public async findAll(): Promise<RepositoryResponse[]> {
+        const repositoryList = await db
+            .select({
+                ...getTableColumns(repositoryTable),
+                lastUsedAt: max(activityTable.createdAt).as("last_used_at"),
+            })
+            .from(repositoryTable)
+            .leftJoin(activityTable, eq(repositoryTable.id, activityTable.repositoryId))
+            .groupBy(repositoryTable.id)
+            .orderBy(desc(max(activityTable.createdAt)));
+        return repositoryList.map((repository) => this.toResponse(repository, repository.lastUsedAt));
     }
 
-    public async findById(repositoryId: number): Promise<Repository> {
-        const repositoryList = await db.select().from(repositoryTable).where(eq(repositoryTable.id, repositoryId));
-        if (repositoryList.length === 0) {
+    public async findById(repositoryId: number): Promise<RepositoryResponse> {
+        const [repository] = await db
+            .select({
+                ...getTableColumns(repositoryTable),
+                lastUsedAt: max(activityTable.createdAt).as("last_used_at"),
+            })
+            .from(repositoryTable)
+            .leftJoin(activityTable, eq(repositoryTable.id, activityTable.repositoryId))
+            .groupBy(repositoryTable.id)
+            .where(eq(repositoryTable.id, repositoryId));
+        if (!repository) {
             throw new Error("Repository not found");
         }
-        return repositoryList[0];
+        return this.toResponse(repository, repository.lastUsedAt);
     }
 
-    public async create(data: RepositoryInsert): Promise<Repository> {
+    public async create(data: RepositoryInsert): Promise<RepositoryResponse> {
         const isGitHub = data.provider === "github";
         const isWebhookSecretEmpty =
             data.webhookSecret === undefined || data.webhookSecret === null || data.webhookSecret.trim() === "";
@@ -36,10 +52,10 @@ export class RepositoryService {
                 ? { ...data, webhookSecret: generateUnusedRepositoryWebhookSecret() }
                 : data;
         const result = await db.insert(repositoryTable).values(values).returning();
-        return result[0];
+        return this.toResponse(result[0], null);
     }
 
-    public async update(repositoryId: number, data: RepositoryUpdateInput): Promise<Repository> {
+    public async update(repositoryId: number, data: RepositoryUpdateInput): Promise<RepositoryResponse> {
         const cleanData = this.removeUndefined(data);
         const result = await db
             .update(repositoryTable)
@@ -49,14 +65,19 @@ export class RepositoryService {
         if (result.length === 0) {
             throw new Error("Repository not found");
         }
-        return result[0];
+        const lastUsedAt = await db
+            .select({ lastUsedAt: max(activityTable.createdAt) })
+            .from(activityTable)
+            .where(eq(activityTable.repositoryId, repositoryId))
+            .limit(1);
+        return this.toResponse(result[0], lastUsedAt[0].lastUsedAt);
     }
 
     public async updateWebhookSecret(repositoryId: number, webhookSecret: string): Promise<void> {
         await db.update(repositoryTable).set({ webhookSecret }).where(eq(repositoryTable.id, repositoryId));
     }
 
-    public async updatePath(repositoryId: number, path: string): Promise<Repository> {
+    public async updatePath(repositoryId: number, path: string): Promise<RepositoryResponse> {
         const trimmed = path.trim();
         if (!trimmed) {
             throw new Error("Repository path cannot be empty");
@@ -69,7 +90,12 @@ export class RepositoryService {
         if (result.length === 0) {
             throw new Error("Repository not found");
         }
-        return result[0];
+        const lastUsedAt = await db
+            .select({ lastUsedAt: max(activityTable.createdAt) })
+            .from(activityTable)
+            .where(eq(activityTable.repositoryId, repositoryId))
+            .limit(1);
+        return this.toResponse(result[0], lastUsedAt[0].lastUsedAt);
     }
 
     public async refreshPathFromGitProvider(repositoryId: number): Promise<string> {
@@ -134,9 +160,9 @@ export class RepositoryService {
         return updated.path;
     }
 
-    public toResponse(repository: Repository): RepositoryResponse {
+    public toResponse(repository: Repository, lastUsedAt: Date | null): RepositoryResponse {
         const { webhookSecret: _webhookSecret, ...rest } = repository;
-        return rest;
+        return { ...rest, lastUsedAt };
     }
 
     public async remove(id: number): Promise<void> {
