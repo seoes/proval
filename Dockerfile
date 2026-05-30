@@ -10,6 +10,7 @@ COPY apps/client/package.json ./apps/client/
 COPY apps/api/package.json ./apps/api/
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
+COPY packages/config/package.json ./packages/config/
 
 RUN bun install --frozen-lockfile
 
