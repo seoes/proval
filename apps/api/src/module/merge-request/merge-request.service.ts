@@ -24,8 +24,7 @@ import {
     REPLY_PROMPT,
     STANDARD_REVIEW_PROMPT,
 } from "./prompt/index.js";
-import { startTimer } from "../../util/timer.js";
-import { logError } from "../../util/log.js";
+import type { ActivityTokenUsage } from "@proval/types";
 
 export type { ReviewTarget } from "./review-target.schema.js";
 
@@ -49,20 +48,20 @@ export class MergeRequestService {
     public async review(
         mrIid: number,
         { isInlineReview, isDeepResearch }: { isInlineReview: boolean; isDeepResearch: boolean },
-    ): Promise<void> {
-        const stopTimer = startTimer(this.getLabel(mrIid));
-
-        try {
-            if (isDeepResearch) {
-                const reviewTargetList = await this.planDeepReview(mrIid);
-                await this.generateDeepReview(mrIid, reviewTargetList, isInlineReview);
-            } else {
-                await this.generateStandardReview(mrIid, isInlineReview);
-            }
-        } catch (err) {
-            logError("Review failed", err, this.getLabel(mrIid));
-        } finally {
-            stopTimer();
+    ): Promise<ActivityTokenUsage> {
+        if (isDeepResearch) {
+            const planResult = await this.planDeepReview(mrIid);
+            const reviewResult = await this.generateDeepReview(mrIid, planResult.reviewTargetList, isInlineReview);
+            return {
+                inputToken: planResult.inputToken + reviewResult.inputToken,
+                outputToken: planResult.outputToken + reviewResult.outputToken,
+            };
+        } else {
+            const reviewResult = await this.generateStandardReview(mrIid, isInlineReview);
+            return {
+                inputToken: reviewResult.inputToken,
+                outputToken: reviewResult.outputToken,
+            };
         }
     }
 
@@ -70,7 +69,7 @@ export class MergeRequestService {
     // # Standard Review
     // #########################################################
 
-    public async generateStandardReview(mrIid: number, isInlineReview: boolean): Promise<void> {
+    public async generateStandardReview(mrIid: number, isInlineReview: boolean): Promise<ActivityTokenUsage> {
         const inlineModeTag = isInlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
@@ -80,25 +79,32 @@ export class MergeRequestService {
 
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
-        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Standard Review`, {
+        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Standard Review`, {
             toolList: [
                 ...this.createCodeToolList(mrIid, sourceBranch),
                 ...this.createReviewToolList(mrIid, isInlineReview),
             ],
             maxSteps: 200,
         });
+
+        return {
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
     // #########################################################
     // # Deep Review
     // #########################################################
 
-    public async planDeepReview(mrIid: number): Promise<ReviewTarget[]> {
+    public async planDeepReview(
+        mrIid: number,
+    ): Promise<{ reviewTargetList: ReviewTarget[]; inputToken: number; outputToken: number }> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const reviewTargetList: ReviewTarget[] = [];
 
-        await runAgentLoop(
+        const stats = await runAgentLoop(
             this.sender,
             DEEP_REVIEW_PLAN_PROMPT,
             await this.generateMergeRequestPrompt(mrIid),
@@ -108,14 +114,18 @@ export class MergeRequestService {
             },
         );
 
-        return reviewTargetList;
+        return {
+            reviewTargetList,
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
     public async generateDeepReview(
         mrIid: number,
         reviewTargetList: ReviewTarget[],
         isInlineReview: boolean,
-    ): Promise<void> {
+    ): Promise<{ inputToken: number; outputToken: number }> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const reviewResultList = await Promise.all(
@@ -128,8 +138,8 @@ export class MergeRequestService {
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
-        const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList)}\n\nLanguage: ${this.language}`;
-        await runAgentLoop(
+        const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList.map((d) => d.finalMessage))}\n\nLanguage: ${this.language}`;
+        const stats = await runAgentLoop(
             this.sender,
             system,
             await this.generateMergeRequestPrompt(mrIid),
@@ -141,6 +151,11 @@ export class MergeRequestService {
                 ],
             },
         );
+
+        return {
+            inputToken: stats.totalInputToken + reviewResultList.reduce((acc, curr) => acc + curr.inputToken, 0),
+            outputToken: stats.totalOutputToken + reviewResultList.reduce((acc, curr) => acc + curr.outputToken, 0),
+        };
     }
 
     private async runDeepReviewSubAgent(
@@ -148,7 +163,7 @@ export class MergeRequestService {
         reviewTarget: ReviewTarget,
         index: number,
         totalIndex: number,
-    ): Promise<string> {
+    ): Promise<{ finalMessage: string; inputToken: number; outputToken: number }> {
         const maxSteps = 100;
 
         const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
@@ -174,14 +189,18 @@ export class MergeRequestService {
             throw new Error("Sub agent failed to return final message");
         }
 
-        return stats.finalMessage;
+        return {
+            finalMessage: stats.finalMessage,
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
     // #########################################################
     // # Reply
     // #########################################################
 
-    public async reply(mrIid: number, commenterUsername: string, commentBody: string): Promise<void> {
+    public async reply(mrIid: number, commenterUsername: string, commentBody: string): Promise<ActivityTokenUsage> {
         const { sourceBranch } = await this.provider.fetchMergeRequestDetail(mrIid);
 
         const commentList = await this.provider.fetchMergeRequestCommentList(mrIid);
@@ -193,9 +212,14 @@ export class MergeRequestService {
             ...this.createReplyToolList(mrIid, commenterUsername),
         ];
 
-        await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, {
+        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(mrIid)} Reply`, {
             toolList,
         });
+
+        return {
+            inputToken: stats.totalInputToken,
+            outputToken: stats.totalOutputToken,
+        };
     }
 
     // #########################################################

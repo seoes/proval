@@ -4,6 +4,7 @@ import { MergeRequestService } from "../../module/merge-request/merge-request.se
 import { ForgejoProvider } from "../../provider/forgejo.js";
 import type { Access, Model, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
+import { runWithActivity } from "../../api/activity/activity.runner.js";
 
 // Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
@@ -140,7 +141,17 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         isDeepResearch: repository.deepResearchOnMergeRequest,
     };
 
-    mergeRequestService.review(prNumber, reviewOptions);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "mr_review",
+            targetIid: prNumber,
+        },
+        () => mergeRequestService.review(prNumber, reviewOptions),
+    ).catch((error) => {
+        logError("Merge request review failed", error);
+    });
 
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
@@ -216,7 +227,17 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             repository.language,
         );
 
-        mergeRequestService.reply(prNumber, commenterUsername, noteBody);
+        runWithActivity(
+            {
+                repositoryId: repository.id,
+                modelId: model.id,
+                type: "mr_reply",
+                targetIid: prNumber,
+            },
+            () => mergeRequestService.reply(prNumber, commenterUsername, noteBody),
+        ).catch((error) => {
+            logError("Merge request reply failed", error);
+        });
 
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     } else {
@@ -265,8 +286,16 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             repository.language,
         );
 
-        issueService.reply(issueNumber, commenterUsername, noteBody).catch((err) => {
-            logError("Issue reply failed", err);
+        runWithActivity(
+            {
+                repositoryId: repository.id,
+                modelId: model.id,
+                type: "issue_reply",
+                targetIid: issueNumber,
+            },
+            () => issueService.reply(issueNumber, commenterUsername, noteBody),
+        ).catch((error) => {
+            logError("Issue reply failed", error);
         });
 
         return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
@@ -316,8 +345,16 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
         repository.language,
     );
 
-    issueService.commentOnOpen(issueNumber).catch((err) => {
-        logError("Issue comment failed", err);
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelId: model.id,
+            type: "issue_open",
+            targetIid: issueNumber,
+        },
+        () => issueService.commentOnOpen(issueNumber),
+    ).catch((error) => {
+        logError("Issue comment failed", error);
     });
 
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });

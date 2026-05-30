@@ -5,11 +5,13 @@ export type {
     Access,
     GitHubApp,
     GitHubInstallation,
+    Activity,
     RepositoryInsert,
     ModelInsert,
     AccessInsert,
     GitHubAppInsert,
     GitHubInstallationInsert,
+    ActivityInsert,
     RepositoryResponse,
     ModelResponse,
     AccessResponse,
@@ -31,4 +33,6 @@ export type {
     RepositorySelectItem,
     LoadRepositoryListInput,
     UnifiedAccessOption,
+    ActivityTokenUsage,
 } from "./database.js";
+export type { Pagination } from "./pagination.js";

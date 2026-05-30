@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon } from "phosphor-svelte";
+    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon, ChatCircleTextIcon } from "phosphor-svelte";
     import type { Component } from "svelte";
 
     interface SidebarItem {
@@ -14,13 +14,14 @@
     }
     const sidebarItemList: SidebarItemGroup[] = [
         {
-            label: "CONFIG",
+            label: "SERVICE",
             items: [
                 {
                     label: "Dashboard",
                     href: "/dashboard",
                     icon: HouseIcon,
                 },
+
                 {
                     label: "Project",
                     href: "/repository",
@@ -39,12 +40,12 @@
             ],
         },
         {
-            label: "PLACEHOLDER",
+            label: "CONFIG",
             items: [
                 {
-                    label: "Test",
-                    href: "/placeholder",
-                    icon: CubeIcon,
+                    label: "Review",
+                    href: "/review",
+                    icon: ChatCircleTextIcon,
                 },
             ],
         },

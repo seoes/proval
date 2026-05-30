@@ -1,4 +1,5 @@
 import type {
+    activityTable,
     repositoryTable,
     modelTable,
     gitProviderAccessTable,
@@ -19,12 +20,19 @@ export type GitHubApp = InferSelectModel<typeof githubAppTable>;
 
 export type GitHubInstallation = InferSelectModel<typeof githubInstallationTable>;
 
+export type Activity = InferSelectModel<typeof activityTable> & {
+    repositoryPath: string;
+    modelLabel: string;
+    provider: Repository["provider"];
+};
+
 // Insert types (for creating new records)
 export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
 export type ModelInsert = InferInsertModel<typeof modelTable>;
 export type AccessInsert = InferInsertModel<typeof gitProviderAccessTable>;
 export type GitHubAppInsert = InferInsertModel<typeof githubAppTable>;
 export type GitHubInstallationInsert = InferInsertModel<typeof githubInstallationTable>;
+export type ActivityInsert = InferInsertModel<typeof activityTable>;
 
 // API response types (sensitive fields omitted)
 export type RepositoryResponse = Omit<Repository, "webhookSecret">;
@@ -50,9 +58,7 @@ export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "crea
 export type GitHubAppUpdateInput = Partial<
     Omit<GitHubAppInsert, "privateKey" | "webhookSecret" | "createdAt" | "updatedAt">
 >;
-export type GitHubInstallationUpdateInput = Partial<
-    Omit<GitHubInstallationInsert, "createdAt" | "updatedAt">
->;
+export type GitHubInstallationUpdateInput = Partial<Omit<GitHubInstallationInsert, "createdAt" | "updatedAt">>;
 
 // Create input types (sensitive fields included)
 export type GitHubAppCreateInput = Pick<GitHubAppInsert, "appId" | "slug" | "privateKey" | "webhookSecret">;
@@ -95,3 +101,8 @@ export type UnifiedAccessOption =
           label: string;
           accountType: GitHubInstallationResponse["accountType"];
       };
+
+export type ActivityTokenUsage = {
+    inputToken: number;
+    outputToken: number;
+};
