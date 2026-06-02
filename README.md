@@ -70,7 +70,7 @@ docker run -d \
   -p 7901:7901 \
   -v proval-data:/data \
   -e DB_FILE_NAME=/data/app.db \
-  your-registry/proval:latest
+  ghcr.io/proval:latest
 ```
 
 ## How it works
