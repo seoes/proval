@@ -1,6 +1,6 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import { runAgentLoop, type AgentTool } from "../../agent/loop.js";
-import { createOpenAiSender } from "../../agent/openai.js";
+import { runAgentLoop, type AgentTool, type LlmSender } from "../../agent/loop.js";
+import { createSender, type SenderConfig } from "../../agent/factory.js";
 import {
     getDirectoryTreeTool,
     getFileContentTool,
@@ -17,20 +17,14 @@ import type { GitProvider } from "../../provider/types.js";
 import { COMMENT_ON_OPEN_PROMPT, ISSUE_REPLY_PROMPT } from "./prompt/index.js";
 
 export class IssueService {
-    private readonly sender: ReturnType<typeof createOpenAiSender>;
+    private readonly sender: LlmSender;
 
     constructor(
         private readonly provider: GitProvider,
-        modelBaseUrl: string,
-        modelApiKey: string,
-        modelName: string,
+        senderConfig: SenderConfig,
         private readonly language: string,
     ) {
-        this.sender = createOpenAiSender({
-            apiKey: modelApiKey,
-            baseURL: modelBaseUrl,
-            model: modelName,
-        });
+        this.sender = createSender(senderConfig);
     }
 
     public async commentOnOpen(issueIid: number): Promise<ActivityTokenUsage> {

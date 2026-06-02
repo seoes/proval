@@ -13,7 +13,7 @@ const timeStamp = {
 
 export const modelTable = sqliteTable("model", {
     id: integer().primaryKey({ autoIncrement: true }),
-    provider: text({ enum: ["openai"] }).notNull(), // TODO: add claude, ollama, llama.cpp
+    provider: text({ enum: ["openai", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp
     name: text().notNull(),
     label: text().notNull(),
     baseUrl: text().notNull(),

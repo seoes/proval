@@ -123,6 +123,11 @@
             description: "Chat Completions API",
             value: "openai",
         },
+        {
+            label: "Anthropic",
+            description: "Messages API",
+            value: "anthropic",
+        },
     ];
 
     let isTestingConnection = $state(false);

@@ -3,6 +3,7 @@ import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@prova
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { log } from "../../util/log.js";
 
 export class ModelService {
@@ -57,6 +58,20 @@ export class ModelService {
             max_tokens: 1,
         });
         if (completion.choices[0]?.message?.content !== undefined) {
+            log("API key is valid", "Model API Verification");
+            return;
+        }
+        throw new Error("Invalid API key or base URL");
+    }
+
+    public async verifyAnthropicApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
+        const client = new Anthropic({ apiKey, baseURL: baseUrl });
+        const response = await client.messages.create({
+            model,
+            max_tokens: 1,
+            messages: [{ role: "user", content: "Hello" }],
+        });
+        if (response.content && response.content.length > 0) {
             log("API key is valid", "Model API Verification");
             return;
         }

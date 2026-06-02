@@ -113,9 +113,7 @@ async function handlePullRequestWebhook(
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const pullRequestService = new PullRequestService(
         gitHubProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
+        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
         repository.language,
     );
 
@@ -171,7 +169,7 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+    const issueService = new IssueService(gitHubProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
 
     runWithActivity(
         {
@@ -234,9 +232,7 @@ async function handleIssueCommentWebhook(
 
         const pullRequestService = new PullRequestService(
             gitHubProvider,
-            model.baseUrl,
-            model.apiKey,
-            model.name,
+            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
             repository.language,
         );
 
@@ -267,7 +263,7 @@ async function handleIssueCommentWebhook(
         });
     }
 
-    const issueService = new IssueService(gitHubProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+    const issueService = new IssueService(gitHubProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
 
     runWithActivity(
         {
