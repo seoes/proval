@@ -1,8 +1,8 @@
-<!-- Hero Banner -->
+![Proval](./docs/assets/hero.png)
 
 # Proval
 
-Proval is a self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests(or merge requests), and issues on your own infrastructure.
+A self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests(or merge requests), and issues on your own infrastructure.
 
 <!-- IMAGE_PLACEHOLDER: Screenshot of Proval review output on a pull request. Show a real code comment with suggestions on a diff. -->
 
