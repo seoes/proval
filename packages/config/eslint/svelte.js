@@ -36,9 +36,7 @@ export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [], 
             files: ["**/*.{ts,tsx,mts,cts}"],
             languageOptions: {
                 parserOptions: {
-                    projectService: {
-                        allowDefaultProject: ["*.config.ts"],
-                    },
+                    projectService: true,
                     tsconfigRootDir,
                 },
             },
@@ -48,9 +46,7 @@ export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [], 
             files: ["**/*.svelte", "**/*.svelte.ts", "**/*.svelte.js"],
             languageOptions: {
                 parserOptions: {
-                    projectService: {
-                        allowDefaultProject: ["*.config.ts"],
-                    },
+                    projectService: true,
                     tsconfigRootDir,
                     extraFileExtensions: [".svelte"],
                     parser: ts.parser,
