@@ -89,9 +89,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (pa
 
     const pullRequestService = new PullRequestService(
         gitlabProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
+        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
         repository.language,
     );
 
@@ -180,9 +178,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const pullRequestService = new PullRequestService(
         gitlabProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
+        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
         repository.language,
     );
 
@@ -242,7 +238,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
-    const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+    const issueService = new IssueService(gitlabProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
 
     runWithActivity(
         {
@@ -307,7 +303,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
         });
     }
 
-    const issueService = new IssueService(gitlabProvider, model.baseUrl, model.apiKey, model.name, repository.language);
+    const issueService = new IssueService(gitlabProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
 
     runWithActivity(
         {
