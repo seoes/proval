@@ -52,29 +52,21 @@ export class ModelService {
     }
     public async verifyOpenAiApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
         const client = new OpenAI({ apiKey, baseURL: baseUrl });
-        const completion = await client.chat.completions.create({
+        await client.chat.completions.create({
             model,
             messages: [{ role: "user", content: "Hello" }],
             max_tokens: 1,
         });
-        if (completion.choices[0]?.message?.content !== undefined) {
-            log("API key is valid", "Model API Verification");
-            return;
-        }
-        throw new Error("Invalid API key or base URL");
+        log("API key is valid", "Model API Verification");
     }
 
     public async verifyAnthropicApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
         const client = new Anthropic({ apiKey, baseURL: baseUrl });
-        const response = await client.messages.create({
+        await client.messages.create({
             model,
             max_tokens: 1,
             messages: [{ role: "user", content: "Hello" }],
         });
-        if (response.content && response.content.length > 0) {
-            log("API key is valid", "Model API Verification");
-            return;
-        }
-        throw new Error("Invalid API key or base URL");
+        log("API key is valid", "Model API Verification");
     }
 }
