@@ -24,6 +24,7 @@ export function providerLabel(provider: RepositoryProvider): string {
 
 const modelProviderLabelList: Record<ModelProvider, string> = {
     openai: "OpenAI",
+    anthropic: "Anthropic",
 };
 
 export function modelProviderLabel(provider: ModelProvider | string): string {

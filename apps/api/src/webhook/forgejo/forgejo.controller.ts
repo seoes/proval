@@ -128,9 +128,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const pullRequestService = new PullRequestService(
         forgejoProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
+        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
         repository.language,
     );
 
@@ -221,9 +219,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         const pullRequestService = new PullRequestService(
             forgejoProvider,
-            model.baseUrl,
-            model.apiKey,
-            model.name,
+            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
             repository.language,
         );
 
@@ -280,9 +276,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         const issueService = new IssueService(
             forgejoProvider,
-            model.baseUrl,
-            model.apiKey,
-            model.name,
+            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
             repository.language,
         );
 
@@ -339,9 +333,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
     const issueService = new IssueService(
         forgejoProvider,
-        model.baseUrl,
-        model.apiKey,
-        model.name,
+        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
         repository.language,
     );
 

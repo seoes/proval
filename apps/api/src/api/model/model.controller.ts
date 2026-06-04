@@ -70,6 +70,9 @@ export const verifyConfig: Handler = async (c: Context) => {
 
     const { provider, baseUrl, model, apiKey } = body;
     switch (provider) {
+        case "anthropic":
+            await modelService.verifyAnthropicApi(baseUrl, model, apiKey);
+            return c.json({ message: "Config verified" }, 200);
         case "openai":
             await modelService.verifyOpenAiApi(baseUrl, model, apiKey);
             return c.json({ message: "Config verified" }, 200);
