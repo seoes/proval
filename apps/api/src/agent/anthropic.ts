@@ -29,16 +29,7 @@ export function createAnthropicSender(config: AnthropicConfig): LlmSender {
                 if (m.role === "system") {
                     systemParts.push(m.content ?? "");
                 } else if (m.role === "tool") {
-                    chatMessages.push({
-                        role: "user",
-                        content: [
-                            {
-                                type: "tool_result",
-                                tool_use_id: m.toolCallId ?? "",
-                                content: m.content ?? "",
-                            },
-                        ],
-                    });
+                    appendToolResult(chatMessages, m.toolCallId ?? "", m.content ?? "");
                 } else {
                     chatMessages.push(convertToAnthropicMessage(m));
                 }
@@ -103,7 +94,7 @@ function convertToAnthropicMessage(m: Message): Anthropic.Messages.MessageParam 
                         type: "tool_use",
                         id: tc.id,
                         name: tc.name,
-                        input: JSON.parse(tc.arguments),
+                        input: parseToolArguments(tc.arguments),
                     });
                 }
                 return { role: "assistant", content };
@@ -113,4 +104,43 @@ function convertToAnthropicMessage(m: Message): Anthropic.Messages.MessageParam 
         default:
             return { role: "user", content: "" };
     }
+}
+
+function appendToolResult(
+    chatMessages: Anthropic.Messages.MessageParam[],
+    toolUseId: string,
+    content: string,
+): void {
+    const block: Anthropic.Messages.ToolResultBlockParam = {
+        type: "tool_result",
+        tool_use_id: toolUseId,
+        content,
+    };
+
+    const last = chatMessages.at(-1);
+    if (last?.role === "user" && isToolResultOnlyUserMessage(last)) {
+        (last.content as Anthropic.Messages.ToolResultBlockParam[]).push(block);
+        return;
+    }
+
+    chatMessages.push({ role: "user", content: [block] });
+}
+
+function isToolResultOnlyUserMessage(message: Anthropic.Messages.MessageParam): boolean {
+    if (message.role !== "user" || !Array.isArray(message.content)) {
+        return false;
+    }
+    return message.content.length > 0 && message.content.every((block) => block.type === "tool_result");
+}
+
+function parseToolArguments(argumentsJson: string): Record<string, unknown> {
+    try {
+        const parsed: unknown = JSON.parse(argumentsJson);
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+            return parsed as Record<string, unknown>;
+        }
+    } catch {
+        // fall through
+    }
+    return {};
 }
