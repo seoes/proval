@@ -418,10 +418,10 @@ volumes:
                             <div class="mt-2 flex flex-col items-center gap-1">
                                 <span
                                     class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]"
-                                    >review comment</span>
+                                    >GET /repository</span>
                                 <span
                                     class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]"
-                                    >thread reply</span>
+                                    >POST /comment</span>
                             </div>
                         </div>
                         <div class="integration-line-h-green min-w-4 flex-1" aria-hidden="true"></div>
