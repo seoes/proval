@@ -23,7 +23,6 @@
                 </a>
             {/each}
             <ButtonLink href={GITHUB_URL} variant="secondary" external class="hidden sm:inline-flex">GitHub</ButtonLink>
-            <ButtonLink href="/docs/getting-started" variant="primary">Get started</ButtonLink>
         </nav>
     </div>
 </header>

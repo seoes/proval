@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-    --primary: oklch(0.48 0.18 255);
-    --primary-foreground: oklch(0.99 0 0);
+    --primary: oklch(0.55 0.22 250);
+    --primary-foreground: oklch(0.98 0 0);
+    --radius: 0.625rem;
 }
 
 @theme inline {
