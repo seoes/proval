@@ -3,11 +3,11 @@
     import { goto } from "$app/navigation";
     import fetchApi from "$lib/utils";
     import type {
-        AccessResponse,
-        GitHubInstallationResponse,
         ModelResponse,
+        ProviderOption,
         ReplyThreadPolicy,
         RepositoryResponse,
+        RepositorySelectItem,
     } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
@@ -17,200 +17,98 @@
     import Button from "../atom/Button.svelte";
     import Modal from "../atom/Modal.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
-    import type { RepositorySelectItem } from "@proval/types";
-    import { loadRepositoryList } from "$lib/utils/repository-list";
     import Description from "../atom/Description.svelte";
     import ToggleSwitch from "../atom/ToggleSwitch.svelte";
     import FieldTitle from "../atom/FieldTitle.svelte";
 
-    type RepositoryFormInitialData = Partial<
-        Pick<
-            RepositoryResponse,
-            | "path"
-            | "description"
-            | "gitProviderAccessId"
-            | "gitProviderRepositoryId"
-            | "githubInstallationId"
-            | "githubRepositoryId"
-            | "language"
-            | "modelId"
-            | "reviewOnPullRequestOpen"
-            | "inlineReview"
-            | "replyToPullRequestComment"
-            | "replyToIssueComment"
-            | "commentOnIssueOpen"
-            | "deepResearchOnPullRequest"
-        >
-    >;
-
-    interface Props {
-        mode: "create" | "edit";
-        repositoryId?: number;
-        provider: RepositoryResponse["provider"];
-        modelList: ModelResponse[];
-        accessList?: AccessResponse[];
-        installationList?: GitHubInstallationResponse[];
-        githubAppId?: number | null;
-        initialData?: RepositoryFormInitialData;
+    interface CreateProps {
+        mode: "create";
+        selectedRepositoryId: number;
     }
 
-    const {
-        mode,
-        repositoryId,
-        provider,
-        modelList,
-        accessList = [],
-        installationList = [],
-        githubAppId = null,
-        initialData,
-    }: Props = $props();
+    interface EditProps {
+        mode: "edit";
+        repository: RepositoryResponse;
+    }
 
-    let path = $state(initialData?.path ?? "");
-    let description = $state(initialData?.description ?? "");
-    let isRefreshingPath = $state(false);
-    let language = $state(initialData?.language ?? "English");
-    const githubInstallationId = $state(initialData?.githubInstallationId?.toString() ?? "");
-    let modelId = $state(initialData?.modelId?.toString() ?? "");
-    const gitProviderAccessId = $state(initialData?.gitProviderAccessId?.toString() ?? "");
-    let gitProviderRepositoryId = $state(
-        (provider === "github"
-            ? initialData?.githubRepositoryId
-            : initialData?.gitProviderRepositoryId
-        )?.toString() ?? "",
+    interface DefaultProps {
+        modelList: ModelResponse[];
+        provider: ProviderOption;
+        repositoryList: RepositorySelectItem[];
+    }
+
+    type Props = (CreateProps & DefaultProps) | (EditProps & DefaultProps);
+
+    const { modelList, provider, repositoryList, ...props }: Props = $props();
+
+    const repository = $derived(props.mode === "edit" ? props.repository : null);
+
+    const initialGitRepositoryId =
+        props.mode === "edit"
+            ? props.repository.provider === "github"
+                ? props.repository.githubRepositoryId
+                : props.repository.gitProviderRepositoryId
+            : null;
+
+    let selectedRepositoryId = $state<string | null>(
+        props.mode === "create" ? props.selectedRepositoryId.toString() : (initialGitRepositoryId?.toString() ?? null),
     );
-    let deepResearchOnPullRequest = $state(initialData?.deepResearchOnPullRequest ?? false);
 
-    let reviewOnPullRequestOpen = $state(initialData?.reviewOnPullRequestOpen ?? true);
-    let commentOnIssueOpen = $state(initialData?.commentOnIssueOpen ?? true);
-    let replyToPullRequestComment = $state<ReplyThreadPolicy>(initialData?.replyToPullRequestComment ?? "all");
-    let replyToIssueComment = $state<ReplyThreadPolicy>(initialData?.replyToIssueComment ?? "all");
-    let inlineReview = $state(initialData?.inlineReview ?? true);
+    const selectedRepository = $derived(repositoryList.find((r) => r.id === Number(selectedRepositoryId)) ?? null);
+
+    // Review Agent Configuration
+    let description = $state<string>(props.mode === "edit" ? (props.repository.description ?? "") : "");
+    let selectedModelId = $state<string>(
+        props.mode === "edit" && props.repository.modelId != null ? props.repository.modelId.toString() : "",
+    );
+    let language = $state<string>(props.mode === "edit" ? (props.repository.language ?? "English") : "English");
+
+    // Pull Request Configuration
+    let reviewOnPullRequestOpen = $state(
+        props.mode === "edit" ? props.repository.reviewOnPullRequestOpen : true,
+    );
+    let inlineReview = $state(props.mode === "edit" ? props.repository.inlineReview : true);
+    let deepResearchOnPullRequest = $state(
+        props.mode === "edit" ? props.repository.deepResearchOnPullRequest : false,
+    );
+    let replyToPullRequestComment = $state<ReplyThreadPolicy>(
+        props.mode === "edit" ? props.repository.replyToPullRequestComment : "all",
+    );
+
+    // Issue Configuration
+    let commentOnIssueOpen = $state(props.mode === "edit" ? props.repository.commentOnIssueOpen : true);
+    let replyToIssueComment = $state<ReplyThreadPolicy>(
+        props.mode === "edit" ? props.repository.replyToIssueComment : "all",
+    );
 
     let webhookSecret = $state("");
     let webhookSecretModalOpen = $state(false);
-    let repositoryList = $state<RepositorySelectItem[]>([]);
-    let isLoadingRepositoryList = $state(false);
-
-    const gitProviderAccess = $derived(accessList.find((a) => a.id.toString() === gitProviderAccessId));
-    const githubInstallation = $derived(installationList.find((installation) => installation.id.toString() === githubInstallationId),
-    );
-
-    const selectedRepository = $derived(
-        gitProviderRepositoryId
-            ? (repositoryList.find((r) => r.id.toString() === gitProviderRepositoryId) ?? null)
-            : null,
-    );
 
     const selectClass =
         "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
     const replyToPullRequestCommentOptionList: {
-        label: string;
         value: ReplyThreadPolicy;
         description: string;
     }[] = [
-        {
-            label: "All",
-            value: "all",
-            description: "Reply on all thread comments on pull requests",
-        },
-        {
-            label: "Mentioned only",
-            value: "mentioned_only",
-            description: "Reply only when the bot is @mentioned in PR discussion threads",
-        },
-        {
-            label: "Off",
-            value: "off",
-            description: "Do not reply to pull request comments",
-        },
+        { value: "all", description: "Reply on all thread comments on pull requests" },
+        { value: "mentioned_only", description: "Reply only when the bot is @mentioned in PR discussion threads" },
+        { value: "off", description: "Do not reply to pull request comments" },
     ];
 
     const replyToIssueCommentOptionList: {
-        label: string;
         value: ReplyThreadPolicy;
         description: string;
     }[] = [
-        {
-            label: "All",
-            value: "all",
-            description: "Reply on all thread comments on issues",
-        },
-        {
-            label: "Mentioned only",
-            value: "mentioned_only",
-            description: "Reply only when the bot is @mentioned in issue discussion threads",
-        },
-        {
-            label: "Off",
-            value: "off",
-            description: "Do not reply to issue comments",
-        },
+        { value: "all", description: "Reply on all thread comments on issues" },
+        { value: "mentioned_only", description: "Reply only when the bot is @mentioned in issue discussion threads" },
+        { value: "off", description: "Do not reply to issue comments" },
     ];
-
-    async function reloadRepositoryList() {
-        isLoadingRepositoryList = true;
-        try {
-            if (provider === "github" && githubAppId && githubInstallationId) {
-                repositoryList = await loadRepositoryList({
-                    provider: "github",
-                    appId: githubAppId,
-                    installationId: parseInt(githubInstallationId, 10),
-                });
-            } else if (
-                gitProviderAccessId &&
-                (provider === "gitlab" || provider === "forgejo")
-            ) {
-                repositoryList = await loadRepositoryList({
-                    provider,
-                    accessId: parseInt(gitProviderAccessId, 10),
-                });
-            } else {
-                repositoryList = [];
-            }
-        } finally {
-            isLoadingRepositoryList = false;
-        }
-    }
-
-    $effect(() => {
-        if (mode === "edit") {
-            reloadRepositoryList();
-        }
-    });
-
-    $effect(() => {
-        const fullName = selectedRepository?.fullName;
-        if (fullName) {
-            path = fullName;
-        }
-    });
-
-    async function refreshPath() {
-        if (!repositoryId) {
-            return;
-        }
-        isRefreshingPath = true;
-        try {
-            const res = await fetchApi(`/repository/${repositoryId}/refresh-path`, { method: "POST" });
-            if (!res.ok) {
-                const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-                await openAlert(errBody.error ?? "Failed to refresh repository path");
-                return;
-            }
-            const data = (await res.json()) as { path: string };
-            path = data.path;
-        } catch {
-            await openAlert("Failed to refresh repository path");
-        } finally {
-            isRefreshingPath = false;
-        }
-    }
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
 
-        if (!modelId) {
+        if (!selectedModelId || selectedModelId === "") {
             await openAlert("Model is required");
             return;
         }
@@ -218,127 +116,68 @@
             await openAlert("Language is required");
             return;
         }
-        if ((provider === "gitlab" || provider === "forgejo") && !gitProviderAccessId) {
-            await openAlert("Git provider access is required");
-            return;
-        }
-        if (mode === "create") {
-            if (
-                (provider === "gitlab" || provider === "forgejo") &&
-                initialData?.gitProviderRepositoryId === null
-            ) {
-                await openAlert("Repository is required");
-                return;
-            }
-            if (provider === "github" && initialData?.githubRepositoryId === null) {
-                await openAlert("Repository is required");
-                return;
-            }
-        } else if (!gitProviderRepositoryId) {
+
+        if (!selectedRepository) {
             await openAlert("Repository is required");
             return;
         }
-        if (provider === "github" && !githubInstallationId) {
-            await openAlert("GitHub installation is required");
-            return;
-        }
-        if (mode === "edit") {
-            const currentRepoId =
-                provider === "github"
-                    ? initialData?.githubRepositoryId
-                    : initialData?.gitProviderRepositoryId;
-            if (selectedRepository?.alreadyConnected && selectedRepository.id !== currentRepoId) {
+
+        if (props.mode === "edit" && initialGitRepositoryId != null) {
+            if (selectedRepository?.isConnected && selectedRepository.id !== initialGitRepositoryId) {
                 await openAlert("This repository is already connected to Proval");
                 return;
             }
         }
-        if (mode === "create" && (provider === "gitlab" || provider === "forgejo") && !webhookSecret.trim()) {
-            await openAlert("Webhook secret is required");
-            return;
-        }
 
-        const repoId =
-            mode === "create"
-                ? provider === "github"
-                    ? (initialData?.githubRepositoryId ?? null)
-                    : (initialData?.gitProviderRepositoryId ?? null)
-                : gitProviderRepositoryId
-                  ? parseInt(gitProviderRepositoryId, 10)
-                  : null;
+        const body: Record<string, unknown> = {
+            path: selectedRepository?.path,
+            description: description.trim() || null,
+            provider: provider.type,
+            language,
+            modelId: Number(selectedModelId),
+            reviewOnPullRequestOpen,
+            inlineReview,
+            deepResearchOnPullRequest,
+            replyToPullRequestComment,
+            replyToIssueComment,
+            commentOnIssueOpen,
+        };
 
-        const submitPath = path.trim() || null;
-        if (!submitPath) {
-            await openAlert("Repository path is required");
-            return;
-        }
-
-        if (mode === "create") {
-            const confirm = await openConfirm("Create this repository?");
-            if (!confirm) return;
-            const body: Record<string, unknown> = {
-                path: submitPath,
-                description: description.trim() || null,
-                provider,
-                gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
-                language,
-                gitProviderRepositoryId: provider === "github" ? null : repoId,
-                githubInstallationId: githubInstallationId ? parseInt(githubInstallationId, 10) : null,
-                githubRepositoryId: provider === "github" ? repoId : null,
-                modelId: modelId ? parseInt(modelId, 10) : null,
-                reviewOnPullRequestOpen,
-                commentOnIssueOpen,
-                replyToPullRequestComment,
-                replyToIssueComment,
-                inlineReview,
-                deepResearchOnPullRequest,
-            };
-            if (provider === "gitlab" || provider === "forgejo") {
+        if (provider.type === "gitlab" || provider.type === "forgejo") {
+            body.gitProviderAccessId = provider.accessId;
+            body.gitProviderRepositoryId = selectedRepository?.id;
+            if (props.mode === "create") {
+                if (!webhookSecret.trim()) {
+                    await openAlert("Webhook secret is required");
+                    return;
+                }
                 body.webhookSecret = webhookSecret.trim();
             }
-
-            const res = await fetchApi("/repository", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) {
-                const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-                await openAlert(errBody.error ?? "Failed to create repository");
-                return;
-            }
-        } else {
-            const confirm = await openConfirm("Update this repository?");
-            if (!confirm) return;
-            const body = {
-                path: submitPath,
-                description: description.trim() || null,
-                provider,
-                gitProviderAccessId: gitProviderAccessId ? parseInt(gitProviderAccessId, 10) : null,
-                language,
-                gitProviderRepositoryId: provider === "github" ? null : repoId,
-                githubInstallationId: githubInstallationId ? parseInt(githubInstallationId, 10) : null,
-                githubRepositoryId: provider === "github" ? repoId : null,
-                modelId: modelId ? parseInt(modelId, 10) : null,
-                reviewOnPullRequestOpen,
-                commentOnIssueOpen,
-                replyToPullRequestComment,
-                replyToIssueComment,
-                inlineReview,
-                deepResearchOnPullRequest,
-            };
-
-            const res = await fetchApi(`/repository/${repositoryId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) {
-                const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-                await openAlert(errBody.error ?? "Failed to update repository");
-                return;
-            }
+        } else if (provider.type === "github") {
+            body.githubInstallationId = provider.githubInstallationId;
+            body.githubRepositoryId = selectedRepository?.id;
         }
 
+        const confirm = await openConfirm(
+            props.mode === "edit" ? "Save changes to this repository?" : "Create this repository?",
+        );
+        if (!confirm) return;
+
+        const url = props.mode === "edit" ? `/repository/${repository?.id}` : "/repository";
+        const method = props.mode === "edit" ? "PUT" : "POST";
+
+        const response = await fetchApi(url, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
+            await openAlert(errBody.error ?? `Failed to ${props.mode === "edit" ? "update" : "create"} repository`);
+            return;
+        }
+
+        await openAlert(`Repository ${props.mode === "edit" ? "updated" : "created"} successfully`);
         goto("/repository");
     }
 
@@ -351,70 +190,51 @@
         await openAlert("Repository removed successfully");
         goto("/repository");
     }
+
+    const removeUnderscore = (value: string) => value.replace(/_/g, " ");
+    const capitalizeFirstLetter = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-8">
     <Card spaceY>
         <div class="flex items-start gap-2">
-            <GitProviderIcon {provider} />
+            <GitProviderIcon provider={provider.type} />
             <div class="min-w-0 flex-1">
-                {#if provider === "gitlab" || provider === "forgejo"}
-                    <FieldTitle>{gitProviderAccess?.name}</FieldTitle>
-                    <Description>{gitProviderAccess?.baseUrl}</Description>
-                {:else if provider === "github"}
-                    <FieldTitle>{githubInstallation?.accountName}</FieldTitle>
-                    <Description>{githubInstallation?.accountType}</Description>
+                {#if provider.type === "gitlab" || provider.type === "forgejo"}
+                    <FieldTitle>{provider.label}</FieldTitle>
+                    <Description>{provider.baseUrl}</Description>
+                {:else if provider.type === "github"}
+                    <FieldTitle>{provider.label}</FieldTitle>
                 {/if}
-                <div class="flex justify-between items-center gap-2 mt-2">
-
-                    <p class="truncate text-sm text-neutral-800 dark:text-neutral-200">
-                        {path || "—"}
-                    </p>
-                    {#if mode === "edit" && repositoryId}
-                    <Button
-                        text
-                        type="button"
-                        class="w-auto text-xs"
-                        disabled={isRefreshingPath}
-                        onclick={refreshPath}>
-                        {isRefreshingPath ? "Refreshing…" : "Refresh path"}
-                    </Button>
-                    {/if}
-                </div>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2">
+                <p class="truncate text-sm text-neutral-800 dark:text-neutral-200">
+                    {selectedRepository?.path ?? "—"}
+                </p>
             </div>
         </div>
 
-        {#if mode === "edit"}
-            <FormField
-                label="Repository"
-                description={isLoadingRepositoryList
-                    ? "Loading repository list..."
-                    : "Select a repository from the list"}>
-                {#snippet children({ id })}
-                    <select
-                        {id}
-                        bind:value={gitProviderRepositoryId}
-                        disabled={repositoryList.length === 0 || isLoadingRepositoryList}
-                        class={selectClass}>
-                        <option value="">
-                            {isLoadingRepositoryList
-                                ? "Loading..."
-                                : repositoryList.length === 0
-                                  ? "No repositories available"
-                                  : "Select a repository"}
+        <FormField label="Repository" description="Select a repository from the list">
+            {#snippet children({ id })}
+                <select
+                    {id}
+                    bind:value={selectedRepositoryId}
+                    disabled={repositoryList.length === 0}
+                    class={selectClass}>
+                    <option value="">
+                        {repositoryList.length === 0 ? "No repositories available" : "Select a repository"}
+                    </option>
+                    {#each repositoryList as r}
+                        <option value={r.id.toString()}>
+                            {r.path}{r.isConnected ? " (connected)" : ""}
                         </option>
-                        {#each repositoryList as repo}
-                            <option value={repo.id.toString()}>
-                                {repo.fullName}{repo.alreadyConnected ? " (connected)" : ""}
-                            </option>
-                        {/each}
-                    </select>
-                {/snippet}
-            </FormField>
-        {/if}
+                    {/each}
+                </select>
+            {/snippet}
+        </FormField>
 
-        {#if provider === "gitlab" || provider === "forgejo"}
-            {#if mode === "create"}
+        {#if provider.type === "gitlab" || provider.type === "forgejo"}
+            {#if props.mode === "create"}
                 <FormField
                     label="Webhook secret"
                     description="Must match the Secret Token in your GitLab or Forgejo webhook settings">
@@ -422,8 +242,8 @@
                         <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
                     {/snippet}
                 </FormField>
-            {:else if repositoryId}
-                <div class="pt-2 flex justify-end">
+            {:else if props.mode === "edit"}
+                <div class="flex justify-end pt-2">
                     <Button text onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto text-xs">
                         Update Webhook Secret
                     </Button>
@@ -440,7 +260,7 @@
         <div>
             <FormField label="Model" description="Select the model to use for the repository">
                 {#snippet children({ id })}
-                    <select {id} bind:value={modelId} class={selectClass}>
+                    <select {id} bind:value={selectedModelId} class={selectClass}>
                         <option value="">Select a model</option>
                         {#each modelList as model}
                             <option value={model.id.toString()}>{model.label}</option>
@@ -484,12 +304,12 @@
                 upper>
                 {#snippet children({ id: _id })}
                     <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each replyToPullRequestCommentOptionList as opt}
+                        {#each replyToPullRequestCommentOptionList as o}
                             <SimpleSelectCard
-                                label={opt.label}
-                                description={opt.description}
-                                selected={replyToPullRequestComment === opt.value}
-                                onclick={() => (replyToPullRequestComment = opt.value)} />
+                                label={removeUnderscore(capitalizeFirstLetter(o.value))}
+                                description={o.description}
+                                selected={replyToPullRequestComment === o.value}
+                                onclick={() => (replyToPullRequestComment = o.value)} />
                         {/each}
                     </div>
                 {/snippet}
@@ -509,12 +329,12 @@
                 upper>
                 {#snippet children({ id: _id })}
                     <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each replyToIssueCommentOptionList as opt}
+                        {#each replyToIssueCommentOptionList as o}
                             <SimpleSelectCard
-                                label={opt.label}
-                                description={opt.description}
-                                selected={replyToIssueComment === opt.value}
-                                onclick={() => (replyToIssueComment = opt.value)} />
+                                label={removeUnderscore(capitalizeFirstLetter(o.value))}
+                                description={o.description}
+                                selected={replyToIssueComment === o.value}
+                                onclick={() => (replyToIssueComment = o.value)} />
                         {/each}
                     </div>
                 {/snippet}
@@ -524,34 +344,28 @@
 
     <div class="-mt-2 flex justify-between">
         <div class="flex gap-4">
-            <Button primary type="submit">{mode === "create" ? "Create" : "Save"}</Button>
+            <Button primary type="submit">{props.mode === "create" ? "Create" : "Save"}</Button>
         </div>
         <div class="mr-4">
-            {#if mode === "edit" && repositoryId}
+            {#if props.mode === "edit"}
                 <Button
                     text
                     onclick={() => {
-                        deleteRepository(repositoryId);
+                        if (repository) deleteRepository(repository.id);
                     }}>Remove Repository</Button>
-            {:else if mode === "create"}
+            {:else if props.mode === "create"}
                 <Button text onclick={() => goto("/repository")} type="button">Cancel</Button>
             {/if}
         </div>
     </div>
 </form>
 
-{#if repositoryId && (provider === "gitlab" || provider === "forgejo")}
+{#if props.mode === "edit" && repository && (provider.type === "gitlab" || provider.type === "forgejo")}
     <Modal bind:open={webhookSecretModalOpen}>
         <PatchSecret
             label="Update Webhook Secret"
             placeholder="secret"
-            patchEndpoint={`/repository/${repositoryId}/webhook-secret`}
+            patchEndpoint={`/repository/${repository.id}/webhook-secret`}
             onSuccess={() => (webhookSecretModalOpen = false)} />
     </Modal>
 {/if}
-
-<style>
-    * {
-        font-family: "Wanted Sans Variable", sans-serif;
-    }
-</style>

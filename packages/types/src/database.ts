@@ -86,23 +86,24 @@ export type GitProviderRepositoryListResponse = {
 
 export type RepositorySelectItem = {
     id: number;
-    fullName: string;
-    alreadyConnected?: boolean;
+    path: string;
+    isConnected?: boolean;
 };
 
-export type LoadRepositoryListInput =
-    | { provider: AccessProvider; accessId: number }
-    | { provider: "github"; appId: number; installationId: number };
+export type GitHubInstallationOption = {
+    type: Extract<RepositoryProvider, "github">;
+    githubInstallationId: number;
+    label: string;
+};
 
-export type UnifiedAccessOption =
-    | { kind: "git-provider"; provider: AccessProvider; id: number; label: string; baseUrl: string }
-    | {
-          kind: "github-installation";
-          provider: "github";
-          id: number;
-          label: string;
-          accountType: GitHubInstallationResponse["accountType"];
-      };
+export type AccessOption = {
+    type: AccessProvider;
+    accessId: number;
+    label: string;
+    baseUrl: string;
+};
+
+export type ProviderOption = GitHubInstallationOption | AccessOption;
 
 export type ActivityTokenUsage = {
     inputToken: number;

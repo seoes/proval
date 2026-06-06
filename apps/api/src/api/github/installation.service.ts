@@ -45,6 +45,7 @@ export class GitHubInstallationService {
                     accountType: (account?.type as "User" | "Organization") ?? "User",
                     createdAt: inst.createdAt,
                     updatedAt: inst.updatedAt,
+                    appId: app.id,
                 });
             } catch {
                 // Installation not found on GitHub, skip it
@@ -53,6 +54,42 @@ export class GitHubInstallationService {
         }
 
         return results;
+    }
+
+    public async getInstallation(appId: number, installationId: number): Promise<GitHubInstallationResponse | null> {
+        const appList = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appId)).limit(1);
+        if (appList.length === 0) {
+            throw new Error("GitHub App not found");
+        }
+        const app = appList[0];
+        const appAuth = new App({
+            appId: app.appId,
+            privateKey: app.privateKey,
+            Octokit,
+        });
+
+        const installation = await db
+            .select()
+            .from(githubInstallationTable)
+            .where(eq(githubInstallationTable.id, installationId))
+            .limit(1);
+        if (installation.length === 0) {
+            return null;
+        }
+
+        const { data: ghInstallation } = await appAuth.octokit.request("GET /app/installations/{installation_id}", {
+            installation_id: installation[0].installationId,
+        });
+        const account = ghInstallation.account as { login?: string; type?: string } | null;
+        return {
+            id: installation[0].id,
+            installationId: installation[0].installationId,
+            accountName: account?.login ?? "",
+            accountType: (account?.type as "User" | "Organization") ?? "User",
+            createdAt: installation[0].createdAt,
+            updatedAt: installation[0].updatedAt,
+            appId: app.id,
+        };
     }
 
     async getRepositoryList(appId: number, installationId: number): Promise<GitHubRepositoryResponse[]> {
