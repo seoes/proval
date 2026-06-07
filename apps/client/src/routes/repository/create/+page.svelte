@@ -28,7 +28,11 @@
 
     $effect(() => {
         if (selectedProviderOption) {
-            async function fetchRepositoryList() {
+            // 1. Reset Selected Repository ID
+            selectedRepositoryId = "";
+
+            // 2. Fetch Repository List
+            void (async () => {
                 isLoadingRepositoryList = true;
                 try {
                     if (selectedProviderOption?.type === "github") {
@@ -46,21 +50,15 @@
                 } finally {
                     isLoadingRepositoryList = false;
                 }
-            }
-            fetchRepositoryList();
+            })();
         }
     });
 
+    // Check if there is no access or GitHub installation
     onMount(async () => {
         if (data.providerOptionList.length === 0) {
             await openAlert("No access or GitHub installation found. Configure one in Git Provider first.");
             goto("/provider");
-        }
-    });
-
-    $effect(() => {
-        if (selectedProviderOption) {
-            selectedRepositoryId = "";
         }
     });
 
