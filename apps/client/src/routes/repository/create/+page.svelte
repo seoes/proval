@@ -11,6 +11,7 @@
     import type { ProviderOption, RepositorySelectItem } from "@proval/types";
     import { loadGitAccessRepositoryList, loadGitHubInstallationRepositoryList } from "$lib/utils/repository-list";
     import type { PageProps } from "./$types";
+    import fetchApi from "$lib/utils";
 
     const { data }: PageProps = $props();
 
@@ -18,7 +19,7 @@
 
     let isLoadingRepositoryList = $state(false);
     let repositoryList = $state<RepositorySelectItem[]>([]);
-    let selectedRepositoryId = $state<number | null>(null);
+    let selectedRepositoryId = $state<string>("");
 
     let selectedProviderOption = $state<ProviderOption | null>(null);
 
@@ -56,6 +57,30 @@
             goto("/provider");
         }
     });
+
+    $effect(() => {
+        if (selectedProviderOption) {
+            selectedRepositoryId = "";
+        }
+    });
+
+    async function handleSubmit(data: Record<string, unknown>) {
+        const response = await fetchApi("/repository", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
+            throw new Error(errBody.error ?? "Failed to create repository");
+        }
+        await openAlert("Repository created successfully");
+        goto("/repository");
+    }
+
+    function handleCancel() {
+        goto("/repository");
+    }
 </script>
 
 <DefaultLayout narrow title="Create Repository">
@@ -69,7 +94,7 @@
                             : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700'}">
                         {s}
                     </div>
-                    {#if s < 3}
+                    {#if s < 2}
                         <div class="h-0.5 w-8 {step > s ? 'bg-primary' : 'bg-neutral-200 dark:bg-neutral-700'}"></div>
                     {/if}
                 </div>
@@ -102,38 +127,42 @@
                                 </div>
                             </button>
                         {/each}
-                        <div class="mt-4">
-                            <FormField
-                                description={isLoadingRepositoryList
-                                    ? "Loading repository list..."
-                                    : "Select a repository from the list"}>
-                                {#snippet children({ id })}
-                                    <select
-                                        {id}
-                                        bind:value={selectedRepositoryId}
-                                        disabled={!selectedProviderOption ||
-                                            repositoryList.length === 0 ||
-                                            isLoadingRepositoryList}
-                                        class={selectClass}>
-                                        <option value="">
-                                            {isLoadingRepositoryList
-                                                ? "Loading..."
-                                                : repositoryList.length === 0
-                                                  ? "No repositories available"
-                                                  : "Select a repository"}
-                                        </option>
-                                        {#each repositoryList as r}
-                                            <option value={r.id.toString()}>
-                                                {r.path}{r.isConnected ? " (connected)" : ""}
+                        {#if selectedProviderOption}
+                            <div class="mt-4">
+                                <FormField
+                                    description={isLoadingRepositoryList
+                                        ? "Loading repository list..."
+                                        : "Select a repository from the list"}>
+                                    {#snippet children({ id })}
+                                        <select
+                                            {id}
+                                            bind:value={selectedRepositoryId}
+                                            disabled={!selectedProviderOption ||
+                                                repositoryList.length === 0 ||
+                                                isLoadingRepositoryList}
+                                            class={selectClass}>
+                                            <option value="">
+                                                {isLoadingRepositoryList
+                                                    ? "Loading..."
+                                                    : repositoryList.length === 0
+                                                      ? "No repositories available"
+                                                      : "Select a repository"}
                                             </option>
-                                        {/each}
-                                    </select>
-                                {/snippet}
-                            </FormField>
-                        </div>
+                                            {#each repositoryList as r}
+                                                <option value={r.id.toString()}>
+                                                    {r.path}{r.isConnected ? " (connected)" : ""}
+                                                </option>
+                                            {/each}
+                                        </select>
+                                    {/snippet}
+                                </FormField>
+                            </div>
+                        {/if}
                         <div class="mt-4 flex justify-between">
-                            <Button primary onclick={() => (step = 2)} disabled={!selectedProviderOption}
-                                >Continue</Button>
+                            <Button
+                                primary
+                                onclick={() => (step = 2)}
+                                disabled={!selectedProviderOption || !selectedRepositoryId}>Continue</Button>
                             <Button text onclick={() => goto("/repository")}>Cancel</Button>
                         </div>
                     </div>
@@ -144,11 +173,24 @@
         {#if step === 2 && selectedRepositoryId && selectedProviderOption}
             <div class="space-y-4">
                 <RepositoryForm
-                    mode="create"
                     provider={selectedProviderOption}
                     modelList={data.modelList}
-                    {selectedRepositoryId}
-                    {repositoryList} />
+                    editRepositoryId={null}
+                    {repositoryList}
+                    config={{
+                        modelId: null,
+                        repositoryId: selectedRepositoryId ? Number(selectedRepositoryId) : null,
+                        description: null,
+                        language: null,
+                        reviewOnPullRequestOpen: true,
+                        inlineReview: true,
+                        deepResearchOnPullRequest: false,
+                        replyToPullRequestComment: "all",
+                        replyToIssueComment: "all",
+                        commentOnIssueOpen: true,
+                    }}
+                    onSubmit={handleSubmit}
+                    onCancel={handleCancel} />
                 <Button secondary onclick={() => (step = 1)} type="button">Back</Button>
             </div>
         {/if}

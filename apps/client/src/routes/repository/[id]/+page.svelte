@@ -1,16 +1,69 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import RepositoryForm from "$lib/components/organism/RepositoryForm.svelte";
+    import { openAlert, openConfirm } from "$lib/store/modal";
+    import fetchApi from "$lib/utils";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
+
+    async function handleSubmit(body: Record<string, unknown>) {
+        const response = await fetchApi(`/repository/${data.repository.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
+            throw new Error(errBody.error ?? "Failed to update repository");
+        }
+        await openAlert("Repository updated successfully");
+        goto("/repository");
+    }
+
+    async function handleDelete(repositoryId: number) {
+        const confirmed = await openConfirm("Are you sure you want to delete this repository?");
+        if (!confirmed) return;
+        const response = await fetchApi(`/repository/${repositoryId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) {
+            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
+            throw new Error(errBody.error ?? "Failed to delete repository");
+        }
+        await openAlert("Repository deleted successfully");
+        goto("/repository");
+    }
+
+    function handleCancel() {
+        goto("/repository");
+    }
 </script>
 
 <DefaultLayout narrow title="Config Repository">
     <RepositoryForm
-        mode="edit"
-        repository={data.repository}
+        editRepositoryId={data.repository.id}
         modelList={data.modelList}
         repositoryList={data.repositoryList}
-        provider={data.provider} />
+        provider={data.provider}
+        config={{
+            modelId: data.repository.modelId,
+            repositoryId:
+                data.repository.provider === "github"
+                    ? data.repository.githubRepositoryId
+                    : data.repository.gitProviderRepositoryId,
+            description: data.repository.description,
+            language: data.repository.language,
+            reviewOnPullRequestOpen: data.repository.reviewOnPullRequestOpen,
+            inlineReview: data.repository.inlineReview,
+            deepResearchOnPullRequest: data.repository.deepResearchOnPullRequest,
+            replyToPullRequestComment: data.repository.replyToPullRequestComment,
+            replyToIssueComment: data.repository.replyToIssueComment,
+            commentOnIssueOpen: data.repository.commentOnIssueOpen,
+        }}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        onDelete={handleDelete} />
 </DefaultLayout>
