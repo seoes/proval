@@ -4,22 +4,7 @@
     import Eyebrow from "../lib/components/Eyebrow.svelte";
     import Button from "../lib/components/Button.svelte";
     import ButtonLink from "../lib/components/ButtonLink.svelte";
-    import { BENEFITS, GITHUB_URL, SITE_DESCRIPTION } from "../lib/constants";
-
-    const problemCards = [
-        {
-            title: "Reviews should not depend on one person opening an IDE",
-            body: "Proval runs from repository events, so the team gets a consistent review layer even when individual workflows differ.",
-        },
-        {
-            title: "Sensitive context needs a smaller path",
-            body: "Keep diffs, tokens, prompts, and review policy inside infrastructure you control.",
-        },
-        {
-            title: "GitHub is not the only place teams ship code",
-            body: "Proval is built with GitLab, Forgejo, and GitHub in mind from the start.",
-        },
-    ] as const;
+    import { GITHUB_URL, SITE_DESCRIPTION } from "../lib/constants";
 
     type StageKind = "context" | "policy" | "plan" | "parallel" | "output";
 
@@ -132,31 +117,6 @@
         },
     ];
 
-    const workflows = [
-        {
-            name: "PR / MR review",
-            trigger: "Open or update a merge request",
-            output: "Summary, findings, optional inline comments",
-        },
-        {
-            name: "Thread replies",
-            trigger: "A note arrives and matches reply policy",
-            output: "A concise answer in the existing discussion",
-        },
-        {
-            name: "Issue assistance",
-            trigger: "A new issue or issue note is received",
-            output: "Context-aware guidance for maintainers",
-        },
-    ] as const;
-
-    const deploySteps = [
-        "Run the container on your server",
-        "Connect a model endpoint",
-        "Link a Git provider and repository",
-        "Point webhooks at Proval",
-    ] as const;
-
     const screenshots = [
         {
             id: "review",
@@ -181,19 +141,11 @@
     const faqs = [
         {
             question: "Is Proval a replacement for Cursor, Copilot, or Claude?",
-            answer: "No. Those tools help individual developers. Proval is a team-level review layer that runs from repository events.",
+            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model API you want.",
         },
         {
             question: "Does code leave our infrastructure?",
-            answer: "Proval sends review context only to the model endpoint you configure. That can be an external API, internal gateway, or local model server.",
-        },
-        {
-            question: "Which Git hosts are supported?",
-            answer: "The project is built for GitLab, Forgejo, and GitHub workflows, with webhook-driven review and reply behavior.",
-        },
-        {
-            question: "Is it production-ready?",
-            answer: "Proval is under active development. The goal is a small, reliable core loop before adding broader platform and enterprise features.",
+            answer: "Proval does not store your code. It only sends review context to the LLM endpoint you configure. Use a local model if you need to keep everything on your network.",
         },
     ] as const;
 
@@ -770,116 +722,6 @@ Repository      -> review and reply policy</code></pre>
                     {/each}
                 </ol>
             </div> -->
-        </div>
-    </Container>
-</section>
-
-<section class="border-b border-neutral-200 bg-neutral-50 py-20 md:py-28">
-    <Container wide>
-        <div class="grid gap-10 lg:grid-cols-[0.85fr_1fr] lg:items-start">
-            <div>
-                <Eyebrow>Why it exists</Eyebrow>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                    AI review is more useful when it is a team system.
-                </h2>
-                <p class="mt-4 text-neutral-600">
-                    IDE agents are useful, but they depend on individual habits. Proval sits next to the repository and
-                    runs the same review policy whenever events arrive.
-                </p>
-            </div>
-
-            <div class="grid gap-3">
-                {#each problemCards as card (card.title)}
-                    <div class="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <h3 class="font-semibold tracking-tight text-neutral-950">{card.title}</h3>
-                        <p class="mt-2 text-sm leading-6 text-neutral-600">{card.body}</p>
-                    </div>
-                {/each}
-            </div>
-        </div>
-    </Container>
-</section>
-
-<section class="border-b border-neutral-200 bg-white py-20 md:py-28">
-    <Container wide>
-        <div class="max-w-2xl">
-            <Eyebrow>What you get</Eyebrow>
-            <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                Control without turning review automation into another platform project.
-            </h2>
-        </div>
-
-        <div class="mt-10 grid gap-4 md:grid-cols-2">
-            {#each BENEFITS as benefit (benefit.title)}
-                <div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm shadow-neutral-900/3">
-                    <h3 class="font-semibold tracking-tight text-neutral-950">{benefit.title}</h3>
-                    <p class="mt-3 text-sm leading-6 text-neutral-600">{benefit.body}</p>
-                </div>
-            {/each}
-        </div>
-    </Container>
-</section>
-
-<section class="border-b border-neutral-200 bg-neutral-50 py-20 md:py-28">
-    <Container wide>
-        <div class="max-w-2xl">
-            <Eyebrow>Workflows</Eyebrow>
-            <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                What Proval does after it receives an event.
-            </h2>
-            <p class="mt-4 text-neutral-600">
-                Each workflow is built around the same idea: clear trigger, narrow context, one useful action back in
-                the Git host.
-            </p>
-        </div>
-
-        <div class="mt-10 grid gap-4 lg:grid-cols-3">
-            {#each workflows as workflow (workflow.name)}
-                <article class="rounded-2xl border border-neutral-200 bg-white p-6">
-                    <h3 class="font-semibold tracking-tight text-neutral-950">{workflow.name}</h3>
-                    <dl class="mt-5 space-y-4 text-sm">
-                        <div>
-                            <dt class="font-medium text-neutral-400">Trigger</dt>
-                            <dd class="mt-1 text-neutral-700">{workflow.trigger}</dd>
-                        </div>
-                        <div>
-                            <dt class="font-medium text-neutral-400">Output</dt>
-                            <dd class="mt-1 text-neutral-700">{workflow.output}</dd>
-                        </div>
-                    </dl>
-                </article>
-            {/each}
-        </div>
-    </Container>
-</section>
-
-<section class="border-b border-neutral-200 bg-neutral-50 py-20 md:py-28">
-    <Container wide>
-        <div class="grid gap-4 md:grid-cols-2">
-            <a
-                href="/docs"
-                class="rounded-2xl border border-neutral-200 bg-white p-6 transition-colors hover:border-neutral-300">
-                <Eyebrow>Docs</Eyebrow>
-                <h2 class="mt-3 text-2xl font-semibold tracking-tight text-neutral-950">
-                    Install, connect, and run your first review.
-                </h2>
-                <p class="mt-3 text-sm leading-6 text-neutral-600">
-                    Start with the setup guide, then move to Docker deployment when you are ready to try a persistent
-                    instance.
-                </p>
-            </a>
-
-            <a
-                href="/blog"
-                class="rounded-2xl border border-neutral-200 bg-white p-6 transition-colors hover:border-neutral-300">
-                <Eyebrow>Blog</Eyebrow>
-                <h2 class="mt-3 text-2xl font-semibold tracking-tight text-neutral-950">
-                    Notes on self-hosted review automation.
-                </h2>
-                <p class="mt-3 text-sm leading-6 text-neutral-600">
-                    Short project updates and product notes about privacy-first code review infrastructure.
-                </p>
-            </a>
         </div>
     </Container>
 </section>
