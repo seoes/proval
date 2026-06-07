@@ -13,6 +13,19 @@ export const getInstallationList = async (c: Context) => {
     return c.json(installationList, 200);
 };
 
+export const getInstallation = async (c: Context) => {
+    const appId = parseInt(c.req.param("id") ?? "", 10);
+    const installationId = parseInt(c.req.param("installationId") ?? "", 10);
+    if (!Number.isFinite(appId) || !Number.isFinite(installationId)) {
+        return c.json({ error: "Invalid app or installation id" }, 400);
+    }
+    const installation = await installationService.getInstallation(appId, installationId);
+    if (!installation) {
+        return c.json({ error: "Installation not found" }, 404);
+    }
+    return c.json(installation, 200);
+};
+
 export const getRepositoryList = async (c: Context) => {
     const appId = parseInt(c.req.param("id") ?? "", 10);
     const installationId = parseInt(c.req.param("installationId") ?? "", 10);

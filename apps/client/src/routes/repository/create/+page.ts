@@ -4,7 +4,9 @@ import type {
     GitHubAppResponse,
     GitHubInstallationResponse,
     ModelResponse,
-    UnifiedAccessOption,
+    AccessOption,
+    ProviderOption,
+    GitHubInstallationOption,
 } from "@proval/types";
 import type { PageLoad } from "./$types";
 
@@ -28,32 +30,26 @@ export const load: PageLoad = async () => {
         installationList = installationRes.ok ? await installationRes.json() : [];
     }
 
-    const unifiedAccessOptions: UnifiedAccessOption[] = [
+    const providerOptionList: ProviderOption[] = [
         ...accessList.map(
-            (access): UnifiedAccessOption => ({
-                kind: "git-provider",
-                provider: access.provider,
-                id: access.id,
+            (access): AccessOption => ({
+                type: access.provider,
+                accessId: access.id,
                 label: access.name,
                 baseUrl: access.baseUrl,
             }),
         ),
         ...installationList.map(
-            (installation): UnifiedAccessOption => ({
-                kind: "github-installation",
-                provider: "github",
-                id: installation.id,
+            (installation): GitHubInstallationOption => ({
+                type: "github",
+                githubInstallationId: installation.id,
                 label: installation.accountName,
-                accountType: installation.accountType,
             }),
         ),
     ];
 
     return {
         modelList,
-        accessList,
-        app,
-        installationList,
-        unifiedAccessOptions,
+        providerOptionList,
     };
 };

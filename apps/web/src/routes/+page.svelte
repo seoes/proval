@@ -119,12 +119,6 @@
 
     const screenshots = [
         {
-            id: "review",
-            label: "Review comment",
-            frame: "gitlab.com/acme/api-server/-/merge_requests/42",
-            caption: "Proval posts a summary and inline comments straight to the merge request.",
-        },
-        {
             id: "dashboard",
             label: "Dashboard",
             frame: "proval.local",
@@ -135,6 +129,12 @@
             label: "Setup",
             frame: "proval.local/settings",
             caption: "Connect a model endpoint and a repository with a simple form.",
+        },
+        {
+            id: "review",
+            label: "Review",
+            frame: "gitlab.com/acme/api-server/-/merge_requests/42",
+            caption: "Proval posts a summary and inline comments straight to the merge request.",
         },
     ] as const;
 
@@ -219,15 +219,10 @@ volumes:
                         <span class="size-2.5 rounded-full bg-emerald-300"></span>
                         <span class="ml-3 truncate font-mono text-xs text-neutral-500">{currentShot.frame}</span>
                     </div>
-
-                    <!-- Replace this placeholder with the real asset, e.g.
-                        <img src={`/screenshots/${currentShot.id}.png`} alt={currentShot.label} class="aspect-16/10 w-full object-cover" /> -->
-                    <div class="flex aspect-16/10 w-full items-center justify-center bg-neutral-50 max-md:bg-white">
-                        <div class="text-center">
-                            <p class="font-mono text-xs tracking-widest text-neutral-400 uppercase">Screenshot</p>
-                            <p class="mt-2 text-lg font-semibold text-neutral-400">{currentShot.label}</p>
-                        </div>
-                    </div>
+                    <img
+                        src={`/${currentShot.id}.png`}
+                        alt={currentShot.label}
+                        class="aspect-16/10 w-full object-cover" />
                 </div>
             </div>
 
