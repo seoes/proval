@@ -1,5 +1,5 @@
 import { gitProviderAccessTable, repositoryTable } from "@proval/db";
-import type { Access, AccessInsert, AccessProvider, AccessResponse, GitProviderRepositoryListResponse } from "@proval/types";
+import type { Access, AccessInsert, AccessProvider, AccessResponse } from "@proval/types";
 import db from "../../db";
 import { count, eq } from "drizzle-orm";
 
@@ -74,12 +74,7 @@ export class GitLabAccessService {
         return newAccess[0];
     }
 
-    public async updateById(
-        id: number,
-        name: string,
-        baseUrl: string,
-        accessToken?: string,
-    ): Promise<AccessResponse> {
+    public async updateById(id: number, name: string, baseUrl: string, accessToken?: string): Promise<AccessResponse> {
         const patch = {
             name,
             baseUrl,
@@ -134,24 +129,20 @@ export class GitLabAccessService {
             .from(repositoryTable)
             .where(eq(repositoryTable.gitProviderAccessId, accessId));
 
-        return new Set(
-            rows.map((row) => row.gitProviderRepositoryId).filter((id): id is number => id != null),
-        );
+        return new Set(rows.map((row) => row.gitProviderRepositoryId).filter((id): id is number => id != null));
     }
 
     public async testGitLab(baseUrl: string, accessToken: string) {
-        // new URL(baseUrl) 파싱 검증, https: 프로토콜 확인, trailing slash 정규화.
-        const url = new URL(baseUrl);
+        const url = new URL("/api/v4/user", baseUrl);
         if (url.protocol !== "https:" && url.protocol !== "http:") {
             throw new Error("Invalid base URL");
         }
-        if (url.pathname.endsWith("/")) {
-            url.pathname = url.pathname.slice(0, -1);
-        }
-        const response = await fetch(`${url.toString()}/api/v4/user`, {
+        const response = await fetch(url.toString(), {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
             },
+            keepalive: false,
         });
         if (response.status === 401) {
             return { success: false, message: "Unauthorized" };
@@ -160,14 +151,11 @@ export class GitLabAccessService {
     }
 
     public async testForgejo(baseUrl: string, accessToken: string) {
-        const url = new URL(baseUrl);
+        const url = new URL("/api/v1/user", baseUrl);
         if (url.protocol !== "https:" && url.protocol !== "http:") {
             throw new Error("Invalid base URL");
         }
-        if (url.pathname.endsWith("/")) {
-            url.pathname = url.pathname.slice(0, -1);
-        }
-        const response = await fetch(`${url.toString()}/api/v1/user`, {
+        const response = await fetch(url.toString(), {
             headers: {
                 Authorization: `token ${accessToken}`,
             },

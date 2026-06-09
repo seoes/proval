@@ -14,6 +14,7 @@ githubRouter.post("/app/setup", installationController.handleSetup);
 
 // App-scoped installation routes
 githubRouter.get("/app/:id/installation", installationController.getInstallationList);
+githubRouter.get("/app/:id/installation/:installationId", installationController.getInstallation);
 githubRouter.get("/app/:id/installation/:installationId/repository", installationController.getRepositoryList);
 githubRouter.delete("/app/:id/installation/:installationId", installationController.deleteInstallation);
 githubRouter.get("/app/:id/install-url", installationController.getInstallUrl);

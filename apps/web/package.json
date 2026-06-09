@@ -1,0 +1,36 @@
+{
+    "name": "web",
+    "private": true,
+    "version": "0.0.1",
+    "type": "module",
+    "scripts": {
+        "dev": "vite dev",
+        "build": "vite build",
+        "preview": "vite preview",
+        "prepare": "svelte-kit sync || echo ''",
+        "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+        "lint": "prettier --check . && eslint .",
+        "format": "prettier --write ."
+    },
+    "devDependencies": {
+        "@proval/config": "workspace:*",
+        "@sveltejs/adapter-static": "^3.0.10",
+        "@sveltejs/kit": "^2.57.0",
+        "@sveltejs/vite-plugin-svelte": "^7.0.0",
+        "@tailwindcss/vite": "^4.2.2",
+        "@types/node": "^24",
+        "eslint": "^9.39.2",
+        "prettier": "^3.8.1",
+        "svelte": "^5.55.2",
+        "svelte-check": "^4.4.6",
+        "tailwindcss": "^4.2.2",
+        "typescript": "^5.9.3",
+        "vite": "^8.0.7"
+    },
+    "dependencies": {
+        "gray-matter": "^4.0.3",
+        "marked": "^18.0.4",
+        "tailwind-merge": "^3.6.0"
+    }
+}
