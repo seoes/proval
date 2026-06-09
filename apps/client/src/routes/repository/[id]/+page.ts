@@ -45,13 +45,15 @@ export const load: PageLoad = async ({ params }) => {
             throw error(404, "GitHub App not found");
         }
 
-        const installationRes = await fetchApi(
-            `/github/app/${app.id}/installation/${repository.githubInstallationId}`,
-        );
+        const installationRes = await fetchApi(`/github/app/${app.id}/installation/${repository.githubInstallationId}`);
         if (!installationRes.ok) {
             throw error(404, "Installation not found");
         }
-        const installation: GitHubInstallationResponse = await installationRes.json();
+        const installation = (await installationRes.json()) as GitHubInstallationResponse | null;
+
+        if (!installation) {
+            throw error(404, "Installation not found");
+        }
 
         provider = {
             type: "github",
