@@ -9,32 +9,48 @@
     const { data }: PageProps = $props();
 
     async function handleSubmit(body: Record<string, unknown>) {
-        const response = await fetchApi(`/repository/${data.repository.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-        });
-        if (!response.ok) {
-            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
-            throw new Error(errBody.error ?? "Failed to update repository");
+        try {
+            const response = await fetchApi(`/repository/${data.repository.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!response.ok) {
+                const errBody = await response.json();
+                if (errBody.error) {
+                    throw new Error(errBody.error);
+                }
+                throw new Error("Failed to update repository");
+            }
+            await openAlert("Repository updated successfully");
+            goto("/repository");
+        } catch (error) {
+            console.error("Failed to update repository", error);
+            await openAlert("Failed to update repository");
         }
-        await openAlert("Repository updated successfully");
-        goto("/repository");
     }
 
     async function handleDelete(repositoryId: number) {
         const confirmed = await openConfirm("Are you sure you want to delete this repository?");
         if (!confirmed) return;
-        const response = await fetchApi(`/repository/${repositoryId}`, {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-        });
-        if (!response.ok) {
-            const errBody = (await response.json().catch(() => ({}))) as { error?: string };
-            throw new Error(errBody.error ?? "Failed to delete repository");
+        try {
+            const response = await fetchApi(`/repository/${repositoryId}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+            });
+            if (!response.ok) {
+                const errBody = await response.json();
+                if (errBody.error) {
+                    throw new Error(errBody.error);
+                }
+                throw new Error(errBody.error ?? "Failed to delete repository");
+            }
+            await openAlert("Repository deleted successfully");
+            goto("/repository");
+        } catch (error) {
+            console.error("Failed to delete repository", error);
+            await openAlert("Failed to delete repository");
         }
-        await openAlert("Repository deleted successfully");
-        goto("/repository");
     }
 
     function handleCancel() {
