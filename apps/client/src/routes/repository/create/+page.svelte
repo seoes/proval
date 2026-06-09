@@ -47,6 +47,10 @@
                     } else {
                         repositoryList = [];
                     }
+                } catch (error) {
+                    console.error("Failed to load repository list", error);
+                    await openAlert("Failed to load repository list");
+                    repositoryList = [];
                 } finally {
                     isLoadingRepositoryList = false;
                 }
