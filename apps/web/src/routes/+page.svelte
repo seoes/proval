@@ -204,7 +204,7 @@ volumes:
         </p>
 
         <div class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <ButtonLink href="/docs/getting-started" variant="primary">Read the docs</ButtonLink>
+            <ButtonLink href="/docs/quick-start" variant="primary">Read the docs</ButtonLink>
             <ButtonLink href={GITHUB_URL} variant="secondary" external>View on GitHub</ButtonLink>
         </div>
 
@@ -673,7 +673,7 @@ volumes:
                     Proval is designed around a simple Docker-first path: run the service, connect your model, link
                     repositories, and test a real merge request.
                 </p>
-                <ButtonLink href="/docs/docker-compose" variant="primary" class="mt-6">
+                <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">
                     Open the Docker guide
                 </ButtonLink>
             </div>
@@ -694,7 +694,7 @@ volumes:
                 </div>
                 <p class="mt-3 text-center text-sm text-neutral-500">
                     Deploy in a minute with Docker Compose.
-                    <ButtonLink href="/docs/docker-compose" variant="primary" class="inline">
+                    <ButtonLink href="/docs/quick-start" variant="primary" class="inline">
                         Full setup guide
                     </ButtonLink>
                 </p>

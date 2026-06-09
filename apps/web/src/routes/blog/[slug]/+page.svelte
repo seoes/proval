@@ -21,5 +21,5 @@
         <p class="mt-4 text-lg leading-8 text-neutral-600">{data.post.description}</p>
     </header>
 
-    <article class="prose mt-8">{@html data.post.html}</article>
+    <article class="prose mt-10 max-w-3xl">{@html data.post.html}</article>
 </Container>
