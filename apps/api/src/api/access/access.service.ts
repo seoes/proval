@@ -133,15 +133,10 @@ export class GitLabAccessService {
     }
 
     public async testGitLab(baseUrl: string, accessToken: string) {
-        // new URL(baseUrl) 파싱 검증, https: 프로토콜 확인, trailing slash 정규화.
-        const url = new URL(baseUrl);
+        const url = new URL("/api/v4/user", baseUrl);
         if (url.protocol !== "https:" && url.protocol !== "http:") {
             throw new Error("Invalid base URL");
         }
-        if (url.pathname.endsWith("/")) {
-            url.pathname = url.pathname.slice(0, -1);
-        }
-        url.pathname = "/api/v4/user";
         const response = await fetch(url.toString(), {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
@@ -156,14 +151,11 @@ export class GitLabAccessService {
     }
 
     public async testForgejo(baseUrl: string, accessToken: string) {
-        const url = new URL(baseUrl);
+        const url = new URL("/api/v1/user", baseUrl);
         if (url.protocol !== "https:" && url.protocol !== "http:") {
             throw new Error("Invalid base URL");
         }
-        if (url.pathname.endsWith("/")) {
-            url.pathname = url.pathname.slice(0, -1);
-        }
-        const response = await fetch(`${url.toString()}/api/v1/user`, {
+        const response = await fetch(url.toString(), {
             headers: {
                 Authorization: `token ${accessToken}`,
             },
