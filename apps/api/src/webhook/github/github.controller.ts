@@ -4,7 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { GitHubProvider } from "../../provider/github.js";
-import type { GitHubApp, Model, Repository } from "@proval/types";
+import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 
@@ -54,7 +54,7 @@ export const handleGitHubWebhook = async (c: Context) => {
     const event = c.req.header("X-GitHub-Event") ?? "";
 
     const repository = c.get("repository") as Repository;
-    const model = c.get("model") as Model;
+    const modelProvider = c.get("modelProvider") as ModelProvider;
     const githubApp = c.get("githubApp") as GitHubApp;
     const githubInstallation = c.get("githubInstallation");
 
@@ -67,17 +67,17 @@ export const handleGitHubWebhook = async (c: Context) => {
     try {
         if (event === "pull_request") {
             const payload = c.get("githubPayload") as PullRequestWebhookPayload;
-            return await handlePullRequestWebhook(payload, repository, model, githubApp, installationId);
+            return await handlePullRequestWebhook(payload, repository, modelProvider, githubApp, installationId);
         }
 
         if (event === "issue_comment") {
             const payload = c.get("githubPayload") as IssueCommentWebhookPayload;
-            return await handleIssueCommentWebhook(payload, repository, model, githubApp, installationId);
+            return await handleIssueCommentWebhook(payload, repository, modelProvider, githubApp, installationId);
         }
 
         if (event === "issues") {
             const payload = c.get("githubPayload") as IssueWebhookPayload;
-            return await handleIssueWebhook(payload, repository, model, githubApp, installationId);
+            return await handleIssueWebhook(payload, repository, modelProvider, githubApp, installationId);
         }
 
         return c.json({ message: `Unhandled event: ${event}` }, 200);
@@ -90,7 +90,7 @@ export const handleGitHubWebhook = async (c: Context) => {
 async function handlePullRequestWebhook(
     payload: PullRequestWebhookPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
@@ -113,7 +113,7 @@ async function handlePullRequestWebhook(
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const pullRequestService = new PullRequestService(
         gitHubProvider,
-        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
         repository.language,
     );
 
@@ -125,7 +125,8 @@ async function handlePullRequestWebhook(
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "pr_review",
             targetIid: prNumber,
         },
@@ -140,7 +141,7 @@ async function handlePullRequestWebhook(
 async function handleIssueWebhook(
     payload: IssueWebhookPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
@@ -169,12 +170,13 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const issueService = new IssueService(gitHubProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
+    const issueService = new IssueService(gitHubProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
 
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "issue_open",
             targetIid: issueNumber,
         },
@@ -189,7 +191,7 @@ async function handleIssueWebhook(
 async function handleIssueCommentWebhook(
     payload: IssueCommentWebhookPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     githubApp: GitHubApp,
     installationId: number,
 ): Promise<Response> {
@@ -232,14 +234,15 @@ async function handleIssueCommentWebhook(
 
         const pullRequestService = new PullRequestService(
             gitHubProvider,
-            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
             repository.language,
         );
 
         runWithActivity(
             {
                 repositoryId: repository.id,
-                modelId: model.id,
+                modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
                 type: "pr_reply",
                 targetIid: issueNumber,
             },
@@ -263,12 +266,13 @@ async function handleIssueCommentWebhook(
         });
     }
 
-    const issueService = new IssueService(gitHubProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
+    const issueService = new IssueService(gitHubProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
 
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "issue_reply",
             targetIid: issueNumber,
         },

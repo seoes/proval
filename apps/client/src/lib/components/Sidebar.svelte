@@ -28,8 +28,8 @@
                     icon: GitForkIcon,
                 },
                 {
-                    label: "Model",
-                    href: "/model",
+                    label: "Model Provider",
+                    href: "/model-provider",
                     icon: CubeIcon,
                 },
                 {

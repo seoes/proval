@@ -1,7 +1,7 @@
-import { activityTable, modelTable, repositoryTable } from "@proval/db";
+import { activityTable, modelProviderTable, repositoryTable } from "@proval/db";
 import type { Activity, ActivityLast24HoursStats, Pagination } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, getTableColumns, gte, inArray } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, sql } from "drizzle-orm";
 
 const FINISHED_STATUSES = ["completed", "failed"] as const;
 const REVIEW_TYPES = ["pr_review", "issue_open"] as const;
@@ -18,14 +18,14 @@ function finishedInLast24Hours() {
     );
 }
 
-export type ActivityStartInput = Pick<Activity, "repositoryId" | "modelId" | "type" | "targetIid">;
+export type ActivityStartInput = Pick<Activity, "repositoryId" | "modelProviderId" | "modelName" | "type" | "targetIid">;
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
 
 const activitySelect = {
     ...getTableColumns(activityTable),
     repositoryPath: repositoryTable.path,
-    modelLabel: modelTable.label,
+    modelLabel: sql<string>`${modelProviderTable.label} || ' · ' || ${activityTable.modelName}`.as("model_label"),
     provider: repositoryTable.provider,
 };
 
@@ -40,7 +40,7 @@ export class ActivityService {
             .select(activitySelect)
             .from(activityTable)
             .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelTable, eq(activityTable.modelId, modelTable.id))
+            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
             .orderBy(desc(activityTable.createdAt))
             .limit(limit)
             .offset(offset);
@@ -77,7 +77,7 @@ export class ActivityService {
             .select(activitySelect)
             .from(activityTable)
             .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelTable, eq(activityTable.modelId, modelTable.id))
+            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
             .where(eq(activityTable.status, "started"))
             .orderBy(desc(activityTable.createdAt))
             .limit(limit);
@@ -88,7 +88,7 @@ export class ActivityService {
             .select(activitySelect)
             .from(activityTable)
             .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelTable, eq(activityTable.modelId, modelTable.id))
+            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
             .where(eq(activityTable.id, id))
             .limit(1);
 

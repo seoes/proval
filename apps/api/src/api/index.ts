@@ -9,13 +9,14 @@ import {
     removeRepository,
 } from "./repository/repository.controller.js";
 import {
-    findAllModel,
-    findById,
-    createModel,
-    updateModel,
-    updateApiKey,
-    verifyConfig,
-    removeModel,
+    findAllModelProvider,
+    findModelProviderById,
+    listModelProviderModels,
+    createModelProvider,
+    updateModelProvider,
+    updateModelProviderApiKey,
+    verifyModelProviderConfig,
+    removeModelProvider,
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
 import { accessRouter } from "./access/index.js";
@@ -28,14 +29,15 @@ apiRouter.get("/health", (c) => {
     return c.json({ message: "OK" }, 200);
 });
 
-// Model routes
-apiRouter.get("/model", findAllModel);
-apiRouter.get("/model/:id{\\d+}", findById);
-apiRouter.post("/model", createModel);
-apiRouter.post("/model/verify", verifyConfig);
-apiRouter.delete("/model/:id", removeModel);
-apiRouter.put("/model/:id", updateModel);
-apiRouter.patch("/model/:id/api-key", updateApiKey);
+// Model provider routes
+apiRouter.get("/model-provider", findAllModelProvider);
+apiRouter.get("/model-provider/:id{\\d+}/model", listModelProviderModels);
+apiRouter.get("/model-provider/:id{\\d+}", findModelProviderById);
+apiRouter.post("/model-provider", createModelProvider);
+apiRouter.post("/model-provider/verify", verifyModelProviderConfig);
+apiRouter.delete("/model-provider/:id", removeModelProvider);
+apiRouter.put("/model-provider/:id", updateModelProvider);
+apiRouter.patch("/model-provider/:id/api-key", updateModelProviderApiKey);
 
 // Repository routes
 apiRouter.get("/repository", findAllRepositoryController);

@@ -1,6 +1,13 @@
 <script lang="ts">
     import InputText from "../atom/InputText.svelte";
-    import type { ModelResponse, ProviderOption, ReplyThreadPolicy, RepositorySelectItem } from "@proval/types";
+    import fetchApi from "$lib/utils";
+    import type {
+        ModelProviderModelListResponse,
+        ModelProviderResponse,
+        ProviderOption,
+        ReplyThreadPolicy,
+        RepositorySelectItem,
+    } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
     import PatchSecret from "../molecule/PatchSecret.svelte";
@@ -14,7 +21,8 @@
     import FieldTitle from "../atom/FieldTitle.svelte";
 
     interface Config {
-        modelId: number | null; // model id in the database for selection
+        modelProviderId: number | null;
+        modelName: string | null;
         repositoryId: number | null; // repository id from github/gitlab/forgejo for selection
 
         description: string | null;
@@ -30,7 +38,7 @@
     interface Props {
         editRepositoryId: number | null; // repository id in the database for editing
 
-        modelList: ModelResponse[];
+        modelList: ModelProviderResponse[];
         repositoryList: RepositorySelectItem[];
 
         provider: ProviderOption;
@@ -48,8 +56,44 @@
     const { modelList, provider, repositoryList, editRepositoryId, config, onSubmit, onDelete, onCancel }: Props =
         $props();
 
-    let selectedModelId = $state<string>(String(config.modelId ?? ""));
+    let selectedModelProviderId = $state<string>(String(config.modelProviderId ?? ""));
+    let modelName = $state<string>(config.modelName ?? "");
+    let availableModels = $state<{ id: string }[]>([]);
+    let isLoadingModels = $state(false);
     let selectedRepositoryId = $state<string>(String(config.repositoryId ?? ""));
+
+    let previousModelProviderId = $state(selectedModelProviderId);
+
+    $effect(() => {
+        if (selectedModelProviderId !== previousModelProviderId) {
+            if (previousModelProviderId !== "") {
+                modelName = "";
+            }
+            previousModelProviderId = selectedModelProviderId;
+        }
+
+        if (!selectedModelProviderId) {
+            availableModels = [];
+            return;
+        }
+
+        void (async () => {
+            isLoadingModels = true;
+            try {
+                const res = await fetchApi(`/model-provider/${selectedModelProviderId}/model`);
+                if (res.ok) {
+                    const body = (await res.json()) as ModelProviderModelListResponse;
+                    availableModels = body.models;
+                } else {
+                    availableModels = [];
+                }
+            } catch {
+                availableModels = [];
+            } finally {
+                isLoadingModels = false;
+            }
+        })();
+    });
 
     const path = $derived(
         selectedRepositoryId ? repositoryList.find((r) => r.id === Number(selectedRepositoryId))?.path : null,
@@ -73,6 +117,32 @@
 
     let webhookSecret = $state<string | null>(editRepositoryId ? null : "");
     let webhookSecretModalOpen = $state(false);
+    let modelListModalOpen = $state(false);
+    let modelNameDraft = $state("");
+
+    function openModelModal() {
+        if (!selectedModelProviderId) return;
+        modelNameDraft = modelName;
+        modelListModalOpen = true;
+    }
+
+    function confirmModelSelection() {
+        const trimmed = modelNameDraft.trim();
+        if (!trimmed) return;
+        modelName = trimmed;
+        modelListModalOpen = false;
+    }
+
+    function selectModelFromList(id: string) {
+        modelName = id;
+        modelListModalOpen = false;
+    }
+
+    const filteredAvailableModels = $derived.by(() => {
+        const query = modelNameDraft.trim().toLowerCase();
+        if (!query) return availableModels;
+        return availableModels.filter((m) => m.id.toLowerCase().includes(query));
+    });
 
     const selectClass =
         "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
@@ -86,7 +156,11 @@
     async function handleSubmit(e: Event) {
         e.preventDefault();
 
-        if (!selectedModelId) {
+        if (!selectedModelProviderId) {
+            await openAlert("Model provider is required");
+            return;
+        }
+        if (!modelName.trim()) {
             await openAlert("Model is required");
             return;
         }
@@ -118,7 +192,8 @@
             description: description.trim() || null,
             provider: provider.type,
             language,
-            modelId: Number(selectedModelId),
+            modelProviderId: Number(selectedModelProviderId),
+            modelName: modelName.trim(),
             reviewOnPullRequestOpen,
             inlineReview,
             deepResearchOnPullRequest,
@@ -224,14 +299,32 @@
             {/snippet}
         </FormField>
         <div>
-            <FormField label="Model" description="Select the model to use for the repository">
+            <FormField label="Model Provider" description="LLM connection for this repository">
                 {#snippet children({ id })}
-                    <select {id} bind:value={selectedModelId} class={selectClass}>
-                        <option value="">Select a model</option>
-                        {#each modelList as model}
-                            <option value={model.id.toString()}>{model.label}</option>
+                    <select {id} bind:value={selectedModelProviderId} class={selectClass}>
+                        <option value="">Select a model provider</option>
+                        {#each modelList as mp}
+                            <option value={mp.id.toString()}>{mp.label}</option>
                         {/each}
                     </select>
+                {/snippet}
+            </FormField>
+        </div>
+        <div>
+            <FormField
+                label="Model"
+                description="Model ID sent to the API. Click to type or choose from the provider list.">
+                {#snippet children({ id })}
+                    <button
+                        type="button"
+                        {id}
+                        disabled={!selectedModelProviderId}
+                        onclick={openModelModal}
+                        class="{selectClass} text-left {selectedModelProviderId ? 'cursor-pointer' : ''} {modelName
+                            ? 'text-neutral-900 dark:text-neutral-100'
+                            : 'text-neutral-400 dark:text-neutral-500'}">
+                        {modelName || "anthropic/claude-sonnet-4.6"}
+                    </button>
                 {/snippet}
             </FormField>
         </div>
@@ -331,3 +424,54 @@
             onSuccess={() => (webhookSecretModalOpen = false)} />
     </Modal>
 {/if}
+
+<Modal bind:open={modelListModalOpen} class="max-w-lg">
+    <div class="space-y-4">
+        <FieldTitle>Select model</FieldTitle>
+        <Description>Type to filter the list, or enter a custom model ID.</Description>
+        <InputText
+            placeholder="anthropic/claude-sonnet-4.6"
+            bind:value={modelNameDraft}
+            onkeydown={(e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    confirmModelSelection();
+                }
+            }} />
+        {#if isLoadingModels}
+            <Description>Loading models...</Description>
+        {:else if availableModels.length > 0}
+            <div class="h-72 overflow-y-auto rounded-xl border border-neutral-200 p-1 dark:border-neutral-700">
+                {#if filteredAvailableModels.length === 0}
+                    <div class="flex h-full items-center justify-center px-3">
+                        <Description class="text-center">
+                            No matching models. Confirm to use your custom model ID.
+                        </Description>
+                    </div>
+                {:else}
+                    <ul class="space-y-1">
+                        {#each filteredAvailableModels as m (m.id)}
+                            <li>
+                                <button
+                                    type="button"
+                                    class="w-full cursor-pointer rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700 {modelNameDraft ===
+                                    m.id
+                                        ? 'bg-primary/10 text-neutral-900 dark:text-neutral-100'
+                                        : 'text-neutral-800 dark:text-neutral-200'}"
+                                    onclick={() => selectModelFromList(m.id)}>
+                                    {m.id}
+                                </button>
+                            </li>
+                        {/each}
+                    </ul>
+                {/if}
+            </div>
+        {:else}
+            <Description>No models were returned by this provider.</Description>
+        {/if}
+        <div class="flex justify-end gap-3 pt-1">
+            <Button text type="button" onclick={() => (modelListModalOpen = false)}>Cancel</Button>
+            <Button primary type="button" onclick={confirmModelSelection}>Confirm</Button>
+        </div>
+    </div>
+</Modal>

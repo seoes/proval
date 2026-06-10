@@ -1,7 +1,7 @@
 import type {
     activityTable,
     repositoryTable,
-    modelTable,
+    modelProviderTable,
     gitProviderAccessTable,
     githubAppTable,
     githubInstallationTable,
@@ -12,7 +12,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export type Repository = InferSelectModel<typeof repositoryTable>; // Omit gitlabAccess, webhookSecret
 
-export type Model = InferSelectModel<typeof modelTable>;
+export type ModelProvider = InferSelectModel<typeof modelProviderTable>;
 
 export type Access = InferSelectModel<typeof gitProviderAccessTable>;
 
@@ -28,7 +28,7 @@ export type Activity = InferSelectModel<typeof activityTable> & {
 
 // Insert types (for creating new records)
 export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
-export type ModelInsert = InferInsertModel<typeof modelTable>;
+export type ModelProviderInsert = InferInsertModel<typeof modelProviderTable>;
 export type AccessInsert = InferInsertModel<typeof gitProviderAccessTable>;
 export type GitHubAppInsert = InferInsertModel<typeof githubAppTable>;
 export type GitHubInstallationInsert = InferInsertModel<typeof githubInstallationTable>;
@@ -38,7 +38,7 @@ export type ActivityInsert = InferInsertModel<typeof activityTable>;
 export type RepositoryResponse = Omit<Repository, "webhookSecret"> & {
     lastUsedAt: Date | null;
 };
-export type ModelResponse = Omit<Model, "apiKey">;
+export type ModelProviderResponse = Omit<ModelProvider, "apiKey">;
 export type AccessResponse = Omit<Access, "accessToken">;
 export type GitHubAppResponse = Omit<GitHubApp, "privateKey" | "webhookSecret">;
 export type GitHubInstallationResponse = GitHubInstallation & {
@@ -55,7 +55,9 @@ export type GitHubRepositoryResponse = {
 
 // Update types (for PUT - excludes sensitive fields)
 export type RepositoryUpdateInput = Partial<Omit<RepositoryInsert, "webhookSecret" | "createdAt" | "updatedAt">>;
-export type ModelUpdateInput = Partial<Omit<ModelInsert, "apiKey" | "createdAt" | "updatedAt">>;
+export type ModelProviderUpdateInput = Partial<
+    Omit<ModelProviderInsert, "apiKey" | "createdAt" | "updatedAt">
+>;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;
 export type GitHubAppUpdateInput = Partial<
     Omit<GitHubAppInsert, "privateKey" | "webhookSecret" | "createdAt" | "updatedAt">
@@ -71,7 +73,7 @@ export type SecretInput = { value: string };
 // Domain enums (derived from schema)
 export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
-export type ModelProvider = Model["provider"];
+export type LlmApiProvider = ModelProvider["provider"];
 export type ReplyThreadPolicy = Repository["replyToPullRequestComment"];
 
 // Composite / list API types
@@ -109,4 +111,9 @@ export type ActivityTokenUsage = {
     inputToken: number;
     outputToken: number;
     cachedInputToken: number;
+};
+
+export type ModelProviderModelListResponse = {
+    models: { id: string }[];
+    source: "openai_compatible" | "unavailable";
 };

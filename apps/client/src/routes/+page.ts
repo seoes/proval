@@ -4,7 +4,7 @@ import type {
     ActivitySummaryResponse,
     GitHubAppResponse,
     GitHubInstallationResponse,
-    ModelResponse,
+    ModelProviderResponse,
     RepositoryResponse,
 } from "@proval/types";
 import type { PageLoad } from "./$types";
@@ -17,14 +17,14 @@ const emptyActivitySummary: ActivitySummaryResponse = {
 export const load: PageLoad = async () => {
     const [modelResponse, repositoryResponse, accessResponse, githubAppResponse, activitySummaryResponse] =
         await Promise.all([
-            fetchApi("/model"),
+            fetchApi("/model-provider"),
             fetchApi("/repository"),
             fetchApi("/access"),
             fetchApi("/github/app"),
             fetchApi("/activity/summary"),
         ]);
 
-    const modelList: ModelResponse[] = modelResponse.ok ? await modelResponse.json() : [];
+    const modelList: ModelProviderResponse[] = modelResponse.ok ? await modelResponse.json() : [];
     const repositoryList: RepositoryResponse[] = repositoryResponse.ok ? await repositoryResponse.json() : [];
     const accessList: AccessResponse[] = accessResponse.ok ? await accessResponse.json() : [];
     const githubAppList: GitHubAppResponse[] = githubAppResponse.ok ? await githubAppResponse.json() : [];

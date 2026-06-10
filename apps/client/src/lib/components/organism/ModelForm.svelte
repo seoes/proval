@@ -10,32 +10,28 @@
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Button from "../atom/Button.svelte";
 
-    import type { ModelProvider, ModelResponse } from "@proval/types";
+    import type { LlmApiProvider, ModelProviderResponse } from "@proval/types";
 
     interface Props {
         mode: "create" | "edit";
-        modelId?: number;
-        initialData?: Pick<ModelResponse, "provider" | "name" | "label" | "baseUrl">;
+        modelProviderId?: number;
+        initialData?: Pick<ModelProviderResponse, "provider" | "label" | "baseUrl">;
         border?: boolean;
     }
 
-    const { mode, modelId, initialData, border = true }: Props = $props();
+    const { mode, modelProviderId, initialData, border = true }: Props = $props();
 
-    let provider = $state<ModelProvider>(initialData?.provider ?? "openai");
-    let name = $state(initialData?.name ?? "");
+    let provider = $state<LlmApiProvider>(initialData?.provider ?? "openai");
     let label = $state(initialData?.label ?? "");
     let baseUrl = $state(initialData?.baseUrl ?? "");
     let apiKey = $state("");
+    let testModelName = $state("");
     let apiKeyModalOpen = $state(false);
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
         if (!label) {
             await openAlert("Display Name is required");
-            return;
-        }
-        if (!name) {
-            await openAlert("Model ID is required");
             return;
         }
         if (!baseUrl) {
@@ -52,71 +48,69 @@
                 return;
             }
 
-            const confirm = await openConfirm("Create this model?");
+            const confirm = await openConfirm("Create this model provider?");
             if (!confirm) return;
 
             const body = {
                 provider,
-                name,
                 label,
                 baseUrl,
                 apiKey,
             };
 
-            const res = await fetchApi("/model", {
+            const res = await fetchApi("/model-provider", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
             if (!res.ok) {
                 const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-                await openAlert(errBody.error ?? "Failed to create model");
+                await openAlert(errBody.error ?? "Failed to create model provider");
                 return;
             }
         } else {
-            const confirm = await openConfirm("Update this model?");
+            const confirm = await openConfirm("Update this model provider?");
             if (!confirm) return;
             const body = {
                 provider,
-                name,
                 label,
                 baseUrl,
             };
 
-            const res = await fetchApi(`/model/${modelId}`, {
+            const res = await fetchApi(`/model-provider/${modelProviderId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
             if (!res.ok) {
                 const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-                await openAlert(errBody.error ?? "Failed to update model");
+                await openAlert(errBody.error ?? "Failed to update model provider");
                 return;
             }
         }
 
-        goto("/model");
+        goto("/model-provider");
     }
 
-    async function removeModel(rid: number) {
-        const confirmed = await openConfirm("Are you sure you want to remove this model?");
+    async function removeModelProvider(id: number) {
+        const confirmed = await openConfirm("Are you sure you want to remove this model provider?");
         if (!confirmed) return;
-        const res = await fetchApi(`/model/${rid}`, {
+        const res = await fetchApi(`/model-provider/${id}`, {
             method: "DELETE",
         });
         if (!res.ok) {
             const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-            await openAlert(errBody.error ?? "Failed to remove model");
+            await openAlert(errBody.error ?? "Failed to remove model provider");
             return;
         }
-        await openAlert("Model removed successfully");
-        goto("/model");
+        await openAlert("Model provider removed successfully");
+        goto("/model-provider");
     }
 
     const apiProviderToggleButtonValueList: {
         label: string;
         description: string;
-        value: ModelProvider;
+        value: LlmApiProvider;
     }[] = [
         {
             label: "OpenAI",
@@ -133,14 +127,18 @@
     let isTestingConnection = $state(false);
 
     async function testConnection() {
+        if (!testModelName.trim()) {
+            await openAlert("Test model name is required");
+            return;
+        }
         isTestingConnection = true;
         try {
-            const response = await fetchApi(`/model/verify`, {
+            const response = await fetchApi(`/model-provider/verify`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     provider,
-                    model: name,
+                    modelName: testModelName.trim(),
                     baseUrl,
                     apiKey,
                 }),
@@ -159,9 +157,9 @@
 
 <form onsubmit={handleSubmit} class="space-y-8">
     <Card {border} spaceY>
-        <FormField label="Display Name" description="The display name of the model">
+        <FormField label="Display Name" description="A label for this LLM connection">
             {#snippet children({ id })}
-                <InputText {id} name="label" placeholder="Main Reviewer" bind:value={label} />
+                <InputText {id} name="label" placeholder="OpenRouter Production" bind:value={label} />
             {/snippet}
         </FormField>
 
@@ -184,25 +182,26 @@
             {/snippet}
         </FormField>
 
-        <FormField label="Model ID" description="Model name sent to the API">
-            {#snippet children({ id })}
-                <InputText {id} placeholder="anthropic/claude-opus-4.6" bind:value={name} />
-            {/snippet}
-        </FormField>
-
         <FormField label="Base URL" description="Server host for the LLM API">
             {#snippet children({ id })}
-                <InputText {id} placeholder="https://api.anthropic.com" bind:value={baseUrl} />
+                <InputText {id} placeholder="https://openrouter.ai/api/v1" bind:value={baseUrl} />
             {/snippet}
         </FormField>
 
         {#if mode === "create"}
-            <FormField label="API Key" description="Required when creating a model">
+            <FormField label="API Key" description="Required when creating a model provider">
                 {#snippet children({ id })}
                     <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
                 {/snippet}
             </FormField>
-        {:else if modelId}
+            <FormField
+                label="Test model name"
+                description="Optional model ID used only for Test Connection (not saved)">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="anthropic/claude-sonnet-4.6" bind:value={testModelName} />
+                {/snippet}
+            </FormField>
+        {:else if modelProviderId}
             <div class="flex justify-end pt-2">
                 <Button text onclick={() => (apiKeyModalOpen = true)} type="button" class="w-auto text-xs">
                     Update API Key
@@ -224,26 +223,26 @@
             {/if}
         </div>
         <div class="mr-4">
-            {#if mode === "edit" && modelId}
+            {#if mode === "edit" && modelProviderId}
                 <Button
                     text
                     onclick={() => {
-                        removeModel(modelId);
+                        removeModelProvider(modelProviderId);
                     }}
-                    type="button">Remove Model</Button>
+                    type="button">Remove</Button>
             {:else if mode === "create"}
-                <Button text onclick={() => goto("/model")} type="button">Cancel</Button>
+                <Button text onclick={() => goto("/model-provider")} type="button">Cancel</Button>
             {/if}
         </div>
     </div>
 </form>
 
-{#if modelId && mode === "edit"}
+{#if modelProviderId && mode === "edit"}
     <Modal bind:open={apiKeyModalOpen}>
         <PatchSecret
             label="Update API Key"
             placeholder="sk-..."
-            patchEndpoint={`/model/${modelId}/api-key`}
+            patchEndpoint={`/model-provider/${modelProviderId}/api-key`}
             onSuccess={() => (apiKeyModalOpen = false)} />
     </Modal>
 {/if}

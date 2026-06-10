@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
+import { gitProviderAccessTable, modelProviderTable, repositoryTable } from "@proval/db";
 import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
@@ -41,11 +41,11 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
     const result = await db
         .select({
             repository: repositoryTable,
-            model: modelTable,
+            modelProvider: modelProviderTable,
             access: gitProviderAccessTable,
         })
         .from(repositoryTable)
-        .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
+        .innerJoin(modelProviderTable, eq(repositoryTable.modelProviderId, modelProviderTable.id))
         .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
         .where(and(eq(repositoryTable.gitProviderRepositoryId, repositoryId), eq(repositoryTable.provider, "forgejo")))
         .limit(1);
@@ -54,7 +54,7 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
         return c.json({ error: "Repository not found" }, 404);
     }
 
-    const { repository, model, access } = result[0];
+    const { repository, modelProvider, access } = result[0];
 
     const secret = repository.webhookSecret.trim();
     if (!secret) {
@@ -66,7 +66,7 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
     }
 
     c.set("repository", repository);
-    c.set("model", model);
+    c.set("modelProvider", modelProvider);
     c.set("access", access);
     c.set("forgejoPayload", payload);
     await next();

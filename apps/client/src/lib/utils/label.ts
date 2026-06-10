@@ -1,5 +1,5 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-import type { Activity, ModelProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
+import type { Activity, LlmApiProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
@@ -22,13 +22,13 @@ export function providerLabel(provider: RepositoryProvider): string {
     return providerLabelList[provider] ?? provider;
 }
 
-const modelProviderLabelList: Record<ModelProvider, string> = {
+const modelProviderLabelList: Record<LlmApiProvider, string> = {
     openai: "OpenAI",
     anthropic: "Anthropic",
 };
 
-export function modelProviderLabel(provider: ModelProvider | string): string {
-    return modelProviderLabelList[provider as ModelProvider] ?? provider;
+export function modelProviderLabel(provider: LlmApiProvider | string): string {
+    return modelProviderLabelList[provider as LlmApiProvider] ?? provider;
 }
 
 const activityTypeLabelList: Record<Activity["type"], string> = {

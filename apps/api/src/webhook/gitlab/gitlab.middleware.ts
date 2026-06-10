@@ -1,4 +1,4 @@
-import { gitProviderAccessTable, modelTable, repositoryTable } from "@proval/db";
+import { gitProviderAccessTable, modelProviderTable, repositoryTable } from "@proval/db";
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
@@ -9,11 +9,11 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
     const result = await db
         .select({
             repository: repositoryTable,
-            model: modelTable,
+            modelProvider: modelProviderTable,
             access: gitProviderAccessTable,
         })
         .from(repositoryTable)
-        .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
+        .innerJoin(modelProviderTable, eq(repositoryTable.modelProviderId, modelProviderTable.id))
         .innerJoin(gitProviderAccessTable, eq(repositoryTable.gitProviderAccessId, gitProviderAccessTable.id))
         .where(eq(repositoryTable.gitProviderRepositoryId, payload.project?.id));
 
@@ -21,7 +21,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
         return c.json({ error: "Repository not found" }, 404);
     }
 
-    const { repository, model, access } = result[0];
+    const { repository, modelProvider, access } = result[0];
 
     const secret = repository.webhookSecret.trim();
     if (!secret) {
@@ -32,7 +32,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
     }
 
     c.set("repository", repository);
-    c.set("model", model);
+    c.set("modelProvider", modelProvider);
     c.set("gitlabPayload", payload);
     c.set("access", access);
     await next();

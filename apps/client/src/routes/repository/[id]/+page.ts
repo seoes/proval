@@ -3,7 +3,7 @@ import type {
     AccessResponse,
     GitHubAppResponse,
     GitHubInstallationResponse,
-    ModelResponse,
+    ModelProviderResponse,
     ProviderOption,
     RepositoryResponse,
     RepositorySelectItem,
@@ -17,7 +17,7 @@ export const ssr = false;
 export const load: PageLoad = async ({ params }) => {
     const [repositoryResponse, modelListResponse] = await Promise.all([
         fetchApi(`/repository/${params.id}`),
-        fetchApi("/model"),
+        fetchApi("/model-provider"),
     ]);
 
     if (!repositoryResponse.ok) {
@@ -25,7 +25,7 @@ export const load: PageLoad = async ({ params }) => {
     }
 
     const repository: RepositoryResponse = await repositoryResponse.json();
-    const modelList: ModelResponse[] = modelListResponse.ok ? await modelListResponse.json() : [];
+    const modelList: ModelProviderResponse[] = modelListResponse.ok ? await modelListResponse.json() : [];
 
     let provider: ProviderOption;
     let repositoryList: RepositorySelectItem[];

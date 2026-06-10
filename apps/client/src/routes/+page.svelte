@@ -44,11 +44,11 @@
 
         return [
             {
-                id: "model",
-                title: "Connect a model",
+                id: "model-provider",
+                title: "Connect a model provider",
                 description: "Add an LLM endpoint for reviews and replies.",
-                href: "/model/create",
-                ctaLabel: "Add model",
+                href: "/model-provider/create",
+                ctaLabel: "Add model provider",
                 manageLabel: "Manage →",
                 complete: hasModel,
                 status: resolveStepStatus(hasModel, false, modelCurrent),
@@ -99,7 +99,7 @@
         {/if}
 
         <div class="hidden gap-3 sm:grid sm:grid-cols-3">
-            <SummaryPannel label="Models" value={modelCount} />
+            <SummaryPannel label="Model Providers" value={modelCount} />
             <SummaryPannel label="Git Providers" value={providerCount} />
             <SummaryPannel
                 label="Repositories"
