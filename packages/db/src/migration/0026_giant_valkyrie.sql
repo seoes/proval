@@ -1,0 +1,1 @@
+ALTER TABLE `activity` ADD `cached_input_token` integer;

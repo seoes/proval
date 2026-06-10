@@ -183,6 +183,13 @@
       "when": 1780110746254,
       "tag": "0025_yielding_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1781069161230,
+      "tag": "0026_giant_valkyrie",
+      "breakpoints": true
     }
   ]
 }
