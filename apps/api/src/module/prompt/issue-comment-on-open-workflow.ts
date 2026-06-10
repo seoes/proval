@@ -1,8 +1,4 @@
-import { ISSUE_BASE_PROMPT } from "./base.js";
-
-export const COMMENT_ON_OPEN_PROMPT = [
-    ISSUE_BASE_PROMPT,
-    "",
+export const ISSUE_COMMENT_ON_OPEN_WORKFLOW = [
     "# Workflow",
     "1. Call get_issue_detail.",
     "2. Call get_issue_comment_list.",
@@ -21,4 +17,5 @@ export const COMMENT_ON_OPEN_PROMPT = [
     "- If you found related issues or pull requests, include only the strongest few matches and explain the overlap briefly.",
     "- If you explored code, mention the relevant file paths or modules in plain text.",
     "- If the issue is not clearly code-related, say that code exploration appears unnecessary for now.",
+    "",
 ].join("\n");

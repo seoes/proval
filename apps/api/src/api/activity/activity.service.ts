@@ -20,7 +20,7 @@ function finishedInLast24Hours() {
 
 export type ActivityStartInput = Pick<Activity, "repositoryId" | "modelId" | "type" | "targetIid">;
 
-export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "outputToken">;
+export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
 
 const activitySelect = {
     ...getTableColumns(activityTable),
@@ -117,6 +117,7 @@ export class ActivityService {
             .set({
                 status: "completed",
                 inputToken: options.inputToken,
+                cachedInputToken: options.cachedInputToken,
                 outputToken: options.outputToken,
                 completedAt: new Date(),
             })

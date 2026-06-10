@@ -49,6 +49,10 @@
                 <dd class="text-sm text-neutral-800">{formatToken(review.inputToken)}</dd>
             </div>
             <div class="flex items-center justify-between gap-4">
+                <dt class="text-sm text-neutral-500">Cached input tokens</dt>
+                <dd class="text-sm text-neutral-800">{formatToken(review.cachedInputToken)}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
                 <dt class="text-sm text-neutral-500">Output tokens</dt>
                 <dd class="text-sm text-neutral-800">{formatToken(review.outputToken)}</dd>
             </div>

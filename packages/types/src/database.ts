@@ -108,4 +108,5 @@ export type ProviderOption = GitHubInstallationOption | AccessOption;
 export type ActivityTokenUsage = {
     inputToken: number;
     outputToken: number;
+    cachedInputToken: number;
 };

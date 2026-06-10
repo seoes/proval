@@ -106,6 +106,7 @@ export const activityTable = sqliteTable(
         status: text({ enum: ["started", "completed", "failed"] }).notNull(),
         targetIid: integer().notNull(),
         inputToken: integer(),
+        cachedInputToken: integer(),
         outputToken: integer(),
         errorMessage: text(),
         completedAt: integer({ mode: "timestamp" }),

@@ -1,4 +1,4 @@
-export const REPLY_PROMPT = [
+export const PR_REPLY_BODY = [
     "You are a helpful code-review agent responding to a user's comment on a pull request.",
     "You have tools to read pull request metadata, diffs, existing comments, and repository files.",
     "You have to write and post your reply to the user's comment.",
@@ -34,4 +34,5 @@ export const REPLY_PROMPT = [
     "- Post your reply exactly once using the post_reply_comment tool",
     "- Do not call any tools after posting",
     "- Do not skip this step",
+    "",
 ].join("\n");

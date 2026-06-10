@@ -14,7 +14,12 @@ import {
     searchPullRequestListTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
-import { COMMENT_ON_OPEN_PROMPT, ISSUE_REPLY_PROMPT } from "./prompt/index.js";
+import {
+    COMMENT_LANGUAGE_RULE,
+    ISSUE_BASE_PROMPT,
+    ISSUE_COMMENT_ON_OPEN_WORKFLOW,
+    ISSUE_REPLY_WORKFLOW,
+} from "../prompt/index.js";
 
 export class IssueService {
     private readonly sender: LlmSender;
@@ -29,7 +34,7 @@ export class IssueService {
 
     public async commentOnOpen(issueIid: number): Promise<ActivityTokenUsage> {
         const repository = await this.provider.fetchRepositoryDetail();
-        const system = `${COMMENT_ON_OPEN_PROMPT}\n\nLanguage: ${this.language}`;
+        const system = [ISSUE_BASE_PROMPT, "", ISSUE_COMMENT_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = await this.generateIssuePrompt(issueIid, repository.defaultBranch);
         const toolList = [
             ...this.createIssueToolList(issueIid),
@@ -41,7 +46,7 @@ export class IssueService {
             toolList,
         });
 
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
             const model = this.sender.getModel();
 
             const comment = `## Debug Comment\n\n
@@ -49,6 +54,7 @@ export class IssueService {
                 Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
                 Input Token: ${stats.totalInputToken}\n
                 Output Token: ${stats.totalOutputToken}\n
+                Cached Input Token: ${stats.totalCachedInputToken}\n
             `;
 
             await this.provider.createIssueComment(issueIid, comment);
@@ -57,13 +63,14 @@ export class IssueService {
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
     public async reply(issueIid: number, commenterUsername: string, commentBody: string): Promise<ActivityTokenUsage> {
         const repository = await this.provider.fetchRepositoryDetail();
         const issueComments = await this.provider.fetchIssueCommentList(issueIid);
-        const system = `${ISSUE_REPLY_PROMPT}\n\nLanguage: ${this.language}`;
+        const system = [ISSUE_BASE_PROMPT, "", ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = [
             await this.generateIssuePrompt(issueIid, repository.defaultBranch),
             `Commenter Username: ${commenterUsername}`,
@@ -78,13 +85,14 @@ export class IssueService {
 
         const stats = await runAgentLoop(this.sender, system, prompt, `Issue #${issueIid} - Reply`, { toolList });
 
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
             const model = this.sender.getModel();
             const comment = `## Debug Comment\n\n
                 Issue IID: ${issueIid}\n\n
                 Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
                 Input Token: ${stats.totalInputToken}\n
                 Output Token: ${stats.totalOutputToken}\n
+                Cached Input Token: ${stats.totalCachedInputToken}\n
             `;
             await this.provider.createIssueComment(issueIid, comment);
         }
@@ -92,6 +100,7 @@ export class IssueService {
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
@@ -114,11 +123,11 @@ export class IssueService {
     }
 
     private createCommentToolList(issueIid: number): AgentTool[] {
-        return [postIssueCommentTool(this.provider, issueIid)];
+        return [postIssueCommentTool(this.provider, issueIid, this.language)];
     }
 
     private createReplyToolList(issueIid: number, commenterUsername: string): AgentTool[] {
-        return [postIssueReplyTool(this.provider, issueIid, commenterUsername)];
+        return [postIssueReplyTool(this.provider, issueIid, commenterUsername, this.language)];
     }
 
     private async generateIssuePrompt(issueIid: number, defaultBranch: string): Promise<string> {

@@ -46,6 +46,7 @@ export function createOpenAiSender(config: OpenAiConfig): LlmSender {
                 tokenUsage: {
                     input: completion.usage?.prompt_tokens ?? 0,
                     output: completion.usage?.completion_tokens ?? 0,
+                    cachedInput: completion.usage?.prompt_tokens_details?.cached_tokens ?? 0,
                 },
             };
         },
