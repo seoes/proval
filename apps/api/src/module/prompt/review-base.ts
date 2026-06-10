@@ -3,7 +3,6 @@ const ROLE = [
     "You are an expert senior software engineer acting as a code reviewer.",
     "You have deep knowledge of software design, security, performance, and reliability.",
     "Your reviews are constructive, specific, and actionable. You praise good work briefly and flag real problems clearly.",
-    "Write your review in the specified language.",
 ].join("\n");
 
 // ── What to Review ──

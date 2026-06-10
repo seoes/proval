@@ -1,17 +1,25 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
+import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
 
-export function postPullRequestReplyTool(provider: GitProvider, prIid: number, mentionTarget: string): AgentTool {
+export function postPullRequestReplyTool(
+    provider: GitProvider,
+    prIid: number,
+    mentionTarget: string,
+    language: string,
+): AgentTool {
     return {
         name: "post_reply_comment",
-        description:
+        description: [
             "Post your reply to the user's comment. The @mention is added automatically — do NOT include it. Call ONCE when done.",
+            buildCommentToolLanguageNote(language),
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {
                 body: {
                     type: "string",
-                    description: "The reply content in markdown format, without the @mention prefix.",
+                    description: buildCommentBodyDescription(language),
                 },
             },
             required: ["body"],

@@ -18,12 +18,16 @@ import {
 import type { GitProvider } from "../../provider/types.js";
 import type { ReviewTarget } from "./review-target.schema.js";
 import {
-    DEEP_REVIEW_PLAN_PROMPT,
-    DEEP_REVIEW_SUB_AGENT_PROMPT,
-    DEEP_REVIEW_COMMENT_PROMPT,
-    REPLY_PROMPT,
-    STANDARD_REVIEW_PROMPT,
-} from "./prompt/index.js";
+    COMMENT_LANGUAGE_RULE,
+    DEEP_REVIEW_COMMENT_WORKFLOW,
+    DEEP_REVIEW_PLAN,
+    DEEP_REVIEW_SUB_AGENT_BODY,
+    FILE_COVERAGE_RULE,
+    INLINE_MODE_INSTRUCTION,
+    PR_REPLY_BODY,
+    REVIEW_BASE_PROMPT,
+    STANDARD_REVIEW_WORKFLOW,
+} from "../prompt/index.js";
 import type { ActivityTokenUsage } from "@proval/types";
 
 export type { ReviewTarget } from "./review-target.schema.js";
@@ -45,18 +49,21 @@ export class PullRequestService {
     ): Promise<ActivityTokenUsage> {
         let inputToken = 0;
         let outputToken = 0;
+        let cachedInputToken = 0;
         if (isDeepResearch) {
             const planResult = await this.planDeepReview(prIid);
             const reviewResult = await this.generateDeepReview(prIid, planResult.reviewTargetList, isInlineReview);
             inputToken = planResult.inputToken + reviewResult.inputToken;
+            cachedInputToken = planResult.cachedInputToken + reviewResult.cachedInputToken;
             outputToken = planResult.outputToken + reviewResult.outputToken;
         } else {
             const reviewResult = await this.generateStandardReview(prIid, isInlineReview);
             inputToken = reviewResult.inputToken;
+            cachedInputToken = reviewResult.cachedInputToken;
             outputToken = reviewResult.outputToken;
         }
 
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
             // Create debug comment
             const model = this.sender.getModel();
             const comment = `## Debug Comment\n\n
@@ -65,7 +72,9 @@ export class PullRequestService {
                 Deep Research: ${isDeepResearch}\n
                 Inline Review: ${isInlineReview}\n\n
                 Input Token: ${inputToken}\n
+                Cached Input Token: ${cachedInputToken}\n
                 Output Token: ${outputToken}\n
+
             `;
 
             await this.provider.createPullRequestComment(prIid, comment);
@@ -74,6 +83,7 @@ export class PullRequestService {
         return {
             inputToken,
             outputToken,
+            cachedInputToken,
         };
     }
 
@@ -86,7 +96,14 @@ export class PullRequestService {
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
-        const system = `${STANDARD_REVIEW_PROMPT}\n\n${inlineModeTag}\n\nLanguage: ${this.language}`;
+        const system = [
+            REVIEW_BASE_PROMPT,
+            FILE_COVERAGE_RULE,
+            INLINE_MODE_INSTRUCTION,
+            COMMENT_LANGUAGE_RULE,
+            STANDARD_REVIEW_WORKFLOW,
+            inlineModeTag,
+        ].join("\n\n");
         const prompt = await this.generatePullRequestPrompt(prIid);
 
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
@@ -102,6 +119,7 @@ export class PullRequestService {
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
@@ -109,16 +127,16 @@ export class PullRequestService {
     // # Deep Review
     // #########################################################
 
-    public async planDeepReview(
-        prIid: number,
-    ): Promise<{ reviewTargetList: ReviewTarget[]; inputToken: number; outputToken: number }> {
+    public async planDeepReview(prIid: number): Promise<ActivityTokenUsage & { reviewTargetList: ReviewTarget[] }> {
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const reviewTargetList: ReviewTarget[] = [];
 
+        const system = [DEEP_REVIEW_PLAN, FILE_COVERAGE_RULE].join("\n\n");
+
         const stats = await runAgentLoop(
             this.sender,
-            DEEP_REVIEW_PLAN_PROMPT,
+            system,
             await this.generatePullRequestPrompt(prIid),
             `${this.getLabel(prIid)} Deep Plan`,
             {
@@ -130,6 +148,7 @@ export class PullRequestService {
             reviewTargetList,
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
@@ -137,7 +156,7 @@ export class PullRequestService {
         prIid: number,
         reviewTargetList: ReviewTarget[],
         isInlineReview: boolean,
-    ): Promise<{ inputToken: number; outputToken: number }> {
+    ): Promise<ActivityTokenUsage> {
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const reviewResultList = await Promise.all(
@@ -150,7 +169,14 @@ export class PullRequestService {
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
 
-        const system = `${DEEP_REVIEW_COMMENT_PROMPT}\n\n${inlineModeTag}\n\nSpecialist findings:\n${JSON.stringify(reviewResultList.map((d) => d.finalMessage))}\n\nLanguage: ${this.language}`;
+        const system = [
+            REVIEW_BASE_PROMPT,
+            INLINE_MODE_INSTRUCTION,
+            COMMENT_LANGUAGE_RULE,
+            DEEP_REVIEW_COMMENT_WORKFLOW,
+            inlineModeTag,
+            `Specialist findings:\n${JSON.stringify(reviewResultList.map((d) => d.finalMessage))}`,
+        ].join("\n\n");
         const stats = await runAgentLoop(
             this.sender,
             system,
@@ -167,6 +193,8 @@ export class PullRequestService {
         return {
             inputToken: stats.totalInputToken + reviewResultList.reduce((acc, curr) => acc + curr.inputToken, 0),
             outputToken: stats.totalOutputToken + reviewResultList.reduce((acc, curr) => acc + curr.outputToken, 0),
+            cachedInputToken:
+                stats.totalCachedInputToken + reviewResultList.reduce((acc, curr) => acc + curr.cachedInputToken, 0),
         };
     }
 
@@ -175,10 +203,10 @@ export class PullRequestService {
         reviewTarget: ReviewTarget,
         index: number,
         totalIndex: number,
-    ): Promise<{ finalMessage: string; inputToken: number; outputToken: number }> {
+    ): Promise<ActivityTokenUsage & { finalMessage: string }> {
         const maxSteps = 100;
 
-        const system = `${DEEP_REVIEW_SUB_AGENT_PROMPT}\n\nLanguage: ${this.language}`;
+        const system = DEEP_REVIEW_SUB_AGENT_BODY;
         const prompt = [
             await this.generatePullRequestPrompt(prIid),
             `Review target: ${JSON.stringify(reviewTarget)}`,
@@ -205,6 +233,7 @@ export class PullRequestService {
             finalMessage: stats.finalMessage,
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
@@ -217,7 +246,7 @@ export class PullRequestService {
 
         const commentList = await this.provider.fetchPullRequestCommentList(prIid);
 
-        const system = `${REPLY_PROMPT}`;
+        const system = [PR_REPLY_BODY, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Commenter Username: ${commenterUsername}, Comment Body: ${commentBody}, Comment List: ${JSON.stringify(commentList)}`;
         const toolList = [
             ...this.createCodeToolList(prIid, sourceBranch),
@@ -228,13 +257,14 @@ export class PullRequestService {
             toolList,
         });
 
-        if (process.env.NODE_ENV === "development") {
+        if (process.env.NODE_ENV !== "production") {
             const model = this.sender.getModel();
             const comment = `## Debug Comment\n\n
                 Pull Request IID: ${prIid}\n\n
                 Model: ${model.model} (${model.provider}) @ ${model.baseUrl}\n\n
                 Input Token: ${stats.totalInputToken}\n
                 Output Token: ${stats.totalOutputToken}\n
+                Cached Input Token: ${stats.totalCachedInputToken}\n
             `;
 
             await this.provider.createPullRequestComment(prIid, comment);
@@ -243,6 +273,7 @@ export class PullRequestService {
         return {
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
+            cachedInputToken: stats.totalCachedInputToken,
         };
     }
 
@@ -263,15 +294,18 @@ export class PullRequestService {
 
     private createReviewToolList(prIid: number, inlineReview: boolean): AgentTool[] {
         return [
-            postPullRequestCommentTool(this.provider, prIid),
+            postPullRequestCommentTool(this.provider, prIid, this.language),
             ...(inlineReview
-                ? [createSingleLineCommentTool(this.provider, prIid), createMultiLineCommentTool(this.provider, prIid)]
+                ? [
+                      createSingleLineCommentTool(this.provider, prIid, this.language),
+                      createMultiLineCommentTool(this.provider, prIid, this.language),
+                  ]
                 : []),
         ];
     }
 
     private createReplyToolList(prIid: number, commenterUsername: string): AgentTool[] {
-        return [postPullRequestReplyTool(this.provider, prIid, commenterUsername)];
+        return [postPullRequestReplyTool(this.provider, prIid, commenterUsername, this.language)];
     }
 
     private createApprovalToolList(prIid: number): AgentTool[] {

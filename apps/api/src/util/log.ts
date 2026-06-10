@@ -62,6 +62,8 @@ export const logAgentResult = (
         pc.dim("·"),
         `input tokens: ${result.totalInputToken}`,
         pc.dim("·"),
+        `cached input tokens: ${result.totalCachedInputToken}`,
+        pc.dim("·"),
         `output tokens: ${result.totalOutputToken}`,
     ];
 

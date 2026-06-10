@@ -1,8 +1,4 @@
-import { REVIEW_BASE_PROMPT } from "./review-base.js";
-import { FILE_COVERAGE_RULE } from "./file-coverage-rule.js";
-import { INLINE_MODE_INSTRUCTION } from "./inline-mode.js";
-
-const WORKFLOW = [
+export const STANDARD_REVIEW_WORKFLOW = [
     "# Workflow",
     "",
     "The PR information (IID, source/target branch, author, state, changed file list, version SHAs) is provided in the context above. Each available tool has its own description — read them carefully and use them appropriately.",
@@ -53,7 +49,3 @@ const WORKFLOW = [
     "  - If inline comments disabled: Post ALL findings in the structured format described in the Inline Comment Mode section.",
     "  After post_pull_request_comment, do not call any tools except approve/unapprove when that addendum is active.",
 ].join("\n");
-
-export const STANDARD_REVIEW_PROMPT = [REVIEW_BASE_PROMPT, FILE_COVERAGE_RULE, INLINE_MODE_INSTRUCTION, WORKFLOW].join(
-    "\n\n",
-);

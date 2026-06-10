@@ -41,6 +41,9 @@ export function createAnthropicSender(config: AnthropicConfig): LlmSender {
                 messages: chatMessages,
                 tools: anthropicTools.length > 0 ? anthropicTools : undefined,
                 max_tokens: 8192,
+                cache_control: {
+                    type: "ephemeral",
+                },
             });
 
             // Extract text content and tool calls from content blocks
@@ -70,6 +73,7 @@ export function createAnthropicSender(config: AnthropicConfig): LlmSender {
                 tokenUsage: {
                     input: completion.usage?.input_tokens ?? 0,
                     output: completion.usage?.output_tokens ?? 0,
+                    cachedInput: completion.usage?.cache_read_input_tokens ?? 0,
                 },
             };
         },
@@ -106,11 +110,7 @@ function convertToAnthropicMessage(m: Message): Anthropic.Messages.MessageParam 
     }
 }
 
-function appendToolResult(
-    chatMessages: Anthropic.Messages.MessageParam[],
-    toolUseId: string,
-    content: string,
-): void {
+function appendToolResult(chatMessages: Anthropic.Messages.MessageParam[], toolUseId: string, content: string): void {
     const block: Anthropic.Messages.ToolResultBlockParam = {
         type: "tool_result",
         tool_use_id: toolUseId,

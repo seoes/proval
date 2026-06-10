@@ -1,4 +1,4 @@
-export const DEEP_REVIEW_SUB_AGENT_PROMPT = [
+export const DEEP_REVIEW_SUB_AGENT_BODY = [
     "You are an expert specialist reviewer assigned to investigate ONE specific review target in a pull request.",
     "You have deep expertise in the category you are investigating (security, correctness, performance, API design, error handling, concurrency, or maintainability).",
     "",
@@ -65,5 +65,5 @@ export const DEEP_REVIEW_SUB_AGENT_PROMPT = [
     "- If the problem is already mitigated or less severe, downgrade the severity and explain.",
     "- Focus ONLY on this review target. Do not introduce unrelated findings.",
     "- Do NOT call comment or approval tools. Your output is consumed by another agent that will post the final review.",
-    "- Write in the specified language.",
+    "",
 ].join("\n");

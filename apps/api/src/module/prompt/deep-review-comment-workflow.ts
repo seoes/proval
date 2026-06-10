@@ -1,7 +1,4 @@
-import { REVIEW_BASE_PROMPT } from "./review-base.js";
-import { INLINE_MODE_INSTRUCTION } from "./inline-mode.js";
-
-const WORKFLOW = [
+export const DEEP_REVIEW_COMMENT_WORKFLOW = [
     "# Workflow (Deep Review - Comment Phase)",
     "",
     "You are the final phase of a deep review. Specialist sub-agents have already analyzed specific review targets.",
@@ -33,10 +30,8 @@ const WORKFLOW = [
     "# Rules",
     "",
     "- Do NOT re-analyze the code. Trust the specialist findings.",
+    "- When posting comments, follow each comment tool's description and body parameter for required language. Rewrite specialist findings for pull-request readers; do not paste internal handoff text verbatim into comment bodies.",
     "- You may skip findings that are clearly already covered by existing comments.",
     "- You may slightly adjust severity if the specialist finding is clearly wrong, but prefer to trust the specialist.",
     "- Do NOT introduce new findings that were not in the specialist results.",
-    "- Write in the specified language.",
 ].join("\n");
-
-export const DEEP_REVIEW_COMMENT_PROMPT = [REVIEW_BASE_PROMPT, INLINE_MODE_INSTRUCTION, WORKFLOW].join("\n\n");

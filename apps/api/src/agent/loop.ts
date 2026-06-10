@@ -28,6 +28,7 @@ export interface LlmResponse {
     tokenUsage: {
         input: number;
         output: number;
+        cachedInput: number;
     };
 }
 
@@ -42,6 +43,7 @@ export interface AgentRunResult {
     stepCount: number;
     toolCallCount: Record<string, number>;
     totalInputToken: number;
+    totalCachedInputToken: number;
     totalOutputToken: number;
 }
 
@@ -58,6 +60,7 @@ export async function runAgentLoop(
     const startedAt = performance.now();
 
     let totalInputToken = 0;
+    let totalCachedInputToken = 0;
     let totalOutputToken = 0;
 
     try {
@@ -75,18 +78,18 @@ export async function runAgentLoop(
             stepCount++;
             const remainingSteps = maxSteps - step;
 
-            // Inject remaining steps info into messages for this call only
             const messagesWithStepInfo: Message[] = [
+                ...messages,
                 {
-                    ...messages[0],
-                    content: `${system}\n\n[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
+                    role: "user",
+                    content: `[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
                 },
-                ...messages.slice(1),
             ];
 
             const response = await sender.send(messagesWithStepInfo, toolList);
 
             totalInputToken += response.tokenUsage.input;
+            totalCachedInputToken += response.tokenUsage.cachedInput;
             totalOutputToken += response.tokenUsage.output;
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
@@ -96,6 +99,7 @@ export async function runAgentLoop(
                     stepCount,
                     toolCallCount,
                     totalInputToken,
+                    totalCachedInputToken,
                     totalOutputToken,
                 };
                 logAgentResult(label, result, performance.now() - startedAt, "completed");
@@ -112,6 +116,7 @@ export async function runAgentLoop(
                     stepCount,
                     toolCallCount,
                     totalInputToken,
+                    totalCachedInputToken,
                     totalOutputToken,
                 };
                 log(pc.yellow(`stopping at max steps (${maxSteps})`), label);

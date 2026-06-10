@@ -1,11 +1,7 @@
-import { FILE_COVERAGE_RULE } from "./file-coverage-rule.js";
-
-export const DEEP_REVIEW_PLAN_PROMPT = [
+export const DEEP_REVIEW_PLAN = [
     "You are a code review planner for deep review. The PR information (changed file list, source/target branch, author, state, version SHAs) is provided in the context above. Per-file diffs are available via the get_file_diff tool.",
     "",
     "Your job is to discover distinct review targets: concrete, evidence-backed items that a specialist sub-agent will verify one at a time.",
-    "",
-    FILE_COVERAGE_RULE,
     "",
     "# Understand Context First",
     "",

@@ -1,7 +1,8 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
+import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
 
-export function createMultiLineCommentTool(provider: GitProvider, prIid: number): AgentTool {
+export function createMultiLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
     return {
         name: "create_multi_line_comment",
         description: [
@@ -13,13 +14,14 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number)
             "Prefer covering additions/changes on the new side (type='new' with newLine).",
             "Use type='old' only for pure deletions on the old side.",
             "Use baseSha/startSha/headSha.",
+            buildCommentToolLanguageNote(language),
         ].join("\n"),
         parameters: {
             type: "object",
             properties: {
                 body: {
                     type: "string",
-                    description: "Short markdown: severity + concise issue + fix or question.",
+                    description: buildCommentBodyDescription(language),
                 },
                 position: {
                     type: "object",

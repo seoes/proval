@@ -1,17 +1,20 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
+import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
 
-export function postIssueCommentTool(provider: GitProvider, issueIid: number): AgentTool {
+export function postIssueCommentTool(provider: GitProvider, issueIid: number, language: string): AgentTool {
     return {
         name: "post_issue_comment",
-        description:
+        description: [
             "Post the single top-level issue comment after you have gathered enough context. Call exactly once.",
+            buildCommentToolLanguageNote(language),
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {
                 body: {
                     type: "string",
-                    description: "Markdown body for the issue comment.",
+                    description: buildCommentBodyDescription(language),
                 },
             },
             required: ["body"],

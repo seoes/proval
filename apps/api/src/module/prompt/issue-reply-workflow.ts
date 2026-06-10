@@ -1,8 +1,4 @@
-import { ISSUE_BASE_PROMPT } from "./base.js";
-
-export const ISSUE_REPLY_PROMPT = [
-    ISSUE_BASE_PROMPT,
-    "",
+export const ISSUE_REPLY_WORKFLOW = [
     "You are replying to a new issue comment.",
     "Reply by calling post_issue_reply exactly once. We do not need your final assistant message to be posted.",
     "",
@@ -20,4 +16,5 @@ export const ISSUE_REPLY_PROMPT = [
     "- Avoid full code review unless explicitly requested.",
     "- If overlap with another issue or pull request is only partial, say possible duplicate and explain why.",
     "- If you are unsure, say what you checked and what is still unclear.",
+    "",
 ].join("\n");
