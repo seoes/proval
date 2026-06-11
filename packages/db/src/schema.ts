@@ -96,12 +96,10 @@ export const activityTable = sqliteTable(
     "activity",
     {
         id: integer().primaryKey({ autoIncrement: true }),
-        repositoryId: integer()
-            .notNull()
-            .references(() => repositoryTable.id),
-        modelProviderId: integer()
-            .notNull()
-            .references(() => modelProviderTable.id),
+        repositoryId: integer().references(() => repositoryTable.id, { onDelete: "set null" }),
+        repositoryPath: text().notNull(),
+        provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
+        modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["started", "completed", "failed"] }).notNull(),

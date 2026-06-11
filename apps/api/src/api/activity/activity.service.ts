@@ -1,7 +1,7 @@
-import { activityTable, modelProviderTable, repositoryTable } from "@proval/db";
+import { activityTable, repositoryTable } from "@proval/db";
 import type { Activity, ActivityLast24HoursStats, Pagination } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, getTableColumns, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 const FINISHED_STATUSES = ["completed", "failed"] as const;
 const REVIEW_TYPES = ["pr_review", "issue_open"] as const;
@@ -18,16 +18,21 @@ function finishedInLast24Hours() {
     );
 }
 
-export type ActivityStartInput = Pick<Activity, "repositoryId" | "modelProviderId" | "modelName" | "type" | "targetIid">;
+export type ActivityStartInput = {
+    repositoryId: number;
+    modelProviderId: number;
+    modelName: string;
+    type: Activity["type"];
+    targetIid: number;
+};
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
 
-const activitySelect = {
-    ...getTableColumns(activityTable),
-    repositoryPath: repositoryTable.path,
-    modelLabel: sql<string>`${modelProviderTable.label} || ' · ' || ${activityTable.modelName}`.as("model_label"),
-    provider: repositoryTable.provider,
-};
+const listOrderBy = [
+    sql`CASE WHEN ${activityTable.status} = 'started' THEN 0 ELSE 1 END`,
+    desc(activityTable.createdAt),
+    desc(activityTable.id),
+] as const;
 
 export class ActivityService {
     public async findAll(input: { page: number; limit: number }): Promise<Pagination<Activity>> {
@@ -37,11 +42,9 @@ export class ActivityService {
         const [{ total }] = await db.select({ total: count() }).from(activityTable);
 
         const itemList = await db
-            .select(activitySelect)
+            .select()
             .from(activityTable)
-            .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
-            .orderBy(desc(activityTable.createdAt))
+            .orderBy(...listOrderBy)
             .limit(limit)
             .offset(offset);
 
@@ -74,21 +77,17 @@ export class ActivityService {
 
     public async findInProgress(limit = 10): Promise<Activity[]> {
         return db
-            .select(activitySelect)
+            .select()
             .from(activityTable)
-            .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
             .where(eq(activityTable.status, "started"))
-            .orderBy(desc(activityTable.createdAt))
+            .orderBy(desc(activityTable.createdAt), desc(activityTable.id))
             .limit(limit);
     }
 
     public async findById(id: number): Promise<Activity> {
         const rows = await db
-            .select(activitySelect)
+            .select()
             .from(activityTable)
-            .innerJoin(repositoryTable, eq(activityTable.repositoryId, repositoryTable.id))
-            .innerJoin(modelProviderTable, eq(activityTable.modelProviderId, modelProviderTable.id))
             .where(eq(activityTable.id, id))
             .limit(1);
 
@@ -100,10 +99,21 @@ export class ActivityService {
     }
 
     public async start(input: ActivityStartInput): Promise<number> {
+        const [repository] = await db
+            .select({ path: repositoryTable.path, provider: repositoryTable.provider })
+            .from(repositoryTable)
+            .where(eq(repositoryTable.id, input.repositoryId));
+
+        if (!repository) {
+            throw new Error("Repository not found");
+        }
+
         const result = await db
             .insert(activityTable)
             .values({
                 ...input,
+                repositoryPath: repository.path,
+                provider: repository.provider,
                 status: "started",
             })
             .returning({ id: activityTable.id });

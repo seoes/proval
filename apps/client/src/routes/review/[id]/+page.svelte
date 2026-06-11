@@ -38,7 +38,7 @@
             </div>
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-sm text-neutral-500">Model</dt>
-                <dd class="text-sm text-neutral-800">{review.modelLabel}</dd>
+                <dd class="text-sm text-neutral-800">{review.modelName}</dd>
             </div>
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-sm text-neutral-500">Target</dt>
