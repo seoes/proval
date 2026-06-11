@@ -4,6 +4,8 @@ import db from "./db/index.js";
 import { serveStatic } from "hono/bun";
 import { log, logError } from "./util/log.js";
 import pc from "picocolors";
+import { activityTable } from "@proval/db";
+import { eq } from "drizzle-orm";
 
 log(pc.bgGreen(pc.bold(" PROVAL IS RUNNING ")));
 if (process.env.NODE_ENV === "production") {
@@ -23,6 +25,8 @@ if (process.env.NODE_ENV === "production") {
         return c.text("Hello Hono!");
     });
 }
+
+await db.update(activityTable).set({ status: "failed" }).where(eq(activityTable.status, "started"));
 
 Bun.serve({
     fetch: apiApp.fetch,

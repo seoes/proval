@@ -190,6 +190,27 @@
       "when": 1781069161230,
       "tag": "0026_giant_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1781074188205,
+      "tag": "0027_motionless_maddog",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1781144003627,
+      "tag": "0028_abandoned_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1781144328912,
+      "tag": "0029_great_spacker_dave",
+      "breakpoints": true
     }
   ]
 }

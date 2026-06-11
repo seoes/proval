@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { githubAppTable, githubInstallationTable, modelTable, repositoryTable } from "@proval/db";
+import { githubAppTable, githubInstallationTable, modelProviderTable, repositoryTable } from "@proval/db";
 import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
@@ -44,12 +44,12 @@ export const loadGitHubContext = createMiddleware(async (c, next) => {
     const result = await db
         .select({
             repository: repositoryTable,
-            model: modelTable,
+            modelProvider: modelProviderTable,
             githubApp: githubAppTable,
             githubInstallation: githubInstallationTable,
         })
         .from(repositoryTable)
-        .innerJoin(modelTable, eq(repositoryTable.modelId, modelTable.id))
+        .innerJoin(modelProviderTable, eq(repositoryTable.modelProviderId, modelProviderTable.id))
         .innerJoin(githubInstallationTable, eq(repositoryTable.githubInstallationId, githubInstallationTable.id))
         .innerJoin(githubAppTable, eq(githubInstallationTable.appId, githubAppTable.id))
         .where(
@@ -65,7 +65,7 @@ export const loadGitHubContext = createMiddleware(async (c, next) => {
         return c.json({ error: "Repository not found" }, 404);
     }
 
-    const { repository, model, githubApp, githubInstallation } = result[0];
+    const { repository, modelProvider, githubApp, githubInstallation } = result[0];
 
     const signature = c.req.header("X-Hub-Signature-256");
     if (!verifyGithubSignature(githubApp.webhookSecret, rawBody, signature)) {
@@ -73,7 +73,7 @@ export const loadGitHubContext = createMiddleware(async (c, next) => {
     }
 
     c.set("repository", repository);
-    c.set("model", model);
+    c.set("modelProvider", modelProvider);
     c.set("githubApp", githubApp);
     c.set("githubInstallation", githubInstallation);
     c.set("githubPayload", payload);

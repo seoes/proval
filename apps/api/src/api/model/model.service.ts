@@ -1,72 +1,114 @@
-import { modelTable } from "@proval/db";
-import type { Model, ModelResponse, ModelInsert, ModelUpdateInput } from "@proval/types";
+import { modelProviderTable, repositoryTable } from "@proval/db";
+import type {
+    ModelProvider,
+    ModelProviderResponse,
+    ModelProviderInsert,
+    ModelProviderUpdateInput,
+    ModelProviderModelListResponse,
+} from "@proval/types";
 import db from "../../db/index.js";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { log } from "../../util/log.js";
 
-export class ModelService {
-    public async findAll(): Promise<Model[]> {
-        const modelList = await db.select().from(modelTable);
-        return modelList;
+export class ModelProviderService {
+    public async findAll(): Promise<ModelProvider[]> {
+        return db.select().from(modelProviderTable);
     }
 
-    public async findById(modelId: number): Promise<Model> {
-        const model = await db.select().from(modelTable).where(eq(modelTable.id, modelId));
-        if (model.length === 0) {
-            throw new Error("Model not found");
+    public async findById(modelProviderId: number): Promise<ModelProvider> {
+        const rows = await db.select().from(modelProviderTable).where(eq(modelProviderTable.id, modelProviderId));
+        if (rows.length === 0) {
+            throw new Error("Model provider not found");
         }
-        return model[0];
+        return rows[0];
     }
 
-    public async create(data: ModelInsert): Promise<Model> {
-        const result = await db.insert(modelTable).values(data).returning();
+    public async create(data: ModelProviderInsert): Promise<ModelProvider> {
+        const result = await db.insert(modelProviderTable).values(data).returning();
         return result[0];
     }
 
-    public async update(modelId: number, data: ModelUpdateInput): Promise<Model> {
+    public async update(modelProviderId: number, data: ModelProviderUpdateInput): Promise<ModelProvider> {
         const cleanData = this.removeUndefined(data);
-        const result = await db.update(modelTable).set(cleanData).where(eq(modelTable.id, modelId)).returning();
+        const result = await db
+            .update(modelProviderTable)
+            .set(cleanData)
+            .where(eq(modelProviderTable.id, modelProviderId))
+            .returning();
         if (result.length === 0) {
-            throw new Error("Model not found");
+            throw new Error("Model provider not found");
         }
         return result[0];
     }
 
-    public async updateApiKey(modelId: number, apiKey: string): Promise<void> {
-        await db.update(modelTable).set({ apiKey }).where(eq(modelTable.id, modelId));
+    public async updateApiKey(modelProviderId: number, apiKey: string): Promise<void> {
+        await db.update(modelProviderTable).set({ apiKey }).where(eq(modelProviderTable.id, modelProviderId));
     }
 
-    public toResponse(model: Model): ModelResponse {
-        const { apiKey: _apiKey, ...rest } = model;
+    public toResponse(modelProvider: ModelProvider): ModelProviderResponse {
+        const { apiKey: _apiKey, ...rest } = modelProvider;
         return rest;
     }
 
     public async remove(id: number): Promise<void> {
-        await db.delete(modelTable).where(eq(modelTable.id, id));
+        const countResult = await db
+            .select({ count: count() })
+            .from(repositoryTable)
+            .where(eq(repositoryTable.modelProviderId, id));
+        if (countResult[0].count > 0) {
+            throw new Error(
+                `There are ${countResult[0].count} repositories using this model provider. Please remove them first.`,
+            );
+        }
+        const deleted = await db
+            .delete(modelProviderTable)
+            .where(eq(modelProviderTable.id, id))
+            .returning({ id: modelProviderTable.id });
+        if (deleted.length === 0) {
+            throw new Error("Model provider not found");
+        }
+    }
+
+    public async listModels(modelProviderId: number): Promise<ModelProviderModelListResponse> {
+        const modelProvider = await this.findById(modelProviderId);
+
+        if (modelProvider.provider === "anthropic") {
+            return { models: [], source: "unavailable" };
+        }
+
+        try {
+            const client = new OpenAI({ apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl });
+            const page = await client.models.list();
+            const models = page.data.map((m) => ({ id: m.id }));
+            return { models, source: "openai_compatible" };
+        } catch {
+            return { models: [], source: "unavailable" };
+        }
     }
 
     private removeUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
         return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>;
     }
-    public async verifyOpenAiApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
+
+    public async verifyOpenAiApi(baseUrl: string, modelName: string, apiKey: string): Promise<void> {
         const client = new OpenAI({ apiKey, baseURL: baseUrl });
         await client.chat.completions.create({
-            model,
+            model: modelName,
             messages: [{ role: "user", content: "Hello" }],
             max_tokens: 1,
         });
-        log("API key is valid", "Model API Verification");
+        log("API key is valid", "Model Provider API Verification");
     }
 
-    public async verifyAnthropicApi(baseUrl: string, model: string, apiKey: string): Promise<void> {
+    public async verifyAnthropicApi(baseUrl: string, modelName: string, apiKey: string): Promise<void> {
         const client = new Anthropic({ apiKey, baseURL: baseUrl });
         await client.messages.create({
-            model,
+            model: modelName,
             max_tokens: 1,
             messages: [{ role: "user", content: "Hello" }],
         });
-        log("API key is valid", "Model API Verification");
+        log("API key is valid", "Model Provider API Verification");
     }
 }

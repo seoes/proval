@@ -44,11 +44,11 @@
 
         return [
             {
-                id: "model",
-                title: "Connect a model",
+                id: "model-provider",
+                title: "Connect a model provider",
                 description: "Add an LLM endpoint for reviews and replies.",
-                href: "/model/create",
-                ctaLabel: "Add model",
+                href: "/model-provider/create",
+                ctaLabel: "Add model provider",
                 manageLabel: "Manage →",
                 complete: hasModel,
                 status: resolveStepStatus(hasModel, false, modelCurrent),
@@ -99,7 +99,7 @@
         {/if}
 
         <div class="hidden gap-3 sm:grid sm:grid-cols-3">
-            <SummaryPannel label="Models" value={modelCount} />
+            <SummaryPannel label="Model Providers" value={modelCount} />
             <SummaryPannel label="Git Providers" value={providerCount} />
             <SummaryPannel
                 label="Repositories"
@@ -161,9 +161,9 @@
                         {/snippet}
                         {#snippet badge()}
                             <Badge variant={status.variant}>{status.label}</Badge>
-                            <span class="text-xs text-neutral-500 lg:hidden">{activity.modelLabel}</span>
+                            <span class="text-xs text-neutral-500 lg:hidden">{activity.modelName}</span>
                             <span class="text-sm text-neutral-500 lg:hidden">{timeLabel}</span>
-                            <Badge variant="neutral" class="hidden lg:inline-flex">{activity.modelLabel}</Badge>
+                            <Badge variant="neutral" class="hidden lg:inline-flex">{activity.modelName}</Badge>
                             <span class="hidden text-sm text-neutral-500 lg:inline">{timeLabel}</span>
                         {/snippet}
                         <ResourceCard

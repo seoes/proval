@@ -3,7 +3,7 @@ import type {
     AccessResponse,
     GitHubAppResponse,
     GitHubInstallationResponse,
-    ModelResponse,
+    ModelProviderResponse,
     AccessOption,
     ProviderOption,
     GitHubInstallationOption,
@@ -14,12 +14,12 @@ export const ssr = false;
 
 export const load: PageLoad = async () => {
     const [modelRes, accessRes, appRes] = await Promise.all([
-        fetchApi("/model"),
+        fetchApi("/model-provider"),
         fetchApi("/access"),
         fetchApi("/github/app"),
     ]);
 
-    const modelList: ModelResponse[] = modelRes.ok ? await modelRes.json() : [];
+    const modelList: ModelProviderResponse[] = modelRes.ok ? await modelRes.json() : [];
     const accessList: AccessResponse[] = accessRes.ok ? await accessRes.json() : [];
     const appList: GitHubAppResponse[] = appRes.ok ? await appRes.json() : [];
     const app = appList.length > 0 ? appList[0] : null;

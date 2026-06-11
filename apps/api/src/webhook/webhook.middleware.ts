@@ -1,4 +1,4 @@
-import type { Model, Repository } from "@proval/types";
+import type { ModelProvider, Repository } from "@proval/types";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
@@ -76,7 +76,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
 /** After `loadGitLabContext`, `loadGitHubContext`, or `loadForgejoContext`. */
 export const logWebhookIngress = createMiddleware(async (c, next) => {
     const repository = c.get("repository") as Repository;
-    const model = c.get("model") as Model;
+    const modelProvider = c.get("modelProvider") as ModelProvider;
 
     let ingress: WebhookIngress;
 
@@ -109,9 +109,9 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
         row("Repository Description:", repository.description ?? "-"),
         row("Repository ID:", String(repository.id)),
         row("Git Provider Repository ID:", String(repository.gitProviderRepositoryId ?? "-")),
-        row("Model Label:", model.label),
-        row("Model Name:", model.name),
-        row("Model ID:", String(model.id)),
+        row("Model Provider:", modelProvider.label),
+        row("Model Name:", repository.modelName),
+        row("Model Provider ID:", String(modelProvider.id)),
         "",
         divider,
         "",

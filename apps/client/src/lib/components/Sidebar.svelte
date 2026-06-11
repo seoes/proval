@@ -28,24 +28,25 @@
                     icon: GitForkIcon,
                 },
                 {
-                    label: "Model",
-                    href: "/model",
-                    icon: CubeIcon,
+                    label: "Review",
+                    href: "/review",
+                    icon: ChatCircleTextIcon,
                 },
+            ],
+        },
+
+        {
+            label: "SETTINGS",
+            items: [
                 {
                     label: "Git Provider",
                     href: "/provider",
                     icon: GitBranchIcon,
                 },
-            ],
-        },
-        {
-            label: "CONFIG",
-            items: [
                 {
-                    label: "Review",
-                    href: "/review",
-                    icon: ChatCircleTextIcon,
+                    label: "Model Provider",
+                    href: "/model-provider",
+                    icon: CubeIcon,
                 },
             ],
         },

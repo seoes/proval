@@ -180,7 +180,8 @@
                     editRepositoryId={null}
                     {repositoryList}
                     config={{
-                        modelId: null,
+                        modelProviderId: null,
+                        modelName: null,
                         repositoryId: selectedRepositoryId ? Number(selectedRepositoryId) : null,
                         description: null,
                         language: null,

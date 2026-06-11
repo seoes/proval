@@ -65,7 +65,8 @@
         repositoryList={data.repositoryList}
         provider={data.provider}
         config={{
-            modelId: data.repository.modelId,
+            modelProviderId: data.repository.modelProviderId,
+            modelName: data.repository.modelName,
             repositoryId:
                 data.repository.provider === "github"
                     ? data.repository.githubRepositoryId

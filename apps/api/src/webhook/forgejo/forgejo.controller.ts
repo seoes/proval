@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { ForgejoProvider } from "../../provider/forgejo.js";
-import type { Access, Model, Repository } from "@proval/types";
+import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 
@@ -63,28 +63,28 @@ export const handleForgejoWebhook = async (c: Context) => {
     const event = c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event");
 
     const repository = c.get("repository") as Repository;
-    const model = c.get("model") as Model;
+    const modelProvider = c.get("modelProvider") as ModelProvider;
     const access = c.get("access") as Access;
 
     try {
         // Handle Pull Request Hook
         if (event === "pull_request") {
             const payload = c.get("forgejoPayload") as ForgejoPullRequestPayload;
-            const response = await handleForgejoPullRequestWebhook(payload, repository, model, access);
+            const response = await handleForgejoPullRequestWebhook(payload, repository, modelProvider, access);
             return response;
         }
 
         // Handle Issues Hook
         if (event === "issues") {
             const payload = c.get("forgejoPayload") as ForgejoIssuesPayload;
-            const response = await handleForgejoIssuesWebhook(payload, repository, model, access);
+            const response = await handleForgejoIssuesWebhook(payload, repository, modelProvider, access);
             return response;
         }
 
         // Handle Issue Comment Hook (includes PR comments)
         if (event === "issue_comment") {
             const payload = c.get("forgejoPayload") as ForgejoIssueCommentPayload;
-            const response = await handleForgejoIssueCommentWebhook(payload, repository, model, access);
+            const response = await handleForgejoIssueCommentWebhook(payload, repository, modelProvider, access);
             return response;
         }
 
@@ -98,11 +98,11 @@ export const handleForgejoWebhook = async (c: Context) => {
 type HandleForgejoPullRequestWebhook = (
     payload: ForgejoPullRequestPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
-const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, model, access) => {
+const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, modelProvider, access) => {
     const action = payload.action;
 
     if (!repository.reviewOnPullRequestOpen) {
@@ -128,7 +128,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const pullRequestService = new PullRequestService(
         forgejoProvider,
-        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
         repository.language,
     );
 
@@ -142,7 +142,8 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "pr_review",
             targetIid: prNumber,
         },
@@ -157,14 +158,14 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 type HandleForgejoIssueCommentWebhook = (
     payload: ForgejoIssueCommentPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
 const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async (
     payload,
     repository,
-    model,
+    modelProvider,
     access,
 ) => {
     if (payload.action !== "created") {
@@ -219,14 +220,15 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         const pullRequestService = new PullRequestService(
             forgejoProvider,
-            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
             repository.language,
         );
 
         runWithActivity(
             {
                 repositoryId: repository.id,
-                modelId: model.id,
+                modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
                 type: "pr_reply",
                 targetIid: prNumber,
             },
@@ -276,14 +278,15 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         const issueService = new IssueService(
             forgejoProvider,
-            { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
             repository.language,
         );
 
         runWithActivity(
             {
                 repositoryId: repository.id,
-                modelId: model.id,
+                modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
                 type: "issue_reply",
                 targetIid: issueNumber,
             },
@@ -299,11 +302,11 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 type HandleForgejoIssuesWebhook = (
     payload: ForgejoIssuesPayload,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
-const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, repository, model, access) => {
+const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, repository, modelProvider, access) => {
     const action = payload.action;
     if (action !== "opened") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
@@ -333,14 +336,15 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
     const issueService = new IssueService(
         forgejoProvider,
-        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
         repository.language,
     );
 
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "issue_open",
             targetIid: issueNumber,
         },

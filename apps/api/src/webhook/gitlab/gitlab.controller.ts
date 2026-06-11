@@ -9,7 +9,7 @@ import type { Context } from "hono";
 import { IssueService } from "../../module/issue/issue.service.js";
 import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
 import { GitLabProvider } from "../../provider/gitlab.js";
-import type { Access, Model, Repository } from "@proval/types";
+import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 
@@ -17,20 +17,20 @@ export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
 
     const repository = c.get("repository") as Repository;
-    const model = c.get("model") as Model;
+    const modelProvider = c.get("modelProvider") as ModelProvider;
     const access = c.get("access") as Access;
 
     try {
         // Handle Merge Request Hook (GitLab event name)
         if (event === "Merge Request Hook") {
             const payload: WebhookMergeRequestEventSchema = c.get("gitlabPayload");
-            const response = await handleGitLabPullRequestWebhook(payload, repository, model, access);
+            const response = await handleGitLabPullRequestWebhook(payload, repository, modelProvider, access);
             return response;
         }
 
         if (event === "Issue Hook") {
             const payload: WebhookIssueEventSchema = c.get("gitlabPayload");
-            const response = await handleGitLabIssueWebhook(payload, repository, model, access);
+            const response = await handleGitLabIssueWebhook(payload, repository, modelProvider, access);
             return response;
         }
 
@@ -45,7 +45,7 @@ export const handleGitLabWebhook = async (c: Context) => {
                     const response = await handleGitLabPullRequestNoteWebhook(
                         payload as WebhookMergeRequestNoteEventSchema,
                         repository,
-                        model,
+                        modelProvider,
                         access,
                     );
                     return response;
@@ -54,7 +54,7 @@ export const handleGitLabWebhook = async (c: Context) => {
                     const response = await handleGitLabIssueNoteWebhook(
                         payload as WebhookIssueNoteEventSchema,
                         repository,
-                        model,
+                        modelProvider,
                         access,
                     );
                     return response;
@@ -73,11 +73,11 @@ export const handleGitLabWebhook = async (c: Context) => {
 type HandleGitLabPullRequestWebhook = (
     payload: WebhookMergeRequestEventSchema,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
-const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (payload, repository, model, access) => {
+const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (payload, repository, modelProvider, access) => {
     const project = payload.project;
     const token = access.accessToken;
     if (!token) {
@@ -89,7 +89,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (pa
 
     const pullRequestService = new PullRequestService(
         gitlabProvider,
-        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
         repository.language,
     );
 
@@ -119,7 +119,8 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (pa
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "pr_review",
             targetIid: pullRequest.iid,
         },
@@ -134,14 +135,14 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (pa
 type HandleGitLabPullRequestNoteWebhook = (
     payload: WebhookMergeRequestNoteEventSchema,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
 const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = async (
     payload,
     repository,
-    model,
+    modelProvider,
     access,
 ) => {
     // If reply to pull request comment is off, skip
@@ -178,7 +179,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const pullRequestService = new PullRequestService(
         gitlabProvider,
-        { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name },
+        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
         repository.language,
     );
 
@@ -191,7 +192,8 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "pr_reply",
             targetIid: prIid,
         },
@@ -206,11 +208,11 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 type HandleGitLabIssueWebhook = (
     payload: WebhookIssueEventSchema,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
-const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, model, access) => {
+const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repository, modelProvider, access) => {
     const action = payload.object_attributes?.action ?? "";
     if (action !== "open") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
@@ -238,12 +240,13 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
-    const issueService = new IssueService(gitlabProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
+    const issueService = new IssueService(gitlabProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
 
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "issue_open",
             targetIid: issueIid,
         },
@@ -258,11 +261,11 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
 type HandleGitLabIssueNoteWebhook = (
     payload: WebhookIssueNoteEventSchema,
     repository: Repository,
-    model: Model,
+    modelProvider: ModelProvider,
     access: Access,
 ) => Promise<Response>;
 
-const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, model, access) => {
+const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payload, repository, modelProvider, access) => {
     // If reply to issue comment is off, skip
     if (repository.replyToIssueComment === "off") {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
@@ -303,12 +306,13 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (payloa
         });
     }
 
-    const issueService = new IssueService(gitlabProvider, { provider: model.provider, apiKey: model.apiKey, baseURL: model.baseUrl, model: model.name }, repository.language);
+    const issueService = new IssueService(gitlabProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
 
     runWithActivity(
         {
             repositoryId: repository.id,
-            modelId: model.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
             type: "issue_reply",
             targetIid: issueIid,
         },

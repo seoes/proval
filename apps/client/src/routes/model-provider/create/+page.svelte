@@ -3,6 +3,6 @@
     import ModelForm from "$lib/components/organism/ModelForm.svelte";
 </script>
 
-<DefaultLayout narrow title="Create Model">
+<DefaultLayout narrow title="Create Model Provider">
     <ModelForm mode="create" />
 </DefaultLayout>

@@ -11,10 +11,9 @@ const timeStamp = {
         .$onUpdateFn(() => sql`(unixepoch())`),
 };
 
-export const modelTable = sqliteTable("model", {
+export const modelProviderTable = sqliteTable("model_provider", {
     id: integer().primaryKey({ autoIncrement: true }),
     provider: text({ enum: ["openai", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp
-    name: text().notNull(),
     label: text().notNull(),
     baseUrl: text().notNull(),
     apiKey: text().notNull(),
@@ -85,7 +84,8 @@ export const repositoryTable = sqliteTable(
             .notNull()
             .default("all"),
 
-        modelId: integer().references(() => modelTable.id),
+        modelProviderId: integer().references(() => modelProviderTable.id),
+        modelName: text().notNull().default(""),
 
         ...timeStamp,
     },
@@ -96,12 +96,11 @@ export const activityTable = sqliteTable(
     "activity",
     {
         id: integer().primaryKey({ autoIncrement: true }),
-        repositoryId: integer()
-            .notNull()
-            .references(() => repositoryTable.id),
-        modelId: integer()
-            .notNull()
-            .references(() => modelTable.id),
+        repositoryId: integer().references(() => repositoryTable.id, { onDelete: "set null" }),
+        repositoryPath: text().notNull(),
+        provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
+        modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
+        modelName: text().notNull(),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["started", "completed", "failed"] }).notNull(),
         targetIid: integer().notNull(),
@@ -114,6 +113,6 @@ export const activityTable = sqliteTable(
     },
     (table) => [
         index("activity_repository_id_created_at_idx").on(table.repositoryId, table.createdAt),
-        index("activity_model_id_created_at_idx").on(table.modelId, table.createdAt),
+        index("activity_model_provider_id_created_at_idx").on(table.modelProviderId, table.createdAt),
     ],
 );
