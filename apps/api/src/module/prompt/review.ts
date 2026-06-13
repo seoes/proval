@@ -8,6 +8,7 @@ export const INLINE_ENABLED = [
     "Use the create_single_line_comment and create_multi_line_comment tools to post review items as inline comments, then use post_pull_request_comment exactly once to write the review summary comment.",
     ...SORT,
     "Include minor review items in the review summary comment instead of inline comments.",
+    "Post inline comments in order of importance, highest priority first.",
 ].join("\n");
 
 export const INLINE_DISABLED = ["Use post_pull_request_comment exactly once to post all review items.", ...SORT].join(
