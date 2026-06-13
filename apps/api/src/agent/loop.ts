@@ -63,120 +63,125 @@ export async function runAgentLoop(
     let totalCachedInputToken = 0;
     let totalOutputToken = 0;
 
-    try {
-        const messages: Message[] = [
-            { role: "system", content: system },
-            { role: "user", content: prompt },
-        ];
-
-        const maxSteps = options.maxSteps ?? 50;
-
-        const toolList = options.toolList ?? [];
-        const toolCallCount: Record<string, number> = {};
-        let stepCount = 0;
-        for (let step = 0; step < maxSteps; step++) {
-            stepCount++;
-            const remainingSteps = maxSteps - step;
-
-            const messagesWithStepInfo: Message[] = [
-                ...messages,
-                {
-                    role: "user",
-                    content: `[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
-                },
+    for (let i = 0; i < 3; i++) {
+        try {
+            const messages: Message[] = [
+                { role: "system", content: system },
+                { role: "user", content: prompt },
             ];
 
-            const response = await sender.send(messagesWithStepInfo, toolList);
+            const maxSteps = options.maxSteps ?? 50;
 
-            totalInputToken += response.tokenUsage.input;
-            totalCachedInputToken += response.tokenUsage.cachedInput;
-            totalOutputToken += response.tokenUsage.output;
+            const toolList = options.toolList ?? [];
+            const toolCallCount: Record<string, number> = {};
+            let stepCount = 0;
+            for (let step = 0; step < maxSteps; step++) {
+                stepCount++;
+                const remainingSteps = maxSteps - step;
 
-            if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
-                const result: AgentRunResult = {
-                    finalMessage: response.message.content,
-                    messages,
-                    stepCount,
-                    toolCallCount,
-                    totalInputToken,
-                    totalCachedInputToken,
-                    totalOutputToken,
-                };
-                logAgentResult(label, result, performance.now() - startedAt, "completed");
-                return result;
-            }
+                const messagesWithStepInfo: Message[] = [
+                    ...messages,
+                    {
+                        role: "user",
+                        content: `[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
+                    },
+                ];
 
-            // Check if approaching max steps - stop gracefully
-            if (step >= maxSteps - 1) {
-                const result: AgentRunResult = {
-                    finalMessage:
-                        response.message.content ??
-                        "Maximum steps reached. The agent was unable to complete the task within the allowed steps.",
-                    messages,
-                    stepCount,
-                    toolCallCount,
-                    totalInputToken,
-                    totalCachedInputToken,
-                    totalOutputToken,
-                };
-                log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
-                logAgentResult(label, result, performance.now() - startedAt, "max_steps");
-                return result;
-            }
+                const response = await sender.send(messagesWithStepInfo, toolList);
 
-            messages.push({
-                role: "assistant",
-                content: response.message.content,
-                toolCalls: response.message.toolCalls,
-            });
+                totalInputToken += response.tokenUsage.input;
+                totalCachedInputToken += response.tokenUsage.cachedInput;
+                totalOutputToken += response.tokenUsage.output;
 
-            log(
-                `step ${pc.bold(String(stepCount))}: ${pc.bold(String(response.message.toolCalls.length))} tool call(s)`,
-                label,
-            );
+                if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
+                    const result: AgentRunResult = {
+                        finalMessage: response.message.content,
+                        messages,
+                        stepCount,
+                        toolCallCount,
+                        totalInputToken,
+                        totalCachedInputToken,
+                        totalOutputToken,
+                    };
+                    logAgentResult(label, result, performance.now() - startedAt, "completed");
+                    return result;
+                }
 
-            const results = await Promise.all(
-                response.message.toolCalls.map(async (tc) => {
-                    const tool = toolList.find((t) => t.name === tc.name);
-                    if (!tool) {
-                        log(`  ${pc.dim("→")} ${pc.yellow(tc.name)} ${pc.dim("— unknown tool, skipping")}`, label);
-                        return {
-                            toolCallId: tc.id,
-                            content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
-                        };
-                    }
+                // Check if approaching max steps - stop gracefully
+                if (step >= maxSteps - 1) {
+                    const result: AgentRunResult = {
+                        finalMessage:
+                            response.message.content ??
+                            "Maximum steps reached. The agent was unable to complete the task within the allowed steps.",
+                        messages,
+                        stepCount,
+                        toolCallCount,
+                        totalInputToken,
+                        totalCachedInputToken,
+                        totalOutputToken,
+                    };
+                    log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
+                    logAgentResult(label, result, performance.now() - startedAt, "max_steps");
+                    return result;
+                }
 
-                    const args = JSON.parse(tc.arguments);
-                    log(`  ${pc.dim("→")} ${pc.cyan(tool.name)}${pc.dim(`(${JSON.stringify(args)})`)}`, label);
-
-                    try {
-                        const result = await tool.execute(args);
-                        toolCallCount[tool.name] = (toolCallCount[tool.name] ?? 0) + 1;
-                        const content = typeof result === "string" ? result : JSON.stringify(result);
-                        const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
-                        log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);
-                        return { toolCallId: tc.id, content };
-                    } catch (err) {
-                        const errorMsg = err instanceof Error ? err.message : String(err);
-                        log(`    ${pc.red("error")}: ${errorMsg}`, label);
-                        return { toolCallId: tc.id, content: JSON.stringify({ error: errorMsg }) };
-                    }
-                }),
-            );
-
-            for (const r of results) {
                 messages.push({
-                    role: "tool",
-                    content: r.content,
-                    toolCallId: r.toolCallId,
+                    role: "assistant",
+                    content: response.message.content,
+                    toolCalls: response.message.toolCalls,
                 });
+
+                log(
+                    `step ${pc.bold(String(stepCount))}: ${pc.bold(String(response.message.toolCalls.length))} tool call(s)`,
+                    label,
+                );
+
+                const results = await Promise.all(
+                    response.message.toolCalls.map(async (tc) => {
+                        const tool = toolList.find((t) => t.name === tc.name);
+                        if (!tool) {
+                            log(`  ${pc.dim("→")} ${pc.yellow(tc.name)} ${pc.dim("— unknown tool, skipping")}`, label);
+                            return {
+                                toolCallId: tc.id,
+                                content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
+                            };
+                        }
+
+                        const args = JSON.parse(tc.arguments);
+                        log(`  ${pc.dim("→")} ${pc.cyan(tool.name)}${pc.dim(`(${JSON.stringify(args)})`)}`, label);
+
+                        try {
+                            const result = await tool.execute(args);
+                            toolCallCount[tool.name] = (toolCallCount[tool.name] ?? 0) + 1;
+                            const content = typeof result === "string" ? result : JSON.stringify(result);
+                            const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
+                            log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);
+                            return { toolCallId: tc.id, content };
+                        } catch (err) {
+                            const errorMsg = err instanceof Error ? err.message : String(err);
+                            log(`    ${pc.red("error")}: ${errorMsg}`, label);
+                            return { toolCallId: tc.id, content: JSON.stringify({ error: errorMsg }) };
+                        }
+                    }),
+                );
+
+                for (const r of results) {
+                    messages.push({
+                        role: "tool",
+                        content: r.content,
+                        toolCallId: r.toolCallId,
+                    });
+                }
+            }
+            break;
+        } catch (error: unknown) {
+            if (i < 2) {
+                logError(`agent loop failed (${i + 1}/3), retrying...`, error, label);
+            } else if (i === 2) {
+                logError("agent loop failed (3/3)", error, label);
+                throw error;
             }
         }
-    } catch (error: unknown) {
-        logError("agent loop failed", error, label);
-        throw error;
     }
-
-    // This should never be reached due to the forced completion above
     throw new Error(`${label} loop exited unexpectedly`);
 }

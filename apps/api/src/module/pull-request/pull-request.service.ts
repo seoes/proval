@@ -12,25 +12,30 @@ import {
     createMultiLineCommentTool,
     approvePullRequestTool,
     unapprovePullRequestTool,
-    appendReviewTargetTool,
+    appendReviewUnitTool,
+    skipFileTool,
     getPullRequestDetailTool,
 } from "../../agent/tool/index.js";
 import type { GitProvider } from "../../provider/types.js";
-import type { ReviewTarget } from "./review-target.schema.js";
+import type { ReviewUnit, SkippedFile } from "./review-unit.schema.js";
 import {
     COMMENT_LANGUAGE_RULE,
     DEEP_REVIEW_COMMENT_WORKFLOW,
     DEEP_REVIEW_PLAN,
     DEEP_REVIEW_SUB_AGENT_BODY,
+    DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT,
     FILE_COVERAGE_RULE,
-    INLINE_MODE_INSTRUCTION,
+    INLINE_ENABLED,
+    INLINE_DISABLED,
     PR_REPLY_BODY,
-    REVIEW_BASE_PROMPT,
-    STANDARD_REVIEW_WORKFLOW,
+    REVIEW_CHECKLIST,
+    SEVERITY,
+    STANDARD_REVIEW_PROMPT,
 } from "../prompt/index.js";
 import type { ActivityTokenUsage } from "@proval/types";
+import { debug } from "../../util/log.js";
 
-export type { ReviewTarget } from "./review-target.schema.js";
+export type { ReviewUnit, SkippedFile } from "./review-unit.schema.js";
 
 export class PullRequestService {
     private readonly sender: LlmSender;
@@ -52,7 +57,7 @@ export class PullRequestService {
         let cachedInputToken = 0;
         if (isDeepResearch) {
             const planResult = await this.planDeepReview(prIid);
-            const reviewResult = await this.generateDeepReview(prIid, planResult.reviewTargetList, isInlineReview);
+            const reviewResult = await this.generateDeepReview(prIid, planResult.reviewUnitList, isInlineReview);
             inputToken = planResult.inputToken + reviewResult.inputToken;
             cachedInputToken = planResult.cachedInputToken + reviewResult.cachedInputToken;
             outputToken = planResult.outputToken + reviewResult.outputToken;
@@ -95,13 +100,11 @@ export class PullRequestService {
         const inlineModeTag = isInlineReview
             ? "<inline_comments_enabled>true</inline_comments_enabled>"
             : "<inline_comments_enabled>false</inline_comments_enabled>";
-
         const system = [
-            REVIEW_BASE_PROMPT,
+            STANDARD_REVIEW_PROMPT,
             FILE_COVERAGE_RULE,
-            INLINE_MODE_INSTRUCTION,
+            isInlineReview ? INLINE_ENABLED : INLINE_DISABLED,
             COMMENT_LANGUAGE_RULE,
-            STANDARD_REVIEW_WORKFLOW,
             inlineModeTag,
         ].join("\n\n");
         const prompt = await this.generatePullRequestPrompt(prIid);
@@ -127,10 +130,11 @@ export class PullRequestService {
     // # Deep Review
     // #########################################################
 
-    public async planDeepReview(prIid: number): Promise<ActivityTokenUsage & { reviewTargetList: ReviewTarget[] }> {
+    public async planDeepReview(prIid: number): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
-        const reviewTargetList: ReviewTarget[] = [];
+        const reviewUnitList: ReviewUnit[] = [];
+        const skippedFileList: SkippedFile[] = [];
 
         const system = [DEEP_REVIEW_PLAN, FILE_COVERAGE_RULE].join("\n\n");
 
@@ -140,12 +144,16 @@ export class PullRequestService {
             await this.generatePullRequestPrompt(prIid),
             `${this.getLabel(prIid)} Deep Plan`,
             {
-                toolList: [...this.createCodeToolList(prIid, sourceBranch), appendReviewTargetTool(reviewTargetList)],
+                toolList: [
+                    ...this.createCodeToolList(prIid, sourceBranch),
+                    appendReviewUnitTool(reviewUnitList),
+                    skipFileTool(skippedFileList),
+                ],
             },
         );
 
         return {
-            reviewTargetList,
+            reviewUnitList,
             inputToken: stats.totalInputToken,
             outputToken: stats.totalOutputToken,
             cachedInputToken: stats.totalCachedInputToken,
@@ -154,41 +162,37 @@ export class PullRequestService {
 
     public async generateDeepReview(
         prIid: number,
-        reviewTargetList: ReviewTarget[],
+        reviewUnitList: ReviewUnit[],
         isInlineReview: boolean,
     ): Promise<ActivityTokenUsage> {
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
         const reviewResultList = await Promise.all(
-            reviewTargetList.map(async (reviewTarget, index) =>
-                this.runDeepReviewSubAgent(prIid, reviewTarget, index + 1, reviewTargetList.length),
+            reviewUnitList.map(async (reviewUnit, index) =>
+                this.runDeepReviewSubAgent(prIid, reviewUnit, index + 1, reviewUnitList.length),
             ),
         );
 
-        const inlineModeTag = isInlineReview
-            ? "<inline_comments_enabled>true</inline_comments_enabled>"
-            : "<inline_comments_enabled>false</inline_comments_enabled>";
-
         const system = [
-            REVIEW_BASE_PROMPT,
-            INLINE_MODE_INSTRUCTION,
-            COMMENT_LANGUAGE_RULE,
             DEEP_REVIEW_COMMENT_WORKFLOW,
-            inlineModeTag,
-            `Specialist findings:\n${JSON.stringify(reviewResultList.map((d) => d.finalMessage))}`,
+            SEVERITY,
+            isInlineReview ? INLINE_ENABLED : INLINE_DISABLED,
+            COMMENT_LANGUAGE_RULE,
         ].join("\n\n");
-        const stats = await runAgentLoop(
-            this.sender,
-            system,
+
+        const findingsText = reviewResultList
+            .map((result, index) => `--- Unit ${index + 1} ---\n${result.finalMessage}`)
+            .join("\n\n");
+        const prompt = [
             await this.generatePullRequestPrompt(prIid),
-            `${this.getLabel(prIid)} Deep Writing`,
-            {
-                toolList: [
-                    ...this.createCodeToolList(prIid, sourceBranch),
-                    ...this.createReviewToolList(prIid, isInlineReview),
-                ],
-            },
-        );
+            `Review unit findings (plain text, one block per sub-agent):\n\n${findingsText}`,
+        ].join("\n\n");
+        const stats = await runAgentLoop(this.sender, system, prompt, `${this.getLabel(prIid)} Deep Writing`, {
+            toolList: [
+                ...this.createCodeToolList(prIid, sourceBranch),
+                ...this.createReviewToolList(prIid, isInlineReview),
+            ],
+        });
 
         return {
             inputToken: stats.totalInputToken + reviewResultList.reduce((acc, curr) => acc + curr.inputToken, 0),
@@ -200,17 +204,16 @@ export class PullRequestService {
 
     private async runDeepReviewSubAgent(
         prIid: number,
-        reviewTarget: ReviewTarget,
+        reviewUnit: ReviewUnit,
         index: number,
         totalIndex: number,
     ): Promise<ActivityTokenUsage & { finalMessage: string }> {
         const maxSteps = 100;
 
-        const system = DEEP_REVIEW_SUB_AGENT_BODY;
-        const prompt = [
-            await this.generatePullRequestPrompt(prIid),
-            `Review target: ${JSON.stringify(reviewTarget)}`,
-        ].join("\n\n");
+        const system = [DEEP_REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
+        const prompt = [await this.generatePullRequestPrompt(prIid), `Review unit: ${JSON.stringify(reviewUnit)}`].join(
+            "\n\n",
+        );
 
         const { sourceBranch } = await this.provider.fetchPullRequestDetail(prIid);
 
@@ -226,6 +229,7 @@ export class PullRequestService {
         );
 
         if (!stats.finalMessage) {
+            debug(JSON.stringify(stats, null, 2), "ERROR");
             throw new Error("Sub agent failed to return final message");
         }
 

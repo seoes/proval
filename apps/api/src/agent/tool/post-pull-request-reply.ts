@@ -1,6 +1,6 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
-import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
+import { buildCommentToolLanguageNote, buildCommentBodyDescription } from "../../module/prompt/index.js";
 
 export function postPullRequestReplyTool(
     provider: GitProvider,

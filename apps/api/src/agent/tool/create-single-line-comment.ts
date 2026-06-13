@@ -1,6 +1,8 @@
 import type { AgentTool } from "../loop.js";
 import type { GitProvider } from "../../provider/types.js";
-import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
+import { buildCommentToolLanguageNote } from "../../module/prompt/index.js";
+
+import { createSingleLineCommentInputSchema, formatReviewFindingCommentBody } from "../review.js";
 
 export function createSingleLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
     return {
@@ -15,40 +17,20 @@ export function createSingleLineCommentTool(provider: GitProvider, prIid: number
             "Use baseSha/startSha/headSha.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
-        parameters: {
-            type: "object",
-            properties: {
-                body: {
-                    type: "string",
-                    description: buildCommentBodyDescription(language),
-                },
-                position: {
-                    type: "object",
-                    properties: {
-                        baseSha: { type: "string" },
-                        headSha: { type: "string" },
-                        startSha: { type: "string" },
-                        oldPath: { type: "string" },
-                        newPath: { type: "string" },
-                        newLine: { type: "number", description: "1-based line on the new file." },
-                        oldLine: { type: "number", description: "1-based line on the old file." },
-                    },
-                    required: ["baseSha", "headSha", "startSha", "oldPath", "newPath"],
-                },
-            },
-            required: ["body", "position"],
-        },
+        parameters: createSingleLineCommentInputSchema(language).toJSONSchema(),
         execute: async (args) => {
-            const body = String(args.body);
-            const position = args.position as Record<string, unknown>;
+            const parsed = createSingleLineCommentInputSchema(language).parse(args);
+            const { position, ...finding } = parsed;
+            const body = formatReviewFindingCommentBody(finding);
+
             const comment = await provider.createCommentToSingleLine(prIid, body, {
-                baseSha: String(position.baseSha),
-                headSha: String(position.headSha),
-                startSha: String(position.startSha),
-                oldPath: String(position.oldPath),
-                newPath: String(position.newPath),
-                newLine: position.newLine !== undefined ? Number(position.newLine) : undefined,
-                oldLine: position.oldLine !== undefined ? Number(position.oldLine) : undefined,
+                baseSha: position.baseSha,
+                headSha: position.headSha,
+                startSha: position.startSha,
+                oldPath: position.oldPath,
+                newPath: position.newPath,
+                newLine: position.newLine,
+                oldLine: position.oldLine,
             });
             return comment;
         },

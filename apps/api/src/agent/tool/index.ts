@@ -19,4 +19,5 @@ export { createSingleLineCommentTool } from "./create-single-line-comment.js";
 export { createMultiLineCommentTool } from "./create-multi-line-comment.js";
 export { approvePullRequestTool } from "./approve-pull-request.js";
 export { unapprovePullRequestTool } from "./unapprove-pull-request.js";
-export { appendReviewTargetTool } from "./append-review-target.js";
+export { appendReviewUnitTool } from "./append-review-unit.js";
+export { skipFileTool } from "./skip-file.js";
