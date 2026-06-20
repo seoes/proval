@@ -1,5 +1,6 @@
 import pc from "picocolors";
-import { log, logAgentResult, logError } from "../util/log.js";
+import { log, logAgentResult, logError } from "../../util/log.js";
+import type { ActivityTokenUsage } from "@proval/types";
 
 export interface AgentTool {
     name: string;
@@ -25,11 +26,7 @@ export interface LlmResponse {
     message: Message;
     finishReason: string;
     requestId: string | null;
-    tokenUsage: {
-        input: number;
-        output: number;
-        cachedInput: number;
-    };
+    usage: ActivityTokenUsage;
 }
 
 export interface LlmSender {
@@ -42,9 +39,7 @@ export interface AgentRunResult {
     messages: Message[];
     stepCount: number;
     toolCallCount: Record<string, number>;
-    totalInputToken: number;
-    totalCachedInputToken: number;
-    totalOutputToken: number;
+    usage: ActivityTokenUsage;
 }
 
 export async function runAgentLoop(
@@ -53,17 +48,19 @@ export async function runAgentLoop(
     prompt: string,
     label: string,
     options: {
-        toolList?: AgentTool[];
+        toolList?: (AgentTool | null)[];
         maxSteps?: number;
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
 
-    let totalInputToken = 0;
-    let totalCachedInputToken = 0;
-    let totalOutputToken = 0;
-
     try {
+        const usage: ActivityTokenUsage = {
+            inputToken: 0,
+            cachedInputToken: 0,
+            outputToken: 0,
+        };
+
         const messages: Message[] = [
             { role: "system", content: system },
             { role: "user", content: prompt },
@@ -71,7 +68,7 @@ export async function runAgentLoop(
 
         const maxSteps = options.maxSteps ?? 50;
 
-        const toolList = options.toolList ?? [];
+        const toolList: AgentTool[] = options.toolList?.filter((t) => t !== null) ?? [];
         const toolCallCount: Record<string, number> = {};
         let stepCount = 0;
         for (let step = 0; step < maxSteps; step++) {
@@ -113,9 +110,9 @@ export async function runAgentLoop(
                 throw lastError ?? new Error("No response from agent");
             }
 
-            totalInputToken += response.tokenUsage.input;
-            totalCachedInputToken += response.tokenUsage.cachedInput;
-            totalOutputToken += response.tokenUsage.output;
+            usage.inputToken += response.usage.inputToken;
+            usage.cachedInputToken += response.usage.cachedInputToken;
+            usage.outputToken += response.usage.outputToken;
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
                 const result: AgentRunResult = {
@@ -123,9 +120,7 @@ export async function runAgentLoop(
                     messages,
                     stepCount,
                     toolCallCount,
-                    totalInputToken,
-                    totalCachedInputToken,
-                    totalOutputToken,
+                    usage,
                 };
                 logAgentResult(label, result, performance.now() - startedAt, "completed");
                 return result;
@@ -140,9 +135,7 @@ export async function runAgentLoop(
                     messages,
                     stepCount,
                     toolCallCount,
-                    totalInputToken,
-                    totalCachedInputToken,
-                    totalOutputToken,
+                    usage,
                 };
                 log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
                 logAgentResult(label, result, performance.now() - startedAt, "max_steps");

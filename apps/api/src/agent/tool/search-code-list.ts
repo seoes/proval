@@ -1,7 +1,10 @@
-import type { AgentTool } from "../loop.js";
-import type { GitProvider } from "../../provider/types.js";
+import type { AgentTool } from "../llm/loop.js";
+import type { GitProvider } from "../../git-provider/types.js";
 
-export function searchCodeListTool(provider: GitProvider, ref: string): AgentTool {
+export function searchCodeListTool(provider: GitProvider, ref: string): AgentTool | null {
+    if (!provider.isCodeSearchSupported()) {
+        return null;
+    }
     return {
         name: "search_code_list",
         description:

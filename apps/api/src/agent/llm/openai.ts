@@ -43,10 +43,10 @@ export function createOpenAiSender(config: OpenAiConfig): LlmSender {
                 },
                 finishReason: choice.finish_reason,
                 requestId: completion.id ?? null,
-                tokenUsage: {
-                    input: completion.usage?.prompt_tokens ?? 0,
-                    output: completion.usage?.completion_tokens ?? 0,
-                    cachedInput: completion.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+                usage: {
+                    inputToken: completion.usage?.prompt_tokens ?? 0,
+                    outputToken: completion.usage?.completion_tokens ?? 0,
+                    cachedInputToken: completion.usage?.prompt_tokens_details?.cached_tokens ?? 0,
                 },
             };
         },

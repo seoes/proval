@@ -1,7 +1,8 @@
-import type { AgentTool } from "../loop.js";
-import type { GitProvider } from "../../provider/types.js";
-import { buildCommentToolLanguageNote } from "../../module/prompt/index.js";
-import { createMultiLineCommentInputSchema, formatReviewFindingCommentBody } from "../review.js";
+import type { AgentTool } from "../llm/loop.js";
+import type { GitProvider } from "../../git-provider/types.js";
+import { buildCommentToolLanguageNote } from "../prompt/index.js";
+import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
+import { createMultiLineCommentInputSchema } from "../schema/inline-comment.schema.js";
 
 export function createMultiLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
     return {

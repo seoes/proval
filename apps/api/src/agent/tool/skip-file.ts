@@ -1,5 +1,5 @@
-import type { AgentTool } from "../loop.js";
-import { skipFileSchema, type SkippedFile } from "../../module/pull-request/review-unit.schema.js";
+import type { AgentTool } from "../llm/loop.js";
+import { skipFileSchema, type SkippedFile } from "../schema/deep-research.schema.js";
 
 export function skipFileTool(skippedFileList: SkippedFile[]): AgentTool {
     return {

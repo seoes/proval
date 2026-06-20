@@ -1,8 +1,14 @@
 import type { Context } from "hono";
 import { GitLabAccessService } from "./access.service";
-import { GitLabProvider } from "../../provider/gitlab";
-import { ForgejoProvider } from "../../provider/forgejo";
-import type { AccessInsert, AccessProvider, AccessUpdateInput, GitProviderRepositoryListResponse, SecretInput } from "@proval/types";
+import { GitLabProvider } from "../../git-provider/gitlab";
+import { ForgejoProvider } from "../../git-provider/forgejo";
+import type {
+    AccessInsert,
+    AccessProvider,
+    AccessUpdateInput,
+    GitProviderRepositoryListResponse,
+    SecretInput,
+} from "@proval/types";
 
 const accessService = new GitLabAccessService();
 

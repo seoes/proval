@@ -6,10 +6,10 @@ import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { generateUnusedRepositoryWebhookSecret } from "../../util/webhook-secret.js";
 import { GitLabAccessService } from "../access/access.service.js";
-import { ForgejoProvider } from "../../provider/forgejo.js";
-import { GitHubProvider } from "../../provider/github.js";
-import { GitLabProvider } from "../../provider/gitlab.js";
-import type { GitProvider } from "../../provider/types.js";
+import { ForgejoProvider } from "../../git-provider/forgejo.js";
+import { GitHubProvider } from "../../git-provider/github.js";
+import { GitLabProvider } from "../../git-provider/gitlab.js";
+import type { GitProvider } from "../../git-provider/types.js";
 
 const accessService = new GitLabAccessService();
 

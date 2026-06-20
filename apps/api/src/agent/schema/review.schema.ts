@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildCommentBodyDescription } from "../module/prompt/index.js";
+import { buildCommentBodyDescription } from "../prompt/index.js";
 
 export const reviewFindingLevelSchema = z
     .enum(["critical", "problem"])
@@ -68,42 +68,4 @@ export function formatReviewFindingCommentBody(finding: ReviewFinding): string {
     }
 
     return lines.join("\n");
-}
-
-const singleLinePositionSchema = z.object({
-    baseSha: z.string(),
-    headSha: z.string(),
-    startSha: z.string(),
-    oldPath: z.string(),
-    newPath: z.string(),
-    newLine: z.number().optional().describe("1-based line on the new file."),
-    oldLine: z.number().optional().describe("1-based line on the old file."),
-});
-
-const multiLineEndpointSchema = z.object({
-    type: z.enum(["old", "new"]),
-    newLine: z.number().optional(),
-    oldLine: z.number().optional(),
-});
-
-const multiLinePositionSchema = z.object({
-    baseSha: z.string(),
-    headSha: z.string(),
-    startSha: z.string(),
-    oldPath: z.string(),
-    newPath: z.string(),
-    start: multiLineEndpointSchema,
-    end: multiLineEndpointSchema,
-});
-
-export function createSingleLineCommentInputSchema(language: string) {
-    return reviewFindingSchemaForLanguage(language).extend({
-        position: singleLinePositionSchema,
-    });
-}
-
-export function createMultiLineCommentInputSchema(language: string) {
-    return reviewFindingSchemaForLanguage(language).extend({
-        position: multiLinePositionSchema,
-    });
 }

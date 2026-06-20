@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ReviewUnit } from "../../module/pull-request/review-unit.schema.js";
+import type { ReviewUnit } from "../schema/deep-research.schema.js";
 import { appendReviewUnitTool } from "./append-review-unit.js";
 
 describe("appendReviewUnitTool", () => {

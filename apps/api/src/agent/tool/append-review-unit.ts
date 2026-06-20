@@ -1,5 +1,5 @@
-import type { AgentTool } from "../loop.js";
-import { reviewUnitAppendSchema, type ReviewUnit } from "../../module/pull-request/review-unit.schema.js";
+import type { AgentTool } from "../llm/loop.js";
+import { reviewUnitAppendSchema, type ReviewUnit } from "../schema/deep-research.schema.js";
 
 export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
     return {

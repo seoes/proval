@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const skipFileSchema = z.object({
+    path: z.string().describe("Repo-relative path from the changed file list."),
+    reason: z.string().describe("Why this changed file is excluded from review."),
+});
+
+export type SkippedFile = z.infer<typeof skipFileSchema>;
+
 const REVIEW_UNIT_DESCRIPTION_HELP = [
     "Labeled plain text with required and optional sections:",
     "Scope: <why these changed files belong together — architecture, data flow, contracts. No bug hypotheses.>",
@@ -19,10 +26,3 @@ export const reviewUnitAppendSchema = z.object({
 export type ReviewUnitAppendInput = z.infer<typeof reviewUnitAppendSchema>;
 
 export type ReviewUnit = ReviewUnitAppendInput & { id: number };
-
-export const skipFileSchema = z.object({
-    path: z.string().describe("Repo-relative path from the changed file list."),
-    reason: z.string().describe("Why this changed file is excluded from review."),
-});
-
-export type SkippedFile = z.infer<typeof skipFileSchema>;
