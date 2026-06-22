@@ -1,14 +1,13 @@
 import type { Context } from "hono";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
 import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
-import { runIssueCommentOnOpen } from "../../agent/issue/open.js";
-import { runIssueReply } from "../../agent/issue/reply.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
 
 type PullRequestWebhookPayload = {
     action?: string;

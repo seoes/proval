@@ -11,9 +11,8 @@ import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
-import { runIssueCommentOnOpen } from "../../agent/issue/open.js";
-import { runIssueReply } from "../../agent/issue/reply.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");

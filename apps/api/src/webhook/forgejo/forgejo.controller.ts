@@ -4,9 +4,8 @@ import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
-import { runIssueReply } from "../../agent/issue/reply.js";
-import { runIssueCommentOnOpen } from "../../agent/issue/open.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
 
 // Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
