@@ -49,6 +49,7 @@ export async function runStandardReview(
             isInlineReview ? createSingleLineCommentTool(provider, prIid, language) : null,
             isInlineReview ? createMultiLineCommentTool(provider, prIid, language) : null,
         ],
+        maxSteps: 200,
     });
 
     return result.usage;

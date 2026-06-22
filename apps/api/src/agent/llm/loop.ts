@@ -66,7 +66,7 @@ export async function runAgentLoop(
             { role: "user", content: prompt },
         ];
 
-        const maxSteps = options.maxSteps ?? 50;
+        const maxSteps = options.maxSteps ?? 100;
 
         const toolList: AgentTool[] = options.toolList?.filter((t) => t !== null) ?? [];
         const toolCallCount: Record<string, number> = {};
