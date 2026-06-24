@@ -178,13 +178,13 @@
             return;
         }
 
-        if (
-            !editRepositoryId &&
-            (provider.type === "gitlab" || provider.type === "forgejo") &&
-            !webhookSecret?.trim()
-        ) {
-            await openAlert("Webhook secret is required");
-            return;
+        if (!editRepositoryId) {
+            if (provider.type === "gitlab" || provider.type === "forgejo") {
+                if (!webhookSecret?.trim()) {
+                    await openAlert("Webhook secret is required");
+                    return;
+                }
+            }
         }
 
         const body: Record<string, unknown> = {
