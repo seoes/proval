@@ -204,7 +204,9 @@
 
         if (provider.type === "gitlab" || provider.type === "forgejo") {
             body.gitProviderAccessId = provider.accessId;
-            body.gitProviderRepositoryId = Number(selectedRepositoryId);
+            if (editRepositoryId !== Number(selectedRepositoryId)) {
+                body.gitProviderRepositoryId = Number(selectedRepositoryId);
+            }
             if (!editRepositoryId) {
                 const trimmedSecret = webhookSecret?.trim();
                 if (trimmedSecret) body.webhookSecret = trimmedSecret;

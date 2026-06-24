@@ -64,11 +64,15 @@ export const repositoryTable = sqliteTable(
         githubInstallationId: integer().references(() => githubInstallationTable.id),
         githubRepositoryId: integer(),
 
-        // other git provider access configs
+        // gitlab/forgejo provider access configs
         gitProviderAccessId: integer().references(() => gitProviderAccessTable.id, {
             onDelete: "restrict",
         }),
         gitProviderRepositoryId: integer(),
+
+        // gitlab access configs
+        accessToken: text(),
+        accessTokenId: integer(),
 
         // pull request
         reviewOnPullRequestOpen: integer({ mode: "boolean" }).notNull().default(true),

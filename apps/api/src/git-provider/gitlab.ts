@@ -32,6 +32,56 @@ export class GitLabProvider implements GitProvider {
         });
     }
 
+    public static async createProjectAccessToken(
+        baseUrl: string,
+        personalAccessToken: string,
+        projectId: number,
+    ): Promise<{ token: string; tokenId: number }> {
+        const today = new Date();
+        const nextYearStr = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+            .toISOString()
+            .split("T")[0];
+        const gitlab = new Gitlab({
+            host: baseUrl,
+            token: personalAccessToken,
+        });
+        const { token, id } = await gitlab.ProjectAccessTokens.create(
+            projectId,
+            "Proval Access Token",
+            ["api"],
+            nextYearStr,
+            { accessLevel: 40 }, // 40 = Maintainer
+        );
+        return { token, tokenId: id };
+    }
+
+    public static async rotateProjectAccessToken(
+        baseUrl: string,
+        personalAccessToken: string,
+        projectId: number,
+        projectAccessTokenId: number,
+    ): Promise<{ token: string; tokenId: number }> {
+        const gitlab = new Gitlab({
+            host: baseUrl,
+            token: personalAccessToken,
+        });
+        const { token, id } = await gitlab.ProjectAccessTokens.rotate(projectId, projectAccessTokenId);
+        return { token, tokenId: id };
+    }
+
+    public static async removeProjectAccessToken(
+        baseUrl: string,
+        personalAccessToken: string,
+        projectId: number,
+        projectAccessTokenId: number,
+    ): Promise<void> {
+        const gitlab = new Gitlab({
+            host: baseUrl,
+            token: personalAccessToken,
+        });
+        await gitlab.ProjectAccessTokens.revoke(projectId, projectAccessTokenId);
+    }
+
     public async fetchRepositoryDetail(): Promise<GitRepository> {
         const repository = await this.gitlab.Projects.show(this.projectId);
         return {
