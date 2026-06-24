@@ -1,12 +1,13 @@
 import type { Context } from "hono";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
-import { IssueService } from "../../module/issue/issue.service.js";
-import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
-import { GitHubProvider } from "../../provider/github.js";
+import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
+import { createSender } from "../../agent/llm/factory.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -111,16 +112,12 @@ async function handlePullRequestWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const pullRequestService = new PullRequestService(
-        gitHubProvider,
-        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-        repository.language,
-    );
-
-    const reviewOptions = {
-        isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnPullRequest,
-    };
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
 
     runWithActivity(
         {
@@ -130,7 +127,15 @@ async function handlePullRequestWebhook(
             type: "pr_review",
             targetIid: prNumber,
         },
-        () => pullRequestService.review(prNumber, reviewOptions),
+        () =>
+            runPullRequestReview(
+                gitHubProvider,
+                llmSender,
+                prNumber,
+                repository.inlineReview,
+                repository.deepResearchOnPullRequest,
+                repository.language,
+            ),
     ).catch((error) => {
         logError("Pull request review failed", error);
     });
@@ -170,7 +175,12 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const issueService = new IssueService(gitHubProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
 
     runWithActivity(
         {
@@ -180,7 +190,7 @@ async function handleIssueWebhook(
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => issueService.commentOnOpen(issueNumber),
+        () => runIssueCommentOnOpen(gitHubProvider, llmSender, issueNumber, repository.language),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -232,21 +242,30 @@ async function handleIssueCommentWebhook(
             });
         }
 
-        const pullRequestService = new PullRequestService(
-            gitHubProvider,
-            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-            repository.language,
-        );
+        const llmSender = createSender({
+            provider: modelProvider.provider,
+            apiKey: modelProvider.apiKey,
+            baseURL: modelProvider.baseUrl,
+            model: repository.modelName,
+        });
 
         runWithActivity(
             {
                 repositoryId: repository.id,
                 modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
+                modelName: repository.modelName,
                 type: "pr_reply",
                 targetIid: issueNumber,
             },
-            () => pullRequestService.reply(issueNumber, commenterUsername, noteBody),
+            () =>
+                runPullRequestReply(
+                    gitHubProvider,
+                    llmSender,
+                    issueNumber,
+                    commenterUsername,
+                    noteBody,
+                    repository.language,
+                ),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -266,7 +285,12 @@ async function handleIssueCommentWebhook(
         });
     }
 
-    const issueService = new IssueService(gitHubProvider, { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName }, repository.language);
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
 
     runWithActivity(
         {
@@ -276,7 +300,7 @@ async function handleIssueCommentWebhook(
             type: "issue_reply",
             targetIid: issueNumber,
         },
-        () => issueService.reply(issueNumber, commenterUsername, noteBody),
+        () => runIssueReply(gitHubProvider, llmSender, issueNumber, commenterUsername, noteBody, repository.language),
     ).catch((error) => {
         logError("Issue reply failed", error);
     });

@@ -84,7 +84,7 @@
         {
             id: "deep",
             label: "Deep Research Review",
-            tagline: "Each finding gets a sub-agent",
+            tagline: "Each file group gets a sub-agent",
             stages: [
                 {
                     title: "Load Context",
@@ -94,7 +94,7 @@
                 {
                     title: "Plan Agent",
                     kind: "plan",
-                    subtitle: "Find review targets",
+                    subtitle: "Group related files",
                 },
                 {
                     title: "Review",

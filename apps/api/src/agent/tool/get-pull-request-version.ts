@@ -1,5 +1,5 @@
-import type { AgentTool } from "../loop.js";
-import type { GitProvider } from "../../provider/types.js";
+import type { AgentTool } from "../llm/loop.js";
+import type { GitProvider } from "../../git-provider/types.js";
 
 export function getPullRequestVersionTool(provider: GitProvider, prIid: number): AgentTool {
     return {

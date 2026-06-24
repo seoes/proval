@@ -5,9 +5,10 @@ import { mentionReply } from "../mock/input/mention-reply.js";
 import { newFeature } from "../mock/input/new-feature.js";
 import { securityIssue } from "../mock/input/security-issue.js";
 import { simpleBugfix } from "../mock/input/simple-bugfix.js";
-import { PullRequestService } from "../src/module/pull-request/pull-request.service.js";
+import { runPullRequestReply, runPullRequestReview } from "../src/agent/pull-request/index.js";
 import { log, logError } from "../src/util/log.js";
 import { MockProvider, type PostedAction, type TestInput } from "../mock/provider.js";
+import { createSender } from "../src/agent/llm/factory.js";
 
 type ReviewEntry = {
     mode: "review";
@@ -41,38 +42,6 @@ const registry: Record<string, DemoEntry> = {
 
 function hasOpenAiEnv(): boolean {
     return Boolean(Bun.env.OPENAI_BASE_URL?.trim() && Bun.env.OPENAI_API_KEY?.trim() && Bun.env.OPENAI_MODEL?.trim());
-}
-
-function createService(input: TestInput, opts: { model?: string; language?: string; allowApproval?: boolean }) {
-    const provider = new MockProvider(input);
-    const model = opts.model ?? Bun.env.OPENAI_MODEL;
-
-    const baseUrl = Bun.env.OPENAI_BASE_URL;
-    const apiKey = Bun.env.OPENAI_API_KEY;
-
-    if (!baseUrl || !apiKey || !model) {
-        logError(
-            "Missing OPENAI_BASE_URL, OPENAI_API_KEY, or OPENAI_MODEL. Copy env.demo.example to .env.demo and fill in.",
-            undefined,
-            "demo",
-        );
-        process.exit(1);
-    }
-
-    const service = new PullRequestService(
-        provider,
-        baseUrl,
-        apiKey,
-        model,
-        opts.language ?? Bun.env.LANGUAGE ?? "English",
-    );
-    return { provider, service };
-}
-
-function lastCommentBody(posted: PostedAction[]): string | undefined {
-    const comments = posted.filter((p) => p.type === "comment");
-    const last = comments[comments.length - 1];
-    return last?.body;
 }
 
 function fileTimestamp(d = new Date()): string {
@@ -171,24 +140,21 @@ async function main() {
     const language = entry.language ?? Bun.env.LANGUAGE ?? "English";
     const allowApproval = entry.mode === "review" ? (entry.allowApproval ?? false) : false;
 
-    const { provider, service } = createService(entry.data, {
-        language,
-        allowApproval,
-        model,
+    const llmSender = createSender({
+        provider: "openai",
+        apiKey: Bun.env.OPENAI_API_KEY ?? "",
+        baseURL: Bun.env.OPENAI_BASE_URL ?? "",
+        model: Bun.env.OPENAI_MODEL ?? "",
     });
+
+    const provider = new MockProvider(entry.data);
 
     log(`running ${pc.bold(scenarioKey)} (${pc.yellow(entry.mode)})`, "demo");
 
     if (entry.mode === "review") {
-        await service.generateStandardReview(1);
+        await runPullRequestReview(provider, llmSender, 1, false, false, language);
     } else {
-        await service.reply(1, entry.commenter, entry.comment);
-    }
-
-    const body = lastCommentBody(provider.posted);
-    if (!body) {
-        logError("No comment was posted by the model", provider.posted, "demo");
-        process.exit(1);
+        await runPullRequestReply(provider, llmSender, 1, entry.commenter, entry.comment, language);
     }
 
     const ranAt = new Date().toISOString();
@@ -199,8 +165,8 @@ async function main() {
         language,
         allowApproval,
         ranAt,
-        posted: [...provider.posted],
-        bodyMarkdown: body,
+        posted: [],
+        bodyMarkdown: "",
     });
 
     const resultDir = path.join(import.meta.dir, "result");

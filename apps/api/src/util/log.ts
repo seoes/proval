@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import pc from "picocolors";
-import type { AgentRunResult } from "../agent/loop.js";
+import type { AgentRunResult } from "../agent/llm/loop.js";
 
 const timestamp = () => pc.dim(`[${new Date().toISOString()}]`);
 
@@ -60,11 +60,11 @@ export const logAgentResult = (
         pc.dim("·"),
         `tools: ${tools}`,
         pc.dim("·"),
-        `input tokens: ${result.totalInputToken}`,
+        `input tokens: ${result.usage.inputToken}`,
         pc.dim("·"),
-        `cached input tokens: ${result.totalCachedInputToken}`,
+        `cached input tokens: ${result.usage.cachedInputToken}`,
         pc.dim("·"),
-        `output tokens: ${result.totalOutputToken}`,
+        `output tokens: ${result.usage.outputToken}`,
     ];
 
     if (result.finalMessage) {

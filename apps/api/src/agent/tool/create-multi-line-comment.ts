@@ -1,6 +1,8 @@
-import type { AgentTool } from "../loop.js";
-import type { GitProvider } from "../../provider/types.js";
-import { buildCommentBodyDescription, buildCommentToolLanguageNote } from "../../module/prompt/tool/comment-language.js";
+import type { AgentTool } from "../llm/loop.js";
+import type { GitProvider } from "../../git-provider/types.js";
+import { buildCommentToolLanguageNote } from "../prompt/index.js";
+import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
+import { createMultiLineCommentInputSchema } from "../schema/inline-comment.schema.js";
 
 export function createMultiLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
     return {
@@ -16,55 +18,15 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number,
             "Use baseSha/startSha/headSha.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
-        parameters: {
-            type: "object",
-            properties: {
-                body: {
-                    type: "string",
-                    description: buildCommentBodyDescription(language),
-                },
-                position: {
-                    type: "object",
-                    properties: {
-                        baseSha: { type: "string" },
-                        headSha: { type: "string" },
-                        startSha: { type: "string" },
-                        oldPath: { type: "string" },
-                        newPath: { type: "string" },
-                        start: {
-                            type: "object",
-                            properties: {
-                                type: { type: "string", enum: ["old", "new"] },
-                                newLine: { type: "number" },
-                                oldLine: { type: "number" },
-                            },
-                            required: ["type"],
-                        },
-                        end: {
-                            type: "object",
-                            properties: {
-                                type: { type: "string", enum: ["old", "new"] },
-                                newLine: { type: "number" },
-                                oldLine: { type: "number" },
-                            },
-                            required: ["type"],
-                        },
-                    },
-                    required: ["baseSha", "headSha", "startSha", "oldPath", "newPath", "start", "end"],
-                },
-            },
-            required: ["body", "position"],
-        },
+        parameters: createMultiLineCommentInputSchema(language).toJSONSchema(),
         execute: async (args) => {
-            const body = String(args.body);
-            const position = args.position as Record<string, unknown>;
-
-            const start = position.start as Record<string, unknown>;
-            const end = position.end as Record<string, unknown>;
+            const parsed = createMultiLineCommentInputSchema(language).parse(args);
+            const { position, ...finding } = parsed;
+            const body = formatReviewFindingCommentBody(finding);
 
             const validateEndpoint = (
                 label: "start" | "end",
-                endpoint: { type: string; newLine?: number; oldLine?: number },
+                endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number },
             ) => {
                 if (endpoint.type === "new" && endpoint.newLine === undefined) {
                     return `position.${label}.newLine is required when position.${label}.type is 'new'.`;
@@ -75,23 +37,15 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number,
                 return null;
             };
 
-            const startError = validateEndpoint("start", {
-                type: String(start.type) as "old" | "new",
-                newLine: start.newLine !== undefined ? Number(start.newLine) : undefined,
-                oldLine: start.oldLine !== undefined ? Number(start.oldLine) : undefined,
-            });
+            const startError = validateEndpoint("start", position.start);
             if (startError) return { error: startError };
 
-            const endError = validateEndpoint("end", {
-                type: String(end.type) as "old" | "new",
-                newLine: end.newLine !== undefined ? Number(end.newLine) : undefined,
-                oldLine: end.oldLine !== undefined ? Number(end.oldLine) : undefined,
-            });
+            const endError = validateEndpoint("end", position.end);
             if (endError) return { error: endError };
 
-            if (start.type === end.type) {
-                const startLine = start.type === "new" ? Number(start.newLine) : Number(start.oldLine);
-                const endLine = end.type === "new" ? Number(end.newLine) : Number(end.oldLine);
+            if (position.start.type === position.end.type) {
+                const startLine = position.start.type === "new" ? position.start.newLine! : position.start.oldLine!;
+                const endLine = position.end.type === "new" ? position.end.newLine! : position.end.oldLine!;
                 if (startLine > endLine) {
                     return {
                         error: "position.start line must be <= position.end line on the same side.",
@@ -100,21 +54,13 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number,
             }
 
             const comment = await provider.createCommentToMultiLine(prIid, body, {
-                baseSha: String(position.baseSha),
-                headSha: String(position.headSha),
-                startSha: String(position.startSha),
-                oldPath: String(position.oldPath),
-                newPath: String(position.newPath),
-                start: {
-                    type: String(start.type) as "old" | "new",
-                    newLine: start.newLine !== undefined ? Number(start.newLine) : undefined,
-                    oldLine: start.oldLine !== undefined ? Number(start.oldLine) : undefined,
-                },
-                end: {
-                    type: String(end.type) as "old" | "new",
-                    newLine: end.newLine !== undefined ? Number(end.newLine) : undefined,
-                    oldLine: end.oldLine !== undefined ? Number(end.oldLine) : undefined,
-                },
+                baseSha: position.baseSha,
+                headSha: position.headSha,
+                startSha: position.startSha,
+                oldPath: position.oldPath,
+                newPath: position.newPath,
+                start: position.start,
+                end: position.end,
             });
             return comment;
         },

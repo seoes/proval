@@ -1,4 +1,12 @@
-export const STANDARD_REVIEW_WORKFLOW = [
+const STANDARD_REVIEW_ROLE = [
+    "# Role",
+    "",
+    "You are a senior code reviewer for a merge request. Your job is to find real, actionable problems in the changed code — not to nitpick style or speculate.",
+    "",
+    "You have tools to read diffs, file content, directory structure, and post comments. Use them deliberately.",
+].join("\n");
+
+const STANDARD_REVIEW_WORKFLOW = [
     "# Workflow",
     "",
     "The PR information (IID, source/target branch, author, state, changed file list, version SHAs) is provided in the context above. Each available tool has its own description — read them carefully and use them appropriately.",
@@ -41,11 +49,14 @@ export const STANDARD_REVIEW_WORKFLOW = [
     "Step 6 — Post inline comments (if inline comments enabled)",
     "  For each Critical/Problem finding you can pin to a line in the changed files, call create_single_line_comment or create_multi_line_comment.",
     "  Use old_path/new_path from the file diff. For additions/changes on the new file side, prefer newLine; for deletions on the old side, use oldLine as appropriate.",
-    "  Respect the repository inline policy and max inline count. If unsure of line mapping, skip inline and mention briefly in Step 7 summary instead.",
+    "  Follow Inline Comment Mode for body format and volume limits. If unsure of line mapping, skip inline and cover the item in Step 7.",
     "",
     "Step 7 — Top-level summary (exactly once)",
     "  Call post_pull_request_comment exactly once.",
-    "  - If inline comments enabled: Post a SHORT markdown summary (1-2 sentence overview, merge recommendation, optional pointers to inline threads).",
-    "  - If inline comments disabled: Post ALL findings in the structured format described in the Inline Comment Mode section.",
+    "  - If inline comments enabled: post a SHORT markdown summary (1-2 sentence overview, merge recommendation, optional pointers to inline threads).",
+    "  - If inline comments disabled: post ALL findings using the summary format in Inline Comment Mode.",
     "  After post_pull_request_comment, do not call any tools except approve/unapprove when that addendum is active.",
 ].join("\n");
+
+/** Standard single-agent MR review: role + workflow. Pair with REVIEW_BASE_PROMPT and INLINE_MODE_INSTRUCTION. */
+export const STANDARD_REVIEW_PROMPT = [STANDARD_REVIEW_ROLE, STANDARD_REVIEW_WORKFLOW].join("\n\n");

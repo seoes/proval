@@ -14,7 +14,7 @@ import type {
     GitTree,
     GitUser,
     GitRepositoryListItem,
-} from "../src/provider/types.js";
+} from "../src/git-provider/types.js";
 
 export interface TestInput {
     detail: GitPullRequest;

@@ -1,10 +1,11 @@
 import type { Context } from "hono";
-import { IssueService } from "../../module/issue/issue.service.js";
-import { PullRequestService } from "../../module/pull-request/pull-request.service.js";
-import { ForgejoProvider } from "../../provider/forgejo.js";
+import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
+import { createSender } from "../../agent/llm/factory.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
 
 // Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
@@ -102,7 +103,12 @@ type HandleForgejoPullRequestWebhook = (
     access: Access,
 ) => Promise<Response>;
 
-const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (payload, repository, modelProvider, access) => {
+const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
+    payload,
+    repository,
+    modelProvider,
+    access,
+) => {
     const action = payload.action;
 
     if (!repository.reviewOnPullRequestOpen) {
@@ -126,11 +132,12 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
 
-    const pullRequestService = new PullRequestService(
-        forgejoProvider,
-        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-        repository.language,
-    );
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
 
     const prNumber = payload.pull_request.number;
 
@@ -147,7 +154,15 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
             type: "pr_review",
             targetIid: prNumber,
         },
-        () => pullRequestService.review(prNumber, reviewOptions),
+        () =>
+            runPullRequestReview(
+                forgejoProvider,
+                llmSender,
+                prNumber,
+                reviewOptions.isInlineReview,
+                reviewOptions.isDeepResearch,
+                repository.language,
+            ),
     ).catch((error) => {
         logError("Pull request review failed", error);
     });
@@ -218,21 +233,30 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             }
         }
 
-        const pullRequestService = new PullRequestService(
-            forgejoProvider,
-            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-            repository.language,
-        );
+        const llmSender = createSender({
+            provider: modelProvider.provider,
+            apiKey: modelProvider.apiKey,
+            baseURL: modelProvider.baseUrl,
+            model: repository.modelName,
+        });
 
         runWithActivity(
             {
                 repositoryId: repository.id,
                 modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
+                modelName: repository.modelName,
                 type: "pr_reply",
                 targetIid: prNumber,
             },
-            () => pullRequestService.reply(prNumber, commenterUsername, noteBody),
+            () =>
+                runPullRequestReply(
+                    forgejoProvider,
+                    llmSender,
+                    prNumber,
+                    commenterUsername,
+                    noteBody,
+                    repository.language,
+                ),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -276,21 +300,30 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), { status: 200 });
         }
 
-        const issueService = new IssueService(
-            forgejoProvider,
-            { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-            repository.language,
-        );
+        const llmSender = createSender({
+            provider: modelProvider.provider,
+            apiKey: modelProvider.apiKey,
+            baseURL: modelProvider.baseUrl,
+            model: repository.modelName,
+        });
 
         runWithActivity(
             {
                 repositoryId: repository.id,
                 modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
+                modelName: repository.modelName,
                 type: "issue_reply",
                 targetIid: issueNumber,
             },
-            () => issueService.reply(issueNumber, commenterUsername, noteBody),
+            () =>
+                runIssueReply(
+                    forgejoProvider,
+                    llmSender,
+                    issueNumber,
+                    commenterUsername,
+                    noteBody,
+                    repository.language,
+                ),
         ).catch((error) => {
             logError("Issue reply failed", error);
         });
@@ -334,11 +367,12 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-    const issueService = new IssueService(
-        forgejoProvider,
-        { provider: modelProvider.provider, apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl, model: repository.modelName },
-        repository.language,
-    );
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
 
     runWithActivity(
         {
@@ -348,7 +382,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => issueService.commentOnOpen(issueNumber),
+        () => runIssueCommentOnOpen(forgejoProvider, llmSender, issueNumber, repository.language),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });

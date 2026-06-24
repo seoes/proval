@@ -85,11 +85,7 @@ export class ActivityService {
     }
 
     public async findById(id: number): Promise<Activity> {
-        const rows = await db
-            .select()
-            .from(activityTable)
-            .where(eq(activityTable.id, id))
-            .limit(1);
+        const rows = await db.select().from(activityTable).where(eq(activityTable.id, id)).limit(1);
 
         if (rows.length === 0) {
             throw new Error("Activity not found");

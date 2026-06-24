@@ -70,10 +70,10 @@ export function createAnthropicSender(config: AnthropicConfig): LlmSender {
                 },
                 finishReason: completion.stop_reason === "end_turn" ? "stop" : (completion.stop_reason ?? "stop"),
                 requestId: completion.id ?? null,
-                tokenUsage: {
-                    input: completion.usage?.input_tokens ?? 0,
-                    output: completion.usage?.output_tokens ?? 0,
-                    cachedInput: completion.usage?.cache_read_input_tokens ?? 0,
+                usage: {
+                    inputToken: completion.usage?.input_tokens ?? 0,
+                    outputToken: completion.usage?.output_tokens ?? 0,
+                    cachedInputToken: completion.usage?.cache_read_input_tokens ?? 0,
                 },
             };
         },
@@ -84,7 +84,7 @@ export function createAnthropicSender(config: AnthropicConfig): LlmSender {
 }
 
 function convertToAnthropicMessage(m: Message): Anthropic.Messages.MessageParam {
-    switch (m.role) {
+    switch (m.role as "user" | "assistant") {
         case "user":
             return { role: "user", content: m.content ?? "" };
         case "assistant": {
