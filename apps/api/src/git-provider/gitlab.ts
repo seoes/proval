@@ -48,7 +48,7 @@ export class GitLabProvider implements GitProvider {
         const { token, id } = await gitlab.ProjectAccessTokens.create(
             projectId,
             "Proval [BOT]",
-            ["api", "read_repository", "write_repository"],
+            ["api", "read_repository"],
             nextYearStr,
             { accessLevel: 40 }, // 40 = Maintainer
         );
