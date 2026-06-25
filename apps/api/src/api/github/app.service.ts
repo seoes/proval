@@ -4,6 +4,7 @@ import db from "../../db/index.js";
 import { githubAppTable } from "@proval/db";
 import { eq } from "drizzle-orm";
 import type { GitHubAppResponse, GitHubAppCreateInput } from "@proval/types";
+import { decrypt, encrypt } from "../../util/encrypt.js";
 
 type ManifestConversionResult = {
     id: number;
@@ -67,8 +68,8 @@ export class GitHubAppService {
             .values({
                 appId: input.appId,
                 slug,
-                privateKey: input.privateKey,
-                webhookSecret: input.webhookSecret,
+                privateKey: encrypt(input.privateKey),
+                webhookSecret: encrypt(input.webhookSecret ?? ""),
             })
             .returning({ id: githubAppTable.id });
 
@@ -101,8 +102,8 @@ export class GitHubAppService {
             .values({
                 appId: result.id,
                 slug: result.slug,
-                privateKey: result.pem,
-                webhookSecret: result.webhook_secret ?? "",
+                privateKey: encrypt(result.pem),
+                webhookSecret: encrypt(result.webhook_secret ?? ""),
             })
             .returning({ id: githubAppTable.id });
 
@@ -126,7 +127,7 @@ export class GitHubAppService {
         const app = appList[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 

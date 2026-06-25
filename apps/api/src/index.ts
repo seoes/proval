@@ -6,8 +6,13 @@ import { log, logError } from "./util/log.js";
 import pc from "picocolors";
 import { activityTable } from "@proval/db";
 import { eq } from "drizzle-orm";
+import { loadEncryptionKey } from "./util/encrypt.js";
+
+loadEncryptionKey();
 
 log(pc.bgGreen(pc.bold(" PROVAL IS RUNNING ")));
+log(pc.bgGreen(pc.bold(" ENCRYPTION KEY SET ")));
+
 if (process.env.NODE_ENV === "production") {
     try {
         migrate(db, { migrationsFolder: "./migration" });
@@ -20,7 +25,7 @@ if (process.env.NODE_ENV === "production") {
     apiApp.use("/*", serveStatic({ root: "./public" }));
     apiApp.get("*", serveStatic({ path: "./public/index.html" }));
 } else {
-    log(pc.bgGreen(pc.bold(" Development environment ")));
+    log(pc.bgBlueBright(pc.white(pc.bold(" Development environment "))));
     apiApp.get("/", (c) => {
         return c.text("Hello Hono!");
     });

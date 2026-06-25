@@ -4,6 +4,7 @@ import { eq, isNotNull } from "drizzle-orm";
 import db from "../../db/index.js";
 import { githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
 import type { GitHubInstallationResponse, GitHubRepositoryResponse } from "@proval/types";
+import { decrypt } from "../../util/encrypt.js";
 
 export class GitHubInstallationService {
     async getInstallationList(appId: number): Promise<GitHubInstallationResponse[]> {
@@ -15,7 +16,7 @@ export class GitHubInstallationService {
         const app = appList[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 
@@ -64,7 +65,7 @@ export class GitHubInstallationService {
         const app = appList[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 
@@ -114,7 +115,7 @@ export class GitHubInstallationService {
         const inst = installation[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 
@@ -165,7 +166,7 @@ export class GitHubInstallationService {
         const inst = installation[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 
@@ -204,7 +205,7 @@ export class GitHubInstallationService {
         const app = appList[0];
         const appAuth = new App({
             appId: app.appId,
-            privateKey: app.privateKey,
+            privateKey: decrypt(app.privateKey),
             Octokit,
         });
 

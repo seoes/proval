@@ -178,13 +178,13 @@
             return;
         }
 
-        if (
-            !editRepositoryId &&
-            (provider.type === "gitlab" || provider.type === "forgejo") &&
-            !webhookSecret?.trim()
-        ) {
-            await openAlert("Webhook secret is required");
-            return;
+        if (!editRepositoryId) {
+            if (provider.type === "gitlab" || provider.type === "forgejo") {
+                if (!webhookSecret?.trim()) {
+                    await openAlert("Webhook secret is required");
+                    return;
+                }
+            }
         }
 
         const body: Record<string, unknown> = {
@@ -204,10 +204,14 @@
 
         if (provider.type === "gitlab" || provider.type === "forgejo") {
             body.gitProviderAccessId = provider.accessId;
-            body.gitProviderRepositoryId = Number(selectedRepositoryId);
             if (!editRepositoryId) {
+                // new repository
                 const trimmedSecret = webhookSecret?.trim();
                 if (trimmedSecret) body.webhookSecret = trimmedSecret;
+                body.gitProviderRepositoryId = Number(selectedRepositoryId);
+            } else if (config.repositoryId !== Number(selectedRepositoryId)) {
+                // update repository
+                body.gitProviderRepositoryId = Number(selectedRepositoryId);
             }
         } else if (provider.type === "github") {
             body.githubInstallationId = provider.githubInstallationId;

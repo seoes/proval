@@ -2,6 +2,7 @@ import { gitProviderAccessTable, repositoryTable } from "@proval/db";
 import type { Access, AccessInsert, AccessProvider, AccessResponse } from "@proval/types";
 import db from "../../db";
 import { count, eq } from "drizzle-orm";
+import { decrypt, encrypt } from "../../util/encrypt.js";
 
 export class GitLabAccessService {
     private readonly query = {
@@ -43,17 +44,15 @@ export class GitLabAccessService {
     }
 
     public async getAccessToken(id: number) {
-        const access = await db
+        const [{ accessToken }] = await db
             .select({ accessToken: gitProviderAccessTable.accessToken })
             .from(gitProviderAccessTable)
             .where(eq(gitProviderAccessTable.id, id));
-        if (access.length === 0) {
+        if (!accessToken) {
             throw new Error("Access configuration not found");
         }
-        if (!access[0].accessToken) {
-            throw new Error("Access token not found");
-        }
-        return access[0].accessToken;
+
+        return decrypt(accessToken);
     }
 
     public async create(
@@ -68,7 +67,7 @@ export class GitLabAccessService {
                 provider,
                 name,
                 baseUrl,
-                accessToken,
+                accessToken: encrypt(accessToken),
             })
             .returning(this.query);
         return newAccess[0];
@@ -78,7 +77,9 @@ export class GitLabAccessService {
         const patch = {
             name,
             baseUrl,
-            ...(accessToken !== undefined && accessToken.trim() !== "" ? { accessToken: accessToken.trim() } : {}),
+            ...(accessToken !== undefined && accessToken.trim() !== ""
+                ? { accessToken: encrypt(accessToken.trim()) }
+                : {}),
         };
         const updatedAccess = await db
             .update(gitProviderAccessTable)
@@ -114,7 +115,7 @@ export class GitLabAccessService {
     public async updateAccessTokenById(id: number, accessToken: string) {
         const updatedAccess = await db
             .update(gitProviderAccessTable)
-            .set({ accessToken })
+            .set({ accessToken: encrypt(accessToken) })
             .where(eq(gitProviderAccessTable.id, id))
             .returning({ id: gitProviderAccessTable.id });
         if (updatedAccess.length === 0) {

@@ -2,6 +2,7 @@ import { gitProviderAccessTable, modelProviderTable, repositoryTable } from "@pr
 import db from "../../db/index.js";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import { decrypt } from "../../util/encrypt.js";
 
 export const loadGitLabContext = createMiddleware(async (c, next) => {
     const payload = await c.req.json();
@@ -23,7 +24,7 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
 
     const { repository, modelProvider, access } = result[0];
 
-    const secret = repository.webhookSecret.trim();
+    const secret = decrypt(repository.webhookSecret).trim();
     if (!secret) {
         return c.json({ error: "Webhook secret not configured" }, 401);
     }
@@ -31,9 +32,12 @@ export const loadGitLabContext = createMiddleware(async (c, next) => {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
-    c.set("repository", repository);
-    c.set("modelProvider", modelProvider);
+    c.set("repository", {
+        ...repository,
+        accessToken: repository.accessToken ? decrypt(repository.accessToken) : repository.accessToken,
+    });
+    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
     c.set("gitlabPayload", payload);
-    c.set("access", access);
+    c.set("access", { ...access, accessToken: decrypt(access.accessToken) });
     await next();
 });

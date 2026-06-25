@@ -3,6 +3,7 @@ import { githubAppTable, githubInstallationTable, modelProviderTable, repository
 import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import { decrypt } from "../../util/encrypt.js";
 
 function verifyGithubSignature(secret: string, rawBody: string, signatureHeader: string | undefined): boolean {
     if (!signatureHeader?.startsWith("sha256=")) {
@@ -68,13 +69,13 @@ export const loadGitHubContext = createMiddleware(async (c, next) => {
     const { repository, modelProvider, githubApp, githubInstallation } = result[0];
 
     const signature = c.req.header("X-Hub-Signature-256");
-    if (!verifyGithubSignature(githubApp.webhookSecret, rawBody, signature)) {
+    if (!verifyGithubSignature(decrypt(githubApp.webhookSecret), rawBody, signature)) {
         return c.json({ error: "Invalid webhook signature" }, 401);
     }
 
     c.set("repository", repository);
-    c.set("modelProvider", modelProvider);
-    c.set("githubApp", githubApp);
+    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
+    c.set("githubApp", { ...githubApp, privateKey: decrypt(githubApp.privateKey) });
     c.set("githubInstallation", githubInstallation);
     c.set("githubPayload", payload);
     await next();

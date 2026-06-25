@@ -211,6 +211,13 @@
       "when": 1781144328912,
       "tag": "0029_great_spacker_dave",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1782277336504,
+      "tag": "0030_adorable_power_pack",
+      "breakpoints": true
     }
   ]
 }
