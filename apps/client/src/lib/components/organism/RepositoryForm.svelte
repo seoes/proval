@@ -173,7 +173,7 @@
             return;
         }
 
-        if (isRepositoryConnected && (!editRepositoryId || config.repositoryId !== Number(selectedRepositoryId))) {
+        if (isRepositoryConnected) {
             await openAlert("This repository is already connected to Proval");
             return;
         }
