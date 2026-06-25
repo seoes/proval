@@ -44,15 +44,18 @@ export class GitLabAccessService {
     }
 
     public async getAccessToken(id: number) {
-        const [{ accessToken }] = await db
+        const [access] = await db
             .select({ accessToken: gitProviderAccessTable.accessToken })
             .from(gitProviderAccessTable)
             .where(eq(gitProviderAccessTable.id, id));
-        if (!accessToken) {
+        if (!access) {
             throw new Error("Access configuration not found");
         }
+        if (!access.accessToken) {
+            throw new Error("Access token not found");
+        }
 
-        return decrypt(accessToken);
+        return decrypt(access.accessToken);
     }
 
     public async create(
