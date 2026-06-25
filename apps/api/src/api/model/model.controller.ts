@@ -92,17 +92,28 @@ export const verifyModelProviderConfig: Handler = async (c: Context) => {
     const body = await c.req.json();
 
     const { provider, baseUrl, modelName, apiKey } = body;
+    if (!baseUrl) {
+        return c.json({ error: "Base URL is required for verification" }, 400);
+    }
+    if (!apiKey) {
+        return c.json({ error: "API key is required for verification" }, 400);
+    }
     if (!modelName) {
         return c.json({ error: "Model name is required for verification" }, 400);
     }
-    switch (provider) {
-        case "anthropic":
+    if (provider !== "anthropic" && provider !== "openai") {
+        return c.json({ error: "Invalid provider" }, 400);
+    }
+
+    try {
+        if (provider === "anthropic") {
             await service.verifyAnthropicApi(baseUrl, modelName, apiKey);
-            return c.json({ message: "Config verified" }, 200);
-        case "openai":
+        } else {
             await service.verifyOpenAiApi(baseUrl, modelName, apiKey);
-            return c.json({ message: "Config verified" }, 200);
-        default:
-            return c.json({ error: "Invalid provider" }, 400);
+        }
+        return c.json({ success: true, message: "Connection successful" }, 200);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Connection failed";
+        return c.json({ success: false, message }, 401);
     }
 };
