@@ -6,7 +6,9 @@
         ModelProviderResponse,
         ProviderOption,
         ReplyThreadPolicy,
+        RepositoryInsert,
         RepositorySelectItem,
+        RepositoryUpdateInput,
     } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
@@ -187,7 +189,7 @@
             }
         }
 
-        const body: Record<string, unknown> = {
+        const body: RepositoryUpdateInput | RepositoryInsert = {
             path,
             description: description.trim() || null,
             provider: provider.type,
@@ -207,7 +209,7 @@
             if (!editRepositoryId) {
                 // new repository
                 const trimmedSecret = webhookSecret?.trim();
-                if (trimmedSecret) body.webhookSecret = trimmedSecret;
+                if (trimmedSecret) (body as RepositoryInsert).webhookSecret = trimmedSecret;
                 body.gitProviderRepositoryId = Number(selectedRepositoryId);
             } else if (config.repositoryId !== Number(selectedRepositoryId)) {
                 // update repository

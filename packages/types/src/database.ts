@@ -50,7 +50,9 @@ export type GitHubRepositoryResponse = {
 };
 
 // Update types (for PUT - excludes sensitive fields)
-export type RepositoryUpdateInput = Partial<Omit<RepositoryInsert, "webhookSecret" | "createdAt" | "updatedAt">>;
+export type RepositoryUpdateInput = Partial<
+    Omit<RepositoryInsert, "webhookSecret" | "createdAt" | "updatedAt" | "accessToken" | "accessTokenId">
+>;
 export type ModelProviderUpdateInput = Partial<Omit<ModelProviderInsert, "apiKey" | "createdAt" | "updatedAt">>;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;
 export type GitHubAppUpdateInput = Partial<
