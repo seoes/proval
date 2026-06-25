@@ -1,12 +1,6 @@
 import type { Repository, RepositoryResponse, RepositoryInsert, RepositoryUpdateInput } from "@proval/types";
 import db from "../../db/index.js";
-import {
-    activityTable,
-    githubAppTable,
-    githubInstallationTable,
-    gitProviderAccessTable,
-    repositoryTable,
-} from "@proval/db";
+import { activityTable, githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
 import { desc, eq, getTableColumns, max } from "drizzle-orm";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
@@ -17,6 +11,7 @@ import { GitHubProvider } from "../../git-provider/github.js";
 import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import { logError } from "../../util/log.js";
+import { decrypt, encrypt } from "../../util/encrypt.js";
 
 const accessService = new GitLabAccessService();
 
@@ -62,7 +57,11 @@ export class RepositoryService {
             throw new Error("Repository not found");
         }
 
-        return { accessToken, accessTokenId };
+        return { accessToken: decrypt(accessToken), accessTokenId };
+    }
+
+    private encryptWebhookSecret(webhookSecret: string): string {
+        return encrypt(webhookSecret.trim());
     }
 
     public async create(data: RepositoryInsert): Promise<RepositoryResponse> {
@@ -71,8 +70,11 @@ export class RepositoryService {
             data.webhookSecret === undefined || data.webhookSecret === null || data.webhookSecret.trim() === "";
         const values =
             isGitHub && isWebhookSecretEmpty
-                ? { ...data, webhookSecret: generateUnusedRepositoryWebhookSecret() }
-                : data;
+                ? { ...data, webhookSecret: this.encryptWebhookSecret(generateUnusedRepositoryWebhookSecret()) }
+                : { ...data };
+        if (!isWebhookSecretEmpty && values.webhookSecret) {
+            values.webhookSecret = this.encryptWebhookSecret(values.webhookSecret);
+        }
         if (data.provider === "gitlab") {
             if (!data.gitProviderAccessId || !data.gitProviderRepositoryId) {
                 throw new Error("GitLab access ID and repository ID are required");
@@ -95,7 +97,7 @@ export class RepositoryService {
                 const [updated] = await db
                     .update(repositoryTable)
                     .set({
-                        accessToken: projectAccessToken.token,
+                        accessToken: encrypt(projectAccessToken.token),
                         accessTokenId: projectAccessToken.tokenId,
                     })
                     .where(eq(repositoryTable.id, row.id))
@@ -166,7 +168,7 @@ export class RepositoryService {
                 personalAccessToken,
                 cleanData.gitProviderRepositoryId,
             );
-            cleanData.accessToken = token;
+            cleanData.accessToken = encrypt(token);
             cleanData.accessTokenId = tokenId;
             gitLabNewProjectAccessToken = {
                 baseUrl: access.baseUrl,
@@ -242,7 +244,10 @@ export class RepositoryService {
     }
 
     public async updateWebhookSecret(repositoryId: number, webhookSecret: string): Promise<void> {
-        await db.update(repositoryTable).set({ webhookSecret }).where(eq(repositoryTable.id, repositoryId));
+        await db
+            .update(repositoryTable)
+            .set({ webhookSecret: this.encryptWebhookSecret(webhookSecret) })
+            .where(eq(repositoryTable.id, repositoryId));
     }
 
     public async updatePath(repositoryId: number, path: string): Promise<RepositoryResponse> {
@@ -266,17 +271,6 @@ export class RepositoryService {
         return this.toResponse(result[0], lastUsedAt[0].lastUsedAt);
     }
 
-    // public async getGitLabProjectAccessToken(repositoryId: number): Promise<string> {
-    //     const repository = await this.findById(repositoryId);
-    //     if (repository.provider !== "gitlab") {
-    //         throw new Error("Repository is not a GitLab repository");
-    //     }
-    //     if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
-    //         throw new Error("GitLab repository is missing access or project id");
-    //     }
-
-    // }
-
     public async refreshPathFromGitProvider(repositoryId: number): Promise<string> {
         const repository = await this.findById(repositoryId);
 
@@ -293,7 +287,7 @@ export class RepositoryService {
                 throw new Error("GitLab repository is missing access token");
             }
             const access = await accessService.findById(repository.gitProviderAccessId);
-            gitProvider = new GitLabProvider(access.baseUrl, accessToken, repository.gitProviderRepositoryId);
+            gitProvider = new GitLabProvider(access.baseUrl, decrypt(accessToken), repository.gitProviderRepositoryId);
         } else if (repository.provider === "forgejo") {
             if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
                 throw new Error("Forgejo repository is missing access or repository id");
@@ -323,7 +317,7 @@ export class RepositoryService {
             const { app, installation } = row[0];
             const githubApp = new App({
                 appId: app.appId,
-                privateKey: app.privateKey,
+                privateKey: decrypt(app.privateKey),
                 Octokit,
             });
             const octokit = await githubApp.getInstallationOctokit(installation.installationId);
@@ -359,24 +353,18 @@ export class RepositoryService {
         const respository = await this.findById(id);
         if (respository.provider === "gitlab") {
             try {
-                const [{ personalAccessToken, projectAccessTokenId, gitlabRepositoryId, baseUrl }] = await db
-                    .select({
-                        personalAccessToken: gitProviderAccessTable.accessToken,
-                        projectAccessTokenId: repositoryTable.accessTokenId,
-                        gitlabRepositoryId: repositoryTable.gitProviderRepositoryId,
-                        baseUrl: gitProviderAccessTable.baseUrl,
-                    })
-                    .from(gitProviderAccessTable)
-                    .innerJoin(repositoryTable, eq(gitProviderAccessTable.id, repositoryTable.gitProviderAccessId))
-                    .where(eq(repositoryTable.id, id));
-                if (!personalAccessToken || !projectAccessTokenId || !gitlabRepositoryId || !baseUrl) {
+                if (respository.gitProviderAccessId == null || respository.gitProviderRepositoryId == null) {
                     throw new Error("GitLab repository is missing access or project id");
                 }
 
+                const personalAccessToken = await accessService.getAccessToken(respository.gitProviderAccessId);
+                const { accessTokenId: projectAccessTokenId } = await this.getGitLabProjectAccessToken(id);
+                const access = await accessService.findById(respository.gitProviderAccessId);
+
                 await GitLabProvider.removeProjectAccessToken(
-                    baseUrl,
+                    access.baseUrl,
                     personalAccessToken,
-                    gitlabRepositoryId,
+                    respository.gitProviderRepositoryId,
                     projectAccessTokenId,
                 );
             } catch (error) {

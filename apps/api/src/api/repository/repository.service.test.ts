@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Repository } from "@proval/types";
 
+process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+
 const insertReturningMock = mock<() => Promise<Repository[]>>(() => Promise.resolve([]));
 const insertValuesMock = mock((values: unknown) => ({
     returning: insertReturningMock,
@@ -83,6 +85,7 @@ mock.module("../../git-provider/gitlab.js", () => ({
 }));
 
 const { RepositoryService } = await import("./repository.service.js");
+const { decrypt } = await import("../../util/encrypt.js");
 
 function makeRepositoryRow(overrides: Partial<Repository> = {}): Repository {
     return {
@@ -160,14 +163,20 @@ describe("Create GitLab Repository", () => {
             });
 
             expect(insertValuesMock).toHaveBeenCalledTimes(1);
-            expect(insertValuesMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    accessToken: null,
-                    accessTokenId: null,
-                    gitProviderAccessId: 1,
-                    gitProviderRepositoryId: 100,
-                }),
-            );
+            const insertValues = insertValuesMock.mock.calls[0][0] as {
+                accessToken: null;
+                accessTokenId: null;
+                gitProviderAccessId: number;
+                gitProviderRepositoryId: number;
+                webhookSecret: string;
+            };
+            expect(insertValues).toMatchObject({
+                accessToken: null,
+                accessTokenId: null,
+                gitProviderAccessId: 1,
+                gitProviderRepositoryId: 100,
+            });
+            expect(decrypt(insertValues.webhookSecret)).toBe("webhook-secret");
 
             expect(createProjectAccessTokenMock).toHaveBeenCalledTimes(1);
             expect(createProjectAccessTokenMock).toHaveBeenCalledWith(
@@ -177,10 +186,12 @@ describe("Create GitLab Repository", () => {
             );
 
             expect(updateSetMock).toHaveBeenCalledTimes(1);
-            expect(updateSetMock).toHaveBeenCalledWith({
-                accessToken: "glpat-project-new",
-                accessTokenId: 99,
-            });
+            const updateValues = updateSetMock.mock.calls[0][0] as {
+                accessToken: string;
+                accessTokenId: number;
+            };
+            expect(decrypt(updateValues.accessToken)).toBe("glpat-project-new");
+            expect(updateValues.accessTokenId).toBe(99);
             expect(deleteMock).not.toHaveBeenCalled();
 
             expect(result).toEqual(
@@ -259,15 +270,20 @@ describe("Update GitLab Repository", () => {
                 200,
             );
 
-            expect(updateSetMock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    accessToken: "glpat-project-new",
-                    accessTokenId: 99,
-                    gitProviderRepositoryId: 200,
-                    path: "group/new-repo",
-                    language: "Korean",
-                }),
-            );
+            const updateValues = updateSetMock.mock.calls[0][0] as {
+                accessToken: string;
+                accessTokenId: number;
+                gitProviderRepositoryId: number;
+                path: string;
+                language: string;
+            };
+            expect(decrypt(updateValues.accessToken)).toBe("glpat-project-new");
+            expect(updateValues).toMatchObject({
+                accessTokenId: 99,
+                gitProviderRepositoryId: 200,
+                path: "group/new-repo",
+                language: "Korean",
+            });
 
             expect(removeProjectAccessTokenMock).toHaveBeenCalledWith(
                 "https://gitlab.example.com",

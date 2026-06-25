@@ -11,6 +11,7 @@ import { count, eq } from "drizzle-orm";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { log } from "../../util/log.js";
+import { decrypt, encrypt } from "../../util/encrypt.js";
 
 export class ModelProviderService {
     public async findAll(): Promise<ModelProvider[]> {
@@ -26,7 +27,10 @@ export class ModelProviderService {
     }
 
     public async create(data: ModelProviderInsert): Promise<ModelProvider> {
-        const result = await db.insert(modelProviderTable).values(data).returning();
+        const result = await db
+            .insert(modelProviderTable)
+            .values({ ...data, apiKey: encrypt(data.apiKey) })
+            .returning();
         return result[0];
     }
 
@@ -44,7 +48,10 @@ export class ModelProviderService {
     }
 
     public async updateApiKey(modelProviderId: number, apiKey: string): Promise<void> {
-        await db.update(modelProviderTable).set({ apiKey }).where(eq(modelProviderTable.id, modelProviderId));
+        await db
+            .update(modelProviderTable)
+            .set({ apiKey: encrypt(apiKey) })
+            .where(eq(modelProviderTable.id, modelProviderId));
     }
 
     public toResponse(modelProvider: ModelProvider): ModelProviderResponse {
@@ -79,7 +86,7 @@ export class ModelProviderService {
         }
 
         try {
-            const client = new OpenAI({ apiKey: modelProvider.apiKey, baseURL: modelProvider.baseUrl });
+            const client = new OpenAI({ apiKey: decrypt(modelProvider.apiKey), baseURL: modelProvider.baseUrl });
             const page = await client.models.list();
             const models = page.data.map((m) => ({ id: m.id }));
             return { models, source: "openai_compatible" };

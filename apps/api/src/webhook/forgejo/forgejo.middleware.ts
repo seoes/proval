@@ -3,6 +3,7 @@ import { gitProviderAccessTable, modelProviderTable, repositoryTable } from "@pr
 import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import { decrypt } from "../../util/encrypt.js";
 
 function verifyForgejoSignature(secret: string, rawBody: string, signatureHeader: string | undefined): boolean {
     if (!signatureHeader) {
@@ -56,7 +57,7 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
 
     const { repository, modelProvider, access } = result[0];
 
-    const secret = repository.webhookSecret.trim();
+    const secret = decrypt(repository.webhookSecret).trim();
     if (!secret) {
         return c.json({ error: "Webhook secret not configured" }, 401);
     }
@@ -66,8 +67,8 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
     }
 
     c.set("repository", repository);
-    c.set("modelProvider", modelProvider);
-    c.set("access", access);
+    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
+    c.set("access", { ...access, accessToken: decrypt(access.accessToken) });
     c.set("forgejoPayload", payload);
     await next();
 });
