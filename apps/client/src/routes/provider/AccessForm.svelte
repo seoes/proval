@@ -47,7 +47,7 @@
     );
     const accessFormTokenDescription = $derived(
         formProvider === "gitlab"
-            ? "Personal or project token with api scope"
+            ? "Personal access token with api scope (Not project access token)"
             : "Personal access token with API scope (e.g. read_api, write_repository)",
     );
     const accessFormBaseUrlDescription = $derived(

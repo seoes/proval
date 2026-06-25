@@ -201,7 +201,7 @@
     const patchSecretTokenDescription = $derived(
         selectedAccessProvider === "forgejo"
             ? "Personal access token with API scope (e.g. read_api, write_repository)"
-            : "Personal or project token with api scope",
+            : "Personal access token with api scope (Not project access token)",
     );
 </script>
 
