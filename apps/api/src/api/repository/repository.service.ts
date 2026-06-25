@@ -350,21 +350,21 @@ export class RepositoryService {
     }
 
     public async remove(id: number): Promise<void> {
-        const respository = await this.findById(id);
-        if (respository.provider === "gitlab") {
+        const repository = await this.findById(id);
+        if (repository.provider === "gitlab") {
             try {
-                if (respository.gitProviderAccessId == null || respository.gitProviderRepositoryId == null) {
+                if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
                     throw new Error("GitLab repository is missing access or project id");
                 }
 
-                const personalAccessToken = await accessService.getAccessToken(respository.gitProviderAccessId);
+                const personalAccessToken = await accessService.getAccessToken(repository.gitProviderAccessId);
                 const { accessTokenId: projectAccessTokenId } = await this.getGitLabProjectAccessToken(id);
-                const access = await accessService.findById(respository.gitProviderAccessId);
+                const access = await accessService.findById(repository.gitProviderAccessId);
 
                 await GitLabProvider.removeProjectAccessToken(
                     access.baseUrl,
                     personalAccessToken,
-                    respository.gitProviderRepositoryId,
+                    repository.gitProviderRepositoryId,
                     projectAccessTokenId,
                 );
             } catch (error) {
