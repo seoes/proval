@@ -204,12 +204,14 @@
 
         if (provider.type === "gitlab" || provider.type === "forgejo") {
             body.gitProviderAccessId = provider.accessId;
-            if (editRepositoryId !== Number(selectedRepositoryId)) {
-                body.gitProviderRepositoryId = Number(selectedRepositoryId);
-            }
             if (!editRepositoryId) {
+                // new repository
                 const trimmedSecret = webhookSecret?.trim();
                 if (trimmedSecret) body.webhookSecret = trimmedSecret;
+                body.gitProviderRepositoryId = Number(selectedRepositoryId);
+            } else if (config.repositoryId !== Number(selectedRepositoryId)) {
+                // update repository
+                body.gitProviderRepositoryId = Number(selectedRepositoryId);
             }
         } else if (provider.type === "github") {
             body.githubInstallationId = provider.githubInstallationId;
