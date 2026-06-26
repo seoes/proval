@@ -19,14 +19,19 @@ export function getMergeFileContentTool(
             try {
                 lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
             } catch (error) {
-                if (error instanceof Error && error.message.includes("404")) {
-                    const errorMessage =
-                        commit === "base"
-                            ? "File not found at base commit, This path is likely new in this change. Try checking the head commit instead."
-                            : "File not found at head commit, This path is likely deleted in this change. Try checking the base commit instead.";
-                    return {
-                        error: errorMessage,
-                    };
+                if (typeof error === "object") {
+                    const status =
+                        (error as { status?: unknown })?.status ??
+                        (error as { response?: { status?: unknown } })?.response?.status;
+                    if (status === 404) {
+                        const errorMessage =
+                            commit === "base"
+                                ? "File not found at base commit, This path is likely new in this change. Try checking the head commit instead."
+                                : "File not found at head commit, This path is likely deleted in this change. Try checking the base commit instead.";
+                        return {
+                            error: errorMessage,
+                        };
+                    }
                 }
                 throw error;
             }
