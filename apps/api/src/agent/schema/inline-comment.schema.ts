@@ -2,9 +2,6 @@ import { z } from "zod";
 import { reviewFindingSchemaForLanguage } from "./review.schema";
 
 const singleLinePositionSchema = z.object({
-    baseSha: z.string(),
-    headSha: z.string(),
-    startSha: z.string(),
     oldPath: z.string(),
     newPath: z.string(),
     newLine: z.number().optional().describe("1-based line on the new file."),
@@ -18,9 +15,6 @@ const multiLineEndpointSchema = z.object({
 });
 
 const multiLinePositionSchema = z.object({
-    baseSha: z.string(),
-    headSha: z.string(),
-    startSha: z.string(),
     oldPath: z.string(),
     newPath: z.string(),
     start: multiLineEndpointSchema,

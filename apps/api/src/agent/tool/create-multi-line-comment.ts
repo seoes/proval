@@ -4,7 +4,14 @@ import { buildCommentToolLanguageNote } from "../prompt/index.js";
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
 import { createMultiLineCommentInputSchema } from "../schema/inline-comment.schema.js";
 
-export function createMultiLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
+export function createMultiLineCommentTool(
+    provider: GitProvider,
+    prIid: number,
+    language: string,
+    baseSha: string,
+    headSha: string,
+    startSha: string,
+): AgentTool {
     return {
         name: "create_multi_line_comment",
         description: [
@@ -15,7 +22,6 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number,
             "Provide start and end positions where each has a side (new/old) and the matching line number; start must come before end on the same side.",
             "Prefer covering additions/changes on the new side (type='new' with newLine).",
             "Use type='old' only for pure deletions on the old side.",
-            "Use baseSha/startSha/headSha.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
         parameters: createMultiLineCommentInputSchema(language).toJSONSchema(),
@@ -54,9 +60,9 @@ export function createMultiLineCommentTool(provider: GitProvider, prIid: number,
             }
 
             const comment = await provider.createCommentToMultiLine(prIid, body, {
-                baseSha: position.baseSha,
-                headSha: position.headSha,
-                startSha: position.startSha,
+                baseSha,
+                headSha,
+                startSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
                 start: position.start,

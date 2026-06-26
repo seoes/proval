@@ -141,10 +141,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const prNumber = payload.pull_request.number;
 
-    const reviewOptions = {
-        isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnPullRequest,
-    };
+    const isInlineReview = repository.inlineReview;
+    const isDeepResearch = repository.deepResearchOnPullRequest;
+    const language = repository.language;
 
     runWithActivity(
         {
@@ -155,14 +154,14 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
             targetIid: prNumber,
         },
         () =>
-            runPullRequestReview(
-                forgejoProvider,
+            runPullRequestReview({
+                provider: forgejoProvider,
                 llmSender,
-                prNumber,
-                reviewOptions.isInlineReview,
-                reviewOptions.isDeepResearch,
-                repository.language,
-            ),
+                prIid: prNumber,
+                isInlineReview,
+                isDeepResearch,
+                language,
+            }),
     ).catch((error) => {
         logError("Pull request review failed", error);
     });

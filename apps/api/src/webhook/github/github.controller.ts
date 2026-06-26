@@ -119,6 +119,9 @@ async function handlePullRequestWebhook(
         model: repository.modelName,
     });
 
+    const isInlineReview = repository.inlineReview;
+    const isDeepResearch = repository.deepResearchOnPullRequest;
+
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -128,14 +131,14 @@ async function handlePullRequestWebhook(
             targetIid: prNumber,
         },
         () =>
-            runPullRequestReview(
-                gitHubProvider,
+            runPullRequestReview({
+                provider: gitHubProvider,
                 llmSender,
-                prNumber,
-                repository.inlineReview,
-                repository.deepResearchOnPullRequest,
-                repository.language,
-            ),
+                prIid: prNumber,
+                isInlineReview,
+                isDeepResearch,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Pull request review failed", error);
     });

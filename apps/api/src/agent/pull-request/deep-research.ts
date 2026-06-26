@@ -21,27 +21,27 @@ import {
     createMultiLineCommentTool,
     createSingleLineCommentTool,
     getDirectoryTreeTool,
-    getFileContentTool,
     getFileDiffTool,
     postPullRequestCommentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
     skipFileTool,
+    getMergeFileContentTool,
 } from "../tool";
+import type { PullRequestReview } from ".";
 
-export async function runDeepResearchReview(
-    provider: GitProvider,
-    llmSender: LlmSender,
-    prIid: number,
-    isInlineReview: boolean,
-    language: string,
-): Promise<ActivityTokenUsage> {
-    const { sourceBranch } = await provider.fetchPullRequestDetail(prIid);
-
+export const runDeepResearchReview: PullRequestReview = async ({
+    provider,
+    llmSender,
+    prIid,
+    isInlineReview,
+    language,
+}) => {
+    const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
     const prompt = await generatePullRequestPrompt(provider, prIid);
 
     // Step 1: Plan
-    const planResult = await runDeepResearchPlan(provider, llmSender, prompt, prIid, sourceBranch);
+    const planResult = await runDeepResearchPlan(provider, llmSender, prompt, prIid, baseSha, headSha);
 
     // Step 2: Review
     const subAgentResultList = await Promise.all(
@@ -51,7 +51,8 @@ export async function runDeepResearchReview(
                 llmSender,
                 prompt,
                 prIid,
-                sourceBranch,
+                baseSha,
+                headSha,
                 reviewUnit,
                 index + 1,
                 planResult.reviewUnitList.length,
@@ -65,7 +66,9 @@ export async function runDeepResearchReview(
         llmSender,
         prompt,
         prIid,
-        sourceBranch,
+        baseSha,
+        headSha,
+        startSha,
         subAgentResultList.map((result) => result.finalMessage),
         isInlineReview,
         language,
@@ -85,14 +88,15 @@ export async function runDeepResearchReview(
             subAgentResultList.reduce((acc, curr) => acc + curr.cachedInputToken, 0) +
             writingResult.cachedInputToken,
     };
-}
+};
 
 async function runDeepResearchPlan(
     provider: GitProvider,
     sender: LlmSender,
     pullRequestContextPrompt: string,
     prIid: number,
-    sourceBranch: string,
+    baseSha: string,
+    headSha: string,
 ): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
@@ -100,10 +104,10 @@ async function runDeepResearchPlan(
     const system = [DEEP_REVIEW_PLAN, FILE_COVERAGE_RULE].join("\n\n");
     const toolList = [
         getFileDiffTool(provider, prIid),
-        searchCodeListTool(provider, sourceBranch),
-        searchLineByKeywordTool(provider, sourceBranch),
-        getDirectoryTreeTool(provider, sourceBranch),
-        getFileContentTool(provider, sourceBranch),
+        searchCodeListTool(provider, headSha),
+        searchLineByKeywordTool(provider, headSha),
+        getDirectoryTreeTool(provider, headSha),
+        getMergeFileContentTool(provider, { baseSha, headSha }),
         appendReviewUnitTool(reviewUnitList),
         skipFileTool(skippedFileList),
     ];
@@ -123,7 +127,8 @@ async function runDeepResearchSubAgent(
     sender: LlmSender,
     pullRequestContextPrompt: string,
     prIid: number,
-    sourceBranch: string,
+    baseSha: string,
+    headSha: string,
     reviewUnit: ReviewUnit,
     index: number,
     totalIndex: number,
@@ -132,10 +137,10 @@ async function runDeepResearchSubAgent(
     const prompt = [pullRequestContextPrompt, `review unit: ${JSON.stringify(reviewUnit)}`].join("\n\n");
     const toolList = [
         getFileDiffTool(provider, prIid),
-        searchCodeListTool(provider, sourceBranch),
-        searchLineByKeywordTool(provider, sourceBranch),
-        getDirectoryTreeTool(provider, sourceBranch),
-        getFileContentTool(provider, sourceBranch),
+        searchCodeListTool(provider, headSha),
+        searchLineByKeywordTool(provider, headSha),
+        getDirectoryTreeTool(provider, headSha),
+        getMergeFileContentTool(provider, { baseSha, headSha }),
     ];
     const result = await runAgentLoop(
         sender,
@@ -160,7 +165,9 @@ async function runDeepResearchWriting(
     sender: LlmSender,
     pullRequestContextPrompt: string,
     prIid: number,
-    sourceBranch: string,
+    baseSha: string,
+    headSha: string,
+    startSha: string,
     reviewResultList: string[],
     isInlineReview: boolean,
     language: string,
@@ -179,13 +186,13 @@ async function runDeepResearchWriting(
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Deep Research Writing`, {
         toolList: [
             getFileDiffTool(provider, prIid),
-            searchCodeListTool(provider, sourceBranch),
-            searchLineByKeywordTool(provider, sourceBranch),
-            getDirectoryTreeTool(provider, sourceBranch),
-            getFileContentTool(provider, sourceBranch),
+            searchCodeListTool(provider, headSha),
+            searchLineByKeywordTool(provider, headSha),
+            getDirectoryTreeTool(provider, headSha),
+            getMergeFileContentTool(provider, { baseSha, headSha }),
             postPullRequestCommentTool(provider, prIid, language),
-            isInlineReview ? createSingleLineCommentTool(provider, prIid, language) : null,
-            isInlineReview ? createMultiLineCommentTool(provider, prIid, language) : null,
+            isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
+            isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],
     });
 

@@ -1,39 +1,22 @@
 import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
-
-const MAX_LINES = 300;
+import { FILE_CONTENT_MAX_LINES, getFileContentInputSchema } from "../schema/get-file-content.schema.js";
 
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_file_content",
-        description: `Read file content from the PR source branch (ref: ${ref}). At most ${MAX_LINES} lines per call. For files over ${MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
-        parameters: {
-            type: "object",
-            properties: {
-                filePath: { type: "string", description: "Repository-relative path to the file." },
-                fromLine: {
-                    type: "number",
-                    description: `First line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
-                },
-                toLine: {
-                    type: "number",
-                    description: `Last line to include (1-based). Use only when file is over ${MAX_LINES} lines.`,
-                },
-            },
-            required: ["filePath"],
-        },
+        description: `Read file content from specific commit (ref: ${ref}). At most ${FILE_CONTENT_MAX_LINES} lines per call. For files over ${FILE_CONTENT_MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
+        parameters: getFileContentInputSchema.toJSONSchema(),
         execute: async (args) => {
-            const filePath = String(args.filePath);
-            const fromLine = args.fromLine != null ? Math.max(1, Math.floor(Number(args.fromLine))) : undefined;
-            const toLine = args.toLine != null ? Math.max(1, Math.floor(Number(args.toLine))) : undefined;
+            const { filePath, fromLine, toLine } = getFileContentInputSchema.parse(args);
 
             const lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
 
             if (fromLine === undefined && toLine === undefined) {
-                if (lines.length <= MAX_LINES) return lines.join("\n");
+                if (lines.length <= FILE_CONTENT_MAX_LINES) return lines.join("\n");
                 return {
-                    warning: `File is too large (${lines.length} lines). Showing first ${MAX_LINES} lines. Use 'fromLine' and 'toLine' to read large file.`,
-                    content: lines.slice(0, MAX_LINES).join("\n"),
+                    warning: `File is too large (${lines.length} lines). Showing first ${FILE_CONTENT_MAX_LINES} lines. Use 'fromLine' and 'toLine' to read large file.`,
+                    content: lines.slice(0, FILE_CONTENT_MAX_LINES).join("\n"),
                     totalLines: lines.length,
                 };
             }
@@ -45,9 +28,9 @@ export function getFileContentTool(provider: GitProvider, ref: string): AgentToo
 
             to = Math.min(to, lines.length);
             let warning: string | undefined;
-            if (to - from + 1 > MAX_LINES) {
-                to = from + MAX_LINES - 1;
-                warning = `Line range exceeds ${MAX_LINES} lines. Showing ${from}-${to}.`;
+            if (to - from + 1 > FILE_CONTENT_MAX_LINES) {
+                to = from + FILE_CONTENT_MAX_LINES - 1;
+                warning = `Line range exceeds ${FILE_CONTENT_MAX_LINES} lines. Showing ${from}-${to}.`;
             }
 
             const content = lines.slice(from - 1, to).join("\n");
