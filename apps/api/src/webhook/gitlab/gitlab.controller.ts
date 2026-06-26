@@ -87,7 +87,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     access,
 ) => {
     const project = payload.project;
-    const token = repository.accessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -120,10 +120,8 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
-    const reviewOptions = {
-        isInlineReview: repository.inlineReview,
-        isDeepResearch: repository.deepResearchOnPullRequest,
-    };
+    const isInlineReview = repository.inlineReview;
+    const isDeepResearch = repository.deepResearchOnPullRequest;
 
     runWithActivity(
         {
@@ -134,14 +132,14 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
             targetIid: pullRequest.iid,
         },
         () =>
-            runPullRequestReview(
-                gitlabProvider,
+            runPullRequestReview({
+                provider: gitlabProvider,
                 llmSender,
-                pullRequest.iid,
-                reviewOptions.isInlineReview,
-                reviewOptions.isDeepResearch,
-                repository.language,
-            ),
+                prIid: pullRequest.iid,
+                isInlineReview,
+                isDeepResearch,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Pull request review failed", error);
     });
@@ -170,7 +168,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     }
 
     const project = payload.project;
-    const token = repository.accessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -245,7 +243,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const project = payload.project;
-    const token = repository.accessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -302,7 +300,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const project = payload.project;
-    const token = repository.accessToken;
+    const token = access.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,

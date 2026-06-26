@@ -5,7 +5,14 @@ import { buildCommentToolLanguageNote } from "../prompt/index.js";
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
 import { createSingleLineCommentInputSchema } from "../schema/inline-comment.schema.js";
 
-export function createSingleLineCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
+export function createSingleLineCommentTool(
+    provider: GitProvider,
+    prIid: number,
+    language: string,
+    baseSha: string,
+    headSha: string,
+    startSha: string,
+): AgentTool {
     return {
         name: "create_single_line_comment",
         description: [
@@ -15,7 +22,6 @@ export function createSingleLineCommentTool(provider: GitProvider, prIid: number
             "Paths must match the diff (old_path/new_path).",
             "Prefer newLine for additions/changes on the new file.",
             "Use oldLine for pure deletions on the old side.",
-            "Use baseSha/startSha/headSha.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
         parameters: createSingleLineCommentInputSchema(language).toJSONSchema(),
@@ -25,9 +31,9 @@ export function createSingleLineCommentTool(provider: GitProvider, prIid: number
             const body = formatReviewFindingCommentBody(finding);
 
             const comment = await provider.createCommentToSingleLine(prIid, body, {
-                baseSha: position.baseSha,
-                headSha: position.headSha,
-                startSha: position.startSha,
+                baseSha,
+                headSha,
+                startSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
                 newLine: position.newLine,

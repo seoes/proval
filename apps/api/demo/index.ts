@@ -152,7 +152,14 @@ async function main() {
     log(`running ${pc.bold(scenarioKey)} (${pc.yellow(entry.mode)})`, "demo");
 
     if (entry.mode === "review") {
-        await runPullRequestReview(provider, llmSender, 1, false, false, language);
+        await runPullRequestReview({
+            provider,
+            llmSender,
+            prIid: 1,
+            isInlineReview: false,
+            isDeepResearch: false,
+            language,
+        });
     } else {
         await runPullRequestReply(provider, llmSender, 1, entry.commenter, entry.comment, language);
     }

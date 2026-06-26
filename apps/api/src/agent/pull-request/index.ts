@@ -5,18 +5,24 @@ import type { ActivityTokenUsage } from "@proval/types";
 import { runDeepResearchReview } from "./deep-research.js";
 import { runStandardReview } from "./standard.js";
 
-export async function runPullRequestReview(
-    provider: GitProvider,
-    llmSender: LlmSender,
-    prIid: number,
-    isInlineReview: boolean,
-    isDeepResearch: boolean,
-    language: string,
+type PullRequestReviewParams = {
+    provider: GitProvider;
+    llmSender: LlmSender;
+    prIid: number;
+    isInlineReview: boolean;
+    language: string;
+};
+
+export type PullRequestReview = (params: PullRequestReviewParams) => Promise<ActivityTokenUsage>;
+
+export function runPullRequestReview(
+    params: PullRequestReviewParams & { isDeepResearch: boolean },
 ): Promise<ActivityTokenUsage> {
+    const { isDeepResearch, ...reviewParams } = params;
     if (isDeepResearch) {
-        return runDeepResearchReview(provider, llmSender, prIid, isInlineReview, language);
+        return runDeepResearchReview(reviewParams);
     } else {
-        return runStandardReview(provider, llmSender, prIid, isInlineReview, language);
+        return runStandardReview(reviewParams);
     }
 }
 

@@ -1,6 +1,4 @@
-import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../../git-provider/types";
-import { runAgentLoop, type LlmSender } from "../llm/loop";
+import { runAgentLoop } from "../llm/loop";
 import {
     COMMENT_LANGUAGE_RULE,
     FILE_COVERAGE_RULE,
@@ -12,23 +10,23 @@ import {
     createMultiLineCommentTool,
     createSingleLineCommentTool,
     getDirectoryTreeTool,
-    getFileContentTool,
     getFileDiffTool,
+    getMergeFileContentTool,
     postPullRequestCommentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
 } from "../tool";
 import { generatePullRequestPrompt } from "./prompt";
+import type { PullRequestReview } from ".";
 
-export async function runStandardReview(
-    provider: GitProvider,
-    llmSender: LlmSender,
-    prIid: number,
-    isInlineReview: boolean,
-    language: string,
-): Promise<ActivityTokenUsage> {
-    const { sourceBranch } = await provider.fetchPullRequestDetail(prIid);
-
+export const runStandardReview: PullRequestReview = async ({
+    provider,
+    llmSender,
+    prIid,
+    isInlineReview,
+    language,
+}) => {
+    const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
     const system = [
         STANDARD_REVIEW_PROMPT,
         FILE_COVERAGE_RULE,
@@ -41,16 +39,16 @@ export async function runStandardReview(
     const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Standard Review`, {
         toolList: [
             getFileDiffTool(provider, prIid),
-            searchCodeListTool(provider, sourceBranch),
-            searchLineByKeywordTool(provider, sourceBranch),
-            getDirectoryTreeTool(provider, sourceBranch),
-            getFileContentTool(provider, sourceBranch),
+            searchCodeListTool(provider, headSha),
+            searchLineByKeywordTool(provider, headSha),
+            getDirectoryTreeTool(provider, headSha),
+            getMergeFileContentTool(provider, { baseSha, headSha }),
             postPullRequestCommentTool(provider, prIid, language),
-            isInlineReview ? createSingleLineCommentTool(provider, prIid, language) : null,
-            isInlineReview ? createMultiLineCommentTool(provider, prIid, language) : null,
+            isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
+            isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],
         maxSteps: 200,
     });
 
     return result.usage;
-}
+};

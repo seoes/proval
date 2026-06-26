@@ -10,7 +10,7 @@ export const DEEP_REVIEW_PLAN = [
     "",
     "# Phases",
     "",
-    "Phase A — Orient: use get_directory_tree and get_file_content as needed to understand architecture, data flow, and dependencies.",
+    "Phase A — Orient: use get_directory_tree and get_merge_file_content as needed to understand architecture, data flow, and dependencies.",
     "Phase B — Relate: read diffs with get_file_diff and understand how changed files connect.",
     "Phase C — Register: for each logical group, call append_review_unit once with files, name, and description.",
     "Phase D — Skip: for each changed file that should not be reviewed, call skip_file with a clear reason.",

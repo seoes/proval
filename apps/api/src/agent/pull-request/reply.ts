@@ -5,8 +5,8 @@ import { PR_REPLY_BODY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../prompt";
 import {
     getDirectoryTreeTool,
-    getFileContentTool,
     getFileDiffTool,
+    getMergeFileContentTool,
     getPullRequestDetailTool,
     postPullRequestReplyTool,
     searchCodeListTool,
@@ -21,17 +21,17 @@ export async function runPullRequestReply(
     commentBody: string,
     language: string,
 ): Promise<ActivityTokenUsage> {
-    const { sourceBranch } = await provider.fetchPullRequestDetail(prIid);
+    const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
     const commentList = await provider.fetchPullRequestCommentList(prIid);
     const system = [PR_REPLY_BODY, COMMENT_LANGUAGE_RULE].join("\n");
     const prompt = `Commenter Username: ${commenterUsername}, Comment Body: ${commentBody}, Comment List: ${JSON.stringify(commentList)}`;
     const toolList = [
         getPullRequestDetailTool(provider, prIid),
         getFileDiffTool(provider, prIid),
-        searchCodeListTool(provider, sourceBranch),
-        searchLineByKeywordTool(provider, sourceBranch),
-        getDirectoryTreeTool(provider, sourceBranch),
-        getFileContentTool(provider, sourceBranch),
+        searchCodeListTool(provider, headSha),
+        searchLineByKeywordTool(provider, headSha),
+        getDirectoryTreeTool(provider, headSha),
+        getMergeFileContentTool(provider, { baseSha, headSha }),
         postPullRequestReplyTool(provider, prIid, commenterUsername, language),
     ];
 
