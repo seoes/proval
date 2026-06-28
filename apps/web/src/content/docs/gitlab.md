@@ -13,7 +13,7 @@ Connect GitLab to Proval with a personal access token, the Proval dashboard form
 ## Prerequisites
 
 - [Quick Start](/docs/quick-start) completed. Proval is running
-- A [model configured](/docs/set-llm) in Proval
+- A [model provider configured](/docs/set-llm) in Proval
 - GitLab can reach Proval on port **7901** ([Network](/docs/quick-start#network))
 
 ## Step 1: Personal access token

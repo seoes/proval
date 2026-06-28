@@ -4,7 +4,7 @@ description: "Run a local llama.cpp server for Proval."
 order: 6
 ---
 
-[llama.cpp](https://github.com/ggml-org/llama.cpp) can serve a local model with an **OpenAI-compatible** HTTP API. This guide covers starting the server. To add the model in Proval, follow [Set LLM](/docs/set-llm).
+[llama.cpp](https://github.com/ggml-org/llama.cpp) can serve a local model with an **OpenAI-compatible** HTTP API. This guide covers starting the server. To add the model provider in Proval, follow [Set LLM](/docs/set-llm).
 
 ## Prerequisites
 
@@ -44,5 +44,5 @@ In Proval, set **Base URL** to `http://<llm-host>:8080/v1`. See [Set LLM](/docs/
 
 ## What's next
 
-- [Set LLM](/docs/set-llm): add the model in Proval
+- [Set LLM](/docs/set-llm): add the model provider in Proval
 - [GitLab](/docs/gitlab) · [Forgejo](/docs/forgejo) · [GitHub](/docs/github): connect a repository
