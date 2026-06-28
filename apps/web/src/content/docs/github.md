@@ -68,7 +68,7 @@ Review permissions on GitHub and click **Create GitHub App**. You return to Prov
 
 1. **Repositories** → **Add repository**
 2. Select your GitHub installation and repository
-3. Configure model and review settings. No webhook secret needed
+3. Configure model provider and review settings. No webhook secret needed
 4. **Create**
 
 ---
