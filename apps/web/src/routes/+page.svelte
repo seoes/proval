@@ -122,7 +122,7 @@
             id: "dashboard",
             label: "Dashboard",
             frame: "proval.local",
-            caption: "Every review run, model, and connected repository in one place.",
+            caption: "Every review run, model provider, and connected repository in one place.",
         },
         {
             id: "setup",
@@ -193,7 +193,7 @@ volumes:
 <section class="overflow-hidden border-b border-neutral-200 bg-white">
     <Container wide class="pt-20 pb-16 text-center md:pt-28 md:pb-24">
         <!-- <Eyebrow>Privacy-first review automation</Eyebrow> -->
-        <Eyebrow>Your Code, Your Model</Eyebrow>
+        <Eyebrow>Your Code, Your Model Provider</Eyebrow>
         <h1
             class="mx-auto mt-5 max-w-4xl text-4xl leading-tight font-semibold tracking-[-0.045em] text-neutral-950 md:text-6xl">
             Self-hosted AI Code Review agent on <span class="text-primary">your infrastructure</span>
@@ -670,7 +670,7 @@ volumes:
                     Start with a small self-hosted deployment.
                 </h2>
                 <p class="mt-4 text-neutral-600">
-                    Proval is designed around a simple Docker-first path: run the service, connect your model, link
+                    Proval is designed around a simple Docker-first path: run the service, connect your model provider, link
                     repositories, and test a real merge request.
                 </p>
                 <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">
