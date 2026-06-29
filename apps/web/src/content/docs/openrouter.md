@@ -24,7 +24,7 @@ order: 7
     <figcaption>Create an API key in OpenRouter</figcaption>
 </figure>
 
-When you fill in the Proval form, use Base URL `https://openrouter.ai/api/v1`, API Provider **OpenAI**, and your `sk-or-...` key. Choose a [model ID](https://openrouter.ai/models) for the **Model ID** field. See [Set LLM](/docs/set-llm) for the full form and connection test.
+When you fill in the model provider form, use Base URL `https://openrouter.ai/api/v1`, API Provider **OpenAI**, and your `sk-or-...` key. Choose a [model ID](https://openrouter.ai/models) for the **Model ID** field. See [Set LLM](/docs/set-llm) for the full form and connection test.
 
 ---
 

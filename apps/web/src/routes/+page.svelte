@@ -128,7 +128,7 @@
             id: "setup",
             label: "Setup",
             frame: "proval.local/settings",
-            caption: "Connect a model endpoint and a repository with a simple form.",
+            caption: "Connect a model provider and a repository with a simple form.",
         },
         {
             id: "review",
@@ -141,7 +141,7 @@
     const faqs = [
         {
             question: "Is Proval a replacement for Cursor, Copilot, or Claude?",
-            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model API you want.",
+            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model provider API you want.",
         },
         {
             question: "Does code leave our infrastructure?",
@@ -705,7 +705,7 @@ volumes:
                         >docker compose up -d
 
 # then connect
-Model endpoint  -> OpenAI-compatible API
+Model provider  -> OpenAI-compatible API
 Git provider    -> GitLab / Forgejo / GitHub
 Repository      -> review and reply policy</code></pre>
                 <ol class="mt-6 grid gap-2 border-t border-neutral-800 pt-5 text-neutral-400">

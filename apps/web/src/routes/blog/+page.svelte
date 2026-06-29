@@ -15,7 +15,7 @@
     <Eyebrow>Blog</Eyebrow>
     <h1 class="mt-3 text-4xl font-semibold tracking-tight text-neutral-950">Project notes</h1>
     <p class="mt-4 max-w-2xl text-neutral-600">
-        Updates and practical notes about self-hosted review automation, Git host workflows, and bring-your-own-model
+        Updates and practical notes about self-hosted review automation, Git host workflows, and bring-your-own-model-provider
         infrastructure.
     </p>
 

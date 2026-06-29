@@ -9,7 +9,7 @@ export const BENEFITS = [
         body: "Reviews and repo context go to the LLM endpoint you configure, not a third-party review SaaS.",
     },
     {
-        title: "Bring your own model",
+        title: "Bring your own model provider",
         body: "Use an OpenAI-compatible endpoint, including local or on-prem model servers that your team already operates.",
     },
     {

@@ -1,6 +1,6 @@
 ---
 title: "Set LLM"
-description: "Add an LLM in Proval with Base URL, API key, and model ID."
+description: "Add a model provider in Proval with Base URL, API key, and model ID."
 order: 5
 ---
 
