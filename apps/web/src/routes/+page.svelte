@@ -122,13 +122,13 @@
             id: "dashboard",
             label: "Dashboard",
             frame: "proval.local",
-            caption: "Every review run, model provider, and connected repository in one place.",
+            caption: "Every review run, model, and connected repository in one place.",
         },
         {
             id: "setup",
             label: "Setup",
             frame: "proval.local/settings",
-            caption: "Connect a model provider and a repository with a simple form.",
+            caption: "Connect a model and a repository with a simple form.",
         },
         {
             id: "review",
@@ -141,7 +141,7 @@
     const faqs = [
         {
             question: "Is Proval a replacement for Cursor, Copilot, or Claude?",
-            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model provider API you want.",
+            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model API you want.",
         },
         {
             question: "Does code leave our infrastructure?",
@@ -193,7 +193,7 @@ volumes:
 <section class="overflow-hidden border-b border-neutral-200 bg-white">
     <Container wide class="pt-20 pb-16 text-center md:pt-28 md:pb-24">
         <!-- <Eyebrow>Privacy-first review automation</Eyebrow> -->
-        <Eyebrow>Your Code, Your Model Provider</Eyebrow>
+        <Eyebrow>Your Code, Your Model</Eyebrow>
         <h1
             class="mx-auto mt-5 max-w-4xl text-4xl leading-tight font-semibold tracking-[-0.045em] text-neutral-950 md:text-6xl">
             Self-hosted AI Code Review agent on <span class="text-primary">your infrastructure</span>
@@ -670,7 +670,7 @@ volumes:
                     Start with a small self-hosted deployment.
                 </h2>
                 <p class="mt-4 text-neutral-600">
-                    Proval is designed around a simple Docker-first path: run the service, connect your model provider, link
+                    Proval is designed around a simple Docker-first path: run the service, connect your model, link
                     repositories, and test a real merge request.
                 </p>
                 <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">
@@ -705,7 +705,7 @@ volumes:
                         >docker compose up -d
 
 # then connect
-Model provider  -> OpenAI-compatible API
+Model endpoint  -> OpenAI-compatible API
 Git provider    -> GitLab / Forgejo / GitHub
 Repository      -> review and reply policy</code></pre>
                 <ol class="mt-6 grid gap-2 border-t border-neutral-800 pt-5 text-neutral-400">
