@@ -153,14 +153,15 @@ export interface GitProvider {
     /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
     fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
 
-    // Pull Request Comment
+    // Pull Request conversation comment (PR timeline / issue_comment)
     fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment>;
     fetchPullRequestCommentList(prIid: number): Promise<GitComment[]>;
 
-    // Pull Request Inline Review
-    fetchPullRequestInlineReview(prIid: number, reviewId: string): Promise<GitPullRequestInlineReview>;
+    // Pull Request inline review
+    fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview>;
     fetchPullRequestInlineReviewList(prIid: number): Promise<GitPullRequestInlineReview[]>;
-    replyToPullRequestInlineReview(prIid: number, reviewId: string, body: string): Promise<GitComment>;
+    fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment>;
+    replyToPullRequestInlineReview(prIid: number, inlineReviewId: string, body: string): Promise<GitComment>;
 
     fetchPullRequestReviewerList(prIid: number): Promise<string[]>;
     fetchIssueDetail(issueIid: number): Promise<GitIssue>;

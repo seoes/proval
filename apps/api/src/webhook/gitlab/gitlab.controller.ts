@@ -218,7 +218,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     }
 
     const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
-    const reviewId = payload.object_attributes.discussion_id ?? null;
+    const inlineReviewId = payload.object_attributes.discussion_id ?? null;
 
     runWithActivity(
         {
@@ -234,7 +234,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
                 llmSender,
                 prIid,
                 commentId,
-                reviewId: isInlineReviewComment ? reviewId : null,
+                inlineReviewId: isInlineReviewComment ? inlineReviewId : null,
                 language: repository.language,
             }),
     ).catch((error) => {

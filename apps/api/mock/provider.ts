@@ -20,7 +20,10 @@ import type {
 export interface TestInput {
     detail: GitPullRequest;
     diffs: GitDiff[];
+    /** Conversation comments returned by fetchPullRequestCommentList (default []) */
     comments?: GitComment[];
+    /** Inline review threads returned by fetchPullRequestInlineReviewList (default []) */
+    inlineReviews?: GitPullRequestInlineReview[];
     files?: Record<string, string>;
     tree?: GitTree[];
     version?: GitPullRequestVersion;
@@ -147,23 +150,42 @@ export class MockProvider implements GitProvider {
         return this.input.files?.[filePath] ?? `// file not found: ${filePath}`;
     }
 
-    async fetchPullRequestInlineReview(_prIid: number, _reviewId: string): Promise<GitPullRequestInlineReview> {
+    async fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview> {
+        const review = (this.input.inlineReviews ?? []).find((item) => item.id === inlineReviewId);
+        if (review) {
+            return review;
+        }
         return {
-            id: _reviewId,
+            id: inlineReviewId,
             path: "test_path",
             start: { type: "old", oldLine: 1 },
             end: { type: "old", oldLine: 1 },
             createdAt: new Date().toISOString(),
             isResolved: false,
-            commentList: this.input.comments ?? [],
+            commentList: [],
         };
     }
 
     async fetchPullRequestInlineReviewList(_prIid: number): Promise<GitPullRequestInlineReview[]> {
-        return [];
+        return this.input.inlineReviews ?? [];
     }
 
-    async replyToPullRequestInlineReview(_prIid: number, _reviewId: string, body: string): Promise<GitComment> {
+    async fetchPullRequestInlineReviewComment(_prIid: number, commentId: number): Promise<GitComment> {
+        for (const review of this.input.inlineReviews ?? []) {
+            const comment = review.commentList.find((c) => c.id === commentId);
+            if (comment) {
+                return comment;
+            }
+        }
+        return {
+            id: commentId,
+            body: "test_inline_body",
+            author: "test_bot",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
+    async replyToPullRequestInlineReview(_prIid: number, _inlineReviewId: string, body: string): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -182,16 +204,6 @@ export class MockProvider implements GitProvider {
     }
 
     async createPullRequestComment(_prIid: number, body: string): Promise<GitComment> {
-        this.posted.push({ type: "comment", body });
-        return {
-            id: Date.now(),
-            body,
-            author: "test_bot",
-            createdAt: new Date().toISOString(),
-        };
-    }
-
-    async replyToPullRequestThread(_prIid: number, _reviewId: string, body: string): Promise<GitComment> {
         this.posted.push({ type: "comment", body });
         return {
             id: Date.now(),

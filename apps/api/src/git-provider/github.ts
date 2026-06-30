@@ -9,6 +9,7 @@ import type {
     GitIssue,
     GitIssueState,
     GitPullRequest,
+    GitPullRequestInlineReview,
     GitPullRequestState,
     GitPullRequestVersion,
     GitProvider,
@@ -18,6 +19,12 @@ import type {
     GitUser,
     GitRepositoryListItem,
 } from "./types.js";
+import {
+    buildInlineReviewList,
+    findInlineReviewById,
+    resolveInlineReviewRootId,
+    type InlineReviewComment,
+} from "./inline-review.js";
 
 export class GitHubProvider implements GitProvider {
     private readonly octokit: Octokit;
@@ -117,42 +124,49 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async fetchPullRequestCommentList(prNumber: number): Promise<GitComment[]> {
-        const [issueComments, reviewComments] = await Promise.all([
-            this.octokit.issues.listComments({
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: prNumber,
-            }),
-            this.octokit.pulls.listReviewComments({
-                owner: this.owner,
-                repo: this.repo,
-                pull_number: prNumber,
-            }),
-        ]);
+        const { data: issueComments } = await this.octokit.issues.listComments({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: prNumber,
+        });
 
-        const comments: GitComment[] = [];
-
-        for (const comment of issueComments.data) {
-            comments.push({
-                id: comment.id,
-                body: comment.body ?? "",
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
-            });
-        }
-
-        for (const comment of reviewComments.data) {
-            comments.push({
-                id: comment.id,
-                body: comment.body ?? "",
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
-            });
-        }
+        const comments = issueComments.map((comment) => ({
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        }));
 
         comments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
         return comments;
+    }
+
+    public async fetchPullRequestComment(prNumber: number, commentId: number): Promise<GitComment> {
+        const { data: comment } = await this.octokit.issues.getComment({
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+        });
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
+    public async fetchPullRequestInlineReviewComment(prNumber: number, commentId: number): Promise<GitComment> {
+        const { data: comment } = await this.octokit.pulls.getReviewComment({
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+        });
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
     }
 
     public async fetchIssueDetail(issueNumber: number): Promise<GitIssue> {
@@ -352,6 +366,47 @@ export class GitHubProvider implements GitProvider {
         return this.createIssueComment(prNumber, body);
     }
 
+    public async fetchPullRequestInlineReviewList(prNumber: number): Promise<GitPullRequestInlineReview[]> {
+        const comments = await this.listPullRequestInlineReviewComments(prNumber);
+        return buildInlineReviewList(comments);
+    }
+
+    public async fetchPullRequestInlineReview(
+        prNumber: number,
+        inlineReviewId: string,
+    ): Promise<GitPullRequestInlineReview> {
+        const reviews = await this.fetchPullRequestInlineReviewList(prNumber);
+        const review = findInlineReviewById(reviews, inlineReviewId);
+        if (!review) {
+            throw new Error(`Inline review not found: ${inlineReviewId}`);
+        }
+        return review;
+    }
+
+    public async replyToPullRequestInlineReview(
+        prNumber: number,
+        inlineReviewId: string,
+        body: string,
+    ): Promise<GitComment> {
+        const comments = await this.listPullRequestInlineReviewComments(prNumber);
+        const rootId = resolveInlineReviewRootId(Number(inlineReviewId), comments);
+
+        const { data: comment } = await this.octokit.pulls.createReplyForReviewComment({
+            owner: this.owner,
+            repo: this.repo,
+            pull_number: prNumber,
+            comment_id: rootId,
+            body,
+        });
+
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
     public async fetchPullRequestVersion(prNumber: number): Promise<GitPullRequestVersion> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
@@ -472,6 +527,29 @@ export class GitHubProvider implements GitProvider {
             fullName: repo.full_name,
             description: repo.description,
             defaultBranch: repo.default_branch ?? "main",
+        }));
+    }
+
+    private async listPullRequestInlineReviewComments(prNumber: number): Promise<InlineReviewComment[]> {
+        const { data } = await this.octokit.pulls.listReviewComments({
+            owner: this.owner,
+            repo: this.repo,
+            pull_number: prNumber,
+            per_page: 100,
+        });
+
+        return data.map((comment) => ({
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+            inReplyToId: comment.in_reply_to_id ?? null,
+            path: comment.path ?? null,
+            line: comment.line,
+            originalLine: comment.original_line,
+            startLine: comment.start_line,
+            side: comment.side,
+            startSide: comment.start_side,
         }));
     }
 

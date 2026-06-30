@@ -38,13 +38,20 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
     return { webhookEvent, eventType, action, number, title };
 }
 
+function resolveForgejoWebhookEvent(c: Context): string {
+    const eventType = c.req.header("X-Gitea-Event-Type") ?? c.req.header("X-GitHub-Event-Type");
+    if (eventType === "pull_request_review_comment") return "pull_request_review_comment";
+    if (eventType === "pull_request_comment") return "pull_request_comment";
+    return c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event") ?? "unknown";
+}
+
 function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const pr = p?.pull_request;
     const issue = p?.issue;
     const webhookEvent = isForgejo
-        ? (c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event") ?? "unknown")
+        ? resolveForgejoWebhookEvent(c)
         : (c.req.header("X-GitHub-Event") ?? "unknown");
 
     let eventType = "UNKNOWN";
@@ -69,9 +76,13 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
         action = p?.action;
         number = issue?.number;
     } else if (webhookEvent === "pull_request_review_comment") {
-        eventType = "NOTE ON PULL REQUEST (thread)";
+        eventType = "NOTE ON PULL REQUEST (inline review)";
         action = p?.action;
         number = p?.pull_request?.number ?? p?.number;
+    } else if (webhookEvent === "pull_request_comment") {
+        eventType = "NOTE ON PULL REQUEST (inline review)";
+        action = p?.action;
+        number = p?.pull_request?.number ?? p?.number ?? issue?.number;
     }
 
     return { webhookEvent, eventType, action, number, title };

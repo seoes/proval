@@ -27,7 +27,7 @@ export type PullRequestReview = (params: PullRequestReviewParams) => Promise<Act
 
 export type PullRequestCommentReply = (params: PullRequestReplyParams) => Promise<ActivityTokenUsage>;
 export type PullRequestInlineReviewReply = (
-    params: PullRequestReplyParams & { reviewId: string },
+    params: PullRequestReplyParams & { inlineReviewId: string },
 ) => Promise<ActivityTokenUsage>;
 
 export function runPullRequestReview(
@@ -42,12 +42,12 @@ export function runPullRequestReview(
 }
 
 export function runPullRequestReply(
-    params: PullRequestReplyParams & { reviewId: string | null },
+    params: PullRequestReplyParams & { inlineReviewId: string | null },
 ): Promise<ActivityTokenUsage> {
-    const { provider, llmSender, prIid, commentId, language, reviewId } = params;
+    const { provider, llmSender, prIid, commentId, language, inlineReviewId } = params;
 
-    if (reviewId) {
-        return runPullRequestInlineReviewReply({ provider, llmSender, prIid, commentId, language, reviewId });
+    if (inlineReviewId) {
+        return runPullRequestInlineReviewReply({ provider, llmSender, prIid, commentId, language, inlineReviewId });
     } else {
         return runPullRequestCommentReply({ provider, llmSender, prIid, commentId, language });
     }

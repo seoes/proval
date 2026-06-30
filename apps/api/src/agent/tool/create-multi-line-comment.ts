@@ -15,7 +15,7 @@ export function createMultiLineCommentTool(
     return {
         name: "create_multi_line_comment",
         description: [
-            "Create one inline thread that spans MULTIPLE lines of the PR diff.",
+            "Create one inline review that spans MULTIPLE lines of the PR diff.",
             "Use this for findings that span 2+ consecutive lines.",
             "Do NOT use this for findings that pin to exactly one line — use create_single_line_comment for that.",
             "Paths must match the diff (old_path/new_path).",

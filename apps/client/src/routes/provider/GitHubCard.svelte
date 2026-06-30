@@ -52,7 +52,7 @@
                 issues: "write",
                 statuses: "write",
             },
-            default_events: ["pull_request", "issue_comment"],
+            default_events: ["pull_request", "issue_comment", "pull_request_review_comment"],
         };
         const formEl = document.createElement("form");
         formEl.method = "POST";

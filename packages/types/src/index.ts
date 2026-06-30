@@ -28,7 +28,7 @@ export type {
     RepositoryProvider,
     AccessProvider,
     LlmApiProvider,
-    ReplyThreadPolicy,
+    CommentReplyPolicy,
     GitProviderRepositoryListResponse,
     RepositorySelectItem,
     ActivityTokenUsage,

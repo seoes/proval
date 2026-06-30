@@ -8,6 +8,7 @@ import type {
     GitIssue,
     GitIssueState,
     GitPullRequest,
+    GitPullRequestInlineReview,
     GitPullRequestState,
     GitPullRequestVersion,
     GitProvider,
@@ -17,9 +18,15 @@ import type {
     GitUser,
     GitRepositoryListItem,
 } from "./types.js";
+import {
+    buildInlineReviewList,
+    findInlineReviewById,
+    resolveInlineReviewRootId,
+    type InlineReviewComment,
+} from "./inline-review.js";
 
-/** Forgejo `POST /pulls/{index}/reviews` `comments[]` item (CreatePullReviewComment). */
-type ForgejoPullReviewCommentDraft = {
+/** Forgejo `POST /pulls/{index}/reviews` `comments[]` item (Gitea CreatePullReviewComment; maps to inline review). */
+type ForgejoInlineReviewCommentDraft = {
     path: string;
     body: string;
     old_position: number;
@@ -28,7 +35,7 @@ type ForgejoPullReviewCommentDraft = {
 
 export class ForgejoProvider implements GitProvider {
     /** In-memory drafts for one MR review run; submitted by `createPullRequestComment` via bulk `POST /reviews`. */
-    private reviewBuffer: ForgejoPullReviewCommentDraft[] = [];
+    private reviewBuffer: ForgejoInlineReviewCommentDraft[] = [];
     private reviewBufferPrIid: number | null = null;
     private reviewBufferCommitId: string | null = null;
     private reviewBufferSeq = 0;
@@ -146,60 +153,21 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
-        const [issueCommentList, reviews] = await Promise.all([
-            this.requestJson<
-                Array<{
-                    id: number;
-                    body: string;
-                    user: { login: string } | null;
-                    created_at: string;
-                }>
-            >(`/repos/${this.owner}/${this.repo}/issues/${prIid}/comments`),
-            this.requestJson<
-                Array<{
-                    id: number;
-                }>
-            >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`),
-        ]);
+        const issueCommentList = await this.requestJson<
+            Array<{
+                id: number;
+                body: string;
+                user: { login: string } | null;
+                created_at: string;
+            }>
+        >(`/repos/${this.owner}/${this.repo}/issues/${prIid}/comments`);
 
-        const reviewCommentLists = await Promise.all(
-            reviews.map(async (review) => {
-                try {
-                    return await this.requestJson<
-                        Array<{
-                            id: number;
-                            body: string;
-                            user: { login: string } | null;
-                            created_at: string;
-                        }>
-                    >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
-                } catch {
-                    return [];
-                }
-            }),
-        );
-
-        const out: GitComment[] = [];
-
-        for (const comment of issueCommentList) {
-            out.push({
-                id: comment.id,
-                body: comment.body,
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
-            });
-        }
-
-        for (const list of reviewCommentLists) {
-            for (const comment of list) {
-                out.push({
-                    id: comment.id,
-                    body: comment.body,
-                    author: comment.user?.login ?? "",
-                    createdAt: comment.created_at,
-                });
-            }
-        }
+        const out = issueCommentList.map((comment) => ({
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        }));
 
         out.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         return out;
@@ -286,6 +254,81 @@ export class ForgejoProvider implements GitProvider {
     public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {
         await this.flushReviewBuffer(prIid);
         return this.createIssueComment(prIid, body);
+    }
+
+    public async fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment> {
+        const comment = await this.requestJson<{
+            id: number;
+            body: string;
+            user: { login: string } | null;
+            created_at: string;
+        }>(`/repos/${this.owner}/${this.repo}/issues/comments/${commentId}`);
+        return {
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
+    public async fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment> {
+        const comment = await this.requestJson<{
+            id: number;
+            body: string;
+            user: { login: string } | null;
+            created_at: string;
+        }>(`/repos/${this.owner}/${this.repo}/pulls/comments/${commentId}`);
+        return {
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
+    public async fetchPullRequestInlineReviewList(prIid: number): Promise<GitPullRequestInlineReview[]> {
+        const comments = await this.listPullRequestInlineReviewComments(prIid);
+        return buildInlineReviewList(comments);
+    }
+
+    public async fetchPullRequestInlineReview(
+        prIid: number,
+        inlineReviewId: string,
+    ): Promise<GitPullRequestInlineReview> {
+        const reviews = await this.fetchPullRequestInlineReviewList(prIid);
+        const review = findInlineReviewById(reviews, inlineReviewId);
+        if (!review) {
+            throw new Error(`Inline review not found: ${inlineReviewId}`);
+        }
+        return review;
+    }
+
+    public async replyToPullRequestInlineReview(
+        prIid: number,
+        inlineReviewId: string,
+        body: string,
+    ): Promise<GitComment> {
+        await this.flushReviewBuffer(prIid);
+
+        const comments = await this.listPullRequestInlineReviewComments(prIid);
+        const rootId = resolveInlineReviewRootId(Number(inlineReviewId), comments);
+
+        const comment = await this.requestJson<{
+            id: number;
+            body: string;
+            user: { login: string } | null;
+            created_at: string;
+        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`, {
+            method: "POST",
+            body: JSON.stringify({ body }),
+        });
+
+        return {
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
     }
 
     public async createCommentToSingleLine(
@@ -530,7 +573,7 @@ export class ForgejoProvider implements GitProvider {
         this.reviewBufferCommitId = null;
     }
 
-    private mapSingleLineToDraft(position: GitDiffSingleLine, body: string): ForgejoPullReviewCommentDraft {
+    private mapSingleLineToDraft(position: GitDiffSingleLine, body: string): ForgejoInlineReviewCommentDraft {
         const newPos = position.newLine ?? 0;
         const oldPos = position.oldLine ?? 0;
         if (newPos === 0 && oldPos === 0) {
@@ -544,7 +587,7 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    private mapMultiLineToDraft(position: GitDiffMultiLine, body: string): ForgejoPullReviewCommentDraft {
+    private mapMultiLineToDraft(position: GitDiffMultiLine, body: string): ForgejoInlineReviewCommentDraft {
         let newPos = 0;
         let oldPos = 0;
         if (position.end.type === "new") {
@@ -609,6 +652,34 @@ export class ForgejoProvider implements GitProvider {
 
         this.clearReviewBuffer();
         this.reviewBufferSeq = 0;
+    }
+
+    private async listPullRequestInlineReviewComments(prIid: number): Promise<InlineReviewComment[]> {
+        const comments = await this.requestJson<
+            Array<{
+                id: number;
+                body: string;
+                user: { login: string } | null;
+                created_at: string;
+                in_reply_to?: number | null;
+                path?: string | null;
+                line?: number | null;
+                original_line?: number | null;
+                side?: string | null;
+            }>
+        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments`);
+
+        return comments.map((comment) => ({
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+            inReplyToId: comment.in_reply_to ?? null,
+            path: comment.path ?? null,
+            line: comment.line,
+            originalLine: comment.original_line,
+            side: comment.side,
+        }));
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {

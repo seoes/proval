@@ -1,3 +1,4 @@
+import { debug } from "../../util/log";
 import { runAgentLoop } from "../llm/loop";
 import { PR_REPLY_BODY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../prompt";
@@ -10,8 +11,17 @@ import {
     searchCodeListTool,
     searchLineByKeywordTool,
     getPullRequestCommentTool,
+    getPullRequestCommentListTool,
 } from "../tool";
 import type { PullRequestCommentReply } from "./index.js";
+
+function truncateCommentBody(body: string): string {
+    return body.length > 100 ? body.slice(0, 100) + "..." : body;
+}
+
+function truncateAuthor(author: string): string {
+    return author.length > 20 ? author.slice(0, 20) + "..." : author;
+}
 
 export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     provider,
@@ -21,7 +31,10 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     language,
 }) => {
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
-    const commentList = await provider.fetchPullRequestCommentList(prIid);
+    const [commentList, inlineReviewList] = await Promise.all([
+        provider.fetchPullRequestCommentList(prIid),
+        provider.fetchPullRequestInlineReviewList(prIid),
+    ]);
     const comment = commentList.find((c) => c.id === commentId);
     if (!comment) {
         throw new Error(`Comment with id ${commentId} not found`);
@@ -30,17 +43,29 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 
     const prompt = JSON.stringify({
         pastCommentList: commentList
+            .filter((c) => c.id !== commentId)
             .map((c) => ({
                 id: c.id,
-                body: c.body.length > 100 ? c.body.slice(0, 100) + "..." : c.body,
-                author: c.author.length > 20 ? c.author.slice(0, 20) + "..." : c.author,
-            }))
-            .filter((c) => c.id !== commentId),
+                body: truncateCommentBody(c.body),
+                author: truncateAuthor(c.author),
+            })),
+        pastInlineReviewList: inlineReviewList.map((review) => ({
+            id: review.id,
+            path: review.path,
+            commentList: review.commentList.map((c) => ({
+                id: c.id,
+                body: truncateCommentBody(c.body),
+                author: truncateAuthor(c.author),
+            })),
+        })),
         newComment: comment,
     });
 
+    debug(prompt, "prompt");
+
     const toolList = [
         getPullRequestCommentTool(provider, prIid),
+        getPullRequestCommentListTool(provider, prIid),
         getPullRequestDetailTool(provider, prIid),
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),

@@ -20,7 +20,7 @@ export const INLINE_DISABLED = ["Use post_pull_request_comment exactly once to p
 // #########################################################
 
 export const SEVERITY = [
-    "When posting review comments, follow the guidelines below.",
+    "When posting inline reviews, follow the guidelines below.",
     "",
     "level: critical, problem",
     "critical: errors that make the program unable to function, security vulnerabilities, risk of data loss — problems that must be resolved immediately for production operation",

@@ -10,6 +10,6 @@ export const ISSUE_BASE_PROMPT = [
     "- Prefer repository exploration for code-related issues. Only skip code exploration when the issue is clearly process-only or policy-only.",
     "- If overlap is partial, say possible duplicate instead of duplicate.",
     "- Mention only the strongest related items instead of a long list.",
-    "- Avoid repeating what the thread already established.",
+    "- Avoid repeating what the discussion already established.",
     "- Be concise, practical, and honest about uncertainty.",
 ].join("\n");

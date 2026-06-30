@@ -5,7 +5,7 @@
         ModelProviderModelListResponse,
         ModelProviderResponse,
         ProviderOption,
-        ReplyThreadPolicy,
+        CommentReplyPolicy,
         RepositoryInsert,
         RepositorySelectItem,
         RepositoryUpdateInput,
@@ -32,8 +32,8 @@
         reviewOnPullRequestOpen: boolean;
         inlineReview: boolean;
         deepResearchOnPullRequest: boolean;
-        replyToPullRequestComment: ReplyThreadPolicy;
-        replyToIssueComment: ReplyThreadPolicy;
+        replyToPullRequestComment: CommentReplyPolicy;
+        replyToIssueComment: CommentReplyPolicy;
         commentOnIssueOpen: boolean;
     }
 
@@ -51,7 +51,7 @@
     }
 
     interface CommentOption {
-        value: ReplyThreadPolicy;
+        value: CommentReplyPolicy;
         description: string;
     }
 
@@ -111,11 +111,11 @@
     let reviewOnPullRequestOpen = $state<boolean>(config.reviewOnPullRequestOpen);
     let inlineReview = $state<boolean>(config.inlineReview);
     let deepResearchOnPullRequest = $state<boolean>(config.deepResearchOnPullRequest);
-    let replyToPullRequestComment = $state<ReplyThreadPolicy>(config.replyToPullRequestComment);
+    let replyToPullRequestComment = $state<CommentReplyPolicy>(config.replyToPullRequestComment);
 
     // Issue Configuration
     let commentOnIssueOpen = $state<boolean>(config.commentOnIssueOpen);
-    let replyToIssueComment = $state<ReplyThreadPolicy>(config.replyToIssueComment);
+    let replyToIssueComment = $state<CommentReplyPolicy>(config.replyToIssueComment);
 
     let webhookSecret = $state<string | null>(editRepositoryId ? null : "");
     let webhookSecretModalOpen = $state(false);
@@ -150,9 +150,9 @@
         "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
     const commentOptionList: CommentOption[] = [
-        { value: "all", description: "Reply on all thread comments" },
+        { value: "all", description: "Reply on all comments" },
         { value: "mentioned_only", description: "Reply only when the bot is @mentioned" },
-        { value: "off", description: "Do not reply to thread comments" },
+        { value: "off", description: "Do not reply to comments" },
     ];
 
     async function handleSubmit(e: Event) {
@@ -364,7 +364,7 @@
         <div>
             <FormField
                 label="Reply to comments"
-                description="How the bot responds in PR discussion threads"
+                description="How the bot responds to PR comments (conversation and inline review)"
                 linkLabelToControl={false}
                 upper>
                 {#snippet children({ id: _id })}
@@ -389,7 +389,7 @@
         <div>
             <FormField
                 label="Reply to issue comments"
-                description="How the bot responds in issue discussion threads"
+                description="How the bot responds in issue discussions"
                 linkLabelToControl={false}
                 upper>
                 {#snippet children({ id: _id })}

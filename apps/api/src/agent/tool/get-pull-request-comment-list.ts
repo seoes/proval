@@ -5,7 +5,7 @@ export function getPullRequestCommentListTool(provider: GitProvider, prIid: numb
     return {
         name: "get_pull_request_comment_list",
         description:
-            "Get ALL existing comments, review threads, and discussions on this pull request. Returns structured data: author, timestamp, body, resolved status, and thread replies. Use this to (1) avoid duplicating existing feedback, (2) understand reviewer/MR author expectations, (3) check if a thread is resolved before re-raising the same concern. Call this early before posting any findings.",
+            "Get all conversation comments on this pull request (issue-level comments only, not inline review threads). Returns structured data: author, timestamp, body. Use this to understand prior PR discussion before replying.",
         parameters: {
             type: "object",
             properties: {},

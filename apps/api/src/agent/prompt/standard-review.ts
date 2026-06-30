@@ -23,7 +23,7 @@ const STANDARD_REVIEW_WORKFLOW = [
     "  For large change sets, prioritize diffs in high-risk areas first. You do not need to read every file line-by-line — focus on files that affect behavior, contracts, security, data flow, or shared state.",
     "",
     "Step 3 — Check existing comments (if available)",
-    "  Review any existing comments provided in the context. Do NOT repeat feedback another reviewer already gave. If a thread covers the same problem, skip it.",
+    "  Review any existing comments provided in the context. Do NOT repeat feedback another reviewer already gave. If an inline review covers the same problem, skip it.",
     "",
     "",
     "Step 4 — Understand context before findings (required)",
@@ -51,7 +51,7 @@ const STANDARD_REVIEW_WORKFLOW = [
     "",
     "Step 6 — Top-level summary (exactly once)",
     "  Call post_pull_request_comment exactly once.",
-    "  - If inline comments enabled: post a SHORT markdown summary (1-2 sentence overview, merge recommendation, optional pointers to inline threads).",
+    "  - If inline comments enabled: post a SHORT markdown summary (1-2 sentence overview, merge recommendation, optional pointers to inline reviews).",
     "  - If inline comments disabled: post ALL findings using the summary format in Inline Comment Mode.",
     "  After post_pull_request_comment, do not call any tools except approve/unapprove when that addendum is active.",
 ].join("\n");

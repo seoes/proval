@@ -6,7 +6,7 @@ export function postPullRequestCommentTool(provider: GitProvider, prIid: number,
     return {
         name: "post_pull_request_comment",
         description: [
-            "Post the single top-level PR summary note (merge recommendation + short overview). Call exactly ONCE after inline threads (if any). Do not put full duplicate write-ups of every inline finding here.",
+            "Post the single top-level PR summary note (merge recommendation + short overview). Call exactly ONCE after inline reviews (if any). Do not put full duplicate write-ups of every inline finding here.",
             buildCommentToolLanguageNote(language),
         ].join(" "),
         parameters: {

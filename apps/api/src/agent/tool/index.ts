@@ -15,6 +15,8 @@ export { postPullRequestCommentTool } from "./post-pull-request-comment.js";
 export { postPullRequestReplyTool } from "./post-pull-request-reply.js";
 export { postPullRequestInlineReviewReplyTool } from "./post-pull-request-inline-review-reply.js";
 export { getPullRequestCommentTool } from "./get-pull-request-comment.js";
+export { getPullRequestInlineReviewCommentTool } from "./get-pull-request-inline-review-comment.js";
+export { getPullRequestInlineReviewListTool } from "./get-pull-request-inline-review-list.js";
 export { postIssueCommentTool } from "./post-issue-comment.js";
 export { postIssueReplyTool } from "./post-issue-reply.js";
 export { getPullRequestVersionTool } from "./get-pull-request-version.js";

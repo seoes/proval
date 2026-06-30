@@ -163,9 +163,17 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
+    public async fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment> {
+        return this.fetchPullRequestComment(prIid, commentId);
+    }
+
     public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
+        const inlineReviews = await this.fetchPullRequestInlineReviewList(prIid);
+        const inlineNoteIds = new Set(inlineReviews.flatMap((review) => review.commentList.map((c) => c.id)));
+
         const comments = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
         return comments
+            .filter((comment) => !comment.system && !inlineNoteIds.has(comment.id))
             .map((comment) => ({
                 id: comment.id,
                 body: comment.body,
@@ -348,11 +356,11 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestInlineReview(prIid: number, reviewId: string): Promise<GitPullRequestInlineReview> {
-        const review = await this.gitlab.MergeRequestDiscussions.show(this.projectId, prIid, reviewId);
+    public async fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview> {
+        const review = await this.gitlab.MergeRequestDiscussions.show(this.projectId, prIid, inlineReviewId);
         const mapped = this.mapDiscussionToInlineReview(review);
         if (!mapped) {
-            throw new Error(`Inline review not found for discussion: ${reviewId}`);
+            throw new Error(`Inline review not found for discussion: ${inlineReviewId}`);
         }
         return mapped;
     }
@@ -439,8 +447,8 @@ export class GitLabProvider implements GitProvider {
         return Number.isFinite(n) ? n : undefined;
     }
 
-    public async replyToPullRequestInlineReview(prIid: number, reviewId: string, body: string): Promise<GitComment> {
-        const note = await this.gitlab.MergeRequestDiscussions.addNote(this.projectId, prIid, reviewId, body);
+    public async replyToPullRequestInlineReview(prIid: number, inlineReviewId: string, body: string): Promise<GitComment> {
+        const note = await this.gitlab.MergeRequestDiscussions.addNote(this.projectId, prIid, inlineReviewId, body);
 
         return {
             id: note.id,

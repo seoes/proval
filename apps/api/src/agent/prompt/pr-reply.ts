@@ -40,7 +40,7 @@ export const PR_REPLY_BODY = [
     "",
 ].join("\n");
 
-export const PR_THREAD_REPLY_APPENDIX = [
-    "You are replying inside an existing pull request review thread (inline on the diff).",
+export const PR_INLINE_REVIEW_REPLY_APPENDIX = [
+    "You are replying inside an existing inline review on the pull request diff.",
     "Your reply will be posted to the inline review comment.",
 ].join(" ");

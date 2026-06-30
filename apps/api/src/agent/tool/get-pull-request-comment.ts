@@ -5,13 +5,14 @@ export function getPullRequestCommentTool(provider: GitProvider, prIid: number):
     return {
         name: "get_pull_request_comment",
         description:
-            "Get a specific comment on this pull request. Returns structured data: author, timestamp, body. Use this to (1) avoid duplicating existing feedback, (2) understand reviewer/MR author expectations, (3) check if a thread is resolved before re-raising the same concern. Call this early before posting any findings.",
+            "Get a specific conversation comment on this pull request (issue-level comment, not inline review). Returns structured data: author, timestamp, body. Use conversation comment IDs from pastCommentList or get_pull_request_comment_list. Call this to read prior conversation context before replying.",
         parameters: {
             type: "object",
             properties: {
                 commentId: {
                     type: "number",
-                    description: "The ID of the comment to get. Use the id of the comment from the comment list.",
+                    description:
+                        "The ID of the conversation comment to get. Use ids from pastCommentList or get_pull_request_comment_list.",
                 },
             },
             required: ["commentId"],

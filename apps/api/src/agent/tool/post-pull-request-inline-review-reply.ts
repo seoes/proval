@@ -5,7 +5,7 @@ import { buildCommentToolLanguageNote, buildCommentBodyDescription } from "../pr
 export function postPullRequestInlineReviewReplyTool(
     provider: GitProvider,
     prIid: number,
-    reviewId: string,
+    inlineReviewId: string,
     commenterUsername: string,
     language: string,
 ): AgentTool {
@@ -28,7 +28,7 @@ export function postPullRequestInlineReviewReplyTool(
         execute: async (args) => {
             const body = String(args.body);
             const fullBody = `@${commenterUsername}\n\n${body}`;
-            const comment = await provider.replyToPullRequestInlineReview(prIid, reviewId, fullBody);
+            const comment = await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, fullBody);
             return comment;
         },
     };
