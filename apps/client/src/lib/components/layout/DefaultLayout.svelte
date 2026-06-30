@@ -10,6 +10,10 @@
     const { children, title, narrow = false, actions }: Props = $props();
 </script>
 
+<svelte:head>
+    <title>{title} — Proval</title>
+</svelte:head>
+
 <div class="mx-auto {narrow ? 'max-w-lg' : 'max-w-6xl'}">
     <div class="flex items-center justify-between gap-4">
         <h2 class="text-lg font-semibold">{title}</h2>
