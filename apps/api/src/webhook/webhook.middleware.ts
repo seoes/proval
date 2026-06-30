@@ -68,6 +68,10 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
         eventType = issue?.pull_request ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
         action = p?.action;
         number = issue?.number;
+    } else if (webhookEvent === "pull_request_review_comment") {
+        eventType = "NOTE ON PULL REQUEST (thread)";
+        action = p?.action;
+        number = p?.pull_request?.number ?? p?.number;
     }
 
     return { webhookEvent, eventType, action, number, title };

@@ -1,34 +1,38 @@
+import type { PullRequestInlineReviewReply } from ".";
 import { runAgentLoop } from "../llm/loop";
-import { PR_REPLY_BODY } from "../prompt";
+import { PR_REPLY_BODY, PR_THREAD_REPLY_APPENDIX } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../prompt";
 import {
     getDirectoryTreeTool,
     getFileDiffTool,
     getMergeFileContentTool,
     getPullRequestDetailTool,
-    postPullRequestReplyTool,
+    postPullRequestInlineReviewReplyTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-    getPullRequestCommentTool,
 } from "../tool";
-import type { PullRequestCommentReply } from "./index.js";
+import { getPullRequestCommentTool } from "../tool/get-pull-request-comment";
 
-export const runPullRequestCommentReply: PullRequestCommentReply = async ({
+export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
     llmSender,
     prIid,
+    reviewId,
     commentId,
     language,
 }) => {
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
-    const commentList = await provider.fetchPullRequestCommentList(prIid);
+    const { commentList, ...inlineReview } = await provider.fetchPullRequestInlineReview(prIid, reviewId);
+    if (!inlineReview) {
+        throw new Error(`Review with id ${reviewId} not found`);
+    }
     const comment = commentList.find((c) => c.id === commentId);
     if (!comment) {
         throw new Error(`Comment with id ${commentId} not found`);
     }
-    const system = [PR_REPLY_BODY, COMMENT_LANGUAGE_RULE].join("\n");
-
+    const system = [PR_REPLY_BODY, COMMENT_LANGUAGE_RULE, PR_THREAD_REPLY_APPENDIX].join("\n");
     const prompt = JSON.stringify({
+        inlineReview,
         pastCommentList: commentList
             .map((c) => ({
                 id: c.id,
@@ -47,13 +51,12 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         searchLineByKeywordTool(provider, headSha),
         getDirectoryTreeTool(provider, headSha),
         getMergeFileContentTool(provider, { baseSha, headSha }),
-        postPullRequestReplyTool(provider, prIid, comment.author, language),
+        postPullRequestInlineReviewReplyTool(provider, prIid, reviewId, comment.author, language),
     ];
 
-    const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Reply`, {
+    const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
         toolList,
-        requiredToolList: ["post_reply_comment"],
+        requiredToolList: ["post_pull_request_inline_review_reply"],
     });
-
     return result.usage;
 };

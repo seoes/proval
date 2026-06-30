@@ -14,6 +14,7 @@ import type {
     GitTree,
     GitUser,
     GitRepositoryListItem,
+    GitPullRequestInlineReview,
 } from "../src/git-provider/types.js";
 
 export interface TestInput {
@@ -146,6 +147,32 @@ export class MockProvider implements GitProvider {
         return this.input.files?.[filePath] ?? `// file not found: ${filePath}`;
     }
 
+    async fetchPullRequestInlineReview(_prIid: number, _reviewId: string): Promise<GitPullRequestInlineReview> {
+        return {
+            id: _reviewId,
+            path: "test_path",
+            start: { type: "old", oldLine: 1 },
+            end: { type: "old", oldLine: 1 },
+            createdAt: new Date().toISOString(),
+            isResolved: false,
+            commentList: this.input.comments ?? [],
+        };
+    }
+
+    async fetchPullRequestInlineReviewList(_prIid: number): Promise<GitPullRequestInlineReview[]> {
+        return [];
+    }
+
+    async replyToPullRequestInlineReview(_prIid: number, _reviewId: string, body: string): Promise<GitComment> {
+        this.posted.push({ type: "inline", body });
+        return {
+            id: Date.now(),
+            body,
+            author: "test_bot",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
     async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
         return [];
     }
@@ -159,6 +186,25 @@ export class MockProvider implements GitProvider {
         return {
             id: Date.now(),
             body,
+            author: "test_bot",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
+    async replyToPullRequestThread(_prIid: number, _reviewId: string, body: string): Promise<GitComment> {
+        this.posted.push({ type: "comment", body });
+        return {
+            id: Date.now(),
+            body,
+            author: "test_bot",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
+    async fetchPullRequestComment(_prIid: number, _commentId: number): Promise<GitComment> {
+        return {
+            id: _commentId,
+            body: "test_body",
             author: "test_bot",
             createdAt: new Date().toISOString(),
         };

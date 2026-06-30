@@ -50,6 +50,7 @@ export async function runAgentLoop(
     options: {
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
+        requiredToolList?: string[];
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -69,6 +70,7 @@ export async function runAgentLoop(
         const maxSteps = options.maxSteps ?? 100;
 
         const toolList: AgentTool[] = options.toolList?.filter((t) => t !== null) ?? [];
+        const requiredToolList = options.requiredToolList ?? [];
         const toolCallCount: Record<string, number> = {};
         let stepCount = 0;
         for (let step = 0; step < maxSteps; step++) {
@@ -115,6 +117,22 @@ export async function runAgentLoop(
             usage.outputToken += response.usage.outputToken;
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
+                if (
+                    requiredToolList.length > 0 &&
+                    requiredToolList.some(
+                        (toolName) => toolCallCount[toolName] === undefined || toolCallCount[toolName] === 0,
+                    )
+                ) {
+                    const missingToolList = requiredToolList.filter(
+                        (toolName) => toolCallCount[toolName] === undefined || toolCallCount[toolName] === 0,
+                    );
+                    messages.push({ role: "assistant", content: response.message.content });
+                    messages.push({
+                        role: "user",
+                        content: `[Required tool not called: ${missingToolList.join(", ")}]`,
+                    });
+                    continue;
+                }
                 const result: AgentRunResult = {
                     finalMessage: response.message.content,
                     messages,
