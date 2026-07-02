@@ -4,6 +4,7 @@ import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
 import {
+    getChangedFileListTool,
     getPullRequestCommentListTool,
     getPullRequestDetailTool,
     getPullRequestInlineReviewCommentTool,
@@ -41,6 +42,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         getPullRequestInlineReviewListTool(provider, prIid),
         getPullRequestCommentListTool(provider, prIid),
         getPullRequestDetailTool(provider, prIid),
+        getChangedFileListTool(provider, prIid),
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),

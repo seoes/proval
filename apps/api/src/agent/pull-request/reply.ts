@@ -3,6 +3,7 @@ import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
 import {
+    getChangedFileListTool,
     getPullRequestCommentListTool,
     getPullRequestCommentTool,
     getPullRequestDetailTool,
@@ -36,6 +37,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         getPullRequestCommentTool(provider, prIid),
         getPullRequestCommentListTool(provider, prIid),
         getPullRequestDetailTool(provider, prIid),
+        getChangedFileListTool(provider, prIid),
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),
