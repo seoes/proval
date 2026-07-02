@@ -14,7 +14,7 @@ import { log, logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
+import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -294,7 +294,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
             type: "issue_open",
             targetIid: issueIid,
         },
-        () => runIssueCommentOnOpen(gitlabProvider, llmSender, issueIid, repository.language),
+        () => runIssueReplyOnOpen({ provider: gitlabProvider, llmSender, issueIid, language: repository.language }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -322,6 +322,13 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         });
     }
 
+    const action = (payload.object_attributes as unknown as MergeRequestNoteSchema).action;
+    if (!action || action !== "create") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
+    }
+
     const project = payload.project;
     const token = repository.accessToken;
     if (!token) {
@@ -344,9 +351,14 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const noteBody: string = payload.object_attributes?.note ?? "";
+    const commentId = payload.object_attributes?.id;
     const issueIid = payload.issue?.iid;
     if (issueIid == null) {
         return new Response(JSON.stringify({ message: "No issue IID found" }), { status: 200 });
+    }
+
+    if (commentId == null) {
+        return new Response(JSON.stringify({ message: "No comment id found" }), { status: 200 });
     }
 
     if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
@@ -370,7 +382,14 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
             type: "issue_reply",
             targetIid: issueIid,
         },
-        () => runIssueReply(gitlabProvider, llmSender, issueIid, commenterUsername, noteBody, repository.language),
+        () =>
+            runIssueReply({
+                provider: gitlabProvider,
+                llmSender,
+                issueIid,
+                commentId,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Issue reply failed", error);
     });

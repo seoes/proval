@@ -1,7 +1,10 @@
-export const ISSUE_COMMENT_ON_OPEN_WORKFLOW = [
+export const ISSUE_REPLY_ON_OPEN_WORKFLOW = [
+    "You are triaging a newly opened issue.",
+    "Post exactly one helpful comment with post_issue_comment. We do not need your final assistant message to be posted.",
+    "",
     "# Workflow",
-    "1. Call get_issue_detail.",
-    "2. Call get_issue_comment_list.",
+    "1. Call get_issue_detail to read the issue title, description, labels, and state.",
+    "2. Call get_issue_comment_list — the issue was just opened, so comments may be empty.",
     "3. Search related issues and pull requests with search_issue_list and search_pull_request_list using the title, error text, and key nouns from the issue.",
     "4. For code-related issues, use search_code_list first to locate likely files, then confirm with get_directory_tree and get_file_content.",
     "5. Decide the most useful single comment:",
@@ -17,5 +20,6 @@ export const ISSUE_COMMENT_ON_OPEN_WORKFLOW = [
     "- If you found related issues or pull requests, include only the strongest few matches and explain the overlap briefly.",
     "- If you explored code, mention the relevant file paths or modules in plain text.",
     "- If the issue is not clearly code-related, say that code exploration appears unnecessary for now.",
+    "- List tools return bodyPreview only; always fetch full text before replying.",
     "",
 ].join("\n");

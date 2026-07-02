@@ -213,6 +213,10 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
+    public async fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment> {
+        return this.fetchPullRequestComment(issueIid, commentId);
+    }
+
     public async fetchIssueCommentList(
         issueIid: number,
         options?: ListPaginationOptions,

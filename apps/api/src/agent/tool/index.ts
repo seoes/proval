@@ -3,6 +3,7 @@ export { getChangedFileListTool } from "./get-changed-file-list.js";
 export { getFileDiffTool } from "./get-file-diff.js";
 export { getPullRequestCommentListTool } from "./get-pull-request-comment-list.js";
 export { getIssueDetailTool } from "./get-issue-detail.js";
+export { getIssueCommentTool } from "./get-issue-comment.js";
 export { getIssueCommentListTool } from "./get-issue-comment-list.js";
 export { getDirectoryTreeTool } from "./get-directory-tree.js";
 export { getFileContentTool } from "./get-file-content.js";

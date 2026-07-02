@@ -7,7 +7,7 @@ import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
+import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -211,7 +211,7 @@ async function handleIssueWebhook(
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => runIssueCommentOnOpen(gitHubProvider, llmSender, issueNumber, repository.language),
+        () => runIssueReplyOnOpen({ provider: gitHubProvider, llmSender, issueIid: issueNumber, language: repository.language }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -248,7 +248,6 @@ async function handleIssueCommentWebhook(
 
     const noteBody = payload.comment?.body ?? "";
     const commentId = payload.comment?.id;
-    const commenterUsername = sender?.login ?? "";
 
     if (payload.issue?.pull_request) {
         if (repository.replyToPullRequestComment === "off") {
@@ -311,6 +310,10 @@ async function handleIssueCommentWebhook(
         });
     }
 
+    if (commentId === undefined) {
+        return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
+    }
+
     const llmSender = createSender({
         provider: modelProvider.provider,
         apiKey: modelProvider.apiKey,
@@ -326,7 +329,14 @@ async function handleIssueCommentWebhook(
             type: "issue_reply",
             targetIid: issueNumber,
         },
-        () => runIssueReply(gitHubProvider, llmSender, issueNumber, commenterUsername, noteBody, repository.language),
+        () =>
+            runIssueReply({
+                provider: gitHubProvider,
+                llmSender,
+                issueIid: issueNumber,
+                commentId,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Issue reply failed", error);
     });

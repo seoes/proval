@@ -5,7 +5,7 @@ import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueCommentOnOpen, runIssueReply } from "../../agent/issue";
+import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 
 // Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
@@ -364,6 +364,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         }
 
         const noteBody = payload.comment.body;
+        const commentId = payload.comment.id;
         const issueNumber = payload.issue.number;
 
         if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
@@ -386,14 +387,13 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
                 targetIid: issueNumber,
             },
             () =>
-                runIssueReply(
-                    forgejoProvider,
+                runIssueReply({
+                    provider: forgejoProvider,
                     llmSender,
-                    issueNumber,
-                    commenterUsername,
-                    noteBody,
-                    repository.language,
-                ),
+                    issueIid: issueNumber,
+                    commentId,
+                    language: repository.language,
+                }),
         ).catch((error) => {
             logError("Issue reply failed", error);
         });
@@ -452,7 +452,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => runIssueCommentOnOpen(forgejoProvider, llmSender, issueNumber, repository.language),
+        () => runIssueReplyOnOpen({ provider: forgejoProvider, llmSender, issueIid: issueNumber, language: repository.language }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
