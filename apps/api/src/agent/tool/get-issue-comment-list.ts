@@ -1,12 +1,15 @@
 import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 import { parseListToolPagination, slicePage, toAgentPaginatedCommentList } from "../util.js";
 
 export function getIssueCommentListTool(provider: GitProvider, issueIid: number): AgentTool {
     return {
         name: "get_issue_comment_list",
-        description:
+        description: [
             "Get existing comments on this issue. Returns paginated summaries with bodyPreview truncated to 100 chars. Use individual comment tools for full text. Recommended limit: 20.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {

@@ -1,12 +1,15 @@
 import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 import { parseListToolPagination, slicePage, toAgentPaginatedCommentList } from "../util.js";
 
 export function getPullRequestCommentListTool(provider: GitProvider, prIid: number): AgentTool {
     return {
         name: "get_pull_request_comment_list",
-        description:
+        description: [
             "Get conversation comments on this pull request (issue-level comments only, not inline review threads). Returns paginated summaries with bodyPreview truncated to 100 chars. Use get_pull_request_comment for full text. Recommended limit: 20.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {

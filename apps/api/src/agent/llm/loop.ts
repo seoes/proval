@@ -1,6 +1,7 @@
 import pc from "picocolors";
 import { log, logAgentResult, logError } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
+import { UNTRUSTED_WARNING_SYSTEM_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export interface AgentTool {
     name: string;
@@ -62,8 +63,10 @@ export async function runAgentLoop(
             outputToken: 0,
         };
 
+        const fullSystem = [system, UNTRUSTED_WARNING_SYSTEM_PROMPT].filter(Boolean).join("\n\n");
+
         const messages: Message[] = [
-            { role: "system", content: system },
+            { role: "system", content: fullSystem },
             { role: "user", content: prompt },
         ];
 

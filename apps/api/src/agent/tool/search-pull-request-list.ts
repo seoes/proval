@@ -1,11 +1,14 @@
 import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function searchPullRequestListTool(provider: GitProvider): AgentTool {
     return {
         name: "search_pull_request_list",
-        description:
+        description: [
             "Search pull requests or pull requests in the same repository. Use this for duplicate checks and prior implementation context.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {

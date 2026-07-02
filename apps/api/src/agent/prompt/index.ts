@@ -10,3 +10,4 @@ export { ISSUE_BASE_PROMPT } from "./issue-base.js";
 export { ISSUE_REPLY_ON_OPEN_WORKFLOW } from "./issue-reply-on-open-workflow.js";
 export { ISSUE_REPLY_WORKFLOW } from "./issue-reply-workflow.js";
 export { INLINE_ENABLED, INLINE_DISABLED, SEVERITY, REVIEW_CHECKLIST, FILE_COVERAGE_RULE } from "./review.js";
+export { UNTRUSTED_WARNING_SYSTEM_PROMPT, UNTRUSTED_WARNING_TOOL_PROMPT } from "./untrusted-warning.prompt.js";

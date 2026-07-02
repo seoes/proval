@@ -1,11 +1,14 @@
 import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function searchIssueListTool(provider: GitProvider): AgentTool {
     return {
         name: "search_issue_list",
-        description:
+        description: [
             "Search other issues in the same repository. Use this before claiming something is a duplicate or related.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
+        ].join(" "),
         parameters: {
             type: "object",
             properties: {
