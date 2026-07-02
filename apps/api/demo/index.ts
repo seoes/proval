@@ -161,7 +161,14 @@ async function main() {
             language,
         });
     } else {
-        await runPullRequestReply(provider, llmSender, 1, entry.commenter, entry.comment, language);
+        await runPullRequestReply({
+            provider,
+            llmSender,
+            prIid: 1,
+            commentId: entry.data.commentList?.[0]?.id ?? 1,
+            inlineReviewId: null,
+            language,
+        });
     }
 
     const ranAt = new Date().toISOString();

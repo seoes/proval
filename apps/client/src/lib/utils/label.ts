@@ -1,9 +1,9 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-import type { Activity, LlmApiProvider, ReplyThreadPolicy, RepositoryProvider } from "@proval/types";
+import type { Activity, LlmApiProvider, CommentReplyPolicy, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
-export function replyOptionBadge(label: string, mode: ReplyThreadPolicy): OptionBadge | null {
+export function replyOptionBadge(label: string, mode: CommentReplyPolicy): OptionBadge | null {
     if (mode === "off") return null;
     const suffix = mode === "mentioned_only" ? " (Mentioned Only)" : "";
     return {

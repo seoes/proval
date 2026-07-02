@@ -4,7 +4,7 @@ export const ISSUE_REPLY_WORKFLOW = [
     "",
     "# Workflow",
     "1. Understand the new commenter's intent: question, bug report, clarification, disagreement, or request.",
-    "2. Call get_issue_detail and get_issue_comment_list to understand the thread.",
+    "2. Call get_issue_detail and get_issue_comment_list to understand the comment history.",
     "3. If the commenter references prior work, duplicates, regressions, or implementation details, search related issues and pull requests.",
     "4. For code-related questions, use search_code_list first, then confirm with get_directory_tree and get_file_content before replying.",
     "5. Reply directly to the commenter with useful, concrete information.",

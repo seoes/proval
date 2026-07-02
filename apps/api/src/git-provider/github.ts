@@ -9,6 +9,7 @@ import type {
     GitIssue,
     GitIssueState,
     GitPullRequest,
+    GitPullRequestInlineReview,
     GitPullRequestState,
     GitPullRequestVersion,
     GitProvider,
@@ -17,7 +18,14 @@ import type {
     GitTree,
     GitUser,
     GitRepositoryListItem,
+    ListPaginationOptions,
 } from "./types.js";
+import {
+    buildInlineReviewList,
+    findInlineReviewById,
+    resolveInlineReviewRootId,
+    type InlineReviewComment,
+} from "./inline-review.js";
 
 export class GitHubProvider implements GitProvider {
     private readonly octokit: Octokit;
@@ -116,43 +124,79 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestCommentList(prNumber: number): Promise<GitComment[]> {
-        const [issueComments, reviewComments] = await Promise.all([
-            this.octokit.issues.listComments({
+    public async fetchPullRequestCommentList(
+        prNumber: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        const mapComment = (comment: {
+            id: number;
+            body?: string | null;
+            user?: { login?: string } | null;
+            created_at: string;
+        }): GitComment => ({
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        });
+
+        if (options) {
+            const { data } = await this.octokit.issues.listComments({
                 owner: this.owner,
                 repo: this.repo,
                 issue_number: prNumber,
-            }),
-            this.octokit.pulls.listReviewComments({
+                page: options.page,
+                per_page: options.limit,
+            });
+            const commentList = data.map(mapComment);
+            commentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            return commentList;
+        }
+
+        const commentList: GitComment[] = [];
+        for (let page = 1; ; page++) {
+            const response = await this.octokit.issues.listComments({
                 owner: this.owner,
                 repo: this.repo,
-                pull_number: prNumber,
-            }),
-        ]);
-
-        const comments: GitComment[] = [];
-
-        for (const comment of issueComments.data) {
-            comments.push({
-                id: comment.id,
-                body: comment.body ?? "",
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
+                issue_number: prNumber,
+                page,
+                per_page: 100,
             });
+            commentList.push(...response.data.map(mapComment));
+            if (!response.headers.link?.includes('rel="next"')) {
+                break;
+            }
         }
+        commentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return commentList;
+    }
 
-        for (const comment of reviewComments.data) {
-            comments.push({
-                id: comment.id,
-                body: comment.body ?? "",
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
-            });
-        }
+    public async fetchPullRequestComment(prNumber: number, commentId: number): Promise<GitComment> {
+        const { data: comment } = await this.octokit.issues.getComment({
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+        });
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
 
-        comments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-        return comments;
+    public async fetchPullRequestInlineReviewComment(prNumber: number, commentId: number): Promise<GitComment> {
+        const { data: comment } = await this.octokit.pulls.getReviewComment({
+            owner: this.owner,
+            repo: this.repo,
+            comment_id: commentId,
+        });
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
     }
 
     public async fetchIssueDetail(issueNumber: number): Promise<GitIssue> {
@@ -171,19 +215,48 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchIssueCommentList(issueNumber: number): Promise<GitComment[]> {
-        const { data: comments } = await this.octokit.issues.listComments({
-            owner: this.owner,
-            repo: this.repo,
-            issue_number: issueNumber,
-        });
-
-        return comments.map((comment) => ({
+    public async fetchIssueCommentList(
+        issueNumber: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        const mapComment = (comment: {
+            id: number;
+            body?: string | null;
+            user?: { login?: string } | null;
+            created_at: string;
+        }): GitComment => ({
             id: comment.id,
             body: comment.body ?? "",
             author: comment.user?.login ?? "",
             createdAt: comment.created_at,
-        }));
+        });
+
+        if (options) {
+            const { data } = await this.octokit.issues.listComments({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                page: options.page,
+                per_page: options.limit,
+            });
+            return data.map(mapComment);
+        }
+
+        const commentList: GitComment[] = [];
+        for (let page = 1; ; page++) {
+            const response = await this.octokit.issues.listComments({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                page,
+                per_page: 100,
+            });
+            commentList.push(...response.data.map(mapComment));
+            if (!response.headers.link?.includes('rel="next"')) {
+                break;
+            }
+        }
+        return commentList;
     }
 
     public async createIssueComment(issueNumber: number, body: string): Promise<GitComment> {
@@ -352,6 +425,54 @@ export class GitHubProvider implements GitProvider {
         return this.createIssueComment(prNumber, body);
     }
 
+    public async fetchPullRequestInlineReviewList(
+        prNumber: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitPullRequestInlineReview[]> {
+        const inlineReviewList = buildInlineReviewList(await this.fetchPullRequestInlineReviewCommentList(prNumber));
+        if (!options) {
+            return inlineReviewList;
+        }
+        const start = (options.page - 1) * options.limit;
+        return inlineReviewList.slice(start, start + options.limit);
+    }
+
+    public async fetchPullRequestInlineReview(
+        prNumber: number,
+        inlineReviewId: string,
+    ): Promise<GitPullRequestInlineReview> {
+        const inlineReviewList = await this.fetchPullRequestInlineReviewList(prNumber);
+        const review = findInlineReviewById(inlineReviewList, inlineReviewId);
+        if (!review) {
+            throw new Error(`Inline review not found: ${inlineReviewId}`);
+        }
+        return review;
+    }
+
+    public async replyToPullRequestInlineReview(
+        prNumber: number,
+        inlineReviewId: string,
+        body: string,
+    ): Promise<GitComment> {
+        const inlineReviewCommentList = await this.fetchPullRequestInlineReviewCommentList(prNumber);
+        const rootId = resolveInlineReviewRootId(Number(inlineReviewId), inlineReviewCommentList);
+
+        const { data: comment } = await this.octokit.pulls.createReplyForReviewComment({
+            owner: this.owner,
+            repo: this.repo,
+            pull_number: prNumber,
+            comment_id: rootId,
+            body,
+        });
+
+        return {
+            id: comment.id,
+            body: comment.body ?? "",
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        };
+    }
+
     public async fetchPullRequestVersion(prNumber: number): Promise<GitPullRequestVersion> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
@@ -432,13 +553,13 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async unapprovePullRequest(prNumber: number): Promise<void> {
-        const { data: reviews } = await this.octokit.pulls.listReviews({
+        const { data: pullReviewList } = await this.octokit.pulls.listReviews({
             owner: this.owner,
             repo: this.repo,
             pull_number: prNumber,
         });
 
-        const userReview = reviews.find((r) => r.state === "APPROVED");
+        const userReview = pullReviewList.find((r) => r.state === "APPROVED");
         if (userReview) {
             await this.octokit.pulls.dismissReview({
                 owner: this.owner,
@@ -473,6 +594,38 @@ export class GitHubProvider implements GitProvider {
             description: repo.description,
             defaultBranch: repo.default_branch ?? "main",
         }));
+    }
+
+    private async fetchPullRequestInlineReviewCommentList(prNumber: number): Promise<InlineReviewComment[]> {
+        const inlineReviewCommentList: InlineReviewComment[] = [];
+        for (let page = 1; ; page++) {
+            const response = await this.octokit.pulls.listReviewComments({
+                owner: this.owner,
+                repo: this.repo,
+                pull_number: prNumber,
+                page,
+                per_page: 100,
+            });
+            inlineReviewCommentList.push(
+                ...response.data.map((comment) => ({
+                    id: comment.id,
+                    body: comment.body ?? "",
+                    author: comment.user?.login ?? "",
+                    createdAt: comment.created_at,
+                    inReplyToId: comment.in_reply_to_id ?? null,
+                    path: comment.path ?? null,
+                    line: comment.line,
+                    originalLine: comment.original_line,
+                    startLine: comment.start_line,
+                    side: comment.side,
+                    startSide: comment.start_side,
+                })),
+            );
+            if (!response.headers.link?.includes('rel="next"')) {
+                break;
+            }
+        }
+        return inlineReviewCommentList;
     }
 
     private mapPRState(state: string, merged: boolean | null): GitPullRequestState {

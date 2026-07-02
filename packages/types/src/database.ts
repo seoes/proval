@@ -68,7 +68,7 @@ export type SecretInput = { value: string };
 export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type LlmApiProvider = ModelProvider["provider"];
-export type ReplyThreadPolicy = Repository["replyToPullRequestComment"];
+export type CommentReplyPolicy = Repository["replyToPullRequestComment"];
 
 // Composite / list API types
 export type GitProviderRepositoryListResponse = {

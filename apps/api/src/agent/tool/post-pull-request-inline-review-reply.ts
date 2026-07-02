@@ -2,11 +2,17 @@ import type { AgentTool } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import { buildCommentToolLanguageNote, buildCommentBodyDescription } from "../prompt/index.js";
 
-export function postPullRequestCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
+export function postPullRequestInlineReviewReplyTool(
+    provider: GitProvider,
+    prIid: number,
+    inlineReviewId: string,
+    commenterUsername: string,
+    language: string,
+): AgentTool {
     return {
-        name: "post_pull_request_comment",
+        name: "post_pull_request_inline_review_reply",
         description: [
-            "Post the single top-level PR summary note (merge recommendation + short overview). Call exactly ONCE after inline reviews (if any). Do not put full duplicate write-ups of every inline finding here.",
+            "Post your reply to the user's inline review comment. The @mention is added automatically — do NOT include it. Call ONCE when done.",
             buildCommentToolLanguageNote(language),
         ].join(" "),
         parameters: {
@@ -21,7 +27,8 @@ export function postPullRequestCommentTool(provider: GitProvider, prIid: number,
         },
         execute: async (args) => {
             const body = String(args.body);
-            const comment = await provider.createPullRequestComment(prIid, body);
+            const fullBody = `@${commenterUsername}\n\n${body}`;
+            const comment = await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, fullBody);
             return comment;
         },
     };

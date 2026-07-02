@@ -2,7 +2,7 @@
     "name": "api",
     "type": "module",
     "scripts": {
-        "dev": "bun --watch --env-file=.env src/index.ts",
+        "dev": "bun --watch --no-clear-screen --env-file=.env src/index.ts",
         "typecheck": "tsc --noEmit",
         "build": "bun build src/index.ts --outdir dist --target bun",
         "compile": "bun build src/index.ts --compile --outfile ./server",

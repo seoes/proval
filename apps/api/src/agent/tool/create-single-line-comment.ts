@@ -16,7 +16,7 @@ export function createSingleLineCommentTool(
     return {
         name: "create_single_line_comment",
         description: [
-            "Create one inline thread on a single line of the PR diff.",
+            "Create one inline review on a single line of the PR diff.",
             "Use this for findings that pin to exactly one line.",
             "Do NOT use this for findings spanning 2+ consecutive lines — use create_multi_line_comment for that.",
             "Paths must match the diff (old_path/new_path).",

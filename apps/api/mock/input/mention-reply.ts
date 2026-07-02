@@ -32,7 +32,7 @@ index 0000000..8888888
         },
     ],
     currentUser: { username: "test_bot" },
-    comments: [
+    commentList: [
         {
             id: 1,
             body: "Looks good overall.",

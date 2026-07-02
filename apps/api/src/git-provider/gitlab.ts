@@ -17,7 +17,21 @@ import type {
     GitTree,
     GitUser,
     GitRepositoryListItem,
+    GitPullRequestInlineReview,
+    GitDiffLine,
+    ListPaginationOptions,
 } from "./types.js";
+
+type GitLabInlineNotePosition = {
+    new_path?: string;
+    old_path?: string;
+    new_line?: string | number;
+    old_line?: string | number;
+    line_range?: {
+        start?: { type?: "new" | "old"; old_line?: number; new_line?: number };
+        end?: { type?: "new" | "old"; old_line?: number; new_line?: number };
+    };
+};
 
 export class GitLabProvider implements GitProvider {
     private readonly gitlab: Gitlab;
@@ -140,14 +154,43 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
-        const comments = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
-        return comments.map((comment) => ({
+    public async fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment> {
+        const comment = await this.gitlab.MergeRequestNotes.show(this.projectId, prIid, commentId);
+        return {
             id: comment.id,
             body: comment.body,
             author: comment.author.username,
             createdAt: comment.created_at,
-        }));
+        };
+    }
+
+    public async fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment> {
+        return this.fetchPullRequestComment(prIid, commentId);
+    }
+
+    public async fetchPullRequestCommentList(
+        prIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        const inlineReviewList = await this.loadPullRequestInlineReviewList(prIid);
+        const inlineNoteIds = new Set(inlineReviewList.flatMap((review) => review.commentList.map((c) => c.id)));
+
+        const noteList = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
+        const commentList = noteList
+            .filter((comment) => !comment.system && !inlineNoteIds.has(comment.id))
+            .map((comment) => ({
+                id: comment.id,
+                body: comment.body,
+                author: comment.author.username,
+                createdAt: comment.created_at,
+            }))
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+        if (!options) {
+            return commentList;
+        }
+        const start = (options.page - 1) * options.limit;
+        return commentList.slice(start, start + options.limit);
     }
 
     public async fetchIssueDetail(issueIid: number): Promise<GitIssue> {
@@ -168,17 +211,32 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchIssueCommentList(issueIid: number): Promise<GitComment[]> {
-        const comments = await this.requestJson<
+    public async fetchIssueCommentList(
+        issueIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        if (!options) {
+            const noteList = await this.gitlab.IssueNotes.all(this.projectId, issueIid);
+            return noteList.map((comment) => ({
+                id: comment.id,
+                body: comment.body,
+                author: comment.author.username,
+                createdAt: comment.created_at,
+            }));
+        }
+
+        const { page, limit } = options;
+        const path = `/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes?page=${page}&per_page=${limit}`;
+        const data = await this.requestJson<
             Array<{
                 id: number;
                 body: string;
                 created_at: string;
                 author?: { username?: string };
             }>
-        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes`);
+        >(path);
 
-        return comments.map((comment) => ({
+        return data.map((comment) => ({
             id: comment.id,
             body: comment.body,
             author: comment.author?.username ?? "",
@@ -320,6 +378,120 @@ export class GitLabProvider implements GitProvider {
             body: comment.body,
             author: comment.author.username,
             createdAt: comment.created_at,
+        };
+    }
+
+    public async fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview> {
+        const review = await this.gitlab.MergeRequestDiscussions.show(this.projectId, prIid, inlineReviewId);
+        const mapped = this.mapDiscussionToInlineReview(review);
+        if (!mapped) {
+            throw new Error(`Inline review not found for discussion: ${inlineReviewId}`);
+        }
+        return mapped;
+    }
+
+    public async fetchPullRequestInlineReviewList(
+        prIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitPullRequestInlineReview[]> {
+        const inlineReviewList = await this.loadPullRequestInlineReviewList(prIid);
+        if (!options) {
+            return inlineReviewList;
+        }
+        const start = (options.page - 1) * options.limit;
+        return inlineReviewList.slice(start, start + options.limit);
+    }
+
+    private async loadPullRequestInlineReviewList(prIid: number): Promise<GitPullRequestInlineReview[]> {
+        const discussionList = await this.gitlab.MergeRequestDiscussions.all(this.projectId, prIid);
+        return discussionList
+            .map((discussion) => this.mapDiscussionToInlineReview(discussion))
+            .filter((review): review is GitPullRequestInlineReview => review !== null);
+    }
+
+    private mapDiscussionToInlineReview(discussion: {
+        id: string;
+        notes?: Array<{
+            id: number;
+            type?: string | null;
+            body: string;
+            author: { username: string };
+            created_at: string;
+            system?: boolean;
+            resolvable?: boolean;
+            position?: unknown;
+            resolved?: boolean;
+        }>;
+    }): GitPullRequestInlineReview | null {
+        const noteList = discussion.notes ?? [];
+        const anchorNote = noteList.find((n) => n.type === "DiffNote" && n.position) ?? null;
+        if (!anchorNote?.position) {
+            return null;
+        }
+
+        const position = anchorNote.position as GitLabInlineNotePosition;
+        const { start, end } = this.mapGitLabPositionToDiffLines(position);
+        const resolvableNote = noteList.find((n) => n.resolvable);
+
+        return {
+            id: discussion.id,
+            path: position.new_path ?? "",
+            oldPath: position.old_path,
+            start,
+            end,
+            createdAt: anchorNote.created_at,
+            isResolved: resolvableNote ? Boolean(resolvableNote.resolved) : false,
+            commentList: noteList
+                .filter((n) => !n.system)
+                .map((n) => ({
+                    id: n.id,
+                    body: n.body,
+                    author: n.author.username,
+                    createdAt: n.created_at,
+                })),
+        };
+    }
+
+    private mapGitLabPositionToDiffLines(position: GitLabInlineNotePosition): { start: GitDiffLine; end: GitDiffLine } {
+        const lineRange = position.line_range;
+        if (lineRange?.start && lineRange?.end) {
+            return {
+                start: {
+                    type: lineRange.start.type ?? "new",
+                    newLine: lineRange.start.new_line,
+                    oldLine: lineRange.start.old_line,
+                },
+                end: {
+                    type: lineRange.end.type ?? "new",
+                    newLine: lineRange.end.new_line,
+                    oldLine: lineRange.end.old_line,
+                },
+            };
+        }
+
+        const newLine = this.parseDiffLineNumber(position.new_line);
+        const oldLine = this.parseDiffLineNumber(position.old_line);
+        const line: GitDiffLine =
+            newLine !== undefined ? { type: "new", newLine, oldLine } : { type: "old", oldLine, newLine };
+        return { start: line, end: line };
+    }
+
+    private parseDiffLineNumber(value: string | number | undefined): number | undefined {
+        if (value === undefined || value === "") {
+            return undefined;
+        }
+        const n = typeof value === "number" ? value : Number(value);
+        return Number.isFinite(n) ? n : undefined;
+    }
+
+    public async replyToPullRequestInlineReview(prIid: number, inlineReviewId: string, body: string): Promise<GitComment> {
+        const note = await this.gitlab.MergeRequestDiscussions.addNote(this.projectId, prIid, inlineReviewId, body);
+
+        return {
+            id: note.id,
+            body: note.body,
+            author: note.author.username,
+            createdAt: note.created_at,
         };
     }
 

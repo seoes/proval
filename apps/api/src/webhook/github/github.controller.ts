@@ -22,7 +22,14 @@ type IssueWebhookPayload = {
 type IssueCommentWebhookPayload = {
     action?: string;
     issue?: { pull_request?: unknown; number: number };
-    comment?: { body?: string };
+    comment?: { id?: number; body?: string };
+    sender?: { type?: string; login?: string };
+};
+
+type PullRequestReviewCommentWebhookPayload = {
+    action?: string;
+    pull_request?: { number: number };
+    comment?: { id: number; body?: string; in_reply_to_id?: number | null };
     sender?: { type?: string; login?: string };
 };
 
@@ -74,6 +81,17 @@ export const handleGitHubWebhook = async (c: Context) => {
         if (event === "issue_comment") {
             const payload = c.get("githubPayload") as IssueCommentWebhookPayload;
             return await handleIssueCommentWebhook(payload, repository, modelProvider, githubApp, installationId);
+        }
+
+        if (event === "pull_request_review_comment") {
+            const payload = c.get("githubPayload") as PullRequestReviewCommentWebhookPayload;
+            return await handlePullRequestReviewCommentWebhook(
+                payload,
+                repository,
+                modelProvider,
+                githubApp,
+                installationId,
+            );
         }
 
         if (event === "issues") {
@@ -229,6 +247,7 @@ async function handleIssueCommentWebhook(
     }
 
     const noteBody = payload.comment?.body ?? "";
+    const commentId = payload.comment?.id;
     const commenterUsername = sender?.login ?? "";
 
     if (payload.issue?.pull_request) {
@@ -243,6 +262,10 @@ async function handleIssueCommentWebhook(
             return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
                 status: 200,
             });
+        }
+
+        if (commentId === undefined) {
+            return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
         }
 
         const llmSender = createSender({
@@ -261,14 +284,14 @@ async function handleIssueCommentWebhook(
                 targetIid: issueNumber,
             },
             () =>
-                runPullRequestReply(
-                    gitHubProvider,
+                runPullRequestReply({
+                    provider: gitHubProvider,
                     llmSender,
-                    issueNumber,
-                    commenterUsername,
-                    noteBody,
-                    repository.language,
-                ),
+                    prIid: issueNumber,
+                    commentId,
+                    inlineReviewId: null,
+                    language: repository.language,
+                }),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -309,6 +332,76 @@ async function handleIssueCommentWebhook(
     });
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+}
+
+async function handlePullRequestReviewCommentWebhook(
+    payload: PullRequestReviewCommentWebhookPayload,
+    repository: Repository,
+    modelProvider: ModelProvider,
+    githubApp: GitHubApp,
+    installationId: number,
+): Promise<Response> {
+    const action = payload.action ?? "";
+    if (action !== "created") {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), { status: 200 });
+    }
+
+    const prNumber = payload.pull_request?.number;
+    const comment = payload.comment;
+    if (prNumber === undefined || !comment?.id) {
+        return new Response(JSON.stringify({ message: "Missing pull request or comment" }), { status: 200 });
+    }
+
+    const sender = payload.sender;
+    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
+    const botUsername = (await gitHubProvider.fetchCurrentUser()).username;
+
+    if (sender?.type === "Bot" || sender?.login === botUsername) {
+        return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
+    }
+
+    if (repository.replyToPullRequestComment === "off") {
+        return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
+    }
+
+    const noteBody = comment.body ?? "";
+    if (
+        repository.replyToPullRequestComment === "mentioned_only" &&
+        !isBotMentioned(noteBody, botUsername, githubApp.slug)
+    ) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
+
+    const inlineReviewId = String(comment.in_reply_to_id ?? comment.id);
+    const llmSender = createSender({
+        provider: modelProvider.provider,
+        apiKey: modelProvider.apiKey,
+        baseURL: modelProvider.baseUrl,
+        model: repository.modelName,
+    });
+
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
+            type: "pr_reply",
+            targetIid: prNumber,
+        },
+        () =>
+            runPullRequestReply({
+                provider: gitHubProvider,
+                llmSender,
+                prIid: prNumber,
+                commentId: comment.id,
+                inlineReviewId,
+                language: repository.language,
+            }),
+    ).catch((error) => {
+        logError("Pull request inline review reply failed", error);
+    });
+
+    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 }
 
 function isBotMentioned(noteBody: string, botUsername: string, appSlug: string): boolean {

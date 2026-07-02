@@ -1,3 +1,5 @@
+export type ListPaginationOptions = { page: number; limit: number };
+
 export interface GitPullRequest {
     title: string;
     description: string | null;
@@ -92,12 +94,22 @@ export interface GitPullRequestVersion {
     startSha: string;
 }
 
-// comment and discussion
 export interface GitComment {
     id: number;
     body: string;
     author: string;
     createdAt: string;
+}
+
+export interface GitPullRequestInlineReview {
+    id: string;
+    path: string;
+    oldPath?: string;
+    start: GitDiffLine;
+    end: GitDiffLine;
+    createdAt: string;
+    isResolved: boolean;
+    commentList: GitComment[];
 }
 
 // commit
@@ -142,10 +154,25 @@ export interface GitProvider {
     fetchChangedFileList(prIid: number): Promise<GitChangedFile[]>;
     /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
     fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
-    fetchPullRequestCommentList(prIid: number): Promise<GitComment[]>;
+
+    // Pull Request conversation comment (PR timeline / issue_comment)
+    fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment>;
+    fetchPullRequestCommentList(prIid: number, options?: ListPaginationOptions): Promise<GitComment[]>;
+
+    // Pull Request inline review
+    fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview>;
+    fetchPullRequestInlineReviewList(
+        prIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitPullRequestInlineReview[]>;
+    fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment>;
+    replyToPullRequestInlineReview(prIid: number, inlineReviewId: string, body: string): Promise<GitComment>;
+
     fetchPullRequestReviewerList(prIid: number): Promise<string[]>;
     fetchIssueDetail(issueIid: number): Promise<GitIssue>;
-    fetchIssueCommentList(issueIid: number): Promise<GitComment[]>;
+
+    // Issue Comment
+    fetchIssueCommentList(issueIid: number, options?: ListPaginationOptions): Promise<GitComment[]>;
     createIssueComment(issueIid: number, body: string): Promise<GitComment>;
     searchIssueList(query: string): Promise<GitRelatedItem[]>;
     searchPullRequestList(query: string): Promise<GitRelatedItem[]>;
@@ -157,6 +184,7 @@ export interface GitProvider {
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;
     createPullRequestComment(prIid: number, body: string): Promise<GitComment>;
+
     fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion>;
     createCommentToSingleLine(prIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;
     createCommentToMultiLine(prIid: number, body: string, position: GitDiffMultiLine): Promise<GitComment>;

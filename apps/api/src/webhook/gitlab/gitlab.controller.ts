@@ -1,4 +1,6 @@
 import type {
+    DiscussionNoteSchema,
+    MergeRequestNoteSchema,
     WebhookBaseNoteEventSchema,
     WebhookIssueEventSchema,
     WebhookIssueNoteEventSchema,
@@ -8,7 +10,7 @@ import type {
 import type { Context } from "hono";
 import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
-import { logError } from "../../util/log.js";
+import { log, logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
@@ -87,7 +89,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     access,
 ) => {
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -167,8 +169,16 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         });
     }
 
+    const action = (payload.object_attributes as unknown as MergeRequestNoteSchema).action;
+    if (!action || action !== "create") {
+        log(`Skipped: action '${action}'`);
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
+    }
+
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -181,6 +191,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     const commenterUsername: string = payload.user?.username ?? "";
 
     if (botUsername === commenterUsername) {
+        log("Skipped: bot username is the same as the commenter username, skipping");
         return new Response(
             JSON.stringify({
                 message: "Skipped: bot username is the same as the commenter username, skipping",
@@ -190,6 +201,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     }
 
     const noteBody: string = payload.object_attributes?.note;
+    const commentId = payload.object_attributes?.id;
     const prIid = payload.merge_request.iid;
 
     const llmSender = createSender({
@@ -205,6 +217,9 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         }
     }
 
+    const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
+    const inlineReviewId = payload.object_attributes.discussion_id ?? null;
+
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -213,7 +228,15 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
             type: "pr_reply",
             targetIid: prIid,
         },
-        () => runPullRequestReply(gitlabProvider, llmSender, prIid, commenterUsername, noteBody, repository.language),
+        () =>
+            runPullRequestReply({
+                provider: gitlabProvider,
+                llmSender,
+                prIid,
+                commentId,
+                inlineReviewId: isInlineReviewComment ? inlineReviewId : null,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Pull request reply failed", error);
     });
@@ -243,7 +266,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -300,7 +323,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
