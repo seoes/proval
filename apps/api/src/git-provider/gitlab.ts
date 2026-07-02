@@ -19,6 +19,7 @@ import type {
     GitRepositoryListItem,
     GitPullRequestInlineReview,
     GitDiffLine,
+    ListPaginationOptions,
 } from "./types.js";
 
 type GitLabInlineNotePosition = {
@@ -167,12 +168,15 @@ export class GitLabProvider implements GitProvider {
         return this.fetchPullRequestComment(prIid, commentId);
     }
 
-    public async fetchPullRequestCommentList(prIid: number): Promise<GitComment[]> {
-        const inlineReviews = await this.fetchPullRequestInlineReviewList(prIid);
-        const inlineNoteIds = new Set(inlineReviews.flatMap((review) => review.commentList.map((c) => c.id)));
+    public async fetchPullRequestCommentList(
+        prIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        const inlineReviewList = await this.loadPullRequestInlineReviewList(prIid);
+        const inlineNoteIds = new Set(inlineReviewList.flatMap((review) => review.commentList.map((c) => c.id)));
 
-        const comments = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
-        return comments
+        const noteList = await this.gitlab.MergeRequestNotes.all(this.projectId, prIid);
+        const commentList = noteList
             .filter((comment) => !comment.system && !inlineNoteIds.has(comment.id))
             .map((comment) => ({
                 id: comment.id,
@@ -181,6 +185,12 @@ export class GitLabProvider implements GitProvider {
                 createdAt: comment.created_at,
             }))
             .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+        if (!options) {
+            return commentList;
+        }
+        const start = (options.page - 1) * options.limit;
+        return commentList.slice(start, start + options.limit);
     }
 
     public async fetchIssueDetail(issueIid: number): Promise<GitIssue> {
@@ -201,17 +211,32 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchIssueCommentList(issueIid: number): Promise<GitComment[]> {
-        const comments = await this.requestJson<
+    public async fetchIssueCommentList(
+        issueIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitComment[]> {
+        if (!options) {
+            const noteList = await this.gitlab.IssueNotes.all(this.projectId, issueIid);
+            return noteList.map((comment) => ({
+                id: comment.id,
+                body: comment.body,
+                author: comment.author.username,
+                createdAt: comment.created_at,
+            }));
+        }
+
+        const { page, limit } = options;
+        const path = `/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes?page=${page}&per_page=${limit}`;
+        const data = await this.requestJson<
             Array<{
                 id: number;
                 body: string;
                 created_at: string;
                 author?: { username?: string };
             }>
-        >(`/projects/${encodeURIComponent(String(this.projectId))}/issues/${issueIid}/notes`);
+        >(path);
 
-        return comments.map((comment) => ({
+        return data.map((comment) => ({
             id: comment.id,
             body: comment.body,
             author: comment.author?.username ?? "",
@@ -365,9 +390,21 @@ export class GitLabProvider implements GitProvider {
         return mapped;
     }
 
-    public async fetchPullRequestInlineReviewList(prIid: number): Promise<GitPullRequestInlineReview[]> {
-        const discussions = await this.gitlab.MergeRequestDiscussions.all(this.projectId, prIid);
-        return discussions
+    public async fetchPullRequestInlineReviewList(
+        prIid: number,
+        options?: ListPaginationOptions,
+    ): Promise<GitPullRequestInlineReview[]> {
+        const inlineReviewList = await this.loadPullRequestInlineReviewList(prIid);
+        if (!options) {
+            return inlineReviewList;
+        }
+        const start = (options.page - 1) * options.limit;
+        return inlineReviewList.slice(start, start + options.limit);
+    }
+
+    private async loadPullRequestInlineReviewList(prIid: number): Promise<GitPullRequestInlineReview[]> {
+        const discussionList = await this.gitlab.MergeRequestDiscussions.all(this.projectId, prIid);
+        return discussionList
             .map((discussion) => this.mapDiscussionToInlineReview(discussion))
             .filter((review): review is GitPullRequestInlineReview => review !== null);
     }
@@ -386,15 +423,15 @@ export class GitLabProvider implements GitProvider {
             resolved?: boolean;
         }>;
     }): GitPullRequestInlineReview | null {
-        const notes = discussion.notes ?? [];
-        const anchorNote = notes.find((n) => n.type === "DiffNote" && n.position) ?? null;
+        const noteList = discussion.notes ?? [];
+        const anchorNote = noteList.find((n) => n.type === "DiffNote" && n.position) ?? null;
         if (!anchorNote?.position) {
             return null;
         }
 
         const position = anchorNote.position as GitLabInlineNotePosition;
         const { start, end } = this.mapGitLabPositionToDiffLines(position);
-        const resolvableNote = notes.find((n) => n.resolvable);
+        const resolvableNote = noteList.find((n) => n.resolvable);
 
         return {
             id: discussion.id,
@@ -404,7 +441,7 @@ export class GitLabProvider implements GitProvider {
             end,
             createdAt: anchorNote.created_at,
             isResolved: resolvableNote ? Boolean(resolvableNote.resolved) : false,
-            commentList: notes
+            commentList: noteList
                 .filter((n) => !n.system)
                 .map((n) => ({
                     id: n.id,

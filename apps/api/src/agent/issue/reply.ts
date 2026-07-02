@@ -24,13 +24,11 @@ export async function runIssueReply(
     language: string,
 ): Promise<ActivityTokenUsage> {
     const repository = await provider.fetchRepositoryDetail();
-    const issueComments = await provider.fetchIssueCommentList(issueIid);
     const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
     const prompt = [
         await generateIssuePrompt(provider, issueIid),
         `Commenter Username: ${commenterUsername}`,
         `Comment Body: ${commentBody}`,
-        `Comment List: ${JSON.stringify(issueComments)}`,
     ].join("\n\n");
 
     const toolList = [

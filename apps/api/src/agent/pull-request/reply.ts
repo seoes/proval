@@ -1,6 +1,6 @@
 import { debug } from "../../util/log";
 import { runAgentLoop } from "../llm/loop";
-import { PR_REPLY_BODY } from "../prompt";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../prompt";
 import {
     getDirectoryTreeTool,
@@ -15,14 +15,6 @@ import {
 } from "../tool";
 import type { PullRequestCommentReply } from "./index.js";
 
-function truncateCommentBody(body: string): string {
-    return body.length > 100 ? body.slice(0, 100) + "..." : body;
-}
-
-function truncateAuthor(author: string): string {
-    return author.length > 20 ? author.slice(0, 20) + "..." : author;
-}
-
 export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     provider,
     llmSender,
@@ -30,36 +22,11 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     commentId,
     language,
 }) => {
+    const comment = await provider.fetchPullRequestComment(prIid, commentId);
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
-    const [commentList, inlineReviewList] = await Promise.all([
-        provider.fetchPullRequestCommentList(prIid),
-        provider.fetchPullRequestInlineReviewList(prIid),
-    ]);
-    const comment = commentList.find((c) => c.id === commentId);
-    if (!comment) {
-        throw new Error(`Comment with id ${commentId} not found`);
-    }
-    const system = [PR_REPLY_BODY, COMMENT_LANGUAGE_RULE].join("\n");
 
-    const prompt = JSON.stringify({
-        pastCommentList: commentList
-            .filter((c) => c.id !== commentId)
-            .map((c) => ({
-                id: c.id,
-                body: truncateCommentBody(c.body),
-                author: truncateAuthor(c.author),
-            })),
-        pastInlineReviewList: inlineReviewList.map((review) => ({
-            id: review.id,
-            path: review.path,
-            commentList: review.commentList.map((c) => ({
-                id: c.id,
-                body: truncateCommentBody(c.body),
-                author: truncateAuthor(c.author),
-            })),
-        })),
-        newComment: comment,
-    });
+    const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
+    const prompt = `Reply to the new conversation comment on PR #${prIid}. (commentId: ${commentId})`;
 
     debug(prompt, "prompt");
 

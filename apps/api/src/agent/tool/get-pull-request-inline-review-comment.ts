@@ -5,14 +5,14 @@ export function getPullRequestInlineReviewCommentTool(provider: GitProvider, prI
     return {
         name: "get_pull_request_inline_review_comment",
         description:
-            "Get a specific comment inside an inline review thread on this pull request. Returns structured data: author, timestamp, body. Use inline review comment IDs only — from newComment.id or from inlineReview.commentList entries, not from conversation comments. Call this to read sibling or prior comments in the same inline review thread.",
+            "Get a specific comment inside an inline review thread on this pull request. Returns full body text. Use inline review comment IDs from get_pull_request_inline_review_list.",
         parameters: {
             type: "object",
             properties: {
                 commentId: {
                     type: "number",
                     description:
-                        "The ID of the inline review comment to get. Use ids from newComment or inlineReview.commentList, not conversation comment ids.",
+                        "The ID of the inline review comment to get. Use ids from get_pull_request_inline_review_list.",
                 },
             },
             required: ["commentId"],

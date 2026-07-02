@@ -14,8 +14,8 @@ export type InlineReviewComment = {
     startSide?: string | null;
 };
 
-export function resolveInlineReviewRootId(commentId: number, comments: InlineReviewComment[]): number {
-    const byId = new Map(comments.map((c) => [c.id, c]));
+export function resolveInlineReviewRootId(commentId: number, commentList: InlineReviewComment[]): number {
+    const byId = new Map(commentList.map((c) => [c.id, c]));
     let current = byId.get(commentId);
     if (!current) {
         return commentId;
@@ -57,8 +57,8 @@ export function mapInlineReviewCommentToDiffLines(comment: InlineReviewComment):
     return { start: single, end: single };
 }
 
-export function buildInlineReviewList(comments: InlineReviewComment[]): GitPullRequestInlineReview[] {
-    const withPath = comments.filter((c) => c.path);
+export function buildInlineReviewList(commentList: InlineReviewComment[]): GitPullRequestInlineReview[] {
+    const withPath = commentList.filter((c) => c.path);
     if (withPath.length === 0) {
         return [];
     }
@@ -68,26 +68,26 @@ export function buildInlineReviewList(comments: InlineReviewComment[]): GitPullR
         rootIds.add(resolveInlineReviewRootId(comment.id, withPath));
     }
 
-    const reviews: GitPullRequestInlineReview[] = [];
+    const inlineReviewList: GitPullRequestInlineReview[] = [];
 
     for (const rootId of rootIds) {
-        const threadComments = collectThreadComments(rootId, withPath);
-        const root = threadComments.find((c) => c.id === rootId) ?? threadComments[0];
+        const threadCommentList = collectThreadCommentList(rootId, withPath);
+        const root = threadCommentList.find((c) => c.id === rootId) ?? threadCommentList[0];
         if (!root?.path) {
             continue;
         }
 
         const { start, end } = mapInlineReviewCommentToDiffLines(root);
-        threadComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        threadCommentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-        reviews.push({
+        inlineReviewList.push({
             id: String(rootId),
             path: root.path,
             start,
             end,
             createdAt: root.createdAt,
             isResolved: false,
-            commentList: threadComments.map(
+            commentList: threadCommentList.map(
                 (c): GitComment => ({
                     id: c.id,
                     body: c.body,
@@ -98,16 +98,16 @@ export function buildInlineReviewList(comments: InlineReviewComment[]): GitPullR
         });
     }
 
-    reviews.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    return reviews;
+    inlineReviewList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return inlineReviewList;
 }
 
-function collectThreadComments(rootId: number, comments: InlineReviewComment[]): InlineReviewComment[] {
-    const byId = new Map(comments.map((c) => [c.id, c]));
+function collectThreadCommentList(rootId: number, commentList: InlineReviewComment[]): InlineReviewComment[] {
+    const byId = new Map(commentList.map((c) => [c.id, c]));
     const inThread = new Set<number>();
 
-    for (const comment of comments) {
-        const root = resolveInlineReviewRootId(comment.id, comments);
+    for (const comment of commentList) {
+        const root = resolveInlineReviewRootId(comment.id, commentList);
         if (root === rootId) {
             inThread.add(comment.id);
         }
@@ -117,10 +117,10 @@ function collectThreadComments(rootId: number, comments: InlineReviewComment[]):
 }
 
 export function findInlineReviewById(
-    reviews: GitPullRequestInlineReview[],
+    inlineReviewList: GitPullRequestInlineReview[],
     inlineReviewId: string,
 ): GitPullRequestInlineReview | null {
-    const direct = reviews.find((r) => r.id === inlineReviewId);
+    const direct = inlineReviewList.find((r) => r.id === inlineReviewId);
     if (direct) {
         return direct;
     }
@@ -130,5 +130,5 @@ export function findInlineReviewById(
         return null;
     }
 
-    return reviews.find((r) => r.commentList.some((c) => c.id === numericId)) ?? null;
+    return inlineReviewList.find((r) => r.commentList.some((c) => c.id === numericId)) ?? null;
 }

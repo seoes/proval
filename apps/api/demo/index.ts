@@ -165,7 +165,7 @@ async function main() {
             provider,
             llmSender,
             prIid: 1,
-            commentId: entry.data.comments?.[0]?.id ?? 1,
+            commentId: entry.data.commentList?.[0]?.id ?? 1,
             inlineReviewId: null,
             language,
         });
