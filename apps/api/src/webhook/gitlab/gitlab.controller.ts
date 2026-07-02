@@ -89,7 +89,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     access,
 ) => {
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -266,7 +266,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
@@ -323,7 +323,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const project = payload.project;
-    const token = access.accessToken;
+    const token = repository.accessToken;
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no GitLab access token" }), {
             status: 500,
