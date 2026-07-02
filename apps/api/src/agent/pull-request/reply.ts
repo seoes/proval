@@ -1,18 +1,20 @@
 import { debug } from "../../util/log";
 import { runAgentLoop } from "../llm/loop";
-import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
-import { COMMENT_LANGUAGE_RULE } from "../prompt";
+import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
+import {
+    getPullRequestCommentListTool,
+    getPullRequestCommentTool,
+    getPullRequestDetailTool,
+    getFileDiffTool,
+    postPullRequestReplyTool,
+} from "./tool";
 import {
     getDirectoryTreeTool,
-    getFileDiffTool,
     getMergeFileContentTool,
-    getPullRequestDetailTool,
-    postPullRequestReplyTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-    getPullRequestCommentTool,
-    getPullRequestCommentListTool,
-} from "../tool";
+} from "../shared/tool";
 import type { PullRequestCommentReply } from "./index.js";
 
 export const runPullRequestCommentReply: PullRequestCommentReply = async ({

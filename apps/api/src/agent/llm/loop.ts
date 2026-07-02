@@ -1,7 +1,7 @@
 import pc from "picocolors";
 import { log, logAgentResult, logError } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
-import { UNTRUSTED_WARNING_SYSTEM_PROMPT } from "../prompt/untrusted-warning.prompt.js";
+import { UNTRUSTED_WARNING_SYSTEM_PROMPT } from "../shared/prompt/untrusted-warning.prompt.js";
 
 export interface AgentTool {
     name: string;

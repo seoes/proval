@@ -1,18 +1,16 @@
 import { debug } from "../../util/log";
 import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE, ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW } from "../prompt";
+import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW } from "./prompt";
 import {
-    getDirectoryTreeTool,
-    getFileContentTool,
     getIssueCommentListTool,
     getIssueCommentTool,
     getIssueDetailTool,
     postIssueReplyTool,
-    searchCodeListTool,
     searchIssueListTool,
-    searchLineByKeywordTool,
     searchPullRequestListTool,
-} from "../tool";
+} from "./tool";
+import { getDirectoryTreeTool, getFileContentTool, searchCodeListTool, searchLineByKeywordTool } from "../shared/tool";
 import type { IssueReply } from "./index.js";
 
 export const runIssueReply: IssueReply = async ({ provider, llmSender, issueIid, commentId, language }) => {

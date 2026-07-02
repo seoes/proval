@@ -1,20 +1,22 @@
 import type { PullRequestInlineReviewReply } from ".";
 import { debug } from "../../util/log";
 import { runAgentLoop } from "../llm/loop";
-import { PR_REPLY_BODY, PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_WORKFLOW } from "../prompt";
-import { COMMENT_LANGUAGE_RULE } from "../prompt";
+import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
 import {
-    getDirectoryTreeTool,
-    getFileDiffTool,
-    getMergeFileContentTool,
+    getPullRequestCommentListTool,
     getPullRequestDetailTool,
-    postPullRequestInlineReviewReplyTool,
-    searchCodeListTool,
-    searchLineByKeywordTool,
     getPullRequestInlineReviewCommentTool,
     getPullRequestInlineReviewListTool,
-    getPullRequestCommentListTool,
-} from "../tool";
+    getFileDiffTool,
+    postPullRequestInlineReviewReplyTool,
+} from "./tool";
+import {
+    getDirectoryTreeTool,
+    getMergeFileContentTool,
+    searchCodeListTool,
+    searchLineByKeywordTool,
+} from "../shared/tool";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,

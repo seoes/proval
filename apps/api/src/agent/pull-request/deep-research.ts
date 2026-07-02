@@ -1,33 +1,34 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { ReviewUnit, SkippedFile } from "../schema/deep-research.schema";
+import type { ReviewUnit, SkippedFile } from "./schema/deep-research.schema";
 import { runAgentLoop, type LlmSender } from "../llm/loop";
-import { DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT } from "../prompt/deep-review-sub-agent";
 import type { GitProvider } from "../../git-provider/types";
-import { generatePullRequestPrompt } from "./prompt";
-
+import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import {
-    COMMENT_LANGUAGE_RULE,
     DEEP_REVIEW_COMMENT_WORKFLOW,
     DEEP_REVIEW_PLAN,
     DEEP_REVIEW_SUB_AGENT_BODY,
+    DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT,
     FILE_COVERAGE_RULE,
     INLINE_DISABLED,
     INLINE_ENABLED,
     REVIEW_CHECKLIST,
     SEVERITY,
-} from "../prompt";
+    generatePullRequestPrompt,
+} from "./prompt";
 import {
     appendReviewUnitTool,
     createMultiLineCommentTool,
     createSingleLineCommentTool,
-    getDirectoryTreeTool,
     getFileDiffTool,
     postPullRequestCommentTool,
+    skipFileTool,
+} from "./tool";
+import {
+    getDirectoryTreeTool,
+    getMergeFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-    skipFileTool,
-    getMergeFileContentTool,
-} from "../tool";
+} from "../shared/tool";
 import type { PullRequestReview } from ".";
 
 export const runDeepResearchReview: PullRequestReview = async ({

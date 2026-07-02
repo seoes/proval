@@ -1,22 +1,24 @@
 import { runAgentLoop } from "../llm/loop";
+import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import {
-    COMMENT_LANGUAGE_RULE,
     FILE_COVERAGE_RULE,
     INLINE_DISABLED,
     INLINE_ENABLED,
     STANDARD_REVIEW_PROMPT,
-} from "../prompt";
+    generatePullRequestPrompt,
+} from "./prompt";
 import {
     createMultiLineCommentTool,
     createSingleLineCommentTool,
-    getDirectoryTreeTool,
     getFileDiffTool,
-    getMergeFileContentTool,
     postPullRequestCommentTool,
+} from "./tool";
+import {
+    getDirectoryTreeTool,
+    getMergeFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-} from "../tool";
-import { generatePullRequestPrompt } from "./prompt";
+} from "../shared/tool";
 import type { PullRequestReview } from ".";
 
 export const runStandardReview: PullRequestReview = async ({
