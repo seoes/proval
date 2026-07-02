@@ -211,18 +211,30 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
+    public async fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment> {
+        const comment = await this.gitlab.IssueNotes.show(this.projectId, issueIid, commentId);
+        return {
+            id: comment.id,
+            body: comment.body,
+            author: comment.author.username,
+            createdAt: comment.created_at,
+        };
+    }
+
     public async fetchIssueCommentList(
         issueIid: number,
         options?: ListPaginationOptions,
     ): Promise<GitComment[]> {
         if (!options) {
             const noteList = await this.gitlab.IssueNotes.all(this.projectId, issueIid);
-            return noteList.map((comment) => ({
-                id: comment.id,
-                body: comment.body,
-                author: comment.author.username,
-                createdAt: comment.created_at,
-            }));
+            return noteList
+                .filter((comment) => !comment.system)
+                .map((comment) => ({
+                    id: comment.id,
+                    body: comment.body,
+                    author: comment.author.username,
+                    createdAt: comment.created_at,
+                }));
         }
 
         const { page, limit } = options;
@@ -232,16 +244,19 @@ export class GitLabProvider implements GitProvider {
                 id: number;
                 body: string;
                 created_at: string;
+                system?: boolean;
                 author?: { username?: string };
             }>
         >(path);
 
-        return data.map((comment) => ({
-            id: comment.id,
-            body: comment.body,
-            author: comment.author?.username ?? "",
-            createdAt: comment.created_at,
-        }));
+        return data
+            .filter((comment) => !comment.system)
+            .map((comment) => ({
+                id: comment.id,
+                body: comment.body,
+                author: comment.author?.username ?? "",
+                createdAt: comment.created_at,
+            }));
     }
 
     public async createIssueComment(issueIid: number, body: string): Promise<GitComment> {

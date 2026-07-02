@@ -7,6 +7,6 @@ export { DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT } from "./deep-review-sub-agent.js"
 export { PR_REPLY_BODY, PR_INLINE_REVIEW_REPLY_APPENDIX } from "./pr-reply.js";
 export { PR_REPLY_WORKFLOW } from "./pr-reply-workflow.js";
 export { ISSUE_BASE_PROMPT } from "./issue-base.js";
-export { ISSUE_COMMENT_ON_OPEN_WORKFLOW } from "./issue-comment-on-open-workflow.js";
+export { ISSUE_REPLY_ON_OPEN_WORKFLOW } from "./issue-reply-on-open-workflow.js";
 export { ISSUE_REPLY_WORKFLOW } from "./issue-reply-workflow.js";
 export { INLINE_ENABLED, INLINE_DISABLED, SEVERITY, REVIEW_CHECKLIST, FILE_COVERAGE_RULE } from "./review.js";

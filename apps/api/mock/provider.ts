@@ -109,6 +109,19 @@ export class MockProvider implements GitProvider {
         };
     }
 
+    async fetchIssueComment(_issueIid: number, commentId: number): Promise<GitComment> {
+        const comment = (this.input.commentList ?? []).find((item) => item.id === commentId);
+        if (comment) {
+            return comment;
+        }
+        return {
+            id: commentId,
+            body: "test_body",
+            author: "test_user",
+            createdAt: new Date().toISOString(),
+        };
+    }
+
     async fetchIssueCommentList(_issueIid: number, options?: ListPaginationOptions) {
         const commentList = this.input.commentList ?? [];
         if (!options) {

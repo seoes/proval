@@ -1,8 +1,6 @@
-import type { ActivityTokenUsage } from "@proval/types";
-import { runAgentLoop, type LlmSender } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE, ISSUE_BASE_PROMPT, ISSUE_COMMENT_ON_OPEN_WORKFLOW } from "../prompt";
-import { generateIssuePrompt } from "./prompt";
-import type { GitProvider } from "../../git-provider/types";
+import { debug } from "../../util/log";
+import { runAgentLoop } from "../llm/loop";
+import { COMMENT_LANGUAGE_RULE, ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW } from "../prompt";
 import {
     getDirectoryTreeTool,
     getIssueCommentListTool,
@@ -14,16 +12,16 @@ import {
     searchPullRequestListTool,
     getIssueDetailTool,
 } from "../tool";
+import type { IssueReplyOnOpen } from "./index.js";
 
-export async function runIssueCommentOnOpen(
-    provider: GitProvider,
-    llmSender: LlmSender,
-    issueIid: number,
-    language: string,
-): Promise<ActivityTokenUsage> {
+export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({ provider, llmSender, issueIid, language }) => {
     const repository = await provider.fetchRepositoryDetail();
-    const system = [ISSUE_BASE_PROMPT, ISSUE_COMMENT_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
-    const prompt = await generateIssuePrompt(provider, issueIid);
+
+    const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
+    const prompt = `Triage the newly opened issue #${issueIid}.`;
+
+    debug(prompt, "prompt");
+
     const toolList = [
         getIssueDetailTool(provider, issueIid),
         getIssueCommentListTool(provider, issueIid),
@@ -35,9 +33,11 @@ export async function runIssueCommentOnOpen(
         getFileContentTool(provider, repository.defaultBranch),
         postIssueCommentTool(provider, issueIid, language),
     ];
-    const result = await runAgentLoop(llmSender, system, prompt, `Issue #${issueIid} - Comment On Open`, {
+
+    const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Open`, {
         toolList,
+        requiredToolList: ["post_issue_comment"],
     });
 
     return result.usage;
-}
+};

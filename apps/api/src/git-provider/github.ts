@@ -199,6 +199,10 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
+    public async fetchIssueComment(issueNumber: number, commentId: number): Promise<GitComment> {
+        return this.fetchPullRequestComment(issueNumber, commentId);
+    }
+
     public async fetchIssueDetail(issueNumber: number): Promise<GitIssue> {
         const { data: issue } = await this.octokit.issues.get({
             owner: this.owner,

@@ -1,12 +1,11 @@
-import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../../git-provider/types";
-import { runAgentLoop, type LlmSender } from "../llm/loop";
+import { debug } from "../../util/log";
+import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE, ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW } from "../prompt";
-import { generateIssuePrompt } from "./prompt";
 import {
     getDirectoryTreeTool,
     getFileContentTool,
     getIssueCommentListTool,
+    getIssueCommentTool,
     getIssueDetailTool,
     postIssueReplyTool,
     searchCodeListTool,
@@ -14,38 +13,34 @@ import {
     searchLineByKeywordTool,
     searchPullRequestListTool,
 } from "../tool";
+import type { IssueReply } from "./index.js";
 
-export async function runIssueReply(
-    provider: GitProvider,
-    llmSender: LlmSender,
-    issueIid: number,
-    commenterUsername: string,
-    commentBody: string,
-    language: string,
-): Promise<ActivityTokenUsage> {
+export const runIssueReply: IssueReply = async ({ provider, llmSender, issueIid, commentId, language }) => {
+    const comment = await provider.fetchIssueComment(issueIid, commentId);
     const repository = await provider.fetchRepositoryDetail();
+
     const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
-    const prompt = [
-        await generateIssuePrompt(provider, issueIid),
-        `Commenter Username: ${commenterUsername}`,
-        `Comment Body: ${commentBody}`,
-    ].join("\n\n");
+    const prompt = `Reply to the new comment on Issue #${issueIid}. (commentId: ${commentId})`;
+
+    debug(prompt, "prompt");
 
     const toolList = [
-        getIssueDetailTool(provider, issueIid),
+        getIssueCommentTool(provider, issueIid),
         getIssueCommentListTool(provider, issueIid),
+        getIssueDetailTool(provider, issueIid),
         searchIssueListTool(provider),
         searchPullRequestListTool(provider),
         searchCodeListTool(provider, repository.defaultBranch),
         searchLineByKeywordTool(provider, repository.defaultBranch),
         getDirectoryTreeTool(provider, repository.defaultBranch),
         getFileContentTool(provider, repository.defaultBranch),
-        postIssueReplyTool(provider, issueIid, commenterUsername, language),
+        postIssueReplyTool(provider, issueIid, comment.author, language),
     ];
 
     const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Reply`, {
         toolList,
+        requiredToolList: ["post_issue_reply"],
     });
 
     return result.usage;
-}
+};

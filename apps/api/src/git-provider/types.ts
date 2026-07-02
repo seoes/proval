@@ -172,6 +172,7 @@ export interface GitProvider {
     fetchIssueDetail(issueIid: number): Promise<GitIssue>;
 
     // Issue Comment
+    fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment>;
     fetchIssueCommentList(issueIid: number, options?: ListPaginationOptions): Promise<GitComment[]>;
     createIssueComment(issueIid: number, body: string): Promise<GitComment>;
     searchIssueList(query: string): Promise<GitRelatedItem[]>;
