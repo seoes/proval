@@ -43,12 +43,13 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         searchLineByKeywordTool(provider, headSha),
         getDirectoryTreeTool(provider, headSha),
         getMergeFileContentTool(provider, { baseSha, headSha }),
-        postPullRequestReplyTool(provider, prIid, comment.author, language),
     ];
+
+    const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language)];
 
     const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Reply`, {
         toolList,
-        requiredToolList: ["post_reply_comment"],
+        requiredToolList,
     });
 
     return result.usage;

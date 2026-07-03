@@ -48,12 +48,15 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         searchLineByKeywordTool(provider, headSha),
         getDirectoryTreeTool(provider, headSha),
         getMergeFileContentTool(provider, { baseSha, headSha }),
+    ];
+
+    const requiredToolList = [
         postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
     ];
 
     const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
         toolList,
-        requiredToolList: ["post_pull_request_inline_review_reply"],
+        requiredToolList,
     });
     return result.usage;
 };

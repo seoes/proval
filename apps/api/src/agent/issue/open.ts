@@ -29,12 +29,13 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({ provider, llmSende
         searchLineByKeywordTool(provider, repository.defaultBranch),
         getDirectoryTreeTool(provider, repository.defaultBranch),
         getFileContentTool(provider, repository.defaultBranch),
-        postIssueCommentTool(provider, issueIid, language),
     ];
+
+    const requiredToolList = [postIssueCommentTool(provider, issueIid, language)];
 
     const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Open`, {
         toolList,
-        requiredToolList: ["post_issue_comment"],
+        requiredToolList,
     });
 
     return result.usage;

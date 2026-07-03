@@ -51,7 +51,7 @@ export async function runAgentLoop(
     options: {
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
-        requiredToolList?: string[];
+        requiredToolList?: AgentTool[];
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -72,8 +72,18 @@ export async function runAgentLoop(
 
         const maxSteps = options.maxSteps ?? 100;
 
-        const toolList: AgentTool[] = options.toolList?.filter((t) => t !== null) ?? [];
+        const optionalToolList = options.toolList?.filter((t) => t !== null) ?? [];
         const requiredToolList = options.requiredToolList ?? [];
+        const requiredToolNameList = requiredToolList.map((t) => t.name);
+
+        const toolList: AgentTool[] = [];
+        const seenNameSet = new Set<string>();
+        for (const tool of [...optionalToolList, ...requiredToolList]) {
+            if (seenNameSet.has(tool.name)) continue;
+            seenNameSet.add(tool.name);
+            toolList.push(tool);
+        }
+
         const toolCallCount: Record<string, number> = {};
         let stepCount = 0;
         for (let step = 0; step < maxSteps; step++) {
@@ -121,18 +131,18 @@ export async function runAgentLoop(
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
                 if (
-                    requiredToolList.length > 0 &&
-                    requiredToolList.some(
+                    requiredToolNameList.length > 0 &&
+                    requiredToolNameList.some(
                         (toolName) => toolCallCount[toolName] === undefined || toolCallCount[toolName] === 0,
                     )
                 ) {
-                    const missingToolList = requiredToolList.filter(
+                    const missingToolNameList = requiredToolNameList.filter(
                         (toolName) => toolCallCount[toolName] === undefined || toolCallCount[toolName] === 0,
                     );
                     messages.push({ role: "assistant", content: response.message.content });
                     messages.push({
                         role: "user",
-                        content: `[Required tool not called: ${missingToolList.join(", ")}]`,
+                        content: `[Required tool not called: ${missingToolNameList.join(", ")}]`,
                     });
                     continue;
                 }

@@ -7,6 +7,10 @@ export function searchIssueListTool(provider: GitProvider): AgentTool {
         name: "search_issue_list",
         description: [
             "Search other issues in the same repository. Use this before claiming something is a duplicate or related.",
+            "Single term only — one symbol/keyword per call.",
+            "No spaces, no multiple words, no auto split. If you need several terms, call this tool multiple times with one term each. Returns matching file paths with code snippets.",
+            "If you need several terms, call this tool multiple times with one term each.",
+            "Does NOT support regex.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
         parameters: {

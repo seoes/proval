@@ -32,12 +32,13 @@ export const runIssueReply: IssueReply = async ({ provider, llmSender, issueIid,
         searchLineByKeywordTool(provider, repository.defaultBranch),
         getDirectoryTreeTool(provider, repository.defaultBranch),
         getFileContentTool(provider, repository.defaultBranch),
-        postIssueReplyTool(provider, issueIid, comment.author, language),
     ];
+
+    const requiredToolList = [postIssueReplyTool(provider, issueIid, comment.author, language)];
 
     const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Reply`, {
         toolList,
-        requiredToolList: ["post_issue_reply"],
+        requiredToolList,
     });
 
     return result.usage;
