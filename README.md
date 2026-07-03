@@ -24,7 +24,7 @@ Proval reviews merge requests for you or can post comments on the change and eve
 
 - Chat Completions API (OpenAI-compatible)
 
-MR review, threaded comments where the host allows it, configurable note replies, and a web UI for models and linked repositories.
+MR review, threaded comments where the host allows it, configurable note replies, and a web UI for model providers and linked repositories.
 
 ## Development
 

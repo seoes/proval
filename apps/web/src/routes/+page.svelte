@@ -128,7 +128,7 @@
             id: "setup",
             label: "Setup",
             frame: "proval.local/settings",
-            caption: "Connect a model endpoint and a repository with a simple form.",
+            caption: "Connect a model and a repository with a simple form.",
         },
         {
             id: "review",
