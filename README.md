@@ -102,7 +102,7 @@ Deep research mode
 ## Development
 
 ```bash
-git clone git@github.com:your-org/proval.git
+git clone git@github.com:seoes/proval.git
 cd proval
 bun install
 cp .env.example .env

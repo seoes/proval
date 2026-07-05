@@ -1,4 +1,4 @@
-export const GITHUB_URL = "https://github.com/proval/proval";
+export const GITHUB_URL = "https://github.com/seoes/proval";
 
 export const SITE_DESCRIPTION =
     "Self-hosted, privacy-first AI code review for GitLab, Forgejo, and GitHub. Bring your own LLM.";
