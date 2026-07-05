@@ -1,48 +1,124 @@
+![Proval](./docs/assets/hero.png)
+
 # Proval
 
-An open-source, privacy-first, easy-to-use self-hosted code review tool
+A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
-<!-- ## Description
+<!-- IMAGE_PLACEHOLDER: Screenshot of Proval review output on a pull request. Show a real code comment with suggestions on a diff. -->
 
-Proval is a self-hosted bridge between your Git host and an LLM. Pick your Git platform and LLM, Proval is compatible with multiple Git provider like GitLab, Forgejo, GitHub and various LLM API like Llama.cpp, Ollama, Anthropic API, Chat-Completions API, Responses API. Keep your traffic on your infrastructure, and run on internal network with local models. -->
+- **Easy deploy**
+  Proval takes 3 min, less than 10 lines to deploy to your server
 
-> Proval is **Under development**. More features will keep being added and details my change.
+- **Bring your own LLM (Even local models)**
+  Proval works with OpenAI-compatible Chat Completions APIs, so you can use OpenAI, local model APIs like Ollama and llama.cpp, or any internal LLM gateway. Anthropic and Gemini support are planned as first-class integrations.
 
-## What it does
+- **GitLab, Forgejo, and GitHub support**
+  Proval supports GitLab, Forgejo, and GitHub. Gitea and Codeberg are also a natural fit through Forgejo-compatible APIs.
 
-Proval reviews merge requests for you or can post comments on the change and even approve/reject requests. You can set it to run on every event like merge request, or set it takes action only when someone @mentions the review agent.
+- **Run it on your own network**
+  Use Proval inside an internal network, homelab, or privacy-focused environment without depending on an external review SaaS.
 
 ## Features
 
-**Git providers**
+- **Pull request review**
+  When a new pull request opens, Proval reads the diff, explores the codebase around the change, and posts an inline review with findings grouped by severity.
 
-- GitLab
-- Forgejo
-- GitHub
+- **Issue replies**
+  Works on issues too. Proval leaves a comment when one opens, and can reply when someone comments back. You can set it to respond to every message or only when @mentioned.
 
-**LLM APIs**
+- **Deep research mode**
+  For complex changes, Proval can run in deep research mode. It starts with a planning step that identifies specific review targets, spawns a sub-agent for each target to investigate independently, then writes a consolidated review from their findings. Each sub-agent explores the codebase on its own, so it can catch cross-file issues and hidden dependencies.
 
-- Chat Completions API (OpenAI-compatible)
+- **Inline comments**
+  Findings are posted directly on the affected lines of code. Proval handles single-line and multi-line positions for GitHub, GitLab, and Forgejo.
 
-MR review, threaded comments where the host allows it, configurable note replies, and a web UI for models and linked repositories.
+- **Threaded replies**
+  When someone replies to a Proval comment, it reads the thread context and responds. You can set it to reply only when mentioned or reply to every comment.
+
+- **Activity tracking**
+  Every review, reply, and issue comment is logged with token usage so you can track model costs.
+
+## Quick start
+
+The easiest way to try Proval is to run it with Docker Compose
+
+### Docker Compose (Recommended)
+
+```yaml
+services:
+    proval:
+        image: ghcr.io/proval:latest
+        ports:
+            - "7900:7900"
+            - "7901:7901"
+        volumes:
+            - ./data:/data
+        environment:
+            - ENCRYPTION_KEY=[Encryption Key]
+```
+
+### Docker
+
+```bash
+docker run -d \
+  --name proval \
+  -p 7900:7900 \
+  -p 7901:7901 \
+  -v proval-data:/data \
+  -e DB_FILE_NAME=/data/app.db \
+  ghcr.io/proval:latest
+```
+
+## How it works
+
+```text
+Webhook event
+  -> Repository settings
+  -> Git provider API
+  -> LLM agent with code review tools
+  -> Review comments or replies
+
+Deep research mode
+  -> Planning agent
+  -> Specialist sub-agents
+  -> Final review agent
+  -> Git provider comments
+```
+
+## Built with
+
+- Bun
+- Hono
+- Sveltekit
+- SQLite
+- Drizzle
 
 ## Development
 
-From the repository root:
-
 ```bash
+git clone git@github.com:your-org/proval.git
+cd proval
 bun install
+cp apps/api/.env.example apps/api/.env
+# fill in your env vars
 bun dev
 ```
 
-Add `apps/api/.env` for local API settings. (`DB_FILE_NAME` for the local database file path)
+The dev command starts both the API server (port 7900) and the SvelteKit dev server with hot reload.
 
-## Build
+## Note
 
-```bash
-docker build -t proval .
-```
+I looked for a self-hosted code review agent that works with GitLab or Forgejo and found almost nothing. Most review tools are SaaS, they lock you into their model, and they send your code to someone elses server. I run my home lab with local LLMs and wanted something that keeps everything on my network. So I built Proval.
 
-## License
+Proval is still early. There are rough edges, missing features, and things that will break. I am actively developing it and feedback is the most useful thing you can give. Open an issue, start a discussion, or send a pull request.
 
-Proval is licensed under the AGPL-3.0.
+## Roadmap
+
+I believe the local LLM market is growing. Models keep getting better at code review, and running them on your own hardware keeps costs predictable and data private. Proval is built for that future. Short term plans include:
+
+- More configurable review rules and custom prompts per repository.
+- Better reviewer assignment and team workflow integration.
+- Local model benchmarking so you can compare models before picking one.
+- A public demo instance.
+
+<!-- ## LICENSE -->

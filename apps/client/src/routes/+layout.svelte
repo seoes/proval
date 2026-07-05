@@ -1,7 +1,6 @@
 <script lang="ts">
     import "./layout.css";
     import { afterNavigate } from "$app/navigation";
-    import favicon from "$lib/assets/favicon.svg";
     import Sidebar from "$lib/components/Sidebar.svelte";
     import ModalRoot from "$lib/components/organism/ModalRoot.svelte";
 
@@ -43,7 +42,14 @@
     });
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#fafafa" />
+</svelte:head>
 
 <div class="flex">
     {#if sidebarOpen}
@@ -69,13 +75,22 @@
                 aria-expanded={sidebarOpen}
                 aria-label="Toggle menu"
                 onclick={toggleSidebar}>
-                <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <svg
+                    class="size-6"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round">
                     <line x1="4" y1="7" x2="20" y2="7" />
                     <line x1="4" y1="12" x2="20" y2="12" />
                     <line x1="4" y1="17" x2="20" y2="17" />
                 </svg>
             </button>
-            <a href="/" class="absolute left-1/2 -translate-x-1/2 text-3xl font-semibold tracking-tight text-neutral-800">Proval</a>
+            <a
+                href="/"
+                class="absolute left-1/2 -translate-x-1/2 text-3xl font-semibold tracking-tight text-neutral-800"
+                >Proval</a>
             <div class="size-10" aria-hidden="true"></div>
         </header>
         <main class="">
