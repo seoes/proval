@@ -4,7 +4,7 @@
 
 A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
-<!-- IMAGE_PLACEHOLDER: Screenshot of Proval review output on a pull request. Show a real code comment with suggestions on a diff. -->
+![Proval review on a pull request](./docs/assets/review.png)
 
 - **Easy deploy**
   Proval takes 3 min, less than 10 lines to deploy to your server
@@ -37,6 +37,8 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 
 - **Activity tracking**
   Every review, reply, and issue comment is logged with token usage so you can track model costs.
+
+![Proval activity dashboard](./docs/assets/dashboard.png)
 
 ## Quick start
 
