@@ -2,7 +2,7 @@
 
 # Proval
 
-A self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests(or merge requests), and issues on your own infrastructure.
+A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
 <!-- IMAGE_PLACEHOLDER: Screenshot of Proval review output on a pull request. Show a real code comment with suggestions on a diff. -->
 
@@ -21,7 +21,7 @@ A self-hosted LLM code review agent. Connect it to your Git host, bring your own
 ## Features
 
 - **Pull request review**
-  When a new pull request or merge request opens, Proval reads the diff, explores the codebase around the change, and posts an inline review with findings grouped by severity.
+  When a new pull request opens, Proval reads the diff, explores the codebase around the change, and posts an inline review with findings grouped by severity.
 
 - **Deep research mode**
   For complex changes, Proval can run in deep research mode. It starts with a planning step that identifies specific review targets, spawns a sub-agent for each target to investigate independently, then writes a consolidated review from their findings. Each sub-agent explores the codebase on its own, so it can catch cross-file issues and hidden dependencies.
