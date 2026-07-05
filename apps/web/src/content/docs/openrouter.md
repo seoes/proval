@@ -4,7 +4,7 @@ description: "Create an OpenRouter API key for Proval."
 order: 7
 ---
 
-[OpenRouter](https://openrouter.ai) exposes many cloud models through a single **OpenAI-compatible** API. This guide covers creating an API key. To add the model in Proval, follow [Set LLM](/docs/set-llm).
+[OpenRouter](https://openrouter.ai) exposes many cloud models through a single **OpenAI-compatible** API. This guide covers creating an API key. To add the model provider in Proval, follow [Set LLM](/docs/set-llm).
 
 ## Prerequisites
 
@@ -24,11 +24,11 @@ order: 7
     <figcaption>Create an API key in OpenRouter</figcaption>
 </figure>
 
-When you fill in the Proval form, use Base URL `https://openrouter.ai/api/v1`, API Provider **OpenAI**, and your `sk-or-...` key. Choose a [model ID](https://openrouter.ai/models) for the **Model ID** field. See [Set LLM](/docs/set-llm) for the full form and connection test.
+When you fill in the model provider form, use Base URL `https://openrouter.ai/api/v1`, API Provider **OpenAI**, and your `sk-or-...` key. Choose a [model ID](https://openrouter.ai/models) for the **Model ID** field. See [Set LLM](/docs/set-llm) for the full form and connection test.
 
 ---
 
 ## What's next
 
-- [Set LLM](/docs/set-llm): add the model in Proval
+- [Set LLM](/docs/set-llm): add the model provider in Proval
 - [GitLab](/docs/gitlab) · [Forgejo](/docs/forgejo) · [GitHub](/docs/github): connect a repository

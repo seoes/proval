@@ -1,12 +1,12 @@
 ---
 title: "Set LLM"
-description: "Add an LLM in Proval with Base URL, API key, and model ID."
+description: "Add a model provider in Proval with Base URL, API key, and model ID."
 order: 5
 ---
 
 Proval sends review context to the LLM endpoint you configure. Your code and review context go only to the **Base URL** you set. Proval does not host or proxy models.
 
-This guide covers how to fill in the model form in the dashboard. For ready-made endpoint values, see the example guides:
+This guide covers how to fill in the model provider form in the dashboard. For ready-made endpoint values, see the example guides:
 
 - [OpenRouter](/docs/openrouter): cloud models through one API key
 - [llama.cpp](/docs/llama-cpp): local or on-prem inference
@@ -20,7 +20,7 @@ This guide covers how to fill in the model form in the dashboard. For ready-made
 
 ## Choose an API provider
 
-In **Models → Add model**, pick the provider that matches your endpoint:
+In **Model Provider → Add model provider**, pick the provider that matches your endpoint:
 
 | Provider in Proval | Protocol | Use when |
 | ------------------ | -------- | -------- |
@@ -31,9 +31,9 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch
 
 ---
 
-<h2 id="fill-in-the-model-form">Fill in the model form</h2>
+<h2 id="fill-in-the-model-form">Fill in the model provider form</h2>
 
-1. Open the dashboard → **Models** → **Add model**
+1. Open the dashboard → **Model Provider** → **Add model provider**
 2. Complete each field:
 
 | Field | What to enter |
@@ -45,7 +45,7 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch
 | **API Key** | Key required by that endpoint (`sk-or-...`, `sk-ant-...`, or a placeholder if the server has no auth) |
 
 <figure>
-    <img src="/docs/set-llm/01-form.png" alt="Proval Create Model form with all fields filled in" />
+    <img src="/docs/set-llm/01-form.png" alt="Proval Create Model Provider form with all fields filled in" />
     <figcaption>Example: OpenAI provider with an OpenRouter base URL</figcaption>
 </figure>
 

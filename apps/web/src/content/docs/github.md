@@ -13,7 +13,7 @@ GitHub integration uses a **GitHub App**. Proval can create the app via quick se
 ## Prerequisites
 
 - [Quick Start](/docs/quick-start) completed. Proval is running
-- A [model configured](/docs/set-llm) in Proval
+- A [model provider configured](/docs/set-llm) in Proval
 - A public **`https://`** URL reachable from GitHub ([HTTPS](/docs/quick-start#https); webhooks use port **7901**)
 
 ---
@@ -68,7 +68,7 @@ Review permissions on GitHub and click **Create GitHub App**. You return to Prov
 
 1. **Repositories** → **Add repository**
 2. Select your GitHub installation and repository
-3. Configure model and review settings. No webhook secret needed
+3. Configure model provider and review settings. No webhook secret needed
 4. **Create**
 
 ---
