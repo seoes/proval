@@ -98,7 +98,6 @@ Deep research mode
 - Hono
 - Sveltekit
 - SQLite
-- Drizzle
 
 ## Development
 
