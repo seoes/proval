@@ -4,6 +4,9 @@ import { cors } from "hono/cors";
 import { webhookRouter } from "./webhook/webhook.route.js";
 
 export const webhookApp = new Hono();
+webhookApp.get("/", (c) => {
+    return c.text("Hello Proval!");
+});
 webhookApp.route("/webhook", webhookRouter);
 
 export const apiApp = new Hono();
