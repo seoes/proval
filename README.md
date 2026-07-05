@@ -55,10 +55,9 @@ services:
             - "7900:7900"
             - "7901:7901"
         volumes:
-            - proval-data:/data
-
-volumes:
-    proval-data:
+            - ./data:/data
+        environment:
+            - ENCRYPTION_KEY=[Encryption Key]
 ```
 
 ### Docker
