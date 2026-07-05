@@ -120,9 +120,16 @@ I believe the local LLM market is growing. Models keep getting better at code re
 
 ## Roadmap
 
-- More configurable review rules and custom prompts per repository.
-- Better reviewer assignment and team workflow integration.
-- Local model benchmarking so you can compare models before picking one.
-- A public demo instance.
+- Custom User Prompt
+- Authentication and authorization
+- SSO support
+- LLM Provider integration based on OAuth subscriptions
+- Enhance review quality
+    - Reduce False Positives
+    - Focus on critical issues only
+- Rate limit
+- Only respond to certain users
+- Benchmark by models
+- A public demo instance
 
 <!-- ## LICENSE -->
