@@ -23,6 +23,9 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 - **Pull request review**
   When a new pull request opens, Proval reads the diff, explores the codebase around the change, and posts an inline review with findings grouped by severity.
 
+- **Issue replies**
+  Works on issues too. Proval leaves a comment when one opens, and can reply when someone comments back. You can set it to respond to every message or only when @mentioned.
+
 - **Deep research mode**
   For complex changes, Proval can run in deep research mode. It starts with a planning step that identifies specific review targets, spawns a sub-agent for each target to investigate independently, then writes a consolidated review from their findings. Each sub-agent explores the codebase on its own, so it can catch cross-file issues and hidden dependencies.
 
@@ -32,14 +35,8 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 - **Threaded replies**
   When someone replies to a Proval comment, it reads the thread context and responds. You can set it to reply only when mentioned or reply to every comment.
 
-- **Issue commenting**
-  Proval can comment on newly opened issues with relevant context from your codebase.
-
 - **Activity tracking**
   Every review, reply, and issue comment is logged with token usage so you can track model costs.
-
-- **Approval and rejection**
-  Proval can approve or reject pull requests based on its review findings.
 
 ## Quick start
 
