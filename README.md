@@ -112,9 +112,9 @@ I looked for a self-hosted code review agent that works with GitLab or Forgejo a
 
 Proval is still early. There are rough edges, missing features, and things that will break. I am actively developing it and feedback is the most useful thing you can give. Open an issue, start a discussion, or send a pull request.
 
-## Roadmap
+I believe the local LLM market is growing. Models keep getting better at code review, and running them on your own hardware keeps costs predictable and data private.
 
-I believe the local LLM market is growing. Models keep getting better at code review, and running them on your own hardware keeps costs predictable and data private. Proval is built for that future. Short term plans include:
+## Roadmap
 
 - More configurable review rules and custom prompts per repository.
 - Better reviewer assignment and team workflow integration.
