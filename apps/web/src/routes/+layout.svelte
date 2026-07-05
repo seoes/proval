@@ -7,7 +7,10 @@
     let { children } = $props();
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+    <link rel="icon" href={favicon} />
+    <script defer data-domain="proval.app" src="https://analytics.proval.app/js/script.js"></script>
+</svelte:head>
 
 <div class="flex min-h-screen flex-col bg-white text-neutral-950">
     <SiteHeader />
