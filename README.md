@@ -118,7 +118,7 @@ Proval is still early. There are rough edges, missing features, and things that 
 
 I believe the local LLM market is growing. Models keep getting better at code review, and running them on your own hardware keeps costs predictable and data private.
 
-## Roadmap
+## Planned Features
 
 - Custom User Prompt
 - Authentication and authorization
