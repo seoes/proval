@@ -47,7 +47,7 @@ The easiest way to try Proval is to run it with Docker Compose
 ```yaml
 services:
     proval:
-        image: ghcr.io/proval:latest
+        image: ghcr.io/seoes/proval:latest
         ports:
             - "7900:7900"
             - "7901:7901"
@@ -73,7 +73,7 @@ docker run -d \
   -v proval-data:/data \
   -e DB_FILE_NAME=/data/app.db \
   -e ENCRYPTION_KEY=[Encryption Key] \  # openssl rand -base64 32
-  ghcr.io/proval:latest
+  ghcr.io/seoes/proval:latest
 ```
 
 ## How it works

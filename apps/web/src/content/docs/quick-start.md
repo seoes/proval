@@ -15,7 +15,7 @@ Create a `docker-compose.yml` file:
 ```yaml
 services:
     proval:
-        image: ghcr.io/proval/proval:latest
+        image: ghcr.io/seoes/proval:latest
         ports:
             - "7900:7900"
             - "7901:7901"
