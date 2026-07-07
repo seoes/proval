@@ -1,7 +1,8 @@
-import { debug } from "../../util/log";
-import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
-import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
+import { debug } from "../../../util/log";
+import { postDevDebugPullRequestComment } from "../../dev-debug-comment.js";
+import { runAgentLoop } from "../../llm/loop";
+import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
 import {
     getChangedFileListTool,
     getPullRequestCommentListTool,
@@ -9,14 +10,14 @@ import {
     getPullRequestDetailTool,
     getFileDiffTool,
     postPullRequestReplyTool,
-} from "./tool";
+} from "../tool";
 import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-} from "../shared/tool";
-import type { PullRequestCommentReply } from "./index.js";
+} from "../../shared/tool";
+import type { PullRequestCommentReply } from "../index.js";
 
 export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     provider,
@@ -50,6 +51,16 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Reply`, {
         toolList,
         requiredToolList,
+    });
+
+    await postDevDebugPullRequestComment(provider, prIid, {
+        sender: llmSender,
+        workflow: "PR Reply",
+        usage: result.usage,
+        fields: {
+            "Pull Request IID": prIid,
+            "Comment ID": commentId,
+        },
     });
 
     return result.usage;

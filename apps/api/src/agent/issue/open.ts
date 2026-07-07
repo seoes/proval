@@ -1,4 +1,5 @@
 import { debug } from "../../util/log";
+import { postDevDebugIssueComment } from "../dev-debug-comment.js";
 import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW } from "./prompt";
@@ -36,6 +37,15 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({ provider, llmSende
     const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Open`, {
         toolList,
         requiredToolList,
+    });
+
+    await postDevDebugIssueComment(provider, issueIid, {
+        sender: llmSender,
+        workflow: "Issue Open",
+        usage: result.usage,
+        fields: {
+            "Issue IID": issueIid,
+        },
     });
 
     return result.usage;

@@ -1,8 +1,9 @@
-import type { PullRequestInlineReviewReply } from ".";
-import { debug } from "../../util/log";
-import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
-import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt";
+import type { PullRequestInlineReviewReply } from "../index.js";
+import { postDevDebugPullRequestComment } from "../../dev-debug-comment.js";
+import { debug } from "../../../util/log";
+import { runAgentLoop } from "../../llm/loop";
+import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
 import {
     getChangedFileListTool,
     getPullRequestCommentListTool,
@@ -11,13 +12,13 @@ import {
     getPullRequestInlineReviewListTool,
     getFileDiffTool,
     postPullRequestInlineReviewReplyTool,
-} from "./tool";
+} from "../tool";
 import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
     searchLineByKeywordTool,
-} from "../shared/tool";
+} from "../../shared/tool";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
@@ -58,5 +59,17 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         toolList,
         requiredToolList,
     });
+
+    await postDevDebugPullRequestComment(provider, prIid, {
+        sender: llmSender,
+        workflow: "PR Inline Review Reply",
+        usage: result.usage,
+        fields: {
+            "Pull Request IID": prIid,
+            "Inline Review ID": inlineReviewId,
+            "Comment ID": commentId,
+        },
+    });
+
     return result.usage;
 };

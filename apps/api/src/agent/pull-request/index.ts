@@ -2,16 +2,12 @@ import type { LlmSender } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import type { ActivityTokenUsage } from "@proval/types";
 
-import { runDeepResearchReview } from "./deep-research.js";
-import { runStandardReview } from "./standard.js";
-import { runPullRequestCommentReply } from "./reply.js";
-import { runPullRequestInlineReviewReply } from "./reply-inline-review.js";
-
 type PullRequestReviewParams = {
     provider: GitProvider;
     llmSender: LlmSender;
     prIid: number;
     isInlineReview: boolean;
+    isDeepResearch: boolean;
     language: string;
 };
 
@@ -24,31 +20,10 @@ type PullRequestReplyParams = {
 };
 
 export type PullRequestReview = (params: PullRequestReviewParams) => Promise<ActivityTokenUsage>;
-
 export type PullRequestCommentReply = (params: PullRequestReplyParams) => Promise<ActivityTokenUsage>;
 export type PullRequestInlineReviewReply = (
     params: PullRequestReplyParams & { inlineReviewId: string },
 ) => Promise<ActivityTokenUsage>;
 
-export function runPullRequestReview(
-    params: PullRequestReviewParams & { isDeepResearch: boolean },
-): Promise<ActivityTokenUsage> {
-    const { isDeepResearch, ...reviewParams } = params;
-    if (isDeepResearch) {
-        return runDeepResearchReview(reviewParams);
-    } else {
-        return runStandardReview(reviewParams);
-    }
-}
-
-export function runPullRequestReply(
-    params: PullRequestReplyParams & { inlineReviewId: string | null },
-): Promise<ActivityTokenUsage> {
-    const { provider, llmSender, prIid, commentId, language, inlineReviewId } = params;
-
-    if (inlineReviewId) {
-        return runPullRequestInlineReviewReply({ provider, llmSender, prIid, commentId, language, inlineReviewId });
-    } else {
-        return runPullRequestCommentReply({ provider, llmSender, prIid, commentId, language });
-    }
-}
+export { runPullRequestReview } from "./review/index.js";
+export { runPullRequestReply } from "./reply/index.js";
