@@ -175,17 +175,16 @@
             return;
         }
 
-        if (isRepositoryConnected) {
-            await openAlert("This repository is already connected to Proval");
-            return;
-        }
-
         if (!editRepositoryId) {
             if (provider.type === "gitlab" || provider.type === "forgejo") {
                 if (!webhookSecret?.trim()) {
                     await openAlert("Webhook secret is required");
                     return;
                 }
+            }
+            if (isRepositoryConnected) {
+                await openAlert("This repository is already connected to Proval");
+                return;
             }
         }
 
