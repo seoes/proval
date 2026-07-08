@@ -1,5 +1,5 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../../../git-provider/types";
+import type { GitProvider, GitTree } from "../../../git-provider/types";
 import type { LlmSender } from "../../llm/loop";
 import type { ReviewUnit, SkippedFile } from "../schema/deep-research.schema";
 import { DEEP_REVIEW_PLAN, FILE_COVERAGE_RULE } from "../prompt";
@@ -8,6 +8,7 @@ import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
+    searchFileByNameTool,
     searchLineByKeywordTool,
 } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
@@ -19,6 +20,7 @@ export async function runReviewPlanAgent(
     prIid: number,
     baseSha: string,
     headSha: string,
+    fileList: GitTree[],
 ): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
@@ -28,7 +30,8 @@ export async function runReviewPlanAgent(
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),
-        getDirectoryTreeTool(provider, headSha),
+        searchFileByNameTool(fileList),
+        getDirectoryTreeTool(fileList),
         getMergeFileContentTool(provider, { baseSha, headSha }),
         appendReviewUnitTool(reviewUnitList),
         skipFileTool(skippedFileList),

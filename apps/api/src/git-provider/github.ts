@@ -124,10 +124,7 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestCommentList(
-        prNumber: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchPullRequestCommentList(prNumber: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const mapComment = (comment: {
             id: number;
             body?: string | null;
@@ -219,10 +216,7 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchIssueCommentList(
-        issueNumber: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchIssueCommentList(issueNumber: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const mapComment = (comment: {
             id: number;
             body?: string | null;
@@ -328,7 +322,7 @@ export class GitHubProvider implements GitProvider {
     }
 
     public isCodeSearchSupported(): boolean {
-        return true;
+        return false;
     }
 
     public async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
@@ -379,10 +373,10 @@ export class GitHubProvider implements GitProvider {
             const filtered = tree.tree.filter((node) => node.path?.startsWith(prefix));
 
             return filtered.map((node) => {
-                const relativePath = node.path?.slice(prefix.length) ?? "";
+                const path = node.path ?? "";
                 return {
-                    name: relativePath.split("/")[0],
-                    path: node.path ?? "",
+                    name: path.split("/").pop() ?? path,
+                    path,
                     type: node.type === "tree" ? "directory" : "file",
                 };
             });
@@ -407,22 +401,34 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
-        const { data } = await this.octokit.repos.getContent({
-            owner: this.owner,
-            repo: this.repo,
-            path: filePath,
-            ref,
-        });
+        try {
+            const { data } = await this.octokit.repos.getContent({
+                owner: this.owner,
+                repo: this.repo,
+                path: filePath,
+                ref,
+            });
 
-        if (Array.isArray(data)) {
-            throw new Error(`Expected file content but got directory: ${filePath}`);
+            if (Array.isArray(data)) {
+                throw new Error(`Path is a directory, not a file: ${filePath}`);
+            }
+
+            if ("content" in data) {
+                return Buffer.from(data.content, "base64").toString("utf-8");
+            }
+
+            throw new Error(`Failed to fetch file content: ${filePath}`);
+        } catch (error) {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                ((error as { status?: number }).status === 404 ||
+                    (error as { response?: { status?: number } }).response?.status === 404)
+            ) {
+                throw new Error(`File not found: ${filePath}`);
+            }
+            throw error;
         }
-
-        if ("content" in data) {
-            return Buffer.from(data.content, "base64").toString("utf-8");
-        }
-
-        throw new Error(`Failed to fetch file content: ${filePath}`);
     }
 
     public async createPullRequestComment(prNumber: number, body: string): Promise<GitComment> {

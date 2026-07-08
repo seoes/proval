@@ -552,21 +552,29 @@ export class ForgejoProvider implements GitProvider {
 
     public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
         const defaultBranch = ref ?? (await this.fetchRepositoryDetail()).defaultBranch;
-        const response = await this.requestJson<{
-            content?: string;
-            encoding?: string;
-            type?: string;
-        }>(`/repos/${this.owner}/${this.repo}/contents/${filePath}?ref=${encodeURIComponent(defaultBranch)}`);
+        try {
+            const response = await this.requestJson<{
+                content?: string;
+                encoding?: string;
+                type?: string;
+            }>(`/repos/${this.owner}/${this.repo}/contents/${filePath}?ref=${encodeURIComponent(defaultBranch)}`);
 
-        if (response.type === "dir") {
-            throw new Error(`Expected file but got directory: ${filePath}`);
+            if (response.type === "dir") {
+                throw new Error(`Path is a directory, not a file: ${filePath}`);
+            }
+
+            if (response.encoding === "base64" && response.content) {
+                return Buffer.from(response.content, "base64").toString("utf-8");
+            }
+
+            return response.content ?? "";
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes("404")) {
+                throw new Error(`File not found: ${filePath}`);
+            }
+            throw error;
         }
-
-        if (response.encoding === "base64" && response.content) {
-            return Buffer.from(response.content, "base64").toString("utf-8");
-        }
-
-        return response.content ?? "";
     }
 
     private resetReviewBufferIfPrMismatch(prIid: number): void {

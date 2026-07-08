@@ -379,11 +379,23 @@ export class GitLabProvider implements GitProvider {
 
     public async fetchFileContent(filePath: string, ref?: string): Promise<string> {
         const branchOrSha = ref ?? (await this.fetchRepositoryDetail()).defaultBranch;
-        const response = await this.gitlab.RepositoryFiles.show(this.projectId, filePath, branchOrSha);
-        if (response.encoding === "base64") {
-            return Buffer.from(response.content, "base64").toString("utf-8");
+        try {
+            const response = await this.gitlab.RepositoryFiles.show(this.projectId, filePath, branchOrSha);
+            if (response.encoding === "base64") {
+                return Buffer.from(response.content, "base64").toString("utf-8");
+            }
+            return response.content;
+        } catch (error) {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                ((error as { response?: { status?: number } }).response?.status === 404 ||
+                    (error as { cause?: { response?: { status?: number } } }).cause?.response?.status === 404)
+            ) {
+                throw new Error(`File not found: ${filePath}`);
+            }
+            throw error;
         }
-        return response.content;
     }
 
     public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {

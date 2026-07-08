@@ -8,33 +8,21 @@ export function getMergeFileContentTool(
 ): AgentTool {
     return {
         name: "get_merge_file_content",
-        description: `Read file content from the MR. Choose base or head commit to read the file from. At most ${FILE_CONTENT_MAX_LINES} lines per call. For files over ${FILE_CONTENT_MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
+        description: [
+            "Read file content from the MR. Choose base or head commit to read the file from.",
+            "If the file is not found at the chosen commit, try the other commit (head vs base).",
+            `At most ${FILE_CONTENT_MAX_LINES} lines per call. For files over ${FILE_CONTENT_MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate.`,
+            "Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end.",
+            "Do NOT read the whole repository — only files that validate a specific suspicion.",
+            "filePath must be a file path only — not a directory.",
+        ].join("\n"),
         parameters: getMergeFileContentInputSchema.toJSONSchema(),
         execute: async (args) => {
             const { filePath, commit, fromLine, toLine } = getMergeFileContentInputSchema.parse(args);
 
             const ref = commit === "head" ? headSha : baseSha;
 
-            let lines: string[] = [];
-            try {
-                lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
-            } catch (error) {
-                if (typeof error === "object") {
-                    const status =
-                        (error as { status?: unknown })?.status ??
-                        (error as { response?: { status?: unknown } })?.response?.status;
-                    if (status === 404) {
-                        const errorMessage =
-                            commit === "base"
-                                ? "File not found at base commit, This path is likely new in this change. Try checking the head commit instead."
-                                : "File not found at head commit, This path is likely deleted in this change. Try checking the base commit instead.";
-                        return {
-                            error: errorMessage,
-                        };
-                    }
-                }
-                throw error;
-            }
+            const lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
 
             if (fromLine === undefined && toLine === undefined) {
                 if (lines.length <= FILE_CONTENT_MAX_LINES) return lines.join("\n");

@@ -1,7 +1,7 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
 import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../../shared/prompt/untrusted-warning.prompt.js";
-import { parseListToolPagination, slicePage, toAgentPaginatedCommentList } from "../../shared/util.js";
+import { parseListToolPagination, slicePage, toAgentPaginatedCommentList } from "../../shared/util";
 
 export function getIssueCommentListTool(provider: GitProvider, issueIid: number): AgentTool {
     return {

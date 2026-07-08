@@ -1,5 +1,5 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../../../git-provider/types";
+import type { GitProvider, GitTree } from "../../../git-provider/types";
 import { runAgentLoop, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
@@ -13,6 +13,7 @@ import {
     getDirectoryTreeTool,
     searchLineByKeywordTool,
     searchCodeListTool,
+    searchFileByNameTool,
     getMergeFileContentTool,
 } from "../../shared/tool";
 
@@ -27,6 +28,7 @@ export async function runReviewWritingAgent(
     reviewResultList: string[],
     isInlineReview: boolean,
     language: string,
+    fileList: GitTree[],
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -44,7 +46,8 @@ export async function runReviewWritingAgent(
             getFileDiffTool(provider, prIid),
             searchCodeListTool(provider, headSha),
             searchLineByKeywordTool(provider, headSha),
-            getDirectoryTreeTool(provider, headSha),
+            searchFileByNameTool(fileList),
+            getDirectoryTreeTool(fileList),
             getMergeFileContentTool(provider, { baseSha, headSha }),
             postPullRequestCommentTool(provider, prIid, language),
             isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,

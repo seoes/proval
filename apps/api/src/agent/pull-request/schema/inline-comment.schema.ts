@@ -4,8 +4,8 @@ import { reviewFindingSchemaForLanguage } from "./review.schema";
 const singleLinePositionSchema = z.object({
     oldPath: z.string(),
     newPath: z.string(),
-    newLine: z.number().describe("1-based line on the new file."),
-    oldLine: z.number().describe("1-based line on the old file."),
+    newLine: z.number().optional().describe("1-based line on the new file."),
+    oldLine: z.number().optional().describe("1-based line on the old file."),
 });
 
 const multiLineEndpointSchema = z.object({

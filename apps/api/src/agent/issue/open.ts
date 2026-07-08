@@ -1,5 +1,5 @@
 import { debug } from "../../util/log";
-import { postDevDebugIssueComment } from "../dev-debug-comment.js";
+import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW } from "./prompt";
@@ -10,11 +10,12 @@ import {
     searchIssueListTool,
     searchPullRequestListTool,
 } from "./tool";
-import { getDirectoryTreeTool, getFileContentTool, searchCodeListTool, searchLineByKeywordTool } from "../shared/tool";
+import { getDirectoryTreeTool, getFileContentTool, searchCodeListTool, searchFileByNameTool, searchLineByKeywordTool } from "../shared/tool";
 import type { IssueReplyOnOpen } from "./index.js";
 
 export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({ provider, llmSender, issueIid, language }) => {
     const repository = await provider.fetchRepositoryDetail();
+    const fileList = await provider.fetchDirectoryTree("", repository.defaultBranch, true);
 
     const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
     const prompt = `Triage the newly opened issue #${issueIid}.`;
@@ -28,7 +29,8 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({ provider, llmSende
         searchPullRequestListTool(provider),
         searchCodeListTool(provider, repository.defaultBranch),
         searchLineByKeywordTool(provider, repository.defaultBranch),
-        getDirectoryTreeTool(provider, repository.defaultBranch),
+        searchFileByNameTool(fileList),
+        getDirectoryTreeTool(fileList),
         getFileContentTool(provider, repository.defaultBranch),
     ];
 

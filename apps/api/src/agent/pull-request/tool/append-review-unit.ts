@@ -7,11 +7,10 @@ export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
         description: [
             "Append one review unit (a logical group of related changed files) to the deep review plan.",
             "Call once per group.",
-            "files: changed paths to review (same path may appear in multiple units).",
-            "description must use labeled sections:",
-            "Scope: why these files belong together (structure/flow only — no bug hypotheses).",
-            "References: optional — repo paths NOT in the MR diff, one per line with a brief read reason.",
-            "Do not list changed files under References; put them in files.",
+            "files: exact changed paths from the PR changed file list (repo-root-relative full paths).",
+            "description: why these files belong together (structure/flow only — no bug hypotheses).",
+            "references: optional { path, reason } entries for context beyond this unit's files[] (unchanged repo files or changed files from other units).",
+            "For each reference path, resolve the full repo-root file path with search_file_by_name or get_directory_tree before calling — never use import aliases, package names, or paths relative to another file.",
             "The canonical plan is built only through tool calls; do not output a JSON plan in your final message.",
             "IDs are assigned by the server.",
         ].join(" "),
@@ -23,6 +22,7 @@ export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
                 files: parsed.files,
                 name: parsed.name,
                 description: parsed.description,
+                references: parsed.references,
             };
             reviewUnitList.push(unit);
             return {

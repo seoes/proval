@@ -1,5 +1,5 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../../../git-provider/types";
+import type { GitProvider, GitTree } from "../../../git-provider/types";
 import type { LlmSender } from "../../llm/loop";
 import type { ReviewUnit } from "../schema/deep-research.schema";
 import { DEEP_REVIEW_SUB_AGENT_BODY, DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT, REVIEW_CHECKLIST } from "../prompt";
@@ -8,6 +8,7 @@ import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
+    searchFileByNameTool,
     searchLineByKeywordTool,
 } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
@@ -22,6 +23,7 @@ export async function runReviewSubAgent(
     reviewUnit: ReviewUnit,
     index: number,
     totalIndex: number,
+    fileList: GitTree[],
 ): Promise<ActivityTokenUsage & { finalMessage: string }> {
     const system = [DEEP_REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
     const prompt = [pullRequestContextPrompt, `review unit: ${JSON.stringify(reviewUnit)}`].join("\n\n");
@@ -29,7 +31,8 @@ export async function runReviewSubAgent(
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),
-        getDirectoryTreeTool(provider, headSha),
+        searchFileByNameTool(fileList),
+        getDirectoryTreeTool(fileList),
         getMergeFileContentTool(provider, { baseSha, headSha }),
     ];
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Sub ${index}/${totalIndex}`, {

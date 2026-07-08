@@ -5,7 +5,13 @@ import { FILE_CONTENT_MAX_LINES, getFileContentInputSchema } from "../schema/get
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
         name: "get_file_content",
-        description: `Read file content from specific commit (ref: ${ref}). At most ${FILE_CONTENT_MAX_LINES} lines per call. For files over ${FILE_CONTENT_MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate. Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end. Do NOT read the whole repository — only files that validate a specific suspicion.`,
+        description: [
+            `Read file content from specific commit (ref: ${ref}).`,
+            `At most ${FILE_CONTENT_MAX_LINES} lines per call. For files over ${FILE_CONTENT_MAX_LINES} lines use fromLine/toLine (1-based inclusive) to paginate.`,
+            "Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end.",
+            "Do NOT read the whole repository — only files that validate a specific suspicion.",
+            "filePath must be a file path only — not a directory.",
+        ].join(" "),
         parameters: getFileContentInputSchema.toJSONSchema(),
         execute: async (args) => {
             const { filePath, fromLine, toLine } = getFileContentInputSchema.parse(args);
