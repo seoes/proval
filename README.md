@@ -4,7 +4,9 @@
 
 A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
-![Proval review on a pull request](./docs/assets/review.png)
+![Proval inline review on a pull request](./docs/assets/inline-review.png)
+
+![Proval comment on a pull request](./docs/assets/comment.png)
 
 - **Easy deploy**
   Proval takes 3 min, less than 10 lines to deploy to your server

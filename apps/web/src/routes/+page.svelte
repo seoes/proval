@@ -131,8 +131,14 @@
             caption: "Connect a model and a repository with a simple form.",
         },
         {
-            id: "review",
+            id: "comment",
             label: "Review",
+            frame: "gitlab.com/acme/api-server/-/merge_requests/42",
+            caption: "Proval posts a summary and inline comments straight to the merge request.",
+        },
+        {
+            id: "inline-review",
+            label: "Inline Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
             caption: "Proval posts a summary and inline comments straight to the merge request.",
         },
@@ -672,9 +678,7 @@
                     Proval is designed around a simple Docker-first path: run the service, connect your model, link
                     repositories, and test a real merge request.
                 </p>
-                <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">
-                    Open the Docker guide
-                </ButtonLink>
+                <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">Open the Docker guide</ButtonLink>
             </div>
 
             <div class="mx-auto mt-20 w-full max-w-xl text-left">
@@ -693,9 +697,7 @@
                 </div>
                 <p class="mt-3 text-center text-sm text-neutral-500">
                     Deploy in a minute with Docker Compose.
-                    <ButtonLink href="/docs/quick-start" variant="primary" class="inline">
-                        Full setup guide
-                    </ButtonLink>
+                    <ButtonLink href="/docs/quick-start" variant="primary" class="inline">Full setup guide</ButtonLink>
                 </p>
             </div>
 
