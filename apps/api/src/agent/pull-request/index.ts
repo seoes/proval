@@ -7,7 +7,6 @@ type PullRequestReviewParams = {
     llmSender: LlmSender;
     prIid: number;
     isInlineReview: boolean;
-    isDeepResearch: boolean;
     language: string;
 };
 

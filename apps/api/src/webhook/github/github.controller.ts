@@ -138,7 +138,6 @@ async function handlePullRequestWebhook(
     });
 
     const isInlineReview = repository.inlineReview;
-    const isDeepResearch = repository.deepResearchOnPullRequest;
 
     runWithActivity(
         {
@@ -154,7 +153,6 @@ async function handlePullRequestWebhook(
                 llmSender,
                 prIid: prNumber,
                 isInlineReview,
-                isDeepResearch,
                 language: repository.language,
             }),
     ).catch((error) => {

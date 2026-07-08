@@ -1,4 +1,4 @@
-export const DEEP_REVIEW_SUB_AGENT_BODY = [
+export const REVIEW_SUB_AGENT_BODY = [
     "Review the diffs for the files in the assigned review unit against the checklist below.",
     "",
     "# Input",
@@ -23,7 +23,7 @@ export const DEEP_REVIEW_SUB_AGENT_BODY = [
     "- Do not call comment or approval tools. Your final assistant message is internal handoff text only.",
 ].join("\n");
 
-export const DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT = [
+export const REVIEW_SUB_AGENT_OUTPUT_FORMAT = [
     "# Output format (final assistant message only — plain text handoff)",
     "",
     "The writing agent parses this message as plain text (not JSON).",

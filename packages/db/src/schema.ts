@@ -80,7 +80,6 @@ export const repositoryTable = sqliteTable(
         replyToPullRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
             .notNull()
             .default("all"),
-        deepResearchOnPullRequest: integer({ mode: "boolean" }).notNull().default(false),
 
         // issue
         commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),

@@ -1,21 +1,19 @@
 import type { PullRequestReview } from "../index.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { generatePullRequestPrompt } from "../prompt/context.js";
-import { runReviewPlanAgent } from "./plan.js";
-import { runReviewSubAgent } from "./sub.js";
-import { runReviewWritingAgent } from "./writing.js";
+import { runReviewPlanAgent } from "./plan.service.js";
+import { runReviewSubAgent } from "./sub.service.js";
+import { runReviewWritingAgent } from "./writing.service.js";
 
 export const runPullRequestReview: PullRequestReview = async (params) => {
-    const { provider, llmSender, prIid, isInlineReview, isDeepResearch, language } = params;
+    const { provider, llmSender, prIid, isInlineReview, language } = params;
     const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
     const fileList = await provider.fetchDirectoryTree("", headSha, true);
 
     const prompt = await generatePullRequestPrompt(provider, prIid, headSha, fileList);
 
-    // Step 1: Plan
     const planResult = await runReviewPlanAgent(provider, llmSender, prompt, prIid, baseSha, headSha, fileList);
 
-    // Step 2: Review
     const subAgentResultList = await Promise.all(
         planResult.reviewUnitList.map((reviewUnit, index) =>
             runReviewSubAgent(
@@ -33,7 +31,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         ),
     );
 
-    // Step 3: Writing
     const writingResult = await runReviewWritingAgent(
         provider,
         llmSender,
@@ -69,7 +66,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         usage,
         fields: {
             "Pull Request IID": prIid,
-            "Deep Research": isDeepResearch,
             "Inline Review": isInlineReview,
         },
     });

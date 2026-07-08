@@ -1,8 +1,9 @@
 import type { ActivityTokenUsage } from "@proval/types";
 import type { GitProvider, GitTree } from "../../../git-provider/types";
 import type { LlmSender } from "../../llm/loop";
-import type { ReviewUnit } from "../schema/deep-research.schema";
-import { DEEP_REVIEW_SUB_AGENT_BODY, DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT, REVIEW_CHECKLIST } from "../prompt";
+import type { ReviewUnit } from "./plan.schema.js";
+import { REVIEW_SUB_AGENT_BODY, REVIEW_SUB_AGENT_OUTPUT_FORMAT } from "./sub.prompt.js";
+import { REVIEW_CHECKLIST } from "../prompt";
 import { getFileDiffTool } from "../tool";
 import {
     getDirectoryTreeTool,
@@ -25,7 +26,7 @@ export async function runReviewSubAgent(
     totalIndex: number,
     fileList: GitTree[],
 ): Promise<ActivityTokenUsage & { finalMessage: string }> {
-    const system = [DEEP_REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
+    const system = [REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
     const prompt = [pullRequestContextPrompt, `review unit: ${JSON.stringify(reviewUnit)}`].join("\n\n");
     const toolList = [
         getFileDiffTool(provider, prIid),

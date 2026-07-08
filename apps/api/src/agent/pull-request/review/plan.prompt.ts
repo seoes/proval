@@ -1,5 +1,5 @@
-export const DEEP_REVIEW_PLAN = [
-    "You are the deep review planner. Use read-only tools to explore the pull request, then group changed files into review units for specialist sub-agents.",
+export const REVIEW_PLAN = [
+    "You are the review planner. Use read-only tools to explore the pull request, then group changed files into review units for specialist sub-agents.",
     "Do NOT hunt for bugs in this phase — only partition changed files by logical relation.",
     "",
     "# Canonical output",

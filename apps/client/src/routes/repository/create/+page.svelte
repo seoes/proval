@@ -187,7 +187,6 @@
                         language: null,
                         reviewOnPullRequestOpen: true,
                         inlineReview: true,
-                        deepResearchOnPullRequest: false,
                         replyToPullRequestComment: "all",
                         replyToIssueComment: "all",
                         commentOnIssueOpen: true,

@@ -40,7 +40,22 @@ export const PR_REPLY_BODY = [
     "",
 ].join("\n");
 
-export const PR_INLINE_REVIEW_REPLY_APPENDIX = [
-    "You are replying inside an existing inline review on the pull request diff.",
-    "Your reply will be posted to the inline review comment.",
-].join(" ");
+export const PR_REPLY_WORKFLOW = [
+    "You are replying to a new pull request comment.",
+    "Reply by calling the reply tool exactly once. We do not need your final assistant message to be posted.",
+    "",
+    "# Workflow",
+    "1. Call get_pull_request_comment(commentId) to read the target comment (full body).",
+    "2. If you need prior discussion, call get_pull_request_comment_list with page and limit. Use the returned total to fetch additional pages.",
+    "3. For inline review replies, call get_pull_request_inline_review_comment(commentId) first. Use get_pull_request_inline_review_list if you need other threads.",
+    "4. If the comment references code, use get_pull_request_detail, get_file_diff, and repository search tools as needed.",
+    "5. Reply directly to the commenter with useful, concrete information.",
+    "6. Post exactly one reply with the reply tool.",
+    "7. Do not call any tools after posting the reply.",
+    "",
+    "# Reply guidance",
+    "- Answer the commenter directly.",
+    "- Avoid full code review unless explicitly requested.",
+    "- List tools return bodyPreview only; always fetch full text before replying.",
+    "",
+].join("\n");

@@ -1,0 +1,1 @@
+ALTER TABLE `repository` DROP COLUMN `deep_research_on_pull_request`;

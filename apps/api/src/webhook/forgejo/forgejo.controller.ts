@@ -213,7 +213,6 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const prNumber = payload.pull_request.number;
 
     const isInlineReview = repository.inlineReview;
-    const isDeepResearch = repository.deepResearchOnPullRequest;
     const language = repository.language;
 
     runWithActivity(
@@ -230,7 +229,6 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
                 llmSender,
                 prIid: prNumber,
                 isInlineReview,
-                isDeepResearch,
                 language,
             }),
     ).catch((error) => {

@@ -1,17 +1,15 @@
-import type { PullRequestInlineReviewReply } from "../index.js";
-import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { debug } from "../../../util/log";
+import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
-import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
 import {
     getChangedFileListTool,
     getPullRequestCommentListTool,
+    getPullRequestCommentTool,
     getPullRequestDetailTool,
-    getPullRequestInlineReviewCommentTool,
-    getPullRequestInlineReviewListTool,
     getFileDiffTool,
-    postPullRequestInlineReviewReplyTool,
+    postPullRequestReplyTool,
 } from "../tool";
 import {
     getDirectoryTreeTool,
@@ -20,29 +18,26 @@ import {
     searchFileByNameTool,
     searchLineByKeywordTool,
 } from "../../shared/tool";
+import type { PullRequestCommentReply } from "../index.js";
 
-export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
+export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     provider,
     llmSender,
     prIid,
-    inlineReviewId,
     commentId,
     language,
 }) => {
-    const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
+    const comment = await provider.fetchPullRequestComment(prIid, commentId);
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
     const fileList = await provider.fetchDirectoryTree("", headSha, true);
 
-    const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
-        "\n",
-    );
-    const prompt = `Reply to the new inline review comment on PR #${prIid}. (inlineReviewId: ${inlineReviewId}, commentId: ${commentId})`;
+    const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
+    const prompt = `Reply to the new conversation comment on PR #${prIid}. (commentId: ${commentId})`;
 
     debug(prompt, "prompt");
 
     const toolList = [
-        getPullRequestInlineReviewCommentTool(provider, prIid),
-        getPullRequestInlineReviewListTool(provider, prIid),
+        getPullRequestCommentTool(provider, prIid),
         getPullRequestCommentListTool(provider, prIid),
         getPullRequestDetailTool(provider, prIid),
         getChangedFileListTool(provider, prIid),
@@ -54,22 +49,19 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         getMergeFileContentTool(provider, { baseSha, headSha }),
     ];
 
-    const requiredToolList = [
-        postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
-    ];
+    const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language)];
 
-    const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
+    const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Reply`, {
         toolList,
         requiredToolList,
     });
 
     await postDevDebugPullRequestComment(provider, prIid, {
         sender: llmSender,
-        workflow: "PR Inline Review Reply",
+        workflow: "PR Reply",
         usage: result.usage,
         fields: {
             "Pull Request IID": prIid,
-            "Inline Review ID": inlineReviewId,
             "Comment ID": commentId,
         },
     });

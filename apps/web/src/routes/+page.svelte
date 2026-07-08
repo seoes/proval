@@ -69,21 +69,8 @@
 
     const reviewModeList: readonly ReviewMode[] = [
         {
-            id: "standard",
-            label: "Standard Review",
-            tagline: "Runs on every merge request",
-            stages: [
-                {
-                    title: "Load Context",
-                    kind: "context",
-                    items: ["PR Metadata", "Git Diff", "Existing code"],
-                },
-                { title: "Review", kind: "output" },
-            ],
-        },
-        {
-            id: "deep",
-            label: "Deep Research Review",
+            id: "review",
+            label: "Pull Request Review",
             tagline: "Each file group gets a sub-agent",
             stages: [
                 {
@@ -171,7 +158,7 @@
     let activeShot = $state<(typeof screenshots)[number]["id"]>(screenshots[0].id);
     const currentShot = $derived(screenshots.find((shot) => shot.id === activeShot) ?? screenshots[0]);
 
-    let activeMode = $state(reviewModeList[0].id);
+    let activeMode = $state("review");
     const currentMode = $derived(reviewModeList.find((mode) => mode.id === activeMode) ?? reviewModeList[0]);
 
     async function copyDockerCompose() {
@@ -615,10 +602,10 @@
         <Eyebrow>How agent works</Eyebrow>
         <div class="mt-3 grid gap-6 lg:items-end">
             <h2 class="text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                One predictable path, shaped by the mode you pick.
+                One predictable path for every repository event.
             </h2>
             <p class="text-neutral-600">
-                Proval reacts to a repository event and follows the same flow every time. Pick a mode to see how it
+                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how it
                 runs.
             </p>
         </div>

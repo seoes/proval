@@ -1,11 +1,11 @@
 import type { AgentTool } from "../../llm/loop.js";
-import { reviewUnitAppendSchema, type ReviewUnit } from "../schema/deep-research.schema.js";
+import { reviewUnitAppendSchema, type ReviewUnit } from "../review/plan.schema.js";
 
 export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
     return {
         name: "append_review_unit",
         description: [
-            "Append one review unit (a logical group of related changed files) to the deep review plan.",
+            "Append one review unit (a logical group of related changed files) to the review plan.",
             "Call once per group.",
             "files: exact changed paths from the PR changed file list (repo-root-relative full paths).",
             "description: why these files belong together (structure/flow only — no bug hypotheses).",
