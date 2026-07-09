@@ -502,29 +502,50 @@ export class GitHubProvider implements GitProvider {
         body: string,
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
-        const { data: comment } = await this.octokit.pulls.createReviewComment({
-            owner: this.owner,
-            repo: this.repo,
-            pull_number: prNumber,
-            body,
-            commit_id: position.headSha,
-            path: position.newPath,
-            ...(position.newLine !== undefined && {
-                line: position.newLine,
-                side: "RIGHT",
-            }),
-            ...(position.oldLine !== undefined && {
-                line: position.oldLine,
-                side: "LEFT",
-            }),
-        });
+        if (position.newLine !== undefined && position.oldLine !== undefined) {
+            throw new Error("Provide only newLine or oldLine, not both.");
+        }
+        if (position.newLine === undefined && position.oldLine === undefined) {
+            throw new Error("Either newLine or oldLine is required.");
+        }
 
-        return {
-            id: comment.id,
-            body: comment.body ?? "",
-            author: comment.user?.login ?? "",
-            createdAt: comment.created_at,
-        };
+        const side = position.newLine !== undefined ? "RIGHT" : "LEFT";
+        const line = position.newLine ?? position.oldLine;
+        if (line === undefined) {
+            throw new Error("Either newLine or oldLine is required.");
+        }
+        const path =
+            side === "LEFT" && position.oldPath !== position.newPath
+                ? position.oldPath
+                : position.newPath;
+
+        try {
+            const { data: comment } = await this.octokit.pulls.createReviewComment({
+                owner: this.owner,
+                repo: this.repo,
+                pull_number: prNumber,
+                body,
+                commit_id: position.headSha,
+                path,
+                line,
+                side,
+            });
+
+            return {
+                id: comment.id,
+                body: comment.body ?? "",
+                author: comment.user?.login ?? "",
+                createdAt: comment.created_at,
+            };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.toLowerCase().includes("could not be resolved")) {
+                throw new Error(
+                    `${message} Re-check get_file_diff and anchor to a line inside a diff hunk, or put the finding in the summary.`,
+                );
+            }
+            throw error;
+        }
     }
 
     public async createCommentToMultiLine(
