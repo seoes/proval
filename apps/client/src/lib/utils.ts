@@ -1,4 +1,10 @@
+import { demoFetch } from "./demo/fetch.js";
+import { isDemoMode } from "./demo/enabled.js";
+
 const fetchApi = async (path: string, options: RequestInit = {}) => {
+    if (isDemoMode()) {
+        return demoFetch(path, options);
+    }
     const response = await fetch(`/api${path}`, options);
     return response;
 };

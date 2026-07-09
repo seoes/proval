@@ -3,8 +3,12 @@
     import { afterNavigate } from "$app/navigation";
     import Sidebar from "$lib/components/Sidebar.svelte";
     import ModalRoot from "$lib/components/organism/ModalRoot.svelte";
+    import { isDemoMode } from "$lib/demo/enabled";
+
+    const GITHUB_URL = "https://github.com/seoes/proval";
 
     const { children } = $props();
+    const demoMode = isDemoMode();
     let sidebarOpen = $state(false);
     let sidebarAnimate = $state(false);
 
@@ -67,38 +71,53 @@
         <Sidebar />
     </aside>
 
-    <div class="w-full bg-neutral-50 px-4 pt-0 lg:pt-8">
-        <header class="relative flex h-16 items-center justify-between lg:hidden">
-            <button
-                type="button"
-                class="cursor-pointer rounded-md p-2 text-neutral-800"
-                aria-expanded={sidebarOpen}
-                aria-label="Toggle menu"
-                onclick={toggleSidebar}>
-                <svg
-                    class="size-6"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round">
-                    <line x1="4" y1="7" x2="20" y2="7" />
-                    <line x1="4" y1="12" x2="20" y2="12" />
-                    <line x1="4" y1="17" x2="20" y2="17" />
-                </svg>
-            </button>
-            <a
-                href="/"
-                class="absolute left-1/2 -translate-x-1/2 text-3xl font-semibold tracking-tight text-neutral-800"
-                >Proval</a>
-            <div class="size-10" aria-hidden="true"></div>
-        </header>
-        <main class="">
-            <div class="mx-auto mb-10 max-w-6xl">
-                {@render children?.()}
+    <div class="flex min-w-0 flex-1 flex-col bg-neutral-50">
+        {#if demoMode}
+            <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+                Demo mode — sample data, read-only.
+                <a
+                    href={GITHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-1 font-medium underline underline-offset-2 hover:text-amber-950">
+                    View on GitHub
+                </a>
             </div>
-        </main>
-        <footer></footer>
+        {/if}
+
+        <div class="px-4 pt-0 lg:pt-8">
+            <header class="relative flex h-16 items-center justify-between lg:hidden">
+                <button
+                    type="button"
+                    class="cursor-pointer rounded-md p-2 text-neutral-800"
+                    aria-expanded={sidebarOpen}
+                    aria-label="Toggle menu"
+                    onclick={toggleSidebar}>
+                    <svg
+                        class="size-6"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round">
+                        <line x1="4" y1="7" x2="20" y2="7" />
+                        <line x1="4" y1="12" x2="20" y2="12" />
+                        <line x1="4" y1="17" x2="20" y2="17" />
+                    </svg>
+                </button>
+                <a
+                    href="/"
+                    class="absolute left-1/2 -translate-x-1/2 text-3xl font-semibold tracking-tight text-neutral-800"
+                    >Proval</a>
+                <div class="size-10" aria-hidden="true"></div>
+            </header>
+            <main class="">
+                <div class="mx-auto mb-10 max-w-6xl">
+                    {@render children?.()}
+                </div>
+            </main>
+            <footer></footer>
+        </div>
     </div>
 </div>
 <ModalRoot />
