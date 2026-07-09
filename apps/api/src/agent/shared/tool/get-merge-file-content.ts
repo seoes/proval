@@ -22,7 +22,20 @@ export function getMergeFileContentTool(
 
             const ref = commit === "head" ? headSha : baseSha;
 
-            const lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
+            let lines: string[];
+            try {
+                lines = (await provider.fetchFileContent(filePath, ref)).split("\n");
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                if (message.startsWith("File not found")) {
+                    const errorMessage =
+                        commit === "base"
+                            ? "File not found at base commit. This path is likely new in this change. Try checking the head commit instead."
+                            : "File not found at head commit. This path is likely deleted in this change. Try checking the base commit instead.";
+                    return { error: errorMessage };
+                }
+                throw error;
+            }
 
             if (fromLine === undefined && toLine === undefined) {
                 if (lines.length <= FILE_CONTENT_MAX_LINES) return lines.join("\n");

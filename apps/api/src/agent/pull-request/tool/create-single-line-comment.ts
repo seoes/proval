@@ -5,6 +5,11 @@ import { buildCommentToolLanguageNote } from "../../shared/prompt/index.js";
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
 import { createSingleLineCommentInputSchema } from "../schema/inline-comment.schema.js";
 
+function isChangedFileNotFoundError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.startsWith("Changed file not found in pull request:");
+}
+
 export function createSingleLineCommentTool(
     provider: GitProvider,
     prIid: number,
@@ -50,10 +55,16 @@ export function createSingleLineCommentTool(
             let fileDiff;
             try {
                 fileDiff = await provider.fetchFileDiff(prIid, position.newPath);
-            } catch {
+            } catch (error) {
+                if (!isChangedFileNotFoundError(error)) {
+                    throw error;
+                }
                 try {
                     fileDiff = await provider.fetchFileDiff(prIid, position.oldPath);
-                } catch {
+                } catch (fallbackError) {
+                    if (!isChangedFileNotFoundError(fallbackError)) {
+                        throw fallbackError;
+                    }
                     return { error: `Changed file not found in pull request: ${position.newPath}` };
                 }
             }

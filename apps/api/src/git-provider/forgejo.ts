@@ -569,12 +569,23 @@ export class ForgejoProvider implements GitProvider {
 
             return response.content ?? "";
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            if (message.includes("404")) {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                (error as { status?: number }).status === 404
+            ) {
                 throw new Error(`File not found: ${filePath}`);
             }
             throw error;
         }
+    }
+
+    private throwRequestError(response: Response, errorText: string): never {
+        const error = new Error(
+            `Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`,
+        );
+        (error as Error & { status: number }).status = response.status;
+        throw error;
     }
 
     private resetReviewBufferIfPrMismatch(prIid: number): void {
@@ -759,7 +770,7 @@ export class ForgejoProvider implements GitProvider {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`);
+            this.throwRequestError(response, errorText);
         }
 
         return (await response.json()) as T;
@@ -778,7 +789,7 @@ export class ForgejoProvider implements GitProvider {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`);
+            this.throwRequestError(response, errorText);
         }
 
         // Handle empty responses (e.g., for void returns)
