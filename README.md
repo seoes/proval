@@ -4,9 +4,7 @@
 
 A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
-[Visit the website](https://proval.dev)
-[Try the demo](https://demo.proval.dev)
-[Read the docs](https://docs.proval.dev)
+[Website](https://proval.dev) | [Demo](https://demo.proval.dev) | [Docs](https://docs.proval.dev)
 
 ![Proval inline review on a pull request](./docs/assets/inline-review.png)
 
