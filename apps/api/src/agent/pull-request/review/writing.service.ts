@@ -50,10 +50,10 @@ export async function runReviewWritingAgent(
             searchFileByNameTool(fileList),
             getDirectoryTreeTool(fileList),
             getMergeFileContentTool(provider, { baseSha, headSha }),
-            postPullRequestCommentTool(provider, prIid, language),
             isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
             isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],
+        requiredToolList: [postPullRequestCommentTool(provider, prIid, language)],
     });
 
     return result.usage;

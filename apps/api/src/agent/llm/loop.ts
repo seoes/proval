@@ -51,7 +51,7 @@ export async function runAgentLoop(
     options: {
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
-        requiredToolList?: AgentTool[];
+        requiredToolList?: (AgentTool | null)[];
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();

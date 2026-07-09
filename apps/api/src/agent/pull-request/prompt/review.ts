@@ -81,7 +81,7 @@ export const REVIEW_CHECKLIST = [
     "",
     "Error Handling",
     "  - Swallowed or silently ignored errors",
-    "  - Missing try/catch around operations that can fail (I/O, network, parsing)",
+    "  - Failures that are neither handled nor propagated anywhere on the call path, leaving incorrect results or silent breakage (local try/catch absence alone is not a bug if callers, callees, or shared layers handle it)",
     "  - Generic catch blocks that hide root causes",
     "  - Missing validation of external input (user input, API responses, environment variables)",
     "",
