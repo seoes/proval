@@ -121,13 +121,13 @@
             id: "comment",
             label: "Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
-            caption: "Proval posts a summary and inline comments straight to the merge request.",
+            caption: "Proval posts a summary to the merge request.",
         },
         {
             id: "inline-review",
             label: "Inline Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
-            caption: "Proval posts a summary and inline comments straight to the merge request.",
+            caption: "Proval posts a inline comments straight to the merge request.",
         },
     ] as const;
 
@@ -605,8 +605,8 @@
                 One predictable path for every repository event.
             </h2>
             <p class="text-neutral-600">
-                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how it
-                runs.
+                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how
+                it runs.
             </p>
         </div>
 
