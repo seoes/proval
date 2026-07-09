@@ -35,3 +35,25 @@ export const formatTimeAgo = (date: Date): string => {
         return `${year}-${month}-${day}`;
     }
 };
+
+export const formatDuration = (start: Date, end: Date): string => {
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    if (diffMs < 0) return "—";
+
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffSeconds < 60) {
+        return `${diffSeconds} sec`;
+    }
+    if (diffMinutes < 60) {
+        return `${diffMinutes} min`;
+    }
+    const hours = diffHours;
+    const mins = diffMinutes % 60;
+    if (mins === 0) {
+        return `${hours} hr`;
+    }
+    return `${hours} hr ${mins} min`;
+};
