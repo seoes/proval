@@ -2,8 +2,8 @@ import type { ActivityTokenUsage } from "@proval/types";
 import type { LlmSender } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
 
-import { runPullRequestCommentReply } from "./comment.js";
-import { runPullRequestInlineReviewReply } from "./inline-review.js";
+import { runPullRequestCommentReply } from "./comment.service.js";
+import { runPullRequestInlineReviewReply } from "./inline-review.service.js";
 
 type PullRequestReplyParams = {
     provider: GitProvider;

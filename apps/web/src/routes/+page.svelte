@@ -69,21 +69,8 @@
 
     const reviewModeList: readonly ReviewMode[] = [
         {
-            id: "standard",
-            label: "Standard Review",
-            tagline: "Runs on every merge request",
-            stages: [
-                {
-                    title: "Load Context",
-                    kind: "context",
-                    items: ["PR Metadata", "Git Diff", "Existing code"],
-                },
-                { title: "Review", kind: "output" },
-            ],
-        },
-        {
-            id: "deep",
-            label: "Deep Research Review",
+            id: "review",
+            label: "Pull Request Review",
             tagline: "Each file group gets a sub-agent",
             stages: [
                 {
@@ -131,10 +118,16 @@
             caption: "Connect a model and a repository with a simple form.",
         },
         {
-            id: "review",
+            id: "comment",
             label: "Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
-            caption: "Proval posts a summary and inline comments straight to the merge request.",
+            caption: "Proval posts a summary to the merge request.",
+        },
+        {
+            id: "inline-review",
+            label: "Inline Review",
+            frame: "gitlab.com/acme/api-server/-/merge_requests/42",
+            caption: "Proval posts a inline comments straight to the merge request.",
         },
     ] as const;
 
@@ -165,7 +158,7 @@
     let activeShot = $state<(typeof screenshots)[number]["id"]>(screenshots[0].id);
     const currentShot = $derived(screenshots.find((shot) => shot.id === activeShot) ?? screenshots[0]);
 
-    let activeMode = $state(reviewModeList[0].id);
+    let activeMode = $state("review");
     const currentMode = $derived(reviewModeList.find((mode) => mode.id === activeMode) ?? reviewModeList[0]);
 
     async function copyDockerCompose() {
@@ -609,11 +602,11 @@
         <Eyebrow>How agent works</Eyebrow>
         <div class="mt-3 grid gap-6 lg:items-end">
             <h2 class="text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                One predictable path, shaped by the mode you pick.
+                One predictable path for every repository event.
             </h2>
             <p class="text-neutral-600">
-                Proval reacts to a repository event and follows the same flow every time. Pick a mode to see how it
-                runs.
+                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how
+                it runs.
             </p>
         </div>
 
@@ -672,9 +665,7 @@
                     Proval is designed around a simple Docker-first path: run the service, connect your model, link
                     repositories, and test a real merge request.
                 </p>
-                <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">
-                    Open the Docker guide
-                </ButtonLink>
+                <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">Open the Docker guide</ButtonLink>
             </div>
 
             <div class="mx-auto mt-20 w-full max-w-xl text-left">
@@ -693,9 +684,7 @@
                 </div>
                 <p class="mt-3 text-center text-sm text-neutral-500">
                     Deploy in a minute with Docker Compose.
-                    <ButtonLink href="/docs/quick-start" variant="primary" class="inline">
-                        Full setup guide
-                    </ButtonLink>
+                    <ButtonLink href="/docs/quick-start" variant="primary" class="inline">Full setup guide</ButtonLink>
                 </p>
             </div>
 

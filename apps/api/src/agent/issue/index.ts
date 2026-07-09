@@ -2,8 +2,8 @@ import type { LlmSender } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import type { ActivityTokenUsage } from "@proval/types";
 
-import { runIssueReplyOnOpen } from "./open.js";
-import { runIssueReply } from "./reply.js";
+import { runIssueReplyOnOpen } from "./open.service.js";
+import { runIssueReply } from "./reply.service.js";
 
 type IssueReplyOnOpenParams = {
     provider: GitProvider;

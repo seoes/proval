@@ -1,7 +1,7 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider } from "../git-provider/types.js";
-import { logError } from "../util/log.js";
-import type { LlmSender } from "./llm/loop.js";
+import type { GitProvider } from "../../../git-provider/types.js";
+import { logError } from "../../../util/log.js";
+import type { LlmSender } from "../../llm/loop.js";
 
 type DebugCommentInput = {
     sender: LlmSender;

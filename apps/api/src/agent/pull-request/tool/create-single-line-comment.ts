@@ -22,12 +22,108 @@ export function createSingleLineCommentTool(
             "Paths must match the diff (old_path/new_path).",
             "Prefer newLine for additions/changes on the new file.",
             "Use oldLine for pure deletions on the old side.",
+            "The line must appear in a get_file_diff hunk (+, -, or context). If unsure, put the finding in the summary only.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
         parameters: createSingleLineCommentInputSchema(language).toJSONSchema(),
         execute: async (args) => {
             const parsed = createSingleLineCommentInputSchema(language).parse(args);
             const { position, ...finding } = parsed;
+
+            const newLine = position.newLine;
+            const oldLine = position.oldLine;
+            const hasNewLine = newLine !== undefined;
+            const hasOldLine = oldLine !== undefined;
+            if (hasNewLine && hasOldLine) {
+                return { error: "Provide only newLine or oldLine, not both." };
+            }
+            if (!hasNewLine && !hasOldLine) {
+                return { error: "Either newLine or oldLine is required." };
+            }
+            if (hasNewLine && newLine < 1) {
+                return { error: "position.newLine must be >= 1." };
+            }
+            if (hasOldLine && oldLine < 1) {
+                return { error: "position.oldLine must be >= 1." };
+            }
+
+            let fileDiff;
+            try {
+                fileDiff = await provider.fetchFileDiff(prIid, position.newPath);
+            } catch {
+                try {
+                    fileDiff = await provider.fetchFileDiff(prIid, position.oldPath);
+                } catch {
+                    return { error: `Changed file not found in pull request: ${position.newPath}` };
+                }
+            }
+
+            if (fileDiff.oldPath !== position.oldPath || fileDiff.newPath !== position.newPath) {
+                return {
+                    error: `position paths must match get_file_diff (${fileDiff.oldPath} / ${fileDiff.newPath}).`,
+                };
+            }
+
+            if (!fileDiff.diff) {
+                return {
+                    error: "No diff patch available for this file (too large or binary). Put this finding in the summary instead.",
+                };
+            }
+
+            if (fileDiff.newFile && hasOldLine) {
+                return { error: "Use newLine for new files, not oldLine." };
+            }
+            if (fileDiff.deletedFile && hasNewLine) {
+                return { error: "Use oldLine for deleted files, not newLine." };
+            }
+
+            const newLines = new Set<number>();
+            const oldLines = new Set<number>();
+            let oldLineNum = 0;
+            let newLineNum = 0;
+            let inHunk = false;
+
+            for (const line of fileDiff.diff.split("\n")) {
+                if (line.startsWith("@@")) {
+                    const match = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                    if (match) {
+                        oldLineNum = Number(match[1]);
+                        newLineNum = Number(match[2]);
+                        inHunk = true;
+                    }
+                    continue;
+                }
+                if (!inHunk) {
+                    continue;
+                }
+                if (line.startsWith("\\")) {
+                    continue;
+                }
+                if (line.startsWith(" ")) {
+                    newLines.add(newLineNum);
+                    oldLines.add(oldLineNum);
+                    oldLineNum += 1;
+                    newLineNum += 1;
+                } else if (line.startsWith("+")) {
+                    newLines.add(newLineNum);
+                    newLineNum += 1;
+                } else if (line.startsWith("-")) {
+                    oldLines.add(oldLineNum);
+                    oldLineNum += 1;
+                }
+            }
+
+            if (hasNewLine && !newLines.has(newLine)) {
+                return {
+                    error: `Line ${newLine} is not in the PR diff hunk for ${position.newPath}. Call get_file_diff and anchor to a + or context line on the new side, or put the finding in the summary.`,
+                };
+            }
+            if (hasOldLine && !oldLines.has(oldLine)) {
+                return {
+                    error: `Line ${oldLine} is not in the PR diff hunk for ${position.oldPath}. Call get_file_diff and anchor to a - or context line on the old side, or put the finding in the summary.`,
+                };
+            }
+
             const body = formatReviewFindingCommentBody(finding);
 
             const comment = await provider.createCommentToSingleLine(prIid, body, {

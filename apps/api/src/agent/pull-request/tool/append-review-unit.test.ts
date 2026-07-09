@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { ReviewUnit } from "../schema/deep-research.schema.js";
+import type { ReviewUnit } from "../review/plan.schema.js";
 import { appendReviewUnitTool } from "./append-review-unit.js";
 
 describe("appendReviewUnitTool", () => {
@@ -20,6 +20,7 @@ describe("appendReviewUnitTool", () => {
                 files: ["src/a.ts", "src/b.ts"],
                 name: "auth flow",
                 description: "Scope: handler and service changed together.\nReferences:",
+                references: [],
             },
             total: 1,
         });
@@ -49,6 +50,7 @@ describe("appendReviewUnitTool", () => {
                 files: ["src/a.ts", "src/b.ts"],
                 name: "unit 2",
                 description: "Scope: shared contract with b.",
+                references: [],
             },
             total: 2,
         });

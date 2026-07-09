@@ -1,37 +1,19 @@
 import type { PullRequestReview } from "../index.js";
-import { postDevDebugPullRequestComment } from "../../dev-debug-comment.js";
+import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { generatePullRequestPrompt } from "../prompt/context.js";
-import { runReviewPlanAgent } from "./plan.js";
-import { runReviewSubAgent } from "./sub.js";
-import { runReviewWritingAgent } from "./writing.js";
-// import { z } from "zod";
-
-// const reviewFindingSchema = z.object({
-//     path: z.string().describe("The path of the file that contains the finding."),
-//     line: z.number().describe("The line number of the finding."),
-
-//     problem: z.string().describe("Main description of the problem of the finding."),
-//     impact: z.string().describe("The impact of the finding."),
-//     suggestion: z
-//         .object({
-//             language: z.string().describe("The language of the code suggestion."),
-//             code: z.string().describe("The code suggestion."),
-//             description: z.string().describe("The description of the code suggestion."),
-//         })
-//         .describe("The code suggestion to fix the finding."),
-//     references: z.array(z.string()).describe("Any additional reference file paths to the finding."),
-// });
+import { runReviewPlanAgent } from "./plan.service.js";
+import { runReviewSubAgent } from "./sub.service.js";
+import { runReviewWritingAgent } from "./writing.service.js";
 
 export const runPullRequestReview: PullRequestReview = async (params) => {
-    const { provider, llmSender, prIid, isInlineReview, isDeepResearch, language } = params;
+    const { provider, llmSender, prIid, isInlineReview, language } = params;
     const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
+    const fileList = await provider.fetchDirectoryTree("", headSha, true);
 
-    const prompt = await generatePullRequestPrompt(provider, prIid);
+    const prompt = await generatePullRequestPrompt(provider, prIid, headSha, fileList);
 
-    // Step 1: Plan
-    const planResult = await runReviewPlanAgent(provider, llmSender, prompt, prIid, baseSha, headSha);
+    const planResult = await runReviewPlanAgent(provider, llmSender, prompt, prIid, baseSha, headSha, fileList);
 
-    // Step 2: Review
     const subAgentResultList = await Promise.all(
         planResult.reviewUnitList.map((reviewUnit, index) =>
             runReviewSubAgent(
@@ -44,11 +26,11 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 reviewUnit,
                 index + 1,
                 planResult.reviewUnitList.length,
+                fileList,
             ),
         ),
     );
 
-    // Step 3: Writing
     const writingResult = await runReviewWritingAgent(
         provider,
         llmSender,
@@ -60,6 +42,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         subAgentResultList.map((result) => result.finalMessage),
         isInlineReview,
         language,
+        fileList,
     );
 
     const usage = {
@@ -83,7 +66,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         usage,
         fields: {
             "Pull Request IID": prIid,
-            "Deep Research": isDeepResearch,
             "Inline Review": isInlineReview,
         },
     });

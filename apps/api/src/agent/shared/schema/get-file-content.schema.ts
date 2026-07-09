@@ -4,7 +4,11 @@ export const FILE_CONTENT_MAX_LINES = 300;
 
 export const getFileContentInputSchema = z
     .object({
-        filePath: z.string().describe("Repository-relative path to the file."),
+        filePath: z
+            .string()
+            .describe(
+                "Repository-relative path to the file. Only read files, not directories. If you need to read a directory, use get_directory_tree instead.",
+            ),
         fromLine: z
             .number()
             .int()

@@ -123,7 +123,6 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     }
 
     const isInlineReview = repository.inlineReview;
-    const isDeepResearch = repository.deepResearchOnPullRequest;
 
     runWithActivity(
         {
@@ -139,7 +138,6 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
                 llmSender,
                 prIid: pullRequest.iid,
                 isInlineReview,
-                isDeepResearch,
                 language: repository.language,
             }),
     ).catch((error) => {

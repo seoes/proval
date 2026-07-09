@@ -31,7 +31,6 @@
         language: string | null;
         reviewOnPullRequestOpen: boolean;
         inlineReview: boolean;
-        deepResearchOnPullRequest: boolean;
         replyToPullRequestComment: CommentReplyPolicy;
         replyToIssueComment: CommentReplyPolicy;
         commentOnIssueOpen: boolean;
@@ -110,7 +109,6 @@
     // Pull Request Configuration
     let reviewOnPullRequestOpen = $state<boolean>(config.reviewOnPullRequestOpen);
     let inlineReview = $state<boolean>(config.inlineReview);
-    let deepResearchOnPullRequest = $state<boolean>(config.deepResearchOnPullRequest);
     let replyToPullRequestComment = $state<CommentReplyPolicy>(config.replyToPullRequestComment);
 
     // Issue Configuration
@@ -197,7 +195,6 @@
             modelName: modelName.trim(),
             reviewOnPullRequestOpen,
             inlineReview,
-            deepResearchOnPullRequest,
             replyToPullRequestComment,
             replyToIssueComment,
             commentOnIssueOpen,
@@ -351,13 +348,6 @@
             <div class="flex items-center justify-between">
                 <FieldTitle>Inline review</FieldTitle>
                 <ToggleSwitch bind:checked={inlineReview} />
-            </div>
-            <div class="flex items-center justify-between">
-                <div>
-                    <FieldTitle>Deep Research</FieldTitle>
-                    <Description>Sub agents will be used to analyze the code</Description>
-                </div>
-                <ToggleSwitch bind:checked={deepResearchOnPullRequest} />
             </div>
         </div>
         <div>

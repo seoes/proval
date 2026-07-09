@@ -220,9 +220,6 @@
                                     {/if}
                                 </div>
                                 <div class="flex flex-wrap gap-1.5">
-                                    {#if repository.deepResearchOnPullRequest}
-                                        <Badge variant="warning">Deep Research</Badge>
-                                    {/if}
                                     {#if repository.inlineReview}
                                         <Badge variant="warning">Inline Review</Badge>
                                     {/if}

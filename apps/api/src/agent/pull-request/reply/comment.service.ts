@@ -1,8 +1,8 @@
 import { debug } from "../../../util/log";
-import { postDevDebugPullRequestComment } from "../../dev-debug-comment.js";
+import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
-import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
 import {
     getChangedFileListTool,
     getPullRequestCommentListTool,
@@ -15,6 +15,7 @@ import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
+    searchFileByNameTool,
     searchLineByKeywordTool,
 } from "../../shared/tool";
 import type { PullRequestCommentReply } from "../index.js";
@@ -28,6 +29,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 }) => {
     const comment = await provider.fetchPullRequestComment(prIid, commentId);
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
+    const fileList = await provider.fetchDirectoryTree("", headSha, true);
 
     const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
     const prompt = `Reply to the new conversation comment on PR #${prIid}. (commentId: ${commentId})`;
@@ -42,7 +44,8 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),
-        getDirectoryTreeTool(provider, headSha),
+        searchFileByNameTool(fileList),
+        getDirectoryTreeTool(fileList),
         getMergeFileContentTool(provider, { baseSha, headSha }),
     ];
 

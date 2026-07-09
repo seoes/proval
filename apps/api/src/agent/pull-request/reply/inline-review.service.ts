@@ -1,9 +1,10 @@
 import type { PullRequestInlineReviewReply } from "../index.js";
-import { postDevDebugPullRequestComment } from "../../dev-debug-comment.js";
+import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
-import { PR_INLINE_REVIEW_REPLY_APPENDIX, PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "../prompt";
+import { PR_INLINE_REVIEW_REPLY_APPENDIX } from "./inline-review.prompt.js";
+import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
 import {
     getChangedFileListTool,
     getPullRequestCommentListTool,
@@ -17,6 +18,7 @@ import {
     getDirectoryTreeTool,
     getMergeFileContentTool,
     searchCodeListTool,
+    searchFileByNameTool,
     searchLineByKeywordTool,
 } from "../../shared/tool";
 
@@ -30,6 +32,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
 }) => {
     const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
     const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
+    const fileList = await provider.fetchDirectoryTree("", headSha, true);
 
     const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
         "\n",
@@ -47,7 +50,8 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         getFileDiffTool(provider, prIid),
         searchCodeListTool(provider, headSha),
         searchLineByKeywordTool(provider, headSha),
-        getDirectoryTreeTool(provider, headSha),
+        searchFileByNameTool(fileList),
+        getDirectoryTreeTool(fileList),
         getMergeFileContentTool(provider, { baseSha, headSha }),
     ];
 

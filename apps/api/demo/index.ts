@@ -157,7 +157,6 @@ async function main() {
             llmSender,
             prIid: 1,
             isInlineReview: false,
-            isDeepResearch: false,
             language,
         });
     } else {

@@ -75,7 +75,6 @@
             language: data.repository.language,
             reviewOnPullRequestOpen: data.repository.reviewOnPullRequestOpen,
             inlineReview: data.repository.inlineReview,
-            deepResearchOnPullRequest: data.repository.deepResearchOnPullRequest,
             replyToPullRequestComment: data.repository.replyToPullRequestComment,
             replyToIssueComment: data.repository.replyToIssueComment,
             commentOnIssueOpen: data.repository.commentOnIssueOpen,

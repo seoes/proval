@@ -1,16 +1,18 @@
-export const DEEP_REVIEW_SUB_AGENT_BODY = [
+export const REVIEW_SUB_AGENT_BODY = [
     "Review the diffs for the files in the assigned review unit against the checklist below.",
     "",
     "# Input",
     "",
-    "The user message includes Review unit as JSON: id, name, files[], description.",
-    "- files[]: changed paths to review — read every diff hunk in these files.",
-    "- description: optional context from the planner — use for reference only; base your review on the diffs and code.",
-    "- When References lists non-diff paths, read them with get_merge_file_content only if they help.",
+    "The user message includes Review unit as JSON: id, name, files[], description, references[].",
+    "- files[]: changed paths to review — read every diff hunk in these files with get_file_diff.",
+    "- description: scope context from the planner — why these changed files belong together.",
+    "- references[]: context files ({ path, reason }) from the planner — full repo-root paths. Use each path exactly as given.",
+    "- For references[] paths that appear in the PR changed file list, read the diff with get_file_diff. For paths not in the PR, use get_merge_file_content({ commit: \"head\", filePath }).",
+    "- If a reference path fails to load, use search_file_by_name or get_directory_tree to resolve the correct full path.",
     "",
     "# Phases",
     "",
-    "Phase A — Understand architecture, workflow, data flow, and dependencies around files[] and References.",
+    "Phase A — Understand architecture, workflow, data flow, and dependencies around files[] and references[].",
     "Phase B — Review every relevant diff hunk against the checklist below.",
     "Phase C — Return findings and good points as plain text in the output format below.",
     "",
@@ -21,7 +23,7 @@ export const DEEP_REVIEW_SUB_AGENT_BODY = [
     "- Do not call comment or approval tools. Your final assistant message is internal handoff text only.",
 ].join("\n");
 
-export const DEEP_REVIEW_SUB_AGENT_OUTPUT_FORMAT = [
+export const REVIEW_SUB_AGENT_OUTPUT_FORMAT = [
     "# Output format (final assistant message only — plain text handoff)",
     "",
     "The writing agent parses this message as plain text (not JSON).",

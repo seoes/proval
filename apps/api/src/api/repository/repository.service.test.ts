@@ -104,7 +104,6 @@ function makeRepositoryRow(overrides: Partial<Repository> = {}): Repository {
         reviewOnPullRequestOpen: true,
         inlineReview: true,
         replyToPullRequestComment: "all",
-        deepResearchOnPullRequest: false,
         commentOnIssueOpen: true,
         replyToIssueComment: "all",
         modelProviderId: null,

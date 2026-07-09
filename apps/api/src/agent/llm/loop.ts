@@ -73,7 +73,7 @@ export async function runAgentLoop(
         const maxSteps = options.maxSteps ?? 100;
 
         const optionalToolList = options.toolList?.filter((t) => t !== null) ?? [];
-        const requiredToolList = options.requiredToolList ?? [];
+        const requiredToolList = options.requiredToolList?.filter((t) => t !== null) ?? [];
         const requiredToolNameList = requiredToolList.map((t) => t.name);
 
         const toolList: AgentTool[] = [];
