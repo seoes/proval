@@ -1,11 +1,12 @@
 <script lang="ts">
     import { page } from "$app/stores";
     import ButtonLink from "./ButtonLink.svelte";
-    import { GITHUB_URL } from "../constants";
+    import { GITHUB_URL, DEMO_URL } from "../constants";
 
     const links = [
         { href: "/docs", label: "Docs" },
         { href: "/blog", label: "Blog" },
+        { href: DEMO_URL, label: "Demo", external: true },
     ];
 </script>
 
@@ -16,6 +17,8 @@
             {#each links as link (link.href)}
                 <a
                     href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
                     class={$page.url.pathname.startsWith(link.href)
                         ? "font-medium text-primary"
                         : "text-neutral-600 hover:text-neutral-900"}>

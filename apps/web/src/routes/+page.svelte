@@ -4,7 +4,7 @@
     import Eyebrow from "../lib/components/Eyebrow.svelte";
     import Button from "../lib/components/Button.svelte";
     import ButtonLink from "../lib/components/ButtonLink.svelte";
-    import { GITHUB_URL, SITE_DESCRIPTION } from "../lib/constants";
+    import { GITHUB_URL, SITE_DESCRIPTION, DEMO_URL } from "../lib/constants";
 
     type StageKind = "context" | "policy" | "plan" | "parallel" | "output";
 
@@ -195,9 +195,15 @@
             Works with GitLab, Forgejo, and GitHub. Use your local model or any API you want.
         </p>
 
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-            <ButtonLink href="/docs/quick-start" variant="primary">Read the docs</ButtonLink>
-            <ButtonLink href={GITHUB_URL} variant="secondary" external>View on GitHub</ButtonLink>
+        <div class="mt-8 flex flex-col items-center gap-3">
+            <ButtonLink href={DEMO_URL} variant="primary" external class="text-base md:text-lg">
+                Just try the demo
+            </ButtonLink>
+            <span class="text-xs text-neutral-400">or</span>
+            <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                <ButtonLink href="/docs/quick-start" variant="primary">Read the docs</ButtonLink>
+                <ButtonLink href={GITHUB_URL} variant="secondary" external>View on GitHub</ButtonLink>
+            </div>
         </div>
 
         <div class="mx-auto mt-16 w-full max-w-5xl">

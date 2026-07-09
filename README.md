@@ -4,6 +4,8 @@
 
 A Self-hosted LLM code review agent. Connect it to your Git host, bring your own model, and let it review pull requests and issues on your own infrastructure.
 
+[Website](https://proval.dev) | [Demo](https://demo.proval.dev) | [Docs](https://docs.proval.dev)
+
 ![Proval inline review on a pull request](./docs/assets/inline-review.png)
 
 ![Proval comment on a pull request](./docs/assets/comment.png)
@@ -131,6 +133,5 @@ I believe the local LLM market is growing. Models keep getting better at code re
 - Rate limit
 - Only respond to certain users
 - Benchmark by models
-- A public demo instance
 
 <!-- ## LICENSE -->

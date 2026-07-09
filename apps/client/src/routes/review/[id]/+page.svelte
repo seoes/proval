@@ -3,7 +3,7 @@
     import Card from "$lib/components/layout/Card.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
-    import { formatTimeAgo } from "$lib/utils";
+    import { formatDuration, formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
@@ -68,8 +68,10 @@
             </div>
             {#if review.completedAt}
                 <div class="flex items-center justify-between gap-4">
-                    <dt class="text-sm text-neutral-500">Completed</dt>
-                    <dd class="text-sm text-neutral-800">{formatTimeAgo(review.completedAt)}</dd>
+                    <dt class="text-sm text-neutral-500">Duration</dt>
+                    <dd class="text-sm text-neutral-800">
+                        {formatDuration(review.createdAt, review.completedAt)}
+                    </dd>
                 </div>
             {/if}
         </dl>
