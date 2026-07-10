@@ -19,7 +19,7 @@ export const modelProviderList: ModelProviderResponse[] = [
     {
         id: 1,
         provider: "openai",
-        label: "Local Ollama",
+        label: "Local llama.cpp",
         baseUrl: "http://localhost:11434/v1",
         createdAt: minutesAgo(60 * 24 * 14),
         updatedAt: minutesAgo(60 * 24 * 2),
@@ -27,7 +27,7 @@ export const modelProviderList: ModelProviderResponse[] = [
     {
         id: 2,
         provider: "openai",
-        label: "OpenAI-compatible",
+        label: "External LLM API",
         baseUrl: "https://api.openrouter.ai/api/v1",
         createdAt: minutesAgo(60 * 24 * 7),
         updatedAt: minutesAgo(60 * 24),
