@@ -1,6 +1,6 @@
 import {
     accessList,
-    activitySummary,
+    buildActivitySummary,
     getAccessById,
     getAccessRepositoryList,
     getActivityById,
@@ -109,7 +109,7 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
     }
 
     if (pathname === "/activity/summary") {
-        return jsonResponse(activitySummary);
+        return jsonResponse(buildActivitySummary(searchParams.get("range")));
     }
 
     if (pathname === "/activity") {
