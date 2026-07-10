@@ -55,17 +55,11 @@
             </div>
         </div>
     </div>
-    <div class="mt-2 flex justify-end">
-        <Button
-            text
-            onclick={onTest}
-            disabled={isTesting}
-            class="h-auto w-auto shrink-0 px-2 py-1.5 text-xs font-medium">
+    <div class="mt-2 flex justify-end gap-2">
+        <Button text size="sm" onclick={onTest} disabled={isTesting}>
             {isTesting ? "Testing..." : "Test Connection"}
         </Button>
-        <Button text onclick={onUpdateToken} class="h-auto w-auto shrink-0 px-2 py-1.5 text-xs font-medium">
-            Update Access Token
-        </Button>
+        <Button text size="sm" onclick={onUpdateToken}>Update Access Token</Button>
     </div>
     {#if testResult && testResult.id === item.id}
         <div

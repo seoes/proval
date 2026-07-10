@@ -47,6 +47,7 @@
         onSubmit: (data: Record<string, unknown>) => Promise<void>;
         onDelete?: (repositoryId: number) => Promise<void>;
         onCancel: () => void;
+        onBack?: () => void;
     }
 
     interface CommentOption {
@@ -54,7 +55,7 @@
         description: string;
     }
 
-    const { modelList, provider, repositoryList, editRepositoryId, config, onSubmit, onDelete, onCancel }: Props =
+    const { modelList, provider, repositoryList, editRepositoryId, config, onSubmit, onDelete, onCancel, onBack }: Props =
         $props();
 
     let selectedModelProviderId = $state<string>(String(config.modelProviderId ?? ""));
@@ -145,7 +146,7 @@
     });
 
     const selectClass =
-        "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
+        "h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
     const commentOptionList: CommentOption[] = [
         { value: "all", description: "Reply on all comments" },
@@ -342,11 +343,11 @@
     <Card title="Pull request" spaceY>
         <div class="space-y-4">
             <div class="flex items-center justify-between gap-2">
-                <FieldTitle>Review when PR opens</FieldTitle>
+                <FieldTitle class="ml-1">Review when PR opens</FieldTitle>
                 <ToggleSwitch bind:checked={reviewOnPullRequestOpen} />
             </div>
-            <div class="flex items-center justify-between">
-                <FieldTitle>Inline review</FieldTitle>
+            <div class="flex items-center justify-between gap-2">
+                <FieldTitle class="ml-1">Inline review</FieldTitle>
                 <ToggleSwitch bind:checked={inlineReview} />
             </div>
         </div>
@@ -372,7 +373,7 @@
     </Card>
     <Card title="Issue" spaceY>
         <div class="flex items-center justify-between gap-2">
-            <FieldTitle>Comment when issue opens</FieldTitle>
+            <FieldTitle class="ml-1">Comment when issue opens</FieldTitle>
             <ToggleSwitch bind:checked={commentOnIssueOpen} />
         </div>
         <div>
@@ -396,11 +397,14 @@
         </div>
     </Card>
 
-    <div class="-mt-2 flex justify-between">
-        <div class="flex gap-4">
+    <div class="flex justify-between gap-3 pt-2">
+        <div class="flex gap-3">
             <Button primary type="submit">{editRepositoryId ? "Save" : "Create"}</Button>
+            {#if onBack}
+                <Button text type="button" onclick={onBack}>Back</Button>
+            {/if}
         </div>
-        <div class="mr-4">
+        <div>
             {#if editRepositoryId && onDelete}
                 <Button text type="button" onclick={() => onDelete(editRepositoryId)}>Remove Repository</Button>
             {:else}

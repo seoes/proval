@@ -40,7 +40,7 @@
             handleClose();
         }
     }}>
-    <div class={twMerge("w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg dark:bg-neutral-800", className)}>
+    <div class={twMerge("w-full max-w-sm rounded-xl bg-white p-6 shadow-lg dark:bg-neutral-800", className)}>
         {@render children()}
     </div>
 </dialog>

@@ -36,7 +36,7 @@
             {disabled}
             {required}
             class={twMerge(
-                "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800",
+                "h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800",
                 disabled ? "cursor-not-allowed opacity-60" : "",
                 className,
             )}

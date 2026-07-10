@@ -18,7 +18,7 @@
             items: [
                 {
                     label: "Dashboard",
-                    href: "/dashboard",
+                    href: "/",
                     icon: HouseIcon,
                 },
 
@@ -51,9 +51,16 @@
             ],
         },
     ];
+
+    function isActive(href: string, pathname: string): boolean {
+        if (href === "/") {
+            return pathname === "/" || pathname === "/dashboard";
+        }
+        return pathname === href || pathname.startsWith(`${href}/`);
+    }
 </script>
 
-<div class="h-full min-h-screen w-full bg-slate-100 px-4 pt-14 pb-4 lg:py-4">
+<div class="h-full min-h-screen w-full bg-neutral-100 px-4 pt-14 pb-4 lg:py-4">
     <div class="hidden lg:block">
         <div class="px-4 text-3xl font-semibold tracking-tight text-neutral-800">
             <a href="/">Proval</a>
@@ -68,8 +75,10 @@
                         <li>
                             <a class="" href={item.href}>
                                 <span
-                                    class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm leading-8 tracking-wide transition-colors hover:bg-primary hover:text-neutral-100 {$page
-                                        .url.pathname === item.href
+                                    class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm tracking-wide transition-colors hover:bg-primary hover:text-neutral-100 {isActive(
+                                        item.href,
+                                        $page.url.pathname,
+                                    )
                                         ? 'bg-primary text-neutral-100'
                                         : 'text-neutral-500'}">
                                     <svelte:component this={item.icon} class="size-5" />

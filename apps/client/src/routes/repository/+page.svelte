@@ -1,6 +1,7 @@
 <script lang="ts">
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
+    import Button from "$lib/components/atom/Button.svelte";
     import { PlusIcon } from "phosphor-svelte";
     import { replyOptionBadge } from "$lib/utils/label";
     import type { PageProps } from "./$types";
@@ -11,24 +12,20 @@
 </script>
 
 {#snippet addRepositoryAction()}
-    <a
-        href="/repository/create"
-        class="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-neutral-900 transition-colors hover:text-neutral-900/70">
+    <Button href="/repository/create" size="sm" class="gap-1.5 text-neutral-900 hover:text-neutral-900/70">
         <PlusIcon class="size-4" />
         Add Repository
-    </a>
+    </Button>
 {/snippet}
 
 <DefaultLayout title="Repository" actions={addRepositoryAction}>
     {#if data.repositoryList.length === 0}
         <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center">
             <p class="text-sm text-neutral-500">No repositories connected yet.</p>
-            <a
-                href="/repository/create"
-                class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90">
+            <Button primary href="/repository/create" size="sm" class="mt-4 gap-1.5">
                 <PlusIcon class="size-4" />
                 Add your first repository
-            </a>
+            </Button>
         </div>
     {:else}
         <div class="space-y-3">
@@ -38,7 +35,7 @@
                 {#snippet header()}
                     <div class="flex items-center justify-between">
                         <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
-                            <span class="truncate text-neutral-800">{repository.path}</span>
+                            <span class="truncate text-sm text-neutral-800">{repository.path}</span>
                             {#if repository.description}
                                 <span class="truncate text-xs text-neutral-500">{repository.description}</span>
                             {/if}

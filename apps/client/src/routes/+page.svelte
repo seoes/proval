@@ -109,7 +109,7 @@
 
         <div>
             <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                <h3 class="text-md font-medium text-neutral-800 dark:text-white">
+                <h3 class="text-base font-medium text-neutral-800 dark:text-white">
                     Recent activity (Last 24 hours)
                 </h3>
                 <a
@@ -131,7 +131,7 @@
 
         <div>
             <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                <h3 class="text-md font-medium text-neutral-800 dark:text-white">In progress</h3>
+                <h3 class="text-base font-medium text-neutral-800 dark:text-white">In progress</h3>
                 {#if showInProgressViewAll}
                     <a
                         href="/review"
@@ -181,7 +181,7 @@
         {#if repositoryCount > 0}
             <div>
                 <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                    <h3 class="text-md font-medium text-neutral-800 dark:text-white">Repositories</h3>
+                    <h3 class="text-base font-medium text-neutral-800 dark:text-white">Repositories</h3>
                     <a
                         href="/repository"
                         class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
@@ -197,7 +197,7 @@
                         {@const issueReply = replyOptionBadge("Issue Reply", repository.replyToIssueComment)}
                         {#snippet header()}
                             <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
-                                <span class="truncate text-neutral-800">{repository.path}</span>
+                                <span class="truncate text-sm text-neutral-800">{repository.path}</span>
                                 {#if repository.description}
                                     <span class="truncate text-xs text-neutral-500">{repository.description}</span>
                                 {/if}

@@ -13,7 +13,7 @@
     <p class="text-sm whitespace-pre-line text-neutral-600 dark:text-neutral-400">
         {$modalStore.message}
     </p>
-    <div class="mt-6 flex gap-3">
+    <div class="mt-6 flex justify-end gap-3">
         {#if $modalStore.type === "confirm"}
             <Button secondary onclick={() => closeModal(false)}>{$modalStore.cancelText}</Button>
         {/if}

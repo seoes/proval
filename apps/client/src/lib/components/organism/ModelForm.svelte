@@ -11,6 +11,8 @@
     import Button from "../atom/Button.svelte";
     import Description from "../atom/Description.svelte";
     import FieldTitle from "../atom/FieldTitle.svelte";
+    import { siAnthropic, siOpenaigym } from "simple-icons";
+    import type { SimpleIcon } from "simple-icons";
 
     import type { LlmApiProvider, ModelProviderResponse } from "@proval/types";
 
@@ -116,16 +118,19 @@
         label: string;
         description: string;
         value: LlmApiProvider;
+        icon?: SimpleIcon;
     }[] = [
         {
             label: "OpenAI",
             description: "Chat Completions API",
             value: "openai",
+            icon: siOpenaigym,
         },
         {
             label: "Anthropic",
             description: "Messages API",
             value: "anthropic",
+            icon: siAnthropic,
         },
     ];
 
@@ -197,12 +202,13 @@
             linkLabelToControl={false}
             upper>
             {#snippet children({ id: _id })}
-                <div class="grid grid-cols-3 gap-2" id={_id} role="group">
+                <div class="grid grid-cols-2 gap-2" id={_id} role="group">
                     {#each apiProviderToggleButtonValueList as toggleButtonValue}
                         <ToggleButton
                             class="h-full w-full"
                             label={toggleButtonValue.label}
                             description={toggleButtonValue.description}
+                            icon={toggleButtonValue.icon}
                             selected={provider === toggleButtonValue.value}
                             onclick={() => (provider = toggleButtonValue.value)} />
                     {/each}
@@ -230,8 +236,8 @@
             </div>
         {/if}
     </Card>
-    <div class="-mt-2 flex justify-between">
-        <div class="flex gap-4 text-sm">
+    <div class="flex justify-between gap-3 pt-2">
+        <div class="flex gap-3 text-sm">
             <Button primary type="submit">{mode === "create" ? "Create" : "Save"}</Button>
             {#if mode === "create"}
                 <Button text class="whitespace-nowrap" onclick={openTestModal} type="button">
@@ -239,7 +245,7 @@
                 </Button>
             {/if}
         </div>
-        <div class="mr-4">
+        <div>
             {#if mode === "edit" && modelProviderId}
                 <Button
                     text

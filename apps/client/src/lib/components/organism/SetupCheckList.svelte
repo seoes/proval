@@ -84,27 +84,21 @@
 
                     <div class="shrink-0 pl-8 sm:pl-0">
                         {#if step.complete}
-                            <a
-                                href={step.href}
-                                class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                            <Button text href={step.href} class="text-sm font-medium">
                                 {step.manageLabel ?? "Manage →"}
-                            </a>
+                            </Button>
                         {:else if step.blocked}
-                            <Button secondary disabled class="px-4! py-2! text-sm">
+                            <Button secondary disabled size="sm">
                                 {step.ctaLabel}
                             </Button>
                         {:else if step.status === "current"}
-                            <a
-                                href={step.href}
-                                class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90">
+                            <Button primary href={step.href} size="sm">
                                 {step.ctaLabel}
-                            </a>
+                            </Button>
                         {:else}
-                            <a
-                                href={step.href}
-                                class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700">
+                            <Button secondary href={step.href} size="sm">
                                 {step.ctaLabel}
-                            </a>
+                            </Button>
                         {/if}
                     </div>
                 </div>

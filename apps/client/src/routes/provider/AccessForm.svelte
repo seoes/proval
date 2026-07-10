@@ -124,20 +124,16 @@
             {testResult.message}
         </div>
     {/if}
-    <div class="mt-8 flex justify-between">
-        <div class="flex gap-4">
-            <Button primary onclick={onSubmit} disabled={isSavingAccess} class="w-auto">
+    <div class="flex justify-between gap-3 pt-2">
+        <div class="flex gap-3">
+            <Button primary onclick={onSubmit} disabled={isSavingAccess}>
                 {isSavingAccess ? "Saving..." : editingId !== null ? "Update" : "Create"}
             </Button>
-            <Button text onclick={onCancel} disabled={isSavingAccess} class="w-auto">Cancel</Button>
+            <Button text onclick={onCancel} disabled={isSavingAccess}>Cancel</Button>
         </div>
-        <div class="h-full">
+        <div>
             {#if editingId === null}
-                <Button
-                    text
-                    onclick={testConnection}
-                    disabled={isTesting || isSavingAccess}
-                    class="h-11 w-auto px-0 py-0">
+                <Button text onclick={testConnection} disabled={isTesting || isSavingAccess}>
                     {isTesting ? "Testing..." : "Test Connection"}
                 </Button>
             {/if}

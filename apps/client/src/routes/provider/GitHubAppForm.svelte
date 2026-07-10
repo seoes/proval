@@ -222,7 +222,7 @@
                     {id}
                     bind:value={manualPrivateKey}
                     rows="6"
-                    class="mt-1 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 py-2 font-mono text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                    class="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-2 font-mono text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
                     placeholder="-----BEGIN RSA PRIVATE KEY-----"></textarea>
             {/snippet}
         </FormField>
@@ -253,15 +253,19 @@
                 {testResult.message}
             </div>
         {/if}
-        <div class="flex flex-wrap items-center gap-2 pt-2">
-            <Button primary onclick={saveManual} disabled={isSaving} class="w-auto">
-                {isSaving ? "Saving..." : "Save"}
-            </Button>
-            <Button secondary onclick={testConnection} disabled={isTesting || isSaving} class="w-auto">
-                {isTesting ? "Testing..." : "Test Connection"}
-            </Button>
-            <Button secondary onclick={backToMode} disabled={isSaving} class="w-auto">Back</Button>
-            <Button secondary onclick={onCancel} disabled={isSaving} class="w-auto">Cancel</Button>
+        <div class="flex justify-between gap-3 pt-2">
+            <div>
+                <Button text onclick={onCancel} disabled={isSaving}>Cancel</Button>
+            </div>
+            <div class="flex gap-3">
+                <Button text onclick={testConnection} disabled={isTesting || isSaving}>
+                    {isTesting ? "Testing..." : "Test Connection"}
+                </Button>
+                <Button primary onclick={saveManual} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button text onclick={backToMode} disabled={isSaving}>Back</Button>
+            </div>
         </div>
     </div>
 {/if}

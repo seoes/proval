@@ -13,7 +13,7 @@
 <div>
     {#if title}
         <div class="mb-3 pl-1">
-            <h3 class="text-md font-medium text-neutral-800 dark:text-white">{title}</h3>
+            <h3 class="text-base font-medium text-neutral-800 dark:text-white">{title}</h3>
         </div>
     {/if}
     <div

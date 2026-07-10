@@ -38,7 +38,7 @@
 
 <FormField {label} {description}>
     {#snippet children({ id })}
-        <div class="mt-4 flex gap-3">
+        <div class="flex items-center gap-3">
             <InputText {id} {placeholder} class="min-w-0 flex-1" bind:value />
             <Button primary type="button" onclick={handleSubmit}>Save</Button>
         </div>

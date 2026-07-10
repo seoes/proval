@@ -24,7 +24,7 @@
     let selectedProviderOption = $state<ProviderOption | null>(null);
 
     const selectClass =
-        "h-10 w-full rounded-xl border border-neutral-200 bg-gray-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
+        "h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
     $effect(() => {
         if (selectedProviderOption) {
@@ -111,7 +111,7 @@
                         {#each data.providerOptionList as option}
                             <button
                                 type="button"
-                                class="flex items-center gap-3 rounded-xl border p-3 text-left transition-colors {selectedProviderOption?.label ===
+                                class="flex items-center gap-3 rounded-lg border p-3 text-left transition-colors {selectedProviderOption?.label ===
                                     option.label && selectedProviderOption?.type === option.type
                                     ? 'border-primary bg-primary/10'
                                     : 'border-neutral-200 hover:border-neutral-300 dark:border-neutral-700'}"
@@ -173,28 +173,26 @@
         {/if}
 
         {#if step === 2 && selectedRepositoryId && selectedProviderOption}
-            <div class="space-y-4">
-                <RepositoryForm
-                    provider={selectedProviderOption}
-                    modelList={data.modelList}
-                    editRepositoryId={null}
-                    {repositoryList}
-                    config={{
-                        modelProviderId: null,
-                        modelName: null,
-                        repositoryId: selectedRepositoryId ? Number(selectedRepositoryId) : null,
-                        description: null,
-                        language: null,
-                        reviewOnPullRequestOpen: true,
-                        inlineReview: true,
-                        replyToPullRequestComment: "all",
-                        replyToIssueComment: "all",
-                        commentOnIssueOpen: true,
-                    }}
-                    onSubmit={handleSubmit}
-                    onCancel={handleCancel} />
-                <Button secondary onclick={() => (step = 1)} type="button">Back</Button>
-            </div>
+            <RepositoryForm
+                provider={selectedProviderOption}
+                modelList={data.modelList}
+                editRepositoryId={null}
+                {repositoryList}
+                config={{
+                    modelProviderId: null,
+                    modelName: null,
+                    repositoryId: selectedRepositoryId ? Number(selectedRepositoryId) : null,
+                    description: null,
+                    language: null,
+                    reviewOnPullRequestOpen: true,
+                    inlineReview: true,
+                    replyToPullRequestComment: "all",
+                    replyToIssueComment: "all",
+                    commentOnIssueOpen: true,
+                }}
+                onSubmit={handleSubmit}
+                onCancel={handleCancel}
+                onBack={() => (step = 1)} />
         {/if}
     </div>
 </DefaultLayout>

@@ -224,19 +224,22 @@
                         {/each}
                     </div>
                 {:else}
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-neutral-600">No GitLab access configurations</p>
-                            <p class="mt-1 text-sm text-neutral-400">
-                                Add a GitLab access token to connect repositories
-                            </p>
-                        </div>
+                    <div class="flex flex-col items-center py-2 text-center">
+                        <p class="text-neutral-600">No GitLab access configurations</p>
+                        <p class="mt-1 text-sm text-neutral-400">
+                            Add a GitLab access token to connect repositories
+                        </p>
+                        <Button primary onclick={() => openAddModal("gitlab")} class="mt-4">
+                            Add GitLab connection
+                        </Button>
                     </div>
                 {/if}
 
-                <div class="mt-8 flex items-center justify-center gap-2">
-                    <Button text onclick={() => openAddModal("gitlab")}>Add GitLab connection</Button>
-                </div>
+                {#if gitlabList.length > 0}
+                    <div class="mt-8 flex items-center justify-center">
+                        <Button text onclick={() => openAddModal("gitlab")}>Add GitLab connection</Button>
+                    </div>
+                {/if}
             </div>
         </Card>
 
@@ -257,19 +260,22 @@
                         {/each}
                     </div>
                 {:else}
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-neutral-600">No Forgejo access configurations</p>
-                            <p class="mt-1 text-sm text-neutral-400">
-                                Add a Forgejo access token to connect repositories
-                            </p>
-                        </div>
+                    <div class="flex flex-col items-center py-2 text-center">
+                        <p class="text-neutral-600">No Forgejo access configurations</p>
+                        <p class="mt-1 text-sm text-neutral-400">
+                            Add a Forgejo access token to connect repositories
+                        </p>
+                        <Button primary onclick={() => openAddModal("forgejo")} class="mt-4">
+                            Add Forgejo connection
+                        </Button>
                     </div>
                 {/if}
 
-                <div class="mt-8 flex items-center justify-center gap-2">
-                    <Button text onclick={() => openAddModal("forgejo")}>Add Forgejo connection</Button>
-                </div>
+                {#if forgejoList.length > 0}
+                    <div class="mt-8 flex items-center justify-center">
+                        <Button text onclick={() => openAddModal("forgejo")}>Add Forgejo connection</Button>
+                    </div>
+                {/if}
             </div>
         </Card>
 
@@ -277,7 +283,7 @@
     </div>
 
     <!-- Add/Edit Modal -->
-    <Modal bind:open={showModal} onclose={closeAccessModal}>
+    <Modal bind:open={showModal} onclose={closeAccessModal} class="max-w-md">
         {#key accessFormKey}
             <AccessForm
                 bind:formProvider

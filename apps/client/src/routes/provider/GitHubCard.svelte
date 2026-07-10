@@ -190,14 +190,10 @@
                         </Button>
                     </div>
                 {:else}
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-neutral-600">No connected accounts</p>
-                            <p class="mt-1 text-sm text-neutral-400">
-                                Connect a GitHub account or organization
-                            </p>
-                        </div>
-                        <Button primary onclick={getInstallUrl} disabled={isAddingInstallation}>
+                    <div class="flex flex-col items-center py-2 text-center">
+                        <p class="text-neutral-600">No connected accounts</p>
+                        <p class="mt-1 text-sm text-neutral-400">Connect a GitHub account or organization</p>
+                        <Button primary onclick={getInstallUrl} disabled={isAddingInstallation} class="mt-4">
                             {isAddingInstallation ? "Opening..." : "Connect GitHub account"}
                         </Button>
                     </div>
@@ -206,14 +202,10 @@
         </div>
     {:else}
         <div class="space-y-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-neutral-600">No GitHub App configured</p>
-                    <p class="mt-1 text-sm text-neutral-400">Register a GitHub App to connect repositories</p>
-                </div>
-            </div>
-            <div class="mt-8 flex items-center justify-center">
-                <Button text onclick={openRegisterModal}>Connect GitHub App</Button>
+            <div class="flex flex-col items-center py-2 text-center">
+                <p class="text-neutral-600">No GitHub App configured</p>
+                <p class="mt-1 text-sm text-neutral-400">Register a GitHub App to connect repositories</p>
+                <Button primary onclick={openRegisterModal} class="mt-4">Connect GitHub App</Button>
             </div>
         </div>
     {/if}

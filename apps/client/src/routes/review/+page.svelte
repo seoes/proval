@@ -2,6 +2,7 @@
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
+    import Button from "$lib/components/atom/Button.svelte";
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
@@ -61,22 +62,14 @@
                 <span>Page {data.page}</span>
                 <div class="flex gap-2">
                     {#if hasPrev}
-                        <a
-                            href="?page={data.page - 1}"
-                            class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 font-medium text-neutral-800 transition-colors hover:bg-neutral-50">
-                            Previous
-                        </a>
+                        <Button secondary href="?page={data.page - 1}" size="sm">Previous</Button>
                     {:else}
-                        <span class="rounded-lg border border-neutral-100 px-3 py-1.5 text-neutral-400">Previous</span>
+                        <Button secondary disabled size="sm">Previous</Button>
                     {/if}
                     {#if hasNext}
-                        <a
-                            href="?page={data.page + 1}"
-                            class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 font-medium text-neutral-800 transition-colors hover:bg-neutral-50">
-                            Next
-                        </a>
+                        <Button secondary href="?page={data.page + 1}" size="sm">Next</Button>
                     {:else}
-                        <span class="rounded-lg border border-neutral-100 px-3 py-1.5 text-neutral-400">Next</span>
+                        <Button secondary disabled size="sm">Next</Button>
                     {/if}
                 </div>
             </div>
