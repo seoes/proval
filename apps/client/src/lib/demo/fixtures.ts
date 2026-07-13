@@ -642,16 +642,22 @@ function buildBucketStarts(since: Date, bucket: "hour" | "day" | "month", now: D
     return starts;
 }
 
-function buildTokenSeries(finished: Activity[], since: Date, bucket: "hour" | "day" | "month", now: Date): TokenSeriesPoint[] {
+function buildTokenSeries(
+    activities: Activity[],
+    since: Date,
+    bucket: "hour" | "day" | "month",
+    now: Date,
+): TokenSeriesPoint[] {
     const bucketStarts = buildBucketStarts(since, bucket, now);
+    const rowLowerBound = bucketStarts[0] ?? since;
     const totals = new Map<number, number>();
     for (const start of bucketStarts) {
         totals.set(start.getTime(), 0);
     }
 
-    for (const activity of finished) {
+    for (const activity of activities) {
         if (activity.status !== "completed" || !activity.completedAt) continue;
-        if (activity.completedAt < since) continue;
+        if (activity.completedAt < rowLowerBound) continue;
         const key = bucketKey(activity.completedAt, bucket);
         if (!totals.has(key)) continue;
         const tokens = (activity.inputToken ?? 0) + (activity.outputToken ?? 0);
@@ -711,7 +717,7 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
                 return bTime - aTime;
             })
             .slice(0, 5),
-        tokenSeries: buildTokenSeries(finished, since, bucket, now),
+        tokenSeries: buildTokenSeries(activityList, since, bucket, now),
         tokensByModel: buildTokenBreakdown(completed, (a) => a.modelName),
         tokensByRepository: buildTokenBreakdown(completed, (a) => a.repositoryPath),
         inProgress: activityList.filter((a) => a.status === "started"),

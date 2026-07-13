@@ -198,6 +198,7 @@ export class ActivityService {
 
     public async getTokenSeries(since: Date, bucket: TokenBucket, now = new Date()): Promise<TokenSeriesPoint[]> {
         const bucketStarts = buildBucketStarts(since, bucket, now);
+        const rowLowerBound = bucketStarts[0] ?? since;
         const totals = new Map<number, number>();
         for (const start of bucketStarts) {
             totals.set(start.getTime(), 0);
@@ -210,7 +211,7 @@ export class ActivityService {
                 outputToken: activityTable.outputToken,
             })
             .from(activityTable)
-            .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "completed")));
+            .where(and(gte(activityTable.completedAt, rowLowerBound), eq(activityTable.status, "completed")));
 
         for (const row of rows) {
             if (!row.completedAt) continue;
