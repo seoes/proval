@@ -9,6 +9,7 @@ export function getPullRequestDetailTool(provider: GitProvider, prIid: number): 
             "Get metadata for the current pull request (title, description, branches, author, state).",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {},

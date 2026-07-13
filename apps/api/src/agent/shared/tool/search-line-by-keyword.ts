@@ -1,5 +1,6 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function searchLineByKeywordTool(provider: GitProvider, ref: string): AgentTool {
     return {
@@ -11,7 +12,9 @@ export function searchLineByKeywordTool(provider: GitProvider, ref: string): Age
             "If you need surrounding context after checking, use get_merge_file_content or get_file_content.",
             "filePath must be a file path only — not a directory.",
             "Note: keyword search is case-sensitive.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

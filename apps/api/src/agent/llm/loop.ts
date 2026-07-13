@@ -1,12 +1,17 @@
 import pc from "picocolors";
 import { log, logAgentResult, logError } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
-import { UNTRUSTED_WARNING_SYSTEM_PROMPT } from "../shared/prompt/untrusted-warning.prompt.js";
+import {
+    UNTRUSTED_WARNING_SYSTEM_PROMPT,
+    wrapUntrustedToolContent,
+} from "../shared/prompt/untrusted-warning.prompt.js";
 
 export interface AgentTool {
     name: string;
     description: string;
     parameters: Record<string, unknown>;
+    /** When true, serialized tool results are wrapped with untrusted-input delimiters. */
+    untrustedResult?: boolean;
     execute: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -201,7 +206,10 @@ export async function runAgentLoop(
                     try {
                         const result = await tool.execute(args);
                         toolCallCount[tool.name] = (toolCallCount[tool.name] ?? 0) + 1;
-                        const content = typeof result === "string" ? result : JSON.stringify(result);
+                        let content = typeof result === "string" ? result : JSON.stringify(result);
+                        if (tool.untrustedResult) {
+                            content = wrapUntrustedToolContent(content);
+                        }
                         const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
                         log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);
                         return { toolCallId: tc.id, content };

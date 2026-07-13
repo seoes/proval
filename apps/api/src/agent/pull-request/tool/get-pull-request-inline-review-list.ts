@@ -10,6 +10,7 @@ export function getPullRequestInlineReviewListTool(provider: GitProvider, prIid:
             "Get inline review threads on this pull request. Each thread includes path, resolved state, and comment summaries (bodyPreview truncated to 100 chars). Use get_pull_request_inline_review_comment for full text. Recommended limit: 20.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

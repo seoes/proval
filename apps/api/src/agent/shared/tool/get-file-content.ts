@@ -1,6 +1,7 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
 import { FILE_CONTENT_MAX_LINES, getFileContentInputSchema } from "../schema/get-file-content.schema.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function getFileContentTool(provider: GitProvider, ref: string): AgentTool {
     return {
@@ -11,7 +12,9 @@ export function getFileContentTool(provider: GitProvider, ref: string): AgentToo
             "Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end.",
             "Do NOT read the whole repository — only files that validate a specific suspicion.",
             "filePath must be a file path only — not a directory.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: getFileContentInputSchema.toJSONSchema(),
         execute: async (args) => {
             const { filePath, fromLine, toLine } = getFileContentInputSchema.parse(args);

@@ -1,6 +1,7 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
 import { FILE_CONTENT_MAX_LINES, getMergeFileContentInputSchema } from "../schema/get-file-content.schema.js";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function getMergeFileContentTool(
     provider: GitProvider,
@@ -15,7 +16,9 @@ export function getMergeFileContentTool(
             "Use this to: (1) read context around a diff to understand surrounding functions and imports, (2) trace caller/callee paths, (3) verify interface contracts, (4) check data flow end-to-end.",
             "Do NOT read the whole repository — only files that validate a specific suspicion.",
             "filePath must be a file path only — not a directory.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join("\n"),
+        untrustedResult: true,
         parameters: getMergeFileContentInputSchema.toJSONSchema(),
         execute: async (args) => {
             const { filePath, commit, fromLine, toLine } = getMergeFileContentInputSchema.parse(args);

@@ -9,6 +9,7 @@ export function getPullRequestInlineReviewCommentTool(provider: GitProvider, prI
             "Get a specific comment inside an inline review thread on this pull request. Returns full body text. Use inline review comment IDs from get_pull_request_inline_review_list.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

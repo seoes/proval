@@ -9,6 +9,7 @@ export function searchPullRequestListTool(provider: GitProvider): AgentTool {
             "Search pull requests or pull requests in the same repository. Use this for duplicate checks and prior implementation context.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

@@ -9,6 +9,7 @@ export function getIssueCommentTool(provider: GitProvider, issueIid: number): Ag
             "Get a specific comment on this issue. Returns full body text. Use comment IDs from get_issue_comment_list.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

@@ -1,12 +1,15 @@
 import type { GitTree } from "../../../git-provider/types";
 import type { AgentTool } from "../../llm/loop";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 export function searchFileByNameTool(fileList: GitTree[]): AgentTool {
     return {
         name: "search_file_by_name",
         description: [
             "Search for a file by name in the repository. Use this to find a file by name in the repository. Just the name, not the path.",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

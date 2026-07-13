@@ -9,6 +9,7 @@ export function getIssueDetailTool(provider: GitProvider, issueIid: number): Age
             "Get metadata for the current issue (title, description, author, labels, state).",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {},

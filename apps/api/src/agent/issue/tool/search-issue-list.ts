@@ -13,6 +13,7 @@ export function searchIssueListTool(provider: GitProvider): AgentTool {
             "Does NOT support regex.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

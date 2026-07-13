@@ -10,6 +10,7 @@ export function getIssueCommentListTool(provider: GitProvider, issueIid: number)
             "Get existing comments on this issue. Returns paginated summaries with bodyPreview truncated to 100 chars. Use individual comment tools for full text. Recommended limit: 20.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

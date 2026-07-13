@@ -9,6 +9,7 @@ export function getPullRequestCommentTool(provider: GitProvider, prIid: number):
             "Get a specific conversation comment on this pull request (issue-level comment, not inline review). Returns full body text. Use comment IDs from get_pull_request_comment_list.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

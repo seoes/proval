@@ -1,5 +1,6 @@
 import type { GitTree } from "../../../git-provider/types";
 import type { AgentTool } from "../../llm/loop";
+import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../prompt/untrusted-warning.prompt.js";
 
 function listDirectory(fileList: GitTree[], filePath: string, recursive: boolean): GitTree[] {
     if (recursive) {
@@ -23,11 +24,13 @@ export function getDirectoryTreeTool(fileList: GitTree[]): AgentTool {
         name: "get_directory_tree",
         description: [
             "Get the directory tree of a repository at the PR source branch.",
-            "Use this to understand project structure and search for related files: locate related modules, config files, test directories, or sibling components.",
+            "Use this to understand project structure and search for related files: locate related modules, config files, test folders, or sibling components.",
             "filePath must be a directory path only — not a file. Use an empty string for the repository root.",
             "Set recursive=true for full depth under filePath.",
             "Useful for cross-file investigation (same-directory peers, sibling handlers, adjacent tests).",
+            UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {

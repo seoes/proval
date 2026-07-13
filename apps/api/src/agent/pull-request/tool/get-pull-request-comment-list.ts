@@ -10,6 +10,7 @@ export function getPullRequestCommentListTool(provider: GitProvider, prIid: numb
             "Get conversation comments on this pull request (issue-level comments only, not inline review threads). Returns paginated summaries with bodyPreview truncated to 100 chars. Use get_pull_request_comment for full text. Recommended limit: 20.",
             UNTRUSTED_WARNING_TOOL_PROMPT,
         ].join(" "),
+        untrustedResult: true,
         parameters: {
             type: "object",
             properties: {
