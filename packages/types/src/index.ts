@@ -38,4 +38,11 @@ export type {
     ModelProviderModelListResponse,
 } from "./database.js";
 export type { Pagination } from "./pagination.js";
-export type { ActivityLast24HoursStats, ActivitySummaryResponse } from "./activity-summary.js";
+export type {
+    DashboardRange,
+    ActivityStats,
+    ActivityLast24HoursStats,
+    TokenSeriesPoint,
+    TokenBreakdownItem,
+    ActivitySummaryResponse,
+} from "./activity-summary.js";

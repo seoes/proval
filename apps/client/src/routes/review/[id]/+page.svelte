@@ -34,7 +34,17 @@
             </div>
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-sm text-neutral-500">Repository</dt>
-                <dd class="text-sm text-neutral-800">{review.repositoryPath}</dd>
+                <dd class="text-sm text-neutral-800">
+                    {#if review.repositoryId}
+                        <a
+                            href="/repository/{review.repositoryId}"
+                            class="font-medium text-primary underline-offset-2 transition-colors hover:underline">
+                            {review.repositoryPath}
+                        </a>
+                    {:else}
+                        {review.repositoryPath}
+                    {/if}
+                </dd>
             </div>
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-sm text-neutral-500">Model</dt>

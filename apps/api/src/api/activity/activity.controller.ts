@@ -1,5 +1,5 @@
 import type { Handler } from "hono";
-import { ActivityService } from "./activity.service.js";
+import { ActivityService, parseDashboardRange, resolveRange } from "./activity.service.js";
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
     const parsed = parseInt(value ?? String(fallback), 10);
@@ -8,12 +8,18 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 export const getActivitySummary: Handler = async (c) => {
+    const range = parseDashboardRange(c.req.query("range"));
+    const { since, bucket } = resolveRange(range);
     const activityService = new ActivityService();
-    const [last24Hours, inProgress] = await Promise.all([
-        activityService.getLast24HoursStats(),
+    const [stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress] = await Promise.all([
+        activityService.getStats(since),
+        activityService.findRecent(since, 5),
+        activityService.getTokenSeries(since, bucket),
+        activityService.getTokenBreakdownByModel(since, 5),
+        activityService.getTokenBreakdownByRepository(since, 5),
         activityService.findInProgress(10),
     ]);
-    return c.json({ last24Hours, inProgress }, 200);
+    return c.json({ range, stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress }, 200);
 };
 
 export const findAllActivity: Handler = async (c) => {

@@ -1,5 +1,12 @@
 import { activityTable, repositoryTable } from "@proval/db";
-import type { Activity, ActivityLast24HoursStats, Pagination } from "@proval/types";
+import type {
+    Activity,
+    ActivityStats,
+    DashboardRange,
+    Pagination,
+    TokenBreakdownItem,
+    TokenSeriesPoint,
+} from "@proval/types";
 import db from "../../db/index.js";
 import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
@@ -7,15 +14,121 @@ const FINISHED_STATUSES = ["completed", "failed"] as const;
 const REVIEW_TYPES = ["pr_review", "issue_open"] as const;
 const REPLY_TYPES = ["pr_reply", "issue_reply"] as const;
 
-function last24HoursSince(): Date {
-    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+const DASHBOARD_RANGES = ["24h", "7d", "30d", "mtd", "year"] as const;
+
+export type TokenBucket = "hour" | "day" | "month";
+
+export type ResolvedRange = {
+    range: DashboardRange;
+    since: Date;
+    bucket: TokenBucket;
+};
+
+export function parseDashboardRange(value: string | undefined): DashboardRange {
+    if (value && (DASHBOARD_RANGES as readonly string[]).includes(value)) {
+        return value as DashboardRange;
+    }
+    return "24h";
 }
 
-function finishedInLast24Hours() {
-    return and(
-        gte(activityTable.completedAt, last24HoursSince()),
-        inArray(activityTable.status, [...FINISHED_STATUSES]),
-    );
+export function resolveRange(range: DashboardRange, now = new Date()): ResolvedRange {
+    switch (range) {
+        case "24h":
+            return {
+                range,
+                since: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+                bucket: "hour",
+            };
+        case "7d":
+            return {
+                range,
+                since: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+                bucket: "day",
+            };
+        case "30d":
+            return {
+                range,
+                since: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+                bucket: "day",
+            };
+        case "mtd":
+            return {
+                range,
+                since: new Date(now.getFullYear(), now.getMonth(), 1),
+                bucket: "day",
+            };
+        case "year":
+            return {
+                range,
+                since: new Date(now.getFullYear(), 0, 1),
+                bucket: "month",
+            };
+    }
+}
+
+function finishedSince(since: Date) {
+    return and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES]));
+}
+
+function startOfHour(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours());
+}
+
+function startOfDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addHours(date: Date, hours: number): Date {
+    return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
+function addDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function addMonths(date: Date, months: number): Date {
+    return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function buildBucketStarts(since: Date, bucket: TokenBucket, now: Date): Date[] {
+    const starts: Date[] = [];
+    if (bucket === "hour") {
+        let cursor = startOfHour(since);
+        const end = startOfHour(now);
+        while (cursor <= end) {
+            starts.push(new Date(cursor));
+            cursor = addHours(cursor, 1);
+        }
+        return starts;
+    }
+    if (bucket === "day") {
+        let cursor = startOfDay(since);
+        const end = startOfDay(now);
+        while (cursor <= end) {
+            starts.push(new Date(cursor));
+            cursor = addDays(cursor, 1);
+        }
+        return starts;
+    }
+    let cursor = startOfMonth(since);
+    const end = startOfMonth(now);
+    while (cursor <= end) {
+        starts.push(new Date(cursor));
+        cursor = addMonths(cursor, 1);
+    }
+    return starts;
+}
+
+function bucketKey(date: Date, bucket: TokenBucket): number {
+    if (bucket === "hour") return startOfHour(date).getTime();
+    if (bucket === "day") return startOfDay(date).getTime();
+    return startOfMonth(date).getTime();
 }
 
 export type ActivityStartInput = {
@@ -51,9 +164,8 @@ export class ActivityService {
         return { itemList, page, limit, total };
     }
 
-    public async getLast24HoursStats(): Promise<ActivityLast24HoursStats> {
-        const since = last24HoursSince();
-        const finished = finishedInLast24Hours();
+    public async getStats(since: Date): Promise<ActivityStats> {
+        const finished = finishedSince(since);
 
         const [[{ total: totalActivity }], [{ total: errors }], [{ total: reviews }], [{ total: replies }]] =
             await Promise.all([
@@ -73,6 +185,78 @@ export class ActivityService {
             ]);
 
         return { totalActivity, errors, reviews, replies };
+    }
+
+    public async findRecent(since: Date, limit = 5): Promise<Activity[]> {
+        return db
+            .select()
+            .from(activityTable)
+            .where(finishedSince(since))
+            .orderBy(desc(activityTable.completedAt), desc(activityTable.id))
+            .limit(limit);
+    }
+
+    public async getTokenSeries(since: Date, bucket: TokenBucket, now = new Date()): Promise<TokenSeriesPoint[]> {
+        const bucketStarts = buildBucketStarts(since, bucket, now);
+        const rowLowerBound = bucketStarts[0] ?? since;
+        const totals = new Map<number, number>();
+        for (const start of bucketStarts) {
+            totals.set(start.getTime(), 0);
+        }
+
+        const rows = await db
+            .select({
+                completedAt: activityTable.completedAt,
+                inputToken: activityTable.inputToken,
+                outputToken: activityTable.outputToken,
+            })
+            .from(activityTable)
+            .where(and(gte(activityTable.completedAt, rowLowerBound), eq(activityTable.status, "completed")));
+
+        for (const row of rows) {
+            if (!row.completedAt) continue;
+            const key = bucketKey(row.completedAt, bucket);
+            if (!totals.has(key)) continue;
+            const tokens = (row.inputToken ?? 0) + (row.outputToken ?? 0);
+            totals.set(key, (totals.get(key) ?? 0) + tokens);
+        }
+
+        return bucketStarts.map((start) => ({
+            bucketStart: start.toISOString(),
+            tokens: totals.get(start.getTime()) ?? 0,
+        }));
+    }
+
+    public async getTokenBreakdownByModel(since: Date, limit = 5): Promise<TokenBreakdownItem[]> {
+        const tokenSum = sql<number>`sum(coalesce(${activityTable.inputToken}, 0) + coalesce(${activityTable.outputToken}, 0))`;
+        const rows = await db
+            .select({
+                label: activityTable.modelName,
+                tokens: tokenSum.mapWith(Number),
+            })
+            .from(activityTable)
+            .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "completed")))
+            .groupBy(activityTable.modelName)
+            .orderBy(desc(tokenSum))
+            .limit(limit);
+
+        return rows.map((row) => ({ label: row.label, tokens: row.tokens ?? 0 }));
+    }
+
+    public async getTokenBreakdownByRepository(since: Date, limit = 5): Promise<TokenBreakdownItem[]> {
+        const tokenSum = sql<number>`sum(coalesce(${activityTable.inputToken}, 0) + coalesce(${activityTable.outputToken}, 0))`;
+        const rows = await db
+            .select({
+                label: activityTable.repositoryPath,
+                tokens: tokenSum.mapWith(Number),
+            })
+            .from(activityTable)
+            .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "completed")))
+            .groupBy(activityTable.repositoryPath)
+            .orderBy(desc(tokenSum))
+            .limit(limit);
+
+        return rows.map((row) => ({ label: row.label, tokens: row.tokens ?? 0 }));
     }
 
     public async findInProgress(limit = 10): Promise<Activity[]> {

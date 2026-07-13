@@ -10,7 +10,12 @@ import type {
 import type { PageLoad } from "./$types";
 
 const emptyActivitySummary: ActivitySummaryResponse = {
-    last24Hours: { totalActivity: 0, errors: 0, reviews: 0, replies: 0 },
+    range: "24h",
+    stats: { totalActivity: 0, errors: 0, reviews: 0, replies: 0 },
+    recent: [],
+    tokenSeries: [],
+    tokensByModel: [],
+    tokensByRepository: [],
     inProgress: [],
 };
 
@@ -21,7 +26,7 @@ export const load: PageLoad = async () => {
             fetchApi("/repository"),
             fetchApi("/access"),
             fetchApi("/github/app"),
-            fetchApi("/activity/summary"),
+            fetchApi("/activity/summary?range=24h"),
         ]);
 
     const modelList: ModelProviderResponse[] = modelResponse.ok ? await modelResponse.json() : [];
