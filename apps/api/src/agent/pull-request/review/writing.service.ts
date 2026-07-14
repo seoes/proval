@@ -1,5 +1,6 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import type { GitProvider, GitTree } from "../../../git-provider/types";
+import type { GitProvider } from "../../../git-provider/types";
+import type { Workspace } from "../../../git-provider/workspace.js";
 import { runAgentLoop, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
@@ -10,16 +11,11 @@ import {
     getFileDiffTool,
     postPullRequestCommentTool,
 } from "../tool";
-import {
-    getDirectoryTreeTool,
-    searchLineByKeywordTool,
-    searchCodeListTool,
-    searchFileByNameTool,
-    getMergeFileContentTool,
-} from "../../shared/tool";
+import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 
 export async function runReviewWritingAgent(
     provider: GitProvider,
+    workspace: Workspace,
     sender: LlmSender,
     pullRequestContextPrompt: string,
     prIid: number,
@@ -29,7 +25,6 @@ export async function runReviewWritingAgent(
     reviewResultList: string[],
     isInlineReview: boolean,
     language: string,
-    fileList: GitTree[],
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -44,12 +39,11 @@ export async function runReviewWritingAgent(
 
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Writing`, {
         toolList: [
-            getFileDiffTool(provider, prIid),
-            searchCodeListTool(provider, headSha),
-            searchLineByKeywordTool(provider, headSha),
-            searchFileByNameTool(fileList),
-            getDirectoryTreeTool(fileList),
-            getMergeFileContentTool(provider, { baseSha, headSha }),
+            getFileDiffTool(workspace),
+            grepTool(workspace),
+            globTool(workspace),
+            listDirectoryTool(workspace),
+            getFileContentTool(workspace),
             isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
             isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],

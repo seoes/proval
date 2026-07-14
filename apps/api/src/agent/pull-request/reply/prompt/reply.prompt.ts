@@ -47,7 +47,7 @@ export const PR_REPLY_WORKFLOW = [
     "# Workflow",
     "1. Call get_pull_request_comment(commentId) to read the target comment (full body).",
     "2. If you need prior discussion, call get_pull_request_comment_list with page and limit. Use the returned total to fetch additional pages.",
-    "3. If the comment references code, use get_pull_request_detail, get_file_diff, and repository search tools as needed.",
+    "3. If the comment references code: use get_changed_file_list / get_file_diff for before/after, then get_file_content / grep / glob on the head snapshot only as needed.",
     "4. Reply directly to the commenter with useful, concrete information.",
     "5. Post exactly one reply with the reply tool.",
     "6. Do not call any tools after posting the reply.",

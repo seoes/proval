@@ -7,11 +7,19 @@ import pc from "picocolors";
 import { activityTable } from "@proval/db";
 import { eq } from "drizzle-orm";
 import { loadEncryptionKey } from "./util/encrypt.js";
+import { clearWorkspaceRoot } from "./git-provider/workspace.js";
 
 loadEncryptionKey();
 
 log(pc.bgGreen(pc.bold(" PROVAL IS RUNNING ")));
 log(pc.bgGreen(pc.bold(" ENCRYPTION KEY SET ")));
+
+try {
+    await clearWorkspaceRoot();
+    log(pc.bgGreen(pc.bold(" Workspace cleared ")));
+} catch (error) {
+    logError("Failed to clear workspace root", error);
+}
 
 if (process.env.NODE_ENV === "production") {
     try {

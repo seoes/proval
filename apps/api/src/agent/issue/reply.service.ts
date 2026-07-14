@@ -12,48 +12,58 @@ import {
     searchIssueListTool,
     searchPullRequestListTool,
 } from "./tool";
-import { getDirectoryTreeTool, getFileContentTool, searchCodeListTool, searchFileByNameTool, searchLineByKeywordTool } from "../shared/tool";
+import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../shared/tool";
 import type { IssueReply } from "./index.js";
 
-export const runIssueReply: IssueReply = async ({ provider, llmSender, issueIid, commentId, language }) => {
-    const comment = await provider.fetchIssueComment(issueIid, commentId);
-    const repository = await provider.fetchRepositoryDetail();
-    const fileList = await provider.fetchDirectoryTree("", repository.defaultBranch, true);
+export const runIssueReply: IssueReply = async ({
+    provider,
+    workspace,
+    llmSender,
+    issueIid,
+    commentId,
+    language,
+}) => {
+    try {
+        const comment = await provider.fetchIssueComment(issueIid, commentId);
+        const repository = await provider.fetchRepositoryDetail();
+        await workspace.load({ headRef: repository.defaultBranch });
 
-    const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
-    const prompt = `Reply to the new comment on Issue #${issueIid}. (commentId: ${commentId})`;
+        const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
+        const prompt = `Reply to the new comment on Issue #${issueIid}. (commentId: ${commentId})`;
 
-    debug(prompt, "prompt");
+        debug(prompt, "prompt");
 
-    const toolList = [
-        getIssueCommentTool(provider, issueIid),
-        getIssueCommentListTool(provider, issueIid),
-        getIssueDetailTool(provider, issueIid),
-        searchIssueListTool(provider),
-        searchPullRequestListTool(provider),
-        searchCodeListTool(provider, repository.defaultBranch),
-        searchLineByKeywordTool(provider, repository.defaultBranch),
-        searchFileByNameTool(fileList),
-        getDirectoryTreeTool(fileList),
-        getFileContentTool(provider, repository.defaultBranch),
-    ];
+        const toolList = [
+            getIssueCommentTool(provider, issueIid),
+            getIssueCommentListTool(provider, issueIid),
+            getIssueDetailTool(provider, issueIid),
+            searchIssueListTool(provider),
+            searchPullRequestListTool(provider),
+            grepTool(workspace),
+            globTool(workspace),
+            listDirectoryTool(workspace),
+            getFileContentTool(workspace),
+        ];
 
-    const requiredToolList = [postIssueReplyTool(provider, issueIid, comment.author, language)];
+        const requiredToolList = [postIssueReplyTool(provider, issueIid, comment.author, language)];
 
-    const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Reply`, {
-        toolList,
-        requiredToolList,
-    });
+        const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Reply`, {
+            toolList,
+            requiredToolList,
+        });
 
-    await postDevDebugIssueComment(provider, issueIid, {
-        sender: llmSender,
-        workflow: "Issue Reply",
-        usage: result.usage,
-        fields: {
-            "Issue IID": issueIid,
-            "Comment ID": commentId,
-        },
-    });
+        await postDevDebugIssueComment(provider, issueIid, {
+            sender: llmSender,
+            workflow: "Issue Reply",
+            usage: result.usage,
+            fields: {
+                "Issue IID": issueIid,
+                "Comment ID": commentId,
+            },
+        });
 
-    return result.usage;
+        return result.usage;
+    } finally {
+        await workspace.clean();
+    }
 };

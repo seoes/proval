@@ -8,6 +8,7 @@ import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
+import { Workspace } from "../../git-provider/workspace.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -139,6 +140,7 @@ async function handlePullRequestWebhook(
 
     const isInlineReview = repository.inlineReview;
 
+    const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -150,6 +152,7 @@ async function handlePullRequestWebhook(
         () =>
             runPullRequestReview({
                 provider: gitHubProvider,
+                workspace,
                 llmSender,
                 prIid: prNumber,
                 isInlineReview,
@@ -201,6 +204,7 @@ async function handleIssueWebhook(
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -209,7 +213,14 @@ async function handleIssueWebhook(
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => runIssueReplyOnOpen({ provider: gitHubProvider, llmSender, issueIid: issueNumber, language: repository.language }),
+        () =>
+            runIssueReplyOnOpen({
+                provider: gitHubProvider,
+                workspace,
+                llmSender,
+                issueIid: issueNumber,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -272,6 +283,7 @@ async function handleIssueCommentWebhook(
             model: repository.modelName,
         });
 
+        const workspace = new Workspace(gitHubProvider);
         runWithActivity(
             {
                 repositoryId: repository.id,
@@ -283,6 +295,7 @@ async function handleIssueCommentWebhook(
             () =>
                 runPullRequestReply({
                     provider: gitHubProvider,
+                    workspace,
                     llmSender,
                     prIid: issueNumber,
                     commentId,
@@ -319,6 +332,7 @@ async function handleIssueCommentWebhook(
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -330,6 +344,7 @@ async function handleIssueCommentWebhook(
         () =>
             runIssueReply({
                 provider: gitHubProvider,
+                workspace,
                 llmSender,
                 issueIid: issueNumber,
                 commentId,
@@ -388,6 +403,7 @@ async function handlePullRequestReviewCommentWebhook(
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -399,6 +415,7 @@ async function handlePullRequestReviewCommentWebhook(
         () =>
             runPullRequestReply({
                 provider: gitHubProvider,
+                workspace,
                 llmSender,
                 prIid: prNumber,
                 commentId: comment.id,

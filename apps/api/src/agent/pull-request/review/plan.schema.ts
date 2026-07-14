@@ -14,7 +14,7 @@ export const reviewUnitReferenceSchema = z.object({
     path: z
         .string()
         .describe(
-            "Full repo-root-relative file path at PR head (e.g. apps/web/modules/foo.tsx). Resolve with search_file_by_name or get_directory_tree first. Not an import alias (@/…), package name, or path relative to another file.",
+            "Full repo-root-relative file path at PR head (e.g. apps/web/modules/foo.tsx). Resolve with glob or list_directory first. Not an import alias (@/…), package name, or path relative to another file.",
         ),
     reason: z.string().describe("Brief reason the sub-agent should read this file."),
 });

@@ -69,6 +69,31 @@ export class GitHubProvider implements GitProvider {
         return path;
     }
 
+    public async downloadArchive(ref: string, destPath: string): Promise<void> {
+        const response = await this.octokit.repos.downloadTarballArchive({
+            owner: this.owner,
+            repo: this.repo,
+            ref,
+            request: { redirect: "follow" },
+        });
+        const data = response.data as ArrayBuffer | Uint8Array | unknown;
+        if (data instanceof ArrayBuffer) {
+            await Bun.write(destPath, data);
+            return;
+        }
+        if (data instanceof Uint8Array) {
+            await Bun.write(destPath, data);
+            return;
+        }
+        // Octokit may return a stream-like / Response depending on version
+        const anyData = data as { arrayBuffer?: () => Promise<ArrayBuffer> };
+        if (typeof anyData?.arrayBuffer === "function") {
+            await Bun.write(destPath, await anyData.arrayBuffer());
+            return;
+        }
+        throw new Error("GitHub archive download returned unexpected payload type");
+    }
+
     public async fetchPullRequestDetail(prNumber: number): Promise<GitPullRequest> {
         const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
@@ -86,11 +111,12 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchChangedFileList(prNumber: number): Promise<GitChangedFile[]> {
-        const { data: files } = await this.octokit.pulls.listFiles({
+    public async fetchPullRequestDiffList(prNumber: number): Promise<GitDiff[]> {
+        const files = await this.octokit.paginate(this.octokit.pulls.listFiles, {
             owner: this.owner,
             repo: this.repo,
             pull_number: prNumber,
+            per_page: 100,
         });
 
         return files.map((file) => ({
@@ -99,29 +125,28 @@ export class GitHubProvider implements GitProvider {
             newFile: file.status === "added",
             renamedFile: file.status === "renamed",
             deletedFile: file.status === "removed",
+            diff: file.patch ?? "",
+        }));
+    }
+
+    public async fetchChangedFileList(prNumber: number): Promise<GitChangedFile[]> {
+        const diffs = await this.fetchPullRequestDiffList(prNumber);
+        return diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
+            oldPath,
+            newPath,
+            newFile,
+            renamedFile,
+            deletedFile,
         }));
     }
 
     public async fetchFileDiff(prNumber: number, filePath: string): Promise<GitDiff> {
-        const { data: files } = await this.octokit.pulls.listFiles({
-            owner: this.owner,
-            repo: this.repo,
-            pull_number: prNumber,
-        });
-
-        const file = files.find((f) => f.filename === filePath || f.previous_filename === filePath);
+        const files = await this.fetchPullRequestDiffList(prNumber);
+        const file = files.find((f) => f.newPath === filePath || f.oldPath === filePath);
         if (!file) {
             throw new Error(`Changed file not found in pull request: ${filePath}`);
         }
-
-        return {
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
-            diff: file.patch ?? "",
-        };
+        return file;
     }
 
     public async fetchPullRequestCommentList(prNumber: number, options?: ListPaginationOptions): Promise<GitComment[]> {

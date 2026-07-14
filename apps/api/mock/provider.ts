@@ -64,8 +64,39 @@ export class MockProvider implements GitProvider {
         return "mock-org/mock-repo";
     }
 
+    async downloadArchive(_ref: string, destPath: string): Promise<void> {
+        const { mkdir, mkdtemp, rm, writeFile } = await import("node:fs/promises");
+        const { join, dirname } = await import("node:path");
+        const { tmpdir } = await import("node:os");
+        const staging = await mkdtemp(join(tmpdir(), "proval-mock-archive-"));
+        const rootName = "mock-repo";
+        const treeRoot = join(staging, rootName);
+        try {
+            await mkdir(treeRoot, { recursive: true });
+            for (const [filePath, content] of Object.entries(this.input.files ?? {})) {
+                const abs = join(treeRoot, filePath);
+                await mkdir(dirname(abs), { recursive: true });
+                await writeFile(abs, content, "utf-8");
+            }
+            const proc = Bun.spawn(["tar", "-czf", destPath, "-C", staging, rootName], {
+                stdout: "pipe",
+                stderr: "pipe",
+            });
+            const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+            if (code !== 0) {
+                throw new Error(`Mock archive tar failed: ${stderr}`);
+            }
+        } finally {
+            await rm(staging, { recursive: true, force: true });
+        }
+    }
+
     async fetchPullRequestDetail(_prIid: number): Promise<GitPullRequest> {
         return this.input.detail;
+    }
+
+    async fetchPullRequestDiffList(_prIid: number): Promise<GitDiff[]> {
+        return this.input.diffs;
     }
 
     async fetchChangedFileList(_prIid: number): Promise<GitChangedFile[]> {

@@ -1,8 +1,8 @@
 import type { AgentTool } from "../../llm/loop.js";
-import type { GitProvider } from "../../../git-provider/types.js";
+import type { Workspace } from "../../../git-provider/workspace.js";
 import { UNTRUSTED_WARNING_TOOL_PROMPT } from "../../shared/prompt/untrusted-warning.prompt.js";
 
-export function getChangedFileListTool(provider: GitProvider, prIid: number): AgentTool {
+export function getChangedFileListTool(workspace: Workspace): AgentTool {
     return {
         name: "get_changed_file_list",
         description: [
@@ -19,8 +19,7 @@ export function getChangedFileListTool(provider: GitProvider, prIid: number): Ag
             required: [],
         },
         execute: async () => {
-            const files = await provider.fetchChangedFileList(prIid);
-            return files;
+            return workspace.changedFiles();
         },
     };
 }

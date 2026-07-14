@@ -115,6 +115,19 @@ export class GitLabProvider implements GitProvider {
         return path;
     }
 
+    public async downloadArchive(ref: string, destPath: string): Promise<void> {
+        const host = this.baseUrl.replace(/\/$/, "");
+        const url = `${host}/api/v4/projects/${this.projectId}/repository/archive.tar.gz?sha=${encodeURIComponent(ref)}`;
+        const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${this.token}` },
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`GitLab archive download failed (${response.status}): ${errorText}`);
+        }
+        await Bun.write(destPath, response);
+    }
+
     public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
         const mergeRequest = await this.gitlab.MergeRequests.show(this.projectId, prIid);
         return {
@@ -138,20 +151,25 @@ export class GitLabProvider implements GitProvider {
         }));
     }
 
-    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
+    public async fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]> {
         const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, prIid);
-        const change = changes.find((item) => item.new_path === filePath || item.old_path === filePath);
-        if (!change) {
-            throw new Error(`Changed file not found in pull request: ${filePath}`);
-        }
-        return {
+        return changes.map((change) => ({
             oldPath: change.old_path,
             newPath: change.new_path,
             newFile: change.new_file,
             renamedFile: change.renamed_file,
             deletedFile: change.deleted_file,
             diff: change.diff,
-        };
+        }));
+    }
+
+    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
+        const changes = await this.fetchPullRequestDiffList(prIid);
+        const change = changes.find((item) => item.newPath === filePath || item.oldPath === filePath);
+        if (!change) {
+            throw new Error(`Changed file not found in pull request: ${filePath}`);
+        }
+        return change;
     }
 
     public async fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment> {
@@ -168,10 +186,7 @@ export class GitLabProvider implements GitProvider {
         return this.fetchPullRequestComment(prIid, commentId);
     }
 
-    public async fetchPullRequestCommentList(
-        prIid: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchPullRequestCommentList(prIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const inlineReviewList = await this.loadPullRequestInlineReviewList(prIid);
         const inlineNoteIds = new Set(inlineReviewList.flatMap((review) => review.commentList.map((c) => c.id)));
 
@@ -221,10 +236,7 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchIssueCommentList(
-        issueIid: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchIssueCommentList(issueIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         if (!options) {
             const noteList = await this.gitlab.IssueNotes.all(this.projectId, issueIid);
             return noteList
@@ -365,11 +377,13 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async fetchDirectoryTree(filePath: string, ref: string, recursive?: boolean): Promise<GitTree[]> {
+        console.log("tree 1");
         const tree = await this.gitlab.Repositories.allRepositoryTrees(this.projectId, {
             path: filePath,
             ref,
             recursive,
         });
+        console.log("tree 2");
         return tree.map((node) => ({
             name: node.name,
             path: node.path,
@@ -408,7 +422,10 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview> {
+    public async fetchPullRequestInlineReview(
+        prIid: number,
+        inlineReviewId: string,
+    ): Promise<GitPullRequestInlineReview> {
         const review = await this.gitlab.MergeRequestDiscussions.show(this.projectId, prIid, inlineReviewId);
         const mapped = this.mapDiscussionToInlineReview(review);
         if (!mapped) {
@@ -511,7 +528,11 @@ export class GitLabProvider implements GitProvider {
         return Number.isFinite(n) ? n : undefined;
     }
 
-    public async replyToPullRequestInlineReview(prIid: number, inlineReviewId: string, body: string): Promise<GitComment> {
+    public async replyToPullRequestInlineReview(
+        prIid: number,
+        inlineReviewId: string,
+        body: string,
+    ): Promise<GitComment> {
         const note = await this.gitlab.MergeRequestDiscussions.addNote(this.projectId, prIid, inlineReviewId, body);
 
         return {

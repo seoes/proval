@@ -14,66 +14,64 @@ import {
     getFileDiffTool,
     postPullRequestInlineReviewReplyTool,
 } from "../tool";
-import {
-    getDirectoryTreeTool,
-    getMergeFileContentTool,
-    searchCodeListTool,
-    searchFileByNameTool,
-    searchLineByKeywordTool,
-} from "../../shared/tool";
+import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
+    workspace,
     llmSender,
     prIid,
     inlineReviewId,
     commentId,
     language,
 }) => {
-    const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
-    const { baseSha, headSha } = await provider.fetchPullRequestVersion(prIid);
-    const fileList = await provider.fetchDirectoryTree("", headSha, true);
+    try {
+        const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
+        const { headSha } = await provider.fetchPullRequestVersion(prIid);
+        await workspace.load({ headRef: headSha, prIid });
 
-    const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
-        "\n",
-    );
-    const prompt = `Reply to the new inline review comment on PR #${prIid}. (inlineReviewId: ${inlineReviewId}, commentId: ${commentId})`;
+        const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
+            "\n",
+        );
+        const prompt = `Reply to the new inline review comment on PR #${prIid}. (inlineReviewId: ${inlineReviewId}, commentId: ${commentId})`;
 
-    debug(prompt, "prompt");
+        debug(prompt, "prompt");
 
-    const toolList = [
-        getPullRequestInlineReviewCommentTool(provider, prIid),
-        getPullRequestInlineReviewListTool(provider, prIid),
-        getPullRequestCommentListTool(provider, prIid),
-        getPullRequestDetailTool(provider, prIid),
-        getChangedFileListTool(provider, prIid),
-        getFileDiffTool(provider, prIid),
-        searchCodeListTool(provider, headSha),
-        searchLineByKeywordTool(provider, headSha),
-        searchFileByNameTool(fileList),
-        getDirectoryTreeTool(fileList),
-        getMergeFileContentTool(provider, { baseSha, headSha }),
-    ];
+        const toolList = [
+            getPullRequestInlineReviewCommentTool(provider, prIid),
+            getPullRequestInlineReviewListTool(provider, prIid),
+            getPullRequestCommentListTool(provider, prIid),
+            getPullRequestDetailTool(provider, prIid),
+            getChangedFileListTool(workspace),
+            getFileDiffTool(workspace),
+            grepTool(workspace),
+            globTool(workspace),
+            listDirectoryTool(workspace),
+            getFileContentTool(workspace),
+        ];
 
-    const requiredToolList = [
-        postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
-    ];
+        const requiredToolList = [
+            postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
+        ];
 
-    const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
-        toolList,
-        requiredToolList,
-    });
+        const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
+            toolList,
+            requiredToolList,
+        });
 
-    await postDevDebugPullRequestComment(provider, prIid, {
-        sender: llmSender,
-        workflow: "PR Inline Review Reply",
-        usage: result.usage,
-        fields: {
-            "Pull Request IID": prIid,
-            "Inline Review ID": inlineReviewId,
-            "Comment ID": commentId,
-        },
-    });
+        await postDevDebugPullRequestComment(provider, prIid, {
+            sender: llmSender,
+            workflow: "PR Inline Review Reply",
+            usage: result.usage,
+            fields: {
+                "Pull Request IID": prIid,
+                "Inline Review ID": inlineReviewId,
+                "Comment ID": commentId,
+            },
+        });
 
-    return result.usage;
+        return result.usage;
+    } finally {
+        await workspace.clean();
+    }
 };

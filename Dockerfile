@@ -38,7 +38,7 @@ FROM cgr.dev/chainguard/wolfi-base:latest
 
 WORKDIR /app
 
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget tar ripgrep ca-certificates
 
 COPY --from=builder /build/server ./server
 COPY --from=builder /build/packages/db/src/migration ./migration
@@ -47,6 +47,8 @@ COPY --from=builder /build/apps/client/dist ./public
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7900/api/health || exit 1
 
 ENV DB_FILE_NAME=/data/app.db
+
+ENV WORKSPACE_ROOT=/data/workspaces
 
 ENV PORT=7900
 

@@ -154,6 +154,8 @@ export interface GitProvider {
     fetchChangedFileList(prIid: number): Promise<GitChangedFile[]>;
     /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
     fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
+    /** Bulk PR diffs (one API family; paginate pages if needed — not per-file requests). */
+    fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]>;
 
     // Pull Request conversation comment (PR timeline / issue_comment)
     fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment>;
@@ -194,4 +196,6 @@ export interface GitProvider {
     assignPullRequestReviewer(prIid: number): Promise<void>;
     fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
     fetchRepositoryPath(): Promise<string>;
+    /** Download repository archive at ref as .tar.gz into destPath. */
+    downloadArchive(ref: string, destPath: string): Promise<void>;
 }
