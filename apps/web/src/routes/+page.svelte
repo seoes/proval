@@ -192,7 +192,7 @@
             Self-hosted Code Review Agent <span class="text-primary">on your infrastructure</span>
         </h1>
         <div
-            class="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 tracking-tight text-neutral-600 md:mt-8 md:text-lg md:leading-8">
+            class="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 tracking-tight text-neutral-600 md:mt-10 md:text-lg md:leading-8">
             <p>Use any local model or API you want.</p>
             <p>
                 Supports
@@ -251,12 +251,14 @@
 <section class="py-20 md:py-28">
     <Container wide>
         <Eyebrow>Features</Eyebrow>
-        <div class="mt-3 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-end">
-            <h2 class="text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                See it on your Git host.
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+                From setup to review output.
             </h2>
-            <p class="text-neutral-600 lg:text-right">
-                Dashboard, setup, reviews, and inline comments — the surfaces your team already lives in.
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                Browse the dashboard and review output.
             </p>
         </div>
 
@@ -283,8 +285,7 @@
 
             <p class="mt-4 text-center text-sm text-neutral-500">{currentShot.caption}</p>
 
-            <div
-                class="mt-4 flex justify-center">
+            <div class="mt-4 flex justify-center">
                 <div
                     class="inline-flex rounded-lg border border-neutral-200/70 bg-neutral-50/80 p-1"
                     role="tablist"
@@ -305,16 +306,15 @@
 
 <section class="py-20 md:py-28">
     <Container wide>
-        <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-end">
-            <div>
-                <Eyebrow>Integration</Eyebrow>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                    Plug into the Git host you already run.
-                </h2>
-            </div>
-            <p class="text-neutral-600 lg:text-right">
-                Webhooks and host APIs connect your Git instance to Proval. Proval sends review context to the LLM
-                endpoint you configure — all on infrastructure you control.
+        <Eyebrow>Integration</Eyebrow>
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+                Plug into the Git host you already run.
+            </h2>
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                Webhooks and host APIs connect your Git host to Proval. Review context goes to the model you run.
             </p>
         </div>
 
@@ -668,13 +668,14 @@
 <section class="py-20 md:py-28">
     <Container wide>
         <Eyebrow>How agent works</Eyebrow>
-        <div class="mt-3 grid gap-6 lg:items-end">
-            <h2 class="text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
                 One predictable path for every repository event.
             </h2>
-            <p class="text-neutral-600">
-                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how
-                it runs.
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                The same flow on every event. See how it runs.
             </p>
         </div>
 
@@ -720,12 +721,13 @@
         <div class="grid gap-10 lg:grid-cols-[0.8fr_1fr] lg:items-center">
             <div>
                 <Eyebrow>Deployment</Eyebrow>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
+                <h2
+                    class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
                     Start with a small self-hosted deployment.
                 </h2>
-                <p class="mt-4 text-neutral-600">
-                    Proval is designed around a simple Docker-first path: run the service, connect your model, link
-                    repositories, and test a real merge request.
+                <p
+                    class="mt-4 bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent">
+                    Run the service, connect your model, link repositories, and test a real merge request.
                 </p>
                 <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">Open the Docker guide</ButtonLink>
             </div>
@@ -776,7 +778,10 @@ Repository      -> review and reply policy</code></pre>
 <section class="py-20 md:py-28">
     <Container>
         <Eyebrow>FAQ</Eyebrow>
-        <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950">A few practical answers.</h2>
+        <h2
+            class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+            A few practical answers.
+        </h2>
 
         <Panel class="mt-10 !p-0">
             <div class="divide-y divide-neutral-200/80">
