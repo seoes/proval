@@ -4,6 +4,7 @@
     import Eyebrow from "../lib/components/Eyebrow.svelte";
     import Button from "../lib/components/Button.svelte";
     import ButtonLink from "../lib/components/ButtonLink.svelte";
+    import Panel from "../lib/components/Panel.svelte";
     import { GITHUB_URL, SITE_DESCRIPTION, DEMO_URL } from "../lib/constants";
 
     type StageKind = "context" | "policy" | "plan" | "parallel" | "output";
@@ -151,7 +152,8 @@
         volumes:
             - ./data:/data
         environment:
-            - ENCRYPTION_KEY=[Encryption Key]`;
+            - ENCRYPTION_KEY=[Encryption Key]
+`;
 
     let copyLabel = $state("Copy");
 
@@ -182,81 +184,141 @@
     <meta name="description" content={SITE_DESCRIPTION} />
 </svelte:head>
 
-<section class="overflow-hidden border-b border-neutral-200 bg-white">
-    <Container wide class="pt-20 pb-16 text-center md:pt-28 md:pb-24">
-        <!-- <Eyebrow>Privacy-first review automation</Eyebrow> -->
+<section class="overflow-hidden">
+    <Container wide class="pt-20 pb-20 text-center md:pt-24 md:pb-28">
         <Eyebrow>Your Code, Your Model</Eyebrow>
         <h1
-            class="mx-auto mt-5 max-w-4xl text-4xl leading-tight font-semibold tracking-[-0.045em] text-neutral-950 md:text-6xl">
-            Self-hosted AI Code Review agent on <span class="text-primary">your infrastructure</span>
-            <!-- <span class="text-primary">Self-hosted</span> AI Code Review agent on your infrastructure -->
+            class="mx-auto mt-5 text-4xl leading-none font-semibold tracking-[-0.045em] text-neutral-950 md:text-6xl lg:text-7xl">
+            Self-hosted Code Review Agent <span class="text-primary">on your infrastructure</span>
         </h1>
-        <p class="mx-auto mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-            Works with GitLab, Forgejo, and GitHub. Use your local model or any API you want.
-        </p>
+        <div
+            class="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 tracking-tight text-neutral-600 md:mt-10 md:text-lg md:leading-8">
+            <p>Use any local model or API you want.</p>
+            <p>
+                Supports
+                <span class="ml-1.5 inline-flex items-center gap-1 font-bold text-orange-500">
+                    <svg class="size-[0.85em] shrink-0 translate-y-[1px]" viewBox="0 0 24 24" aria-hidden="true"
+                        ><path
+                            fill="currentColor"
+                            d="m23.6004 9.5927-.0337-.0862L20.3.9814a.851.851 0 0 0-.3362-.405.8748.8748 0 0 0-.9997.0539.8748.8748 0 0 0-.29.4399l-2.2055 6.748H7.5375l-2.2057-6.748a.8573.8573 0 0 0-.29-.4412.8748.8748 0 0 0-.9997-.0537.8585.8585 0 0 0-.3362.4049L.4332 9.5015l-.0325.0862a6.0657 6.0657 0 0 0 2.0119 7.0105l.0113.0087.03.0213 4.976 3.7264 2.462 1.8633 1.4995 1.1321a1.0085 1.0085 0 0 0 1.2197 0l1.4995-1.1321 2.4619-1.8633 5.006-3.7489.0125-.01a6.0682 6.0682 0 0 0 2.0094-7.003z" /></svg
+                    >GitLab</span
+                >,
+                <span class="inline-flex items-center gap-0.5 font-semibold text-orange-700">
+                    <svg class="size-[0.85em] shrink-0 translate-y-[1px]" viewBox="0 0 24 24" aria-hidden="true"
+                        ><path
+                            fill="currentColor"
+                            d="M16.7773 0c1.6018 0 2.9004 1.2986 2.9004 2.9005s-1.2986 2.9004-2.9004 2.9004c-1.0854 0-2.0315-.596-2.5288-1.4787H12.91c-2.3322 0-4.2272 1.8718-4.2649 4.195l-.0007 2.1175a7.0759 7.0759 0 0 1 4.148-1.4205l.1176-.001 1.3385.0002c.4973-.8827 1.4434-1.4788 2.5288-1.4788 1.6018 0 2.9004 1.2986 2.9004 2.9005s-1.2986 2.9004-2.9004 2.9004c-1.0854 0-2.0315-.596-2.5288-1.4787H12.91c-2.3322 0-4.2272 1.8718-4.2649 4.195l-.0007 2.319c.8827.4973 1.4788 1.4434 1.4788 2.5287 0 1.602-1.2986 2.9005-2.9005 2.9005-1.6018 0-2.9004-1.2986-2.9004-2.9005 0-1.0853.596-2.0314 1.4788-2.5287l-.0002-9.9831c0-3.887 3.1195-7.0453 6.9915-7.108l.1176-.001h1.3385C14.7458.5962 15.692 0 16.7773 0ZM7.2227 19.9052c-.6596 0-1.1943.5347-1.1943 1.1943s.5347 1.1943 1.1943 1.1943 1.1944-.5347 1.1944-1.1943-.5348-1.1943-1.1944-1.1943Zm9.5546-10.4644c-.6596 0-1.1944.5347-1.1944 1.1943s.5348 1.1943 1.1944 1.1943c.6596 0 1.1943-.5347 1.1943-1.1943s-.5347-1.1943-1.1943-1.1943Zm0-7.7346c-.6596 0-1.1944.5347-1.1944 1.1943s.5348 1.1943 1.1944 1.1943c.6596 0 1.1943-.5347 1.1943-1.1943s-.5347-1.1943-1.1943-1.1943Z" /></svg
+                    >Forgejo</span
+                >, and
+                <span class="inline-flex items-center gap-1 font-medium text-black">
+                    <svg class="size-[0.85em] shrink-0" viewBox="0 0 24 24" aria-hidden="true"
+                        ><path
+                            fill="currentColor"
+                            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg
+                    >GitHub</span
+                >.
+            </p>
+        </div>
 
-        <div class="mt-8 flex flex-col items-center gap-3">
+        <div class="mt-8 flex flex-col items-center gap-4">
             <ButtonLink href={DEMO_URL} variant="primary" external class="text-base md:text-lg">
-                Just try the demo
+                Try the demo
             </ButtonLink>
-            <span class="text-xs text-neutral-400">or</span>
             <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-                <ButtonLink href="/docs/quick-start" variant="primary">Read the docs</ButtonLink>
+                <ButtonLink href="/docs/quick-start" variant="secondary">Read the docs</ButtonLink>
                 <ButtonLink href={GITHUB_URL} variant="secondary" external>View on GitHub</ButtonLink>
             </div>
         </div>
 
-        <div class="mx-auto mt-16 w-full max-w-5xl">
-            <div
-                class="overflow-hidden max-md:rounded-lg md:mt-6 md:rounded-2xl md:border md:border-neutral-200 md:bg-neutral-100 md:p-2 md:shadow-2xl md:shadow-neutral-900/10">
-                <div
-                    class="overflow-hidden max-md:rounded-lg md:rounded-xl md:border md:border-neutral-200 md:bg-white">
-                    <div class="hidden h-10 items-center gap-2 border-b border-neutral-200 px-4 md:flex">
-                        <span class="size-2.5 rounded-full bg-red-300"></span>
-                        <span class="size-2.5 rounded-full bg-amber-300"></span>
-                        <span class="size-2.5 rounded-full bg-emerald-300"></span>
-                        <span class="ml-3 truncate font-mono text-xs text-neutral-500">{currentShot.frame}</span>
-                    </div>
-                    <img
-                        src={`/${currentShot.id}.png`}
-                        alt={currentShot.label}
-                        class="aspect-16/10 w-full object-cover" />
-                </div>
-            </div>
-
-            <p class="mt-4 text-center text-sm text-neutral-500">{currentShot.caption}</p>
-
-            <div
-                class="mt-4 inline-flex rounded-lg border border-neutral-200/70 bg-neutral-100/50 p-1"
-                role="tablist"
-                aria-label="Screenshot preview">
-                {#each screenshots as shot (shot.id)}
-                    <Button variant="segment" pressed={activeShot === shot.id} onclick={() => (activeShot = shot.id)}>
-                        {shot.label}
-                    </Button>
-                {/each}
+        <div class="mx-auto mt-12 w-full md:mt-14">
+            <div class="overflow-hidden rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_16px_40px_rgba(0,0,0,0.12)]">
+                <video
+                    src="/demo.mp4"
+                    poster="/inline-review.png"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="metadata"
+                    class="aspect-video w-full object-cover"
+                    aria-label="Proval product demo: reviewing a merge request end to end">
+                </video>
             </div>
         </div>
     </Container>
 </section>
 
-<section class="border-b border-neutral-200 bg-white py-20 md:py-28">
-    <Container wide class="max-w-6xl">
-        <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-end">
-            <div>
-                <Eyebrow>Integration</Eyebrow>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
-                    Plug into the Git host you already run.
-                </h2>
-            </div>
-            <p class="text-neutral-600 lg:text-right">
-                Webhooks and host APIs connect your Git instance to Proval. Proval sends review context to the LLM
-                endpoint you configure — all on infrastructure you control.
+<section class="py-20 md:py-28">
+    <Container wide>
+        <Eyebrow>Features</Eyebrow>
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+                From setup to review output.
+            </h2>
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                Browse the dashboard and review output.
             </p>
         </div>
 
-        <div
-            class="relative mt-12 overflow-hidden rounded-2xl border border-neutral-200/80 bg-neutral-50 p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)] md:p-8">
+        <div class="mt-12 w-full">
+            <Panel padded={false} class="bg-neutral-50 p-1.5 md:p-2">
+                <div class="overflow-hidden rounded-xl border border-neutral-200/80 bg-white">
+                    <div class="hidden h-10 items-center gap-2 border-b border-neutral-200/80 px-4 md:flex">
+                        <span class="size-2.5 rounded-full bg-red-300"></span>
+                        <span class="size-2.5 rounded-full bg-amber-300"></span>
+                        <span class="size-2.5 rounded-full bg-emerald-300"></span>
+                        <span class="ml-3 truncate font-mono text-xs text-neutral-500">{currentShot.frame}</span>
+                    </div>
+                    <div class="relative aspect-16/10">
+                        {#key currentShot.id}
+                            <img
+                                src={`/${currentShot.id}.png`}
+                                alt={currentShot.label}
+                                class="absolute inset-0 h-full w-full object-cover"
+                                in:fade={{ duration: 200 }} />
+                        {/key}
+                    </div>
+                </div>
+            </Panel>
+
+            <p class="mt-4 text-center text-sm text-neutral-500">{currentShot.caption}</p>
+
+            <div class="mt-4 flex justify-center">
+                <div
+                    class="inline-flex rounded-lg border border-neutral-200/70 bg-neutral-50/80 p-1"
+                    role="tablist"
+                    aria-label="Screenshot preview">
+                    {#each screenshots as shot (shot.id)}
+                        <Button
+                            variant="segment"
+                            pressed={activeShot === shot.id}
+                            onclick={() => (activeShot = shot.id)}>
+                            {shot.label}
+                        </Button>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    </Container>
+</section>
+
+<section class="py-20 md:py-28">
+    <Container wide>
+        <Eyebrow>Integration</Eyebrow>
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+                Plug into the Git host you already run.
+            </h2>
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                Webhooks and host APIs connect your Git host to Proval. Review context goes to the model you run.
+            </p>
+        </div>
+
+        <Panel class="mt-12 bg-neutral-50/80 md:p-8">
             <div class="flex flex-col gap-6 xl:flex-row xl:items-stretch xl:gap-4">
                 <div class="flex w-full flex-col xl:w-48 2xl:w-52">
                     <p class="mb-3 font-mono text-[10px] font-semibold tracking-widest text-neutral-400 uppercase">
@@ -490,7 +552,7 @@
                     <span class="font-semibold text-neutral-950">HTTPS</span> (TLS).
                 </p>
             </div>
-        </div>
+        </Panel>
     </Container>
 </section>
 
@@ -603,26 +665,21 @@
     </div>
 {/snippet}
 
-<section class="border-b border-neutral-200 bg-neutral-50 py-20 md:py-28">
+<section class="py-20 md:py-28">
     <Container wide>
         <Eyebrow>How agent works</Eyebrow>
-        <div class="mt-3 grid gap-6 lg:items-end">
-            <h2 class="text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
+        <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
+            <h2
+                class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
                 One predictable path for every repository event.
             </h2>
-            <p class="text-neutral-600">
-                Proval reacts to a repository event and follows the same flow every time. Select a workflow to see how
-                it runs.
+            <p
+                class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
+                The same flow on every event. See how it runs.
             </p>
         </div>
 
-        <div
-            class="relative mt-12 overflow-hidden rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)] md:p-6">
-            <div
-                class="pointer-events-none absolute inset-x-6 top-0 h-px bg-linear-to-r from-transparent via-primary/30 to-transparent md:inset-x-6"
-                aria-hidden="true">
-            </div>
-
+        <Panel class="mt-12">
             <div class="relative grid gap-5 lg:h-96 lg:grid-cols-[auto_1fr] lg:items-stretch">
                 <div class="flex w-full flex-col justify-center gap-2 lg:h-full lg:w-max lg:shrink-0">
                     {#each reviewModeList as mode (mode.id)}
@@ -655,27 +712,30 @@
                     {/key}
                 </div>
             </div>
-        </div>
+        </Panel>
     </Container>
 </section>
 
-<section class="border-b border-neutral-200 bg-white py-20 md:py-28">
+<section class="py-20 md:py-28">
     <Container wide>
         <div class="grid gap-10 lg:grid-cols-[0.8fr_1fr] lg:items-center">
             <div>
                 <Eyebrow>Deployment</Eyebrow>
-                <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">
+                <h2
+                    class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
                     Start with a small self-hosted deployment.
                 </h2>
-                <p class="mt-4 text-neutral-600">
-                    Proval is designed around a simple Docker-first path: run the service, connect your model, link
-                    repositories, and test a real merge request.
+                <p
+                    class="mt-4 bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent">
+                    Run the service, connect your model, link repositories, and test a real merge request.
                 </p>
                 <ButtonLink href="/docs/quick-start" variant="primary" class="mt-6">Open the Docker guide</ButtonLink>
             </div>
 
-            <div class="mx-auto mt-20 w-full max-w-xl text-left">
-                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950 shadow-sm">
+            <div class="mx-auto w-full max-w-xl text-left lg:mt-0">
+                <Panel
+                    padded={false}
+                    class="border-neutral-800 bg-neutral-950 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.18)]">
                     <div class="flex items-center justify-between gap-3 border-b border-neutral-800 px-4 py-2.5">
                         <span class="font-mono text-xs text-neutral-500">docker-compose.yml</span>
                         <Button
@@ -685,9 +745,9 @@
                             {copyLabel}
                         </Button>
                     </div>
-                    <pre class="overflow-x-auto p-4 font-mono text-[13px] leading-6 text-neutral-100"><code
+                    <pre class="overflow-x-auto px-4 pt-4 pb-5 font-mono text-[13px] leading-6 text-neutral-100"><code
                             >{dockerCompose}</code></pre>
-                </div>
+                </Panel>
                 <p class="mt-3 text-center text-sm text-neutral-500">
                     Deploy in a minute with Docker Compose.
                     <ButtonLink href="/docs/quick-start" variant="primary" class="inline">Full setup guide</ButtonLink>
@@ -715,19 +775,24 @@ Repository      -> review and reply policy</code></pre>
     </Container>
 </section>
 
-<section class="bg-white py-20 md:py-28">
+<section class="py-20 md:py-28">
     <Container>
         <Eyebrow>FAQ</Eyebrow>
-        <h2 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950">A few practical answers.</h2>
+        <h2
+            class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+            A few practical answers.
+        </h2>
 
-        <div class="mt-10 divide-y divide-neutral-200 border-y border-neutral-200">
-            {#each faqs as faq (faq.question)}
-                <div class="py-6">
-                    <h3 class="font-semibold tracking-tight text-neutral-950">{faq.question}</h3>
-                    <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
-                </div>
-            {/each}
-        </div>
+        <Panel class="mt-10 !p-0">
+            <div class="divide-y divide-neutral-200/80">
+                {#each faqs as faq (faq.question)}
+                    <div class="px-5 py-6 md:px-6">
+                        <h3 class="font-semibold tracking-tight text-neutral-950">{faq.question}</h3>
+                        <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
+                    </div>
+                {/each}
+            </div>
+        </Panel>
     </Container>
 </section>
 
