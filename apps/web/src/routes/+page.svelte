@@ -99,7 +99,11 @@
             tagline: "Agent answers your comments",
             stages: [
                 { title: "Policy check", kind: "policy" },
-                { title: "Load context", kind: "context" },
+                {
+                    title: "Load Context",
+                    kind: "context",
+                    items: ["Target comment", "PR discussion", "Diff & files"],
+                },
                 { title: "Reply", kind: "output" },
             ],
         },
@@ -621,7 +625,7 @@
         onclick={() => (activeMode = mode.id)}
         aria-pressed={active}
         class={[
-            "flex w-full shrink-0 items-start gap-2.5 rounded-xl p-3 text-left ring-1 transition-all duration-200 lg:w-max",
+            "flex w-full shrink-0 items-start gap-2.5 rounded-xl p-3 text-left ring-1 transition-all duration-200",
             active
                 ? "bg-neutral-50 ring-neutral-200/90"
                 : "bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-neutral-200/90 hover:ring-neutral-300",
@@ -671,7 +675,7 @@
         <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
             <h2
                 class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-                One predictable path for every repository event.
+                Consistent flows for every repository event.
             </h2>
             <p
                 class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
@@ -681,7 +685,7 @@
 
         <Panel class="mt-12">
             <div class="relative grid gap-5 lg:h-96 lg:grid-cols-[auto_1fr] lg:items-stretch">
-                <div class="flex w-full flex-col justify-center gap-2 lg:h-full lg:w-max lg:shrink-0">
+                <div class="flex w-full flex-col justify-center gap-2 lg:h-full lg:w-64 lg:shrink-0">
                     {#each reviewModeList as mode (mode.id)}
                         {@render modeOption(mode, activeMode === mode.id)}
                     {/each}
