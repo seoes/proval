@@ -15,15 +15,8 @@ export type WorkspaceLoadOpts = {
     prIid?: number;
 };
 
-function defaultWorkspaceRoot(): string {
-    if (process.env.WORKSPACE_ROOT) {
-        return process.env.WORKSPACE_ROOT;
-    }
-    return process.env.NODE_ENV === "production" ? "/data/workspaces" : "./data/workspaces";
-}
-
 export function getWorkspaceRoot(): string {
-    return resolve(defaultWorkspaceRoot());
+    return resolve(process.env.NODE_ENV === "production" ? "/data/workspaces" : "./data/workspaces");
 }
 
 /** Remove all workspace checkouts. Call once on process start. */
