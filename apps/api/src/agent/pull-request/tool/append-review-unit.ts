@@ -12,7 +12,7 @@ export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
             "references: { path, reason } entries for context beyond this unit's files[] (unchanged repo files or changed files from other units).",
             "Include references whenever the unit is incomplete without neighboring call sites, shared contracts, or files that may now own logic removed from this unit — a direct import is not required if runtime flow connects them.",
             "reason should tell the sub-agent what to verify at that path.",
-            "For each reference path, resolve the full repo-root file path with search_file_by_name or get_directory_tree before calling — never use import aliases, package names, or paths relative to another file.",
+            "For each reference path, resolve the full repo-root file path with glob or list_directory before calling — never use import aliases, package names, or paths relative to another file.",
             "The canonical plan is built only through tool calls; do not output a JSON plan in your final message.",
             "IDs are assigned by the server.",
         ].join(" "),

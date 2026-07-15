@@ -7,7 +7,7 @@ export const ISSUE_REPLY_WORKFLOW = [
     "2. If you need prior discussion, call get_issue_comment_list with page and limit. Use the returned total to fetch additional pages.",
     "3. Call get_issue_detail if you need issue metadata or the original description.",
     "4. If the commenter references prior work, duplicates, regressions, or implementation details, search related issues and pull requests.",
-    "5. For code-related questions, use search_code_list first, then confirm with get_directory_tree and get_file_content before replying.",
+    "5. For code-related questions, use grep or glob first, then confirm with list_directory and get_file_content before replying.",
     "6. Reply directly to the commenter with useful, concrete information.",
     "7. Post exactly one reply with post_issue_reply.",
     "8. Do not call any tools after post_issue_reply.",

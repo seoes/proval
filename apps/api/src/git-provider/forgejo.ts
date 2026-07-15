@@ -89,6 +89,21 @@ export class ForgejoProvider implements GitProvider {
         return path;
     }
 
+    public async downloadArchive(ref: string, destPath: string): Promise<void> {
+        const url = new URL(
+            `/api/v1/repos/${this.owner}/${this.repo}/archive/${encodeURIComponent(ref)}.tar.gz`,
+            this.baseUrl,
+        );
+        const response = await fetch(url, {
+            headers: { Authorization: `token ${this.token}` },
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            this.throwRequestError(response, errorText);
+        }
+        await Bun.write(destPath, response);
+    }
+
     public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
         const pr = await this.requestJson<{
             title: string;
@@ -110,47 +125,54 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
-        const files = await this.requestJson<
-            Array<{
-                filename: string;
-                previous_filename?: string;
-                status: string;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`);
+    public async fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]> {
+        const path = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`;
+        const all: GitDiff[] = [];
+        const limit = 50;
+        for (let page = 1; ; page++) {
+            const files = await this.requestJsonPaginated<
+                Array<{
+                    filename: string;
+                    previous_filename?: string;
+                    status: string;
+                    patch?: string;
+                }>
+            >(path, page, limit);
+            for (const file of files) {
+                all.push({
+                    oldPath: file.previous_filename ?? file.filename,
+                    newPath: file.filename,
+                    newFile: file.status === "added",
+                    renamedFile: file.status === "renamed",
+                    deletedFile: file.status === "removed",
+                    diff: file.patch ?? "",
+                });
+            }
+            if (files.length < limit) {
+                break;
+            }
+        }
+        return all;
+    }
 
-        return files.map((file) => ({
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
+    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
+        const diffs = await this.fetchPullRequestDiffList(prIid);
+        return diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
+            oldPath,
+            newPath,
+            newFile,
+            renamedFile,
+            deletedFile,
         }));
     }
 
     public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
-        const files = await this.requestJson<
-            Array<{
-                filename: string;
-                previous_filename?: string;
-                status: string;
-                patch?: string;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`);
-
-        const file = files.find((f) => f.filename === filePath || f.previous_filename === filePath);
+        const files = await this.fetchPullRequestDiffList(prIid);
+        const file = files.find((f) => f.newPath === filePath || f.oldPath === filePath);
         if (!file) {
             throw new Error(`Changed file not found in pull request: ${filePath}`);
         }
-
-        return {
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
-            diff: file.patch ?? "",
-        };
+        return file;
     }
 
     public async fetchPullRequestCommentList(

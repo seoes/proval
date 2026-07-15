@@ -15,6 +15,7 @@ import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
+import { Workspace } from "../../git-provider/workspace.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -124,6 +125,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
 
     const isInlineReview = repository.inlineReview;
 
+    const workspace = new Workspace(gitlabProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -135,6 +137,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         () =>
             runPullRequestReview({
                 provider: gitlabProvider,
+                workspace,
                 llmSender,
                 prIid: pullRequest.iid,
                 isInlineReview,
@@ -218,6 +221,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
     const inlineReviewId = payload.object_attributes.discussion_id ?? null;
 
+    const workspace = new Workspace(gitlabProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -229,6 +233,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         () =>
             runPullRequestReply({
                 provider: gitlabProvider,
+                workspace,
                 llmSender,
                 prIid,
                 commentId,
@@ -284,6 +289,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(gitlabProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -292,7 +298,14 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
             type: "issue_open",
             targetIid: issueIid,
         },
-        () => runIssueReplyOnOpen({ provider: gitlabProvider, llmSender, issueIid, language: repository.language }),
+        () =>
+            runIssueReplyOnOpen({
+                provider: gitlabProvider,
+                workspace,
+                llmSender,
+                issueIid,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -372,6 +385,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(gitlabProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -383,6 +397,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         () =>
             runIssueReply({
                 provider: gitlabProvider,
+                workspace,
                 llmSender,
                 issueIid,
                 commentId,

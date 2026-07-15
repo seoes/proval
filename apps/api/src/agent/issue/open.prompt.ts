@@ -6,7 +6,7 @@ export const ISSUE_REPLY_ON_OPEN_WORKFLOW = [
     "1. Call get_issue_detail to read the issue title, description, labels, and state.",
     "2. Call get_issue_comment_list — the issue was just opened, so comments may be empty.",
     "3. Search related issues and pull requests with search_issue_list and search_pull_request_list using the title, error text, and key nouns from the issue.",
-    "4. For code-related issues, use search_code_list first to locate likely files, then confirm with get_directory_tree and get_file_content.",
+    "4. For code-related issues, use grep or glob first to locate likely files, then confirm with list_directory and get_file_content.",
     "5. Decide the most useful single comment:",
     "   - explain likely duplicate or possible duplicate with evidence",
     "   - point to likely code areas",

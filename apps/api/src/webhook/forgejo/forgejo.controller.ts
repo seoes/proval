@@ -6,6 +6,7 @@ import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
+import { Workspace } from "../../git-provider/workspace.js";
 
 // Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
@@ -215,6 +216,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const isInlineReview = repository.inlineReview;
     const language = repository.language;
 
+    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -226,6 +228,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         () =>
             runPullRequestReview({
                 provider: forgejoProvider,
+                workspace,
                 llmSender,
                 prIid: prNumber,
                 isInlineReview,
@@ -308,6 +311,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             model: repository.modelName,
         });
 
+        const workspace = new Workspace(forgejoProvider);
         runWithActivity(
             {
                 repositoryId: repository.id,
@@ -319,6 +323,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             () =>
                 runPullRequestReply({
                     provider: forgejoProvider,
+                    workspace,
                     llmSender,
                     prIid: prNumber,
                     commentId: payload.comment.id,
@@ -376,6 +381,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             model: repository.modelName,
         });
 
+        const workspace = new Workspace(forgejoProvider);
         runWithActivity(
             {
                 repositoryId: repository.id,
@@ -387,6 +393,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
             () =>
                 runIssueReply({
                     provider: forgejoProvider,
+                    workspace,
                     llmSender,
                     issueIid: issueNumber,
                     commentId,
@@ -442,6 +449,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -450,7 +458,14 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () => runIssueReplyOnOpen({ provider: forgejoProvider, llmSender, issueIid: issueNumber, language: repository.language }),
+        () =>
+            runIssueReplyOnOpen({
+                provider: forgejoProvider,
+                workspace,
+                llmSender,
+                issueIid: issueNumber,
+                language: repository.language,
+            }),
     ).catch((error) => {
         logError("Issue comment failed", error);
     });
@@ -577,6 +592,7 @@ const handleForgejoInlineReviewReplyWebhook = async (
         model: repository.modelName,
     });
 
+    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -588,6 +604,7 @@ const handleForgejoInlineReviewReplyWebhook = async (
         () =>
             runPullRequestReply({
                 provider: forgejoProvider,
+                workspace,
                 llmSender,
                 prIid: prNumber,
                 commentId,

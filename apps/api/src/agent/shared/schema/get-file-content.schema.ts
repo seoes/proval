@@ -7,7 +7,7 @@ export const getFileContentInputSchema = z
         filePath: z
             .string()
             .describe(
-                "Repository-relative path to the file. Only read files, not directories. If you need to read a directory, use get_directory_tree instead.",
+                "Repository-relative path to the file. Only read files, not directories. If you need to list a directory, use list_directory instead.",
             ),
         fromLine: z
             .number()
@@ -23,7 +23,3 @@ export const getFileContentInputSchema = z
             .describe(`Last line to include (1-based). Use only when file is over ${FILE_CONTENT_MAX_LINES} lines.`),
     })
     .strict();
-
-export const getMergeFileContentInputSchema = getFileContentInputSchema.extend({
-    commit: z.enum(["head", "base"]).describe("The commit to read the file from."),
-});

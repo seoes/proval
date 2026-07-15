@@ -9,6 +9,7 @@ import { runPullRequestReply, runPullRequestReview } from "../src/agent/pull-req
 import { log, logError } from "../src/util/log.js";
 import { MockProvider, type PostedAction, type TestInput } from "../mock/provider.js";
 import { createSender } from "../src/agent/llm/factory.js";
+import { Workspace } from "../src/git-provider/workspace.js";
 
 type ReviewEntry = {
     mode: "review";
@@ -148,12 +149,18 @@ async function main() {
     });
 
     const provider = new MockProvider(entry.data);
+    const workspace = new Workspace(provider);
+    await workspace.loadMock({
+        files: entry.data.files ?? {},
+        diffs: entry.data.diffs,
+    });
 
     log(`running ${pc.bold(scenarioKey)} (${pc.yellow(entry.mode)})`, "demo");
 
     if (entry.mode === "review") {
         await runPullRequestReview({
             provider,
+            workspace,
             llmSender,
             prIid: 1,
             isInlineReview: false,
@@ -162,6 +169,7 @@ async function main() {
     } else {
         await runPullRequestReply({
             provider,
+            workspace,
             llmSender,
             prIid: 1,
             commentId: entry.data.commentList?.[0]?.id ?? 1,
