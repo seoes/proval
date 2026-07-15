@@ -6,7 +6,11 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 
 [Website](https://proval.app) | [Demo](https://demo.proval.app) | [Docs](https://proval.app/docs)
 
-<video src="https://proval.app/demo.mp4" controls muted playsinline width="100%"></video>
+
+
+https://github.com/user-attachments/assets/5afc0bba-d89e-43cd-b4d7-d5e7b022eeb1
+
+
 
 - **Easy deploy**
   Proval takes 3 min, less than 10 lines to deploy to your server
