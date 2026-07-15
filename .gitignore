@@ -16,4 +16,4 @@ node_modules
 dist
 build
 
-data/workspaces
+workspaces/

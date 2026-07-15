@@ -48,8 +48,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget 
 
 ENV DB_FILE_NAME=/data/app.db
 
-ENV WORKSPACE_ROOT=/data/workspaces
-
 ENV PORT=7900
 
 ENV NODE_ENV=production
