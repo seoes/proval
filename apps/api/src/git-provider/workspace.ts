@@ -211,14 +211,14 @@ export class Workspace {
             stdout: "pipe",
             stderr: "pipe",
         });
-        const [stdout, , code] = await Promise.all([
+        const [stdout, stderr, code] = await Promise.all([
             new Response(proc.stdout).text(),
             new Response(proc.stderr).text(),
             proc.exited,
         ]);
         // rg exits 1 when no matches
         if (code !== 0 && code !== 1) {
-            throw new Error(`rg failed with exit code ${code}`);
+            throw new Error(`rg failed with exit code ${code}: ${stderr || stdout}`);
         }
 
         const matches: WorkspaceGrepMatch[] = [];
