@@ -122,7 +122,7 @@ export class Workspace {
 
         try {
             for (const [filePath, content] of Object.entries(opts.files)) {
-                const abs = resolve(rootDir, filePath);
+                const abs = this.safePath(filePath);
                 await mkdir(dirname(abs), { recursive: true });
                 await Bun.write(abs, content);
             }
