@@ -10,8 +10,9 @@
     ];
 </script>
 
-<header class="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+<header class="sticky top-3 z-20 mx-auto mt-3 w-[min(100%-1.5rem,64rem)]">
+    <div
+        class="flex h-12 items-center justify-between rounded-full border border-neutral-200/80 bg-white/90 px-5 shadow-lg shadow-neutral-900/8 backdrop-blur sm:px-6">
         <a href="/" class="text-lg font-semibold tracking-tight text-neutral-950">Proval</a>
         <nav class="flex items-center gap-4 text-sm sm:gap-6">
             {#each links as link (link.href)}
@@ -25,7 +26,8 @@
                     {link.label}
                 </a>
             {/each}
-            <ButtonLink href={GITHUB_URL} variant="secondary" external class="hidden sm:inline-flex">GitHub</ButtonLink>
+            <ButtonLink href={GITHUB_URL} variant="secondary" external class="hidden h-8 rounded-full sm:inline-flex"
+                >GitHub</ButtonLink>
         </nav>
     </div>
 </header>
