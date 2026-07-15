@@ -2,7 +2,7 @@
     import type { Snippet } from "svelte";
     import { twMerge } from "tailwind-merge";
 
-    type Variant = "primary" | "secondary" | "ghost";
+    type Variant = "primary" | "secondary" | "ghost" | "solid";
 
     interface Props {
         href: string;
@@ -15,6 +15,7 @@
     let { href, class: className, children, variant = "ghost", external = false }: Props = $props();
 
     const variantClass: Record<Variant, string> = {
+        solid: "h-10 justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground hover:brightness-[0.94] active:brightness-[0.9]",
         primary:
             "text-sm font-medium text-primary underline decoration-primary/35 underline-offset-[6px] transition-colors hover:decoration-primary",
         secondary: "text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-950",

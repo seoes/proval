@@ -10,7 +10,7 @@
     ];
 </script>
 
-<header class="sticky top-3 z-20 mx-auto mt-3 w-[min(100%-1.5rem,64rem)]">
+<header class="sticky top-3 z-20 mx-auto mt-3 w-[min(100%-1.5rem,80rem)]">
     <div
         class="flex h-12 items-center justify-between rounded-full border border-neutral-200/80 bg-white/90 px-5 shadow-lg shadow-neutral-900/8 backdrop-blur sm:px-6">
         <a href="/" class="text-lg font-semibold tracking-tight text-neutral-950">Proval</a>
