@@ -34,6 +34,23 @@
             sans-serif;
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
+        cursor: default;
+        user-select: none;
+    }
+
+    a,
+    button,
+    [role="button"],
+    summary,
+    label[for] {
+        cursor: pointer;
+    }
+
+    input,
+    textarea,
+    [contenteditable="true"] {
+        cursor: text;
+        user-select: text;
     }
 
     ::selection {
@@ -51,6 +68,7 @@
         font-size: 1.0625rem;
         line-height: 1.75;
         letter-spacing: -0.01em;
+        user-select: text;
     }
 
     .prose.doc-body {
