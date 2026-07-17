@@ -1,6 +1,8 @@
 import type {
     AccessResponse,
-    Activity,
+    ActivityLogEntry,
+    ActivityLogResponse,
+    ActivityResponse,
     ActivitySummaryResponse,
     DashboardRange,
     GitHubAppResponse,
@@ -162,7 +164,7 @@ export const repositoryList: RepositoryResponse[] = [
 type DemoRepo = {
     id: number;
     path: string;
-    provider: Activity["provider"];
+    provider: ActivityResponse["provider"];
     modelProviderId: number;
     modelName: string;
     weight: number;
@@ -211,7 +213,7 @@ function pickModelName(repo: DemoRepo, rng: () => number): string {
 }
 
 function tokenProfile(
-    type: Activity["type"],
+    type: ActivityResponse["type"],
     rng: () => number,
 ): { inputToken: number; cachedInputToken: number; outputToken: number } {
     // Ranges calibrated from local.db completed activities + operator feel:
@@ -256,7 +258,7 @@ function tokenProfile(
     return { inputToken, cachedInputToken, outputToken };
 }
 
-function pickType(rng: () => number): Activity["type"] {
+function pickType(rng: () => number): ActivityResponse["type"] {
     const roll = rng();
     if (roll < 0.62) return "pr_review";
     if (roll < 0.82) return "pr_reply";
@@ -265,7 +267,7 @@ function pickType(rng: () => number): Activity["type"] {
 }
 
 /** Recent showcase rows for the activity feed (last ~14h). */
-const recentActivityList: Activity[] = [
+const recentActivityList: ActivityResponse[] = [
     {
         id: 1,
         repositoryId: 2,
@@ -488,14 +490,14 @@ const recentActivityList: Activity[] = [
  * Year-to-date history so 30d / year charts look like a real small team
  * (~2–4M tokens/month, weekday-heavy). Starts Jan 1 or 90 days ago, whichever is earlier.
  */
-function buildHistoricalActivities(): Activity[] {
+function buildHistoricalActivities(): ActivityResponse[] {
     const rng = mulberry32(20260710);
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 2);
     const threeMonthsAgo = daysAgo(92);
     const start = yearStart < threeMonthsAgo ? yearStart : threeMonthsAgo;
 
-    const activities: Activity[] = [];
+    const activities: ActivityResponse[] = [];
     let nextId = 100;
     const targetIidByRepo = new Map<number, number>([
         [1, 40],
@@ -569,7 +571,7 @@ function buildHistoricalActivities(): Activity[] {
     return activities;
 }
 
-export const activityList: Activity[] = [...recentActivityList, ...buildHistoricalActivities()];
+export const activityList: ActivityResponse[] = [...recentActivityList, ...buildHistoricalActivities()];
 
 const DASHBOARD_RANGES: DashboardRange[] = ["24h", "7d", "30d", "mtd", "year"];
 
@@ -643,7 +645,7 @@ function buildBucketStarts(since: Date, bucket: "hour" | "day" | "month", now: D
 }
 
 function buildTokenSeries(
-    activities: Activity[],
+    activities: ActivityResponse[],
     since: Date,
     bucket: "hour" | "day" | "month",
     now: Date,
@@ -671,8 +673,8 @@ function buildTokenSeries(
 }
 
 function buildTokenBreakdown(
-    completed: Activity[],
-    keyOf: (activity: Activity) => string,
+    completed: ActivityResponse[],
+    keyOf: (activity: ActivityResponse) => string,
     limit = 5,
 ): TokenBreakdownItem[] {
     const totals = new Map<string, number>();
@@ -838,8 +840,72 @@ export function getAccessById(id: number): AccessResponse | undefined {
     return accessList.find((a) => a.id === id);
 }
 
-export function getActivityById(id: number): Activity | undefined {
+export function getActivityById(id: number): ActivityResponse | undefined {
     return activityList.find((a) => a.id === id);
+}
+
+export function getActivityLogsById(id: number): ActivityLogResponse | undefined {
+    const activity = getActivityById(id);
+    if (!activity) return undefined;
+
+    const base = activity.createdAt.getTime();
+    const sample: ActivityLogEntry[] = [
+        {
+            timestamp: new Date(base).toISOString(),
+            level: "info",
+            step: "lifecycle",
+            message: `started ${activity.type} target=${activity.targetIid}`,
+        },
+        {
+            timestamp: new Date(base + 400).toISOString(),
+            level: "info",
+            step: "context",
+            message: "fetching pull request version",
+        },
+        {
+            timestamp: new Date(base + 1800).toISOString(),
+            level: "info",
+            step: "workspace",
+            message: "ready (head=abc123def456…)",
+        },
+        {
+            timestamp: new Date(base + 3200).toISOString(),
+            level: "info",
+            step: "agent",
+            message: `[PR #${activity.targetIid}] Plan: loop started`,
+        },
+        {
+            timestamp: new Date(base + 5100).toISOString(),
+            level: "info",
+            step: "agent",
+            message: `[PR #${activity.targetIid}] Plan: → get_file_diff({"path":"src/app.ts"})`,
+        },
+    ];
+
+    if (activity.status === "failed") {
+        sample.push({
+            timestamp: new Date(base + 8000).toISOString(),
+            level: "error",
+            step: "lifecycle",
+            message: `failed: ${activity.errorMessage ?? "unknown error"}`,
+        });
+    } else if (activity.status === "completed") {
+        sample.push({
+            timestamp: new Date(base + 12000).toISOString(),
+            level: "info",
+            step: "lifecycle",
+            message: "completed",
+        });
+    } else {
+        sample.push({
+            timestamp: new Date(base + 7000).toISOString(),
+            level: "info",
+            step: "agent",
+            message: `[PR #${activity.targetIid}] Writing: loop started`,
+        });
+    }
+
+    return { status: activity.status, logs: sample };
 }
 
 export function getGitHubInstallationById(id: number): GitHubInstallationResponse | undefined {
@@ -861,7 +927,7 @@ export function getModelListByProviderId(providerId: number): ModelProviderModel
     return modelListByProviderId[providerId] ?? { models: [], source: "unavailable" };
 }
 
-export function paginateActivities(page: number, limit: number): Pagination<Activity> {
+export function paginateActivities(page: number, limit: number): Pagination<ActivityResponse> {
     const sorted = [...activityList].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );

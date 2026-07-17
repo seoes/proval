@@ -17,7 +17,7 @@
     } from "$lib/utils/label";
     import fetchApi, { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
-    import type { Activity, ActivitySummaryResponse, DashboardRange } from "@proval/types";
+    import type { ActivityResponse, ActivitySummaryResponse, DashboardRange } from "@proval/types";
 
     const { data }: PageProps = $props();
 
@@ -145,12 +145,12 @@
     const inProgressList = $derived(activitySummary.inProgress);
     const showInProgressViewAll = $derived(inProgressList.length >= IN_PROGRESS_LIMIT);
 
-    function activityTimeLabel(activity: Activity): string {
+    function activityTimeLabel(activity: ActivityResponse): string {
         return formatTimeAgo(activity.completedAt ?? activity.createdAt);
     }
 </script>
 
-{#snippet activityRow(activity: Activity)}
+{#snippet activityRow(activity: ActivityResponse)}
     {@const status = activityStatusBadge(activity.status)}
     {@const target = activityTargetLabel(activity.type, activity.targetIid)}
     {@const typeLabel = activityTypeLabel(activity.type)}

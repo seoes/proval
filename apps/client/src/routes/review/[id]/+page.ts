@@ -1,10 +1,17 @@
 import fetchApi from "$lib/utils";
-import type { Activity } from "@proval/types";
+import type { ActivityLogResponse, ActivityResponse } from "@proval/types";
 import type { PageLoad } from "./$types";
 
 export const load: PageLoad = async ({ params }) => {
-    const response = await fetchApi(`/activity/${params.id}`);
-    const review: Activity = await response.json();
+    const [reviewResponse, logResponse] = await Promise.all([
+        fetchApi(`/activity/${params.id}`),
+        fetchApi(`/activity/${params.id}/log`),
+    ]);
 
-    return { review };
+    const review: ActivityResponse = await reviewResponse.json();
+    const log: ActivityLogResponse = logResponse.ok
+        ? await logResponse.json()
+        : { status: review.status, logs: [] };
+
+    return { review, log };
 };

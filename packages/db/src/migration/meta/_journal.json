@@ -225,6 +225,13 @@
       "when": 1783493940145,
       "tag": "0031_abnormal_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1784268154686,
+      "tag": "0032_activity_logs",
+      "breakpoints": true
     }
   ]
 }

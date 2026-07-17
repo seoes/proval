@@ -1,0 +1,1 @@
+ALTER TABLE `activity` ADD `logs` text DEFAULT '[]' NOT NULL;

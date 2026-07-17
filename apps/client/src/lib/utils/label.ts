@@ -1,5 +1,5 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-import type { Activity, LlmApiProvider, CommentReplyPolicy, RepositoryProvider } from "@proval/types";
+import type { ActivityResponse, LlmApiProvider, CommentReplyPolicy, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
@@ -31,24 +31,24 @@ export function modelProviderLabel(provider: LlmApiProvider | string): string {
     return modelProviderLabelList[provider as LlmApiProvider] ?? provider;
 }
 
-const activityTypeLabelList: Record<Activity["type"], string> = {
+const activityTypeLabelList: Record<ActivityResponse["type"], string> = {
     pr_review: "PR Review",
     pr_reply: "PR Reply",
     issue_open: "Issue Open",
     issue_reply: "Issue Reply",
 };
 
-export function activityTypeLabel(type: Activity["type"]): string {
+export function activityTypeLabel(type: ActivityResponse["type"]): string {
     return activityTypeLabelList[type] ?? type;
 }
 
-export function activityStatusBadge(status: Activity["status"]): OptionBadge {
+export function activityStatusBadge(status: ActivityResponse["status"]): OptionBadge {
     if (status === "completed") return { variant: "success", label: "Completed" };
     if (status === "failed") return { variant: "danger", label: "Failed" };
     return { variant: "primary", label: "Started" };
 }
 
-export function activityTargetLabel(type: Activity["type"], targetIid: number): string {
+export function activityTargetLabel(type: ActivityResponse["type"], targetIid: number): string {
     if (type === "pr_review" || type === "pr_reply") return `!${targetIid}`;
     return `#${targetIid}`;
 }

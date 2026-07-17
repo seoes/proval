@@ -95,6 +95,13 @@ export const repositoryTable = sqliteTable(
     (table) => [unique().on(table.gitProviderRepositoryId, table.gitProviderAccessId)],
 );
 
+export type ActivityLogEntryJson = {
+    timestamp: string;
+    level: "info" | "warn" | "error" | "debug";
+    step: "lifecycle" | "context" | "workspace" | "agent";
+    message: string;
+};
+
 export const activityTable = sqliteTable(
     "activity",
     {
@@ -111,6 +118,7 @@ export const activityTable = sqliteTable(
         cachedInputToken: integer(),
         outputToken: integer(),
         errorMessage: text(),
+        logs: text({ mode: "json" }).$type<ActivityLogEntryJson[]>().notNull().default([]),
         completedAt: integer({ mode: "timestamp" }),
         ...timeStamp,
     },

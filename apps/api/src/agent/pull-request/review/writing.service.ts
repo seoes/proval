@@ -25,6 +25,7 @@ export async function runReviewWritingAgent(
     reviewResultList: string[],
     isInlineReview: boolean,
     language: string,
+    activityId: number,
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -48,6 +49,7 @@ export async function runReviewWritingAgent(
             isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],
         requiredToolList: [postPullRequestCommentTool(provider, prIid, language)],
+        activityId,
     });
 
     return result.usage;

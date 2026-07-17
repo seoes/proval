@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { GitChangedFile, GitDiff, GitProvider, GitTree } from "./types.js";
+import { activityLog } from "../util/activity-log.js";
 import { debug, log, logError } from "../util/log.js";
 
 export type WorkspaceGrepMatch = {
@@ -13,6 +14,7 @@ export type WorkspaceLoadOpts = {
     headRef: string;
     /** When set, fetch and cache PR diffs for changedFiles / getFileDiff. */
     prIid?: number;
+    activityId?: number;
 };
 
 export function getWorkspaceRoot(): string {
@@ -67,8 +69,12 @@ export class Workspace {
         const id = crypto.randomUUID();
         const rootDir = join(getWorkspaceRoot(), id);
         const archivePath = join(getWorkspaceRoot(), `${id}.tar.gz`);
+        const activityId = opts.activityId;
 
         log(`loading archive → ${rootDir}`, "workspace");
+        if (activityId != null) {
+            activityLog(activityId, "info", "workspace", `loading archive (head=${opts.headRef.slice(0, 12)}…)`);
+        }
         debug(`headRef=${opts.headRef}${opts.prIid != null ? ` prIid=${opts.prIid}` : ""}`, "workspace");
 
         await mkdir(rootDir, { recursive: true });
@@ -88,14 +94,24 @@ export class Workspace {
                 debug(`fetchPullRequestDiffList pr=${opts.prIid}`, "workspace");
                 this.diffs = await this.provider.fetchPullRequestDiffList(opts.prIid);
                 log(`cached ${this.diffs.length} file diffs`, "workspace");
+                if (activityId != null) {
+                    activityLog(activityId, "info", "workspace", `cached ${this.diffs.length} file diffs`);
+                }
             } else {
                 this.diffs = null;
             }
 
             this.loaded = true;
             log(`ready (head=${opts.headRef.slice(0, 12)}…)`, "workspace");
+            if (activityId != null) {
+                activityLog(activityId, "info", "workspace", `ready (head=${opts.headRef.slice(0, 12)}…)`);
+            }
         } catch (error) {
             logError("load failed, removing checkout", error, "workspace");
+            if (activityId != null) {
+                const msg = error instanceof Error ? error.message : String(error);
+                activityLog(activityId, "error", "workspace", `load failed: ${msg}`);
+            }
             await rm(rootDir, { recursive: true, force: true });
             await rm(archivePath, { force: true });
             throw error;

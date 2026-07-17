@@ -13,12 +13,13 @@ type PullRequestReplyParams = {
     prIid: number;
     commentId: number;
     language: string;
+    activityId: number;
 };
 
 export function runPullRequestReply(
     params: PullRequestReplyParams & { inlineReviewId: string | null },
 ): Promise<ActivityTokenUsage> {
-    const { provider, workspace, llmSender, prIid, commentId, language, inlineReviewId } = params;
+    const { provider, workspace, llmSender, prIid, commentId, language, inlineReviewId, activityId } = params;
 
     if (inlineReviewId) {
         return runPullRequestInlineReviewReply({
@@ -29,8 +30,9 @@ export function runPullRequestReply(
             commentId,
             language,
             inlineReviewId,
+            activityId,
         });
     }
 
-    return runPullRequestCommentReply({ provider, workspace, llmSender, prIid, commentId, language });
+    return runPullRequestCommentReply({ provider, workspace, llmSender, prIid, commentId, language, activityId });
 }

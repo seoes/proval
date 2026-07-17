@@ -43,3 +43,21 @@ export const findActivityById: Handler = async (c) => {
     const activity = await activityService.findById(activityId);
     return c.json(activity, 200);
 };
+
+export const findActivityLogById: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        const log = await activityService.findLogsById(activityId);
+        return c.json(log, 200);
+    } catch {
+        return c.json({ error: "Activity not found" }, 404);
+    }
+};

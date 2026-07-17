@@ -1,6 +1,9 @@
 import { activityTable, repositoryTable } from "@proval/db";
 import type {
     Activity,
+    ActivityLogEntry,
+    ActivityLogResponse,
+    ActivityResponse,
     ActivityStats,
     DashboardRange,
     Pagination,
@@ -8,9 +11,14 @@ import type {
     TokenSeriesPoint,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, sql } from "drizzle-orm";
+
+const MAX_ACTIVITY_LOGS = 200;
 
 const FINISHED_STATUSES = ["completed", "failed"] as const;
+
+const { logs: _, ...activityWithoutLogs } = getTableColumns(activityTable);
+
 const REVIEW_TYPES = ["pr_review", "issue_open"] as const;
 const REPLY_TYPES = ["pr_reply", "issue_reply"] as const;
 
@@ -148,14 +156,14 @@ const listOrderBy = [
 ] as const;
 
 export class ActivityService {
-    public async findAll(input: { page: number; limit: number }): Promise<Pagination<Activity>> {
+    public async findAll(input: { page: number; limit: number }): Promise<Pagination<ActivityResponse>> {
         const { page, limit } = input;
         const offset = (page - 1) * limit;
 
         const [{ total }] = await db.select({ total: count() }).from(activityTable);
 
         const itemList = await db
-            .select()
+            .select(activityWithoutLogs)
             .from(activityTable)
             .orderBy(...listOrderBy)
             .limit(limit)
@@ -187,9 +195,9 @@ export class ActivityService {
         return { totalActivity, errors, reviews, replies };
     }
 
-    public async findRecent(since: Date, limit = 5): Promise<Activity[]> {
+    public async findRecent(since: Date, limit = 5): Promise<ActivityResponse[]> {
         return db
-            .select()
+            .select(activityWithoutLogs)
             .from(activityTable)
             .where(finishedSince(since))
             .orderBy(desc(activityTable.completedAt), desc(activityTable.id))
@@ -259,23 +267,58 @@ export class ActivityService {
         return rows.map((row) => ({ label: row.label, tokens: row.tokens ?? 0 }));
     }
 
-    public async findInProgress(limit = 10): Promise<Activity[]> {
+    public async findInProgress(limit = 10): Promise<ActivityResponse[]> {
         return db
-            .select()
+            .select(activityWithoutLogs)
             .from(activityTable)
             .where(eq(activityTable.status, "started"))
             .orderBy(desc(activityTable.createdAt), desc(activityTable.id))
             .limit(limit);
     }
 
-    public async findById(id: number): Promise<Activity> {
-        const rows = await db.select().from(activityTable).where(eq(activityTable.id, id)).limit(1);
+    public async findById(id: number): Promise<ActivityResponse> {
+        const rows = await db.select(activityWithoutLogs).from(activityTable).where(eq(activityTable.id, id)).limit(1);
 
         if (rows.length === 0) {
             throw new Error("Activity not found");
         }
 
         return rows[0];
+    }
+
+    public async findLogsById(id: number): Promise<ActivityLogResponse> {
+        const rows = await db
+            .select({ status: activityTable.status, logs: activityTable.logs })
+            .from(activityTable)
+            .where(eq(activityTable.id, id))
+            .limit(1);
+
+        if (rows.length === 0) {
+            throw new Error("Activity not found");
+        }
+
+        return { status: rows[0].status, logs: rows[0].logs ?? [] };
+    }
+
+    public async appendLog(id: number, entry: ActivityLogEntry): Promise<void> {
+        try {
+            const rows = await db
+                .select({ logs: activityTable.logs })
+                .from(activityTable)
+                .where(eq(activityTable.id, id))
+                .limit(1);
+
+            if (rows.length === 0) {
+                return;
+            }
+
+            const logs = [...(rows[0].logs ?? []), entry];
+            const trimmed = logs.length > MAX_ACTIVITY_LOGS ? logs.slice(logs.length - MAX_ACTIVITY_LOGS) : logs;
+
+            await db.update(activityTable).set({ logs: trimmed }).where(eq(activityTable.id, id));
+        } catch {
+            // Logging must never fail the activity run.
+        }
     }
 
     public async start(input: ActivityStartInput): Promise<number> {

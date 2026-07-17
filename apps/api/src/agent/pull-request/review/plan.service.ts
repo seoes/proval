@@ -15,6 +15,7 @@ export async function runReviewPlanAgent(
     sender: LlmSender,
     pullRequestContextPrompt: string,
     prIid: number,
+    activityId: number,
 ): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
@@ -32,6 +33,7 @@ export async function runReviewPlanAgent(
 
     const result = await runAgentLoop(sender, system, pullRequestContextPrompt, `[PR #${prIid}] Plan`, {
         toolList,
+        activityId,
     });
 
     return {

@@ -20,7 +20,12 @@ import {
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
 import { accessRouter } from "./access/index.js";
-import { findAllActivity, findActivityById, getActivitySummary } from "./activity/activity.controller.js";
+import {
+    findAllActivity,
+    findActivityById,
+    findActivityLogById,
+    getActivitySummary,
+} from "./activity/activity.controller.js";
 
 export const apiRouter = new Hono();
 
@@ -57,4 +62,5 @@ apiRouter.route("/access", accessRouter);
 // Activity routes
 apiRouter.get("/activity/summary", getActivitySummary);
 apiRouter.get("/activity", findAllActivity);
+apiRouter.get("/activity/:id{\\d+}/log", findActivityLogById);
 apiRouter.get("/activity/:id{\\d+}", findActivityById);

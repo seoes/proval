@@ -18,6 +18,7 @@ export async function runReviewSubAgent(
     reviewUnit: ReviewUnit,
     index: number,
     totalIndex: number,
+    activityId: number,
 ): Promise<ActivityTokenUsage & { finalMessage: string }> {
     const system = [REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
     const prompt = [pullRequestContextPrompt, `review unit: ${JSON.stringify(reviewUnit)}`].join("\n\n");
@@ -30,6 +31,7 @@ export async function runReviewSubAgent(
     ];
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Sub ${index}/${totalIndex}`, {
         toolList,
+        activityId,
     });
 
     if (!result.finalMessage) {
