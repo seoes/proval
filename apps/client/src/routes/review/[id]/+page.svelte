@@ -17,9 +17,7 @@
     const status = $derived(activityStatusBadge(review.status));
     const target = $derived(activityTargetLabel(review.type, review.targetIid));
     const typeLabel = $derived(activityTypeLabel(review.type));
-    const durationLabel = $derived(
-        review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null,
-    );
+    const durationLabel = $derived(review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null);
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -57,16 +55,14 @@
         }
     }
 
-    onMount(() => {
-        if (log.status === "started" || review.status === "started") {
-            pollTimer = setInterval(() => {
-                void refreshLog();
-            }, POLL_MS);
-        }
-    });
-
-    onDestroy(() => {
-        if (pollTimer) clearInterval(pollTimer);
+    $effect(() => {
+        review = data.review;
+        log = data.log;
+        if (log.status !== "started" && review.status !== "started") return;
+        const timer = setInterval(() => {
+            void refreshLog();
+        }, POLL_MS);
+        return () => clearInterval(timer);
     });
 </script>
 
@@ -108,7 +104,7 @@
                 {#if durationLabel}
                     <div>
                         <span class="text-neutral-400">Duration</span>
-                        <span class="ml-1.5 font-medium tabular-nums text-neutral-800">{durationLabel}</span>
+                        <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{durationLabel}</span>
                     </div>
                 {/if}
             </div>
@@ -121,16 +117,16 @@
         <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-neutral-100 pt-3 text-sm">
             <div>
                 <span class="text-neutral-500">Input</span>
-                <span class="ml-1.5 font-medium tabular-nums text-neutral-800">{formatToken(review.inputToken)}</span>
+                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{formatToken(review.inputToken)}</span>
             </div>
             <div>
                 <span class="text-neutral-500">Cached</span>
-                <span class="ml-1.5 font-medium tabular-nums text-neutral-800"
+                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
                     >{formatToken(review.cachedInputToken)}</span>
             </div>
             <div>
                 <span class="text-neutral-500">Output</span>
-                <span class="ml-1.5 font-medium tabular-nums text-neutral-800">{formatToken(review.outputToken)}</span>
+                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{formatToken(review.outputToken)}</span>
             </div>
         </div>
     </Card>
