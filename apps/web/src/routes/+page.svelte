@@ -202,7 +202,7 @@
             Self-hosted Code Review Agent <span class="text-primary">on your infrastructure</span>
         </h1>
         <div
-            class="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 tracking-tight text-neutral-600 md:mt-10 md:text-lg md:leading-8">
+            class="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 tracking-tight text-neutral-600 md:mt-16 md:text-lg md:leading-8">
             <p>Use any local model or API you want.</p>
             <p>
                 Supports
@@ -218,7 +218,7 @@
             </p>
         </div>
 
-        <div class="mt-8 flex flex-col items-center gap-4">
+        <div class="mt-12 flex flex-col items-center gap-4">
             <ButtonLink href={DEMO_URL} variant="primary" external class="text-base md:text-lg">
                 Try the demo
             </ButtonLink>
@@ -228,7 +228,7 @@
             </div>
         </div>
 
-        <div class="mx-auto mt-12 w-full md:mt-14">
+        <div class="mx-auto mt-12 w-full md:mt-20">
             <div class="overflow-hidden rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06),0_16px_40px_rgba(0,0,0,0.12)]">
                 <video
                     src="/demo.mp4"
