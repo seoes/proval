@@ -302,20 +302,23 @@ export class ActivityService {
 
     public async appendLog(id: number, entry: ActivityLogEntry): Promise<void> {
         try {
-            const rows = await db
-                .select({ logs: activityTable.logs })
-                .from(activityTable)
-                .where(eq(activityTable.id, id))
-                .limit(1);
-
-            if (rows.length === 0) {
-                return;
-            }
-
-            const logs = [...(rows[0].logs ?? []), entry];
-            const trimmed = logs.length > MAX_ACTIVITY_LOGS ? logs.slice(logs.length - MAX_ACTIVITY_LOGS) : logs;
-
-            await db.update(activityTable).set({ logs: trimmed }).where(eq(activityTable.id, id));
+            // Atomic append in one UPDATE to avoid lost updates under concurrent tool logs.
+            const entryJson = JSON.stringify(entry);
+            await db
+                .update(activityTable)
+                .set({
+                    logs: sql`CASE
+                        WHEN json_array_length(${activityTable.logs}) >= ${MAX_ACTIVITY_LOGS} THEN
+                            json_insert(
+                                json_remove(${activityTable.logs}, '$[0]'),
+                                '$[#]',
+                                json(${entryJson})
+                            )
+                        ELSE
+                            json_insert(${activityTable.logs}, '$[#]', json(${entryJson}))
+                    END`,
+                })
+                .where(eq(activityTable.id, id));
         } catch {
             // Logging must never fail the activity run.
         }
