@@ -38,7 +38,7 @@ FROM cgr.dev/chainguard/wolfi-base:latest
 
 WORKDIR /app
 
-RUN apk add --no-cache wget tar ripgrep ca-certificates
+RUN apk add --no-cache wget ripgrep ca-certificates
 
 COPY --from=builder /build/server ./server
 COPY --from=builder /build/packages/db/src/migration ./migration
