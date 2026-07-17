@@ -276,17 +276,17 @@ export class ActivityService {
             .limit(limit);
     }
 
-    public async findById(id: number): Promise<ActivityResponse> {
+    public async findById(id: number): Promise<ActivityResponse | null> {
         const rows = await db.select(activityWithoutLogs).from(activityTable).where(eq(activityTable.id, id)).limit(1);
 
         if (rows.length === 0) {
-            throw new Error("Activity not found");
+            return null;
         }
 
         return rows[0];
     }
 
-    public async findLogsById(id: number): Promise<ActivityLogResponse> {
+    public async findLogListById(id: number): Promise<ActivityLogResponse | null> {
         const rows = await db
             .select({ status: activityTable.status, logs: activityTable.logs })
             .from(activityTable)
@@ -294,7 +294,7 @@ export class ActivityService {
             .limit(1);
 
         if (rows.length === 0) {
-            throw new Error("Activity not found");
+            return null;
         }
 
         return { status: rows[0].status, logs: rows[0].logs ?? [] };
