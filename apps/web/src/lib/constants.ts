@@ -2,6 +2,12 @@ export const GITHUB_URL = "https://github.com/seoes/proval";
 
 export const DEMO_URL = "https://demo.proval.app";
 
+export const SITE_URL = "https://proval.app";
+
+export const SITE_NAME = "Proval";
+
+export const DEFAULT_OG_IMAGE_PATH = "/og.png";
+
 export const SITE_DESCRIPTION =
     "Self-hosted, privacy-first AI code review for GitLab, Forgejo, and GitHub. Bring your own LLM.";
 

@@ -5,9 +5,13 @@
 
     const links = [
         { href: "/docs", label: "Docs" },
-        { href: "/blog", label: "Blog" },
         { href: DEMO_URL, label: "Demo", external: true },
     ];
+
+    function isActive(pathname: string, href: string, external?: boolean): boolean {
+        if (external) return false;
+        return pathname === href || pathname.startsWith(`${href}/`);
+    }
 </script>
 
 <header class="sticky top-3 z-20 mx-auto mt-3 w-[min(100%-1.5rem,80rem)]">
@@ -20,7 +24,7 @@
                     href={link.href}
                     target={link.external ? "_blank" : undefined}
                     rel={link.external ? "noopener noreferrer" : undefined}
-                    class={$page.url.pathname.startsWith(link.href)
+                    class={isActive($page.url.pathname, link.href, link.external)
                         ? "font-medium text-primary"
                         : "text-neutral-600 hover:text-neutral-900"}>
                     {link.label}

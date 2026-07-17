@@ -11,7 +11,9 @@
     import GitLab from "../lib/icons/GitLab.svelte";
     import OpenRouter from "../lib/icons/OpenRouter.svelte";
     import Proval from "../lib/icons/Proval.svelte";
-    import { GITHUB_URL, SITE_DESCRIPTION, DEMO_URL } from "../lib/constants";
+    import SeoHead from "../lib/components/SeoHead.svelte";
+    import { BENEFITS, GITHUB_URL, SITE_DESCRIPTION, DEMO_URL } from "../lib/constants";
+    import { faqPageLd, organizationLd, softwareApplicationLd } from "../lib/seo";
 
     type StageKind = "context" | "policy" | "plan" | "parallel" | "output";
 
@@ -121,37 +123,55 @@
             label: "Dashboard",
             frame: "proval.local",
             caption: "Every review run, model, and connected repository in one place.",
+            alt: "Proval dashboard showing review runs, models, and connected repositories",
         },
         {
             id: "setup",
             label: "Setup",
             frame: "proval.local/settings",
             caption: "Connect a model and a repository with a simple form.",
+            alt: "Proval settings form for connecting a model and a repository",
         },
         {
             id: "comment",
             label: "Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
             caption: "Proval posts a summary to the merge request.",
+            alt: "Proval review summary posted on a GitLab merge request",
         },
         {
             id: "inline-review",
             label: "Inline Review",
             frame: "gitlab.com/acme/api-server/-/merge_requests/42",
             caption: "Proval posts a inline comments straight to the merge request.",
+            alt: "Proval inline review comments on a merge request diff",
         },
     ] as const;
 
     const faqs = [
         {
             question: "Is Proval a replacement for Cursor, Copilot, or Claude?",
-            answer: "No Those tools are strong agents on IDE(or Cli) for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model API you want.",
+            answer: "No. Those tools are strong agents in IDEs or CLIs for individual developers. Proval is a team review layer on your Git host. Reviews and replies appear on pull requests and issues, and you can choose any model API you want.",
         },
         {
             question: "Does code leave our infrastructure?",
             answer: "Proval does not store your code. It only sends review context to the LLM endpoint you configure. Use a local model if you need to keep everything on your network.",
         },
+        {
+            question: "Does Proval support self-hosted GitLab?",
+            answer: "Yes. Connect self-hosted GitLab with an access token and project webhooks. Proval reviews merge requests when those webhooks fire.",
+        },
+        {
+            question: "Can I use a local model like Ollama or llama.cpp?",
+            answer: "Yes. Point Proval at any OpenAI-compatible endpoint, including local or on-prem servers such as llama.cpp. See the Set LLM and llama.cpp docs for setup details.",
+        },
+        {
+            question: "Is there a hosted SaaS?",
+            answer: "Proval is built to run self-hosted on your infrastructure. A public demo is available for trying the product without installing it first.",
+        },
     ] as const;
+
+    const homeJsonLd = [organizationLd(), softwareApplicationLd(), faqPageLd(faqs)];
 
     const dockerCompose = `services:
     proval:
@@ -189,10 +209,11 @@
     }
 </script>
 
-<svelte:head>
-    <title>Proval - Self-hosted AI code review infrastructure</title>
-    <meta name="description" content={SITE_DESCRIPTION} />
-</svelte:head>
+<SeoHead
+    title="Proval - Self-hosted AI code review infrastructure"
+    description={SITE_DESCRIPTION}
+    path="/"
+    jsonLd={homeJsonLd} />
 
 <section class="overflow-hidden">
     <Container wide class="pt-20 pb-20 text-center md:pt-24 md:pb-28">
@@ -242,6 +263,9 @@
                     aria-label="Proval product demo: reviewing a merge request end to end">
                 </video>
             </div>
+            <p class="mx-auto mt-4 max-w-2xl text-sm leading-6 text-neutral-500 md:text-base">
+                A short walkthrough of Proval reviewing a merge request end to end on your Git host.
+            </p>
         </div>
     </Container>
 </section>
@@ -256,7 +280,7 @@
             </h2>
             <p
                 class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
-                Browse the dashboard and review output.
+                Browse the self-hosted dashboard and merge request review output.
             </p>
         </div>
 
@@ -273,7 +297,7 @@
                         {#key currentShot.id}
                             <img
                                 src={`/${currentShot.id}.png`}
-                                alt={currentShot.label}
+                                alt={currentShot.alt}
                                 class="absolute inset-0 h-full w-full object-cover"
                                 in:fade={{ duration: 200 }} />
                         {/key}
@@ -304,6 +328,24 @@
 
 <section class="py-20 md:py-28">
     <Container wide>
+        <Eyebrow>Why Proval</Eyebrow>
+        <h2
+            class="mt-3 max-w-3xl bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
+            Built for teams that want control.
+        </h2>
+        <ul class="mt-12 grid gap-6 sm:grid-cols-2">
+            {#each BENEFITS as benefit (benefit.title)}
+                <li class="rounded-2xl border border-neutral-200/80 bg-neutral-50/60 px-6 py-6">
+                    <h3 class="text-lg font-semibold tracking-tight text-neutral-950">{benefit.title}</h3>
+                    <p class="mt-2 text-sm leading-6 text-neutral-600">{benefit.body}</p>
+                </li>
+            {/each}
+        </ul>
+    </Container>
+</section>
+
+<section class="py-20 md:py-28">
+    <Container wide>
         <Eyebrow>Integration</Eyebrow>
         <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
             <h2
@@ -325,38 +367,47 @@
                     <div
                         class="flex flex-1 flex-col rounded-xl border border-neutral-200 bg-white p-4 shadow-sm xl:min-h-0">
                         <ul class="space-y-2">
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-white">
-                                    <GitHub class="size-4" />
-                                </span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-medium text-neutral-900">GitHub</p>
-                                    <p class="text-[11px] text-neutral-500">GitHub App</p>
-                                </div>
+                            <li>
+                                <a
+                                    href="/docs/github"
+                                    class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5 transition-colors hover:border-neutral-200 hover:bg-neutral-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-white">
+                                        <GitHub class="size-4" />
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-neutral-900">GitHub</p>
+                                        <p class="text-[11px] text-neutral-500">GitHub App</p>
+                                    </div>
+                                </a>
                             </li>
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#FC6D26] text-white">
-                                    <GitLab class="size-4" />
-                                </span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-medium text-neutral-900">GitLab</p>
-                                    <p class="text-[11px] text-neutral-500">Access Token</p>
-                                </div>
+                            <li>
+                                <a
+                                    href="/docs/gitlab"
+                                    class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5 transition-colors hover:border-neutral-200 hover:bg-neutral-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#FC6D26] text-white">
+                                        <GitLab class="size-4" />
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-neutral-900">GitLab</p>
+                                        <p class="text-[11px] text-neutral-500">Access Token</p>
+                                    </div>
+                                </a>
                             </li>
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-orange-700 text-white">
-                                    <Forgejo class="size-4" />
-                                </span>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-medium text-neutral-900">Forgejo</p>
-                                    <p class="text-[11px] text-neutral-500">Access Token</p>
-                                </div>
+                            <li>
+                                <a
+                                    href="/docs/forgejo"
+                                    class="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50/80 px-3 py-2.5 transition-colors hover:border-neutral-200 hover:bg-neutral-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-orange-700 text-white">
+                                        <Forgejo class="size-4" />
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-neutral-900">Forgejo</p>
+                                        <p class="text-[11px] text-neutral-500">Access Token</p>
+                                    </div>
+                                </a>
                             </li>
                         </ul>
                     </div>
@@ -507,35 +558,47 @@
                     <div
                         class="flex flex-1 flex-col rounded-xl border border-violet-200/80 bg-white p-4 shadow-sm ring-1 ring-violet-100 xl:min-h-0">
                         <ul class="space-y-2">
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white">
-                                    <OpenRouter class="size-4" />
-                                </span>
-                                <span class="text-sm font-medium text-neutral-900">OpenRouter</span>
+                            <li>
+                                <a
+                                    href="/docs/openrouter"
+                                    class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white">
+                                        <OpenRouter class="size-4" />
+                                    </span>
+                                    <span class="text-sm font-medium text-neutral-900">OpenRouter</span>
+                                </a>
                             </li>
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#CC785C] text-white">
-                                    <Anthropic class="size-4" />
-                                </span>
-                                <span class="text-sm font-medium text-neutral-900">Anthropic</span>
+                            <li>
+                                <a
+                                    href="/docs/set-llm"
+                                    class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-[#CC785C] text-white">
+                                        <Anthropic class="size-4" />
+                                    </span>
+                                    <span class="text-sm font-medium text-neutral-900">Anthropic</span>
+                                </a>
                             </li>
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-violet-600 font-mono text-[11px] font-bold text-white"
-                                    >Lc</span>
-                                <span class="text-sm font-medium text-neutral-900">Llama.cpp</span>
+                            <li>
+                                <a
+                                    href="/docs/llama-cpp"
+                                    class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-violet-600 font-mono text-[11px] font-bold text-white"
+                                        >Lc</span>
+                                    <span class="text-sm font-medium text-neutral-900">Llama.cpp</span>
+                                </a>
                             </li>
-                            <li
-                                class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5">
-                                <span
-                                    class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 font-mono text-[11px] font-bold text-white"
-                                    >OA</span>
-                                <span class="text-sm font-medium text-neutral-900">OpenAI-compatible</span>
+                            <li>
+                                <a
+                                    href="/docs/set-llm"
+                                    class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 font-mono text-[11px] font-bold text-white"
+                                        >OA</span>
+                                    <span class="text-sm font-medium text-neutral-900">OpenAI-compatible</span>
+                                </a>
                             </li>
                         </ul>
                     </div>
@@ -776,10 +839,11 @@ Repository      -> review and reply policy</code></pre>
     </Container>
 </section>
 
-<section class="py-20 md:py-28">
+<section class="py-20 md:py-28" aria-labelledby="faq-heading">
     <Container>
         <Eyebrow>FAQ</Eyebrow>
         <h2
+            id="faq-heading"
             class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
             A few practical answers.
         </h2>

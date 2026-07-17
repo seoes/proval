@@ -2,18 +2,27 @@
     import Container from "../../lib/components/Container.svelte";
     import DocProse from "../../lib/components/DocProse.svelte";
     import Eyebrow from "../../lib/components/Eyebrow.svelte";
+    import SeoHead from "../../lib/components/SeoHead.svelte";
     import { groupDocNav } from "../../lib/content/doc-nav";
+    import { breadcrumbLd } from "../../lib/seo";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
 
     const nav = $derived(groupDocNav(data.docs));
+    const description = $derived(
+        data.index?.description ?? "Install and run Proval on your own infrastructure.",
+    );
 </script>
 
-<svelte:head>
-    <title>Docs | Proval</title>
-    <meta name="description" content="Install and run Proval on your own infrastructure." />
-</svelte:head>
+<SeoHead
+    title="Docs | Proval"
+    {description}
+    path="/docs"
+    jsonLd={breadcrumbLd([
+        { name: "Home", path: "/" },
+        { name: "Docs", path: "/docs" },
+    ])} />
 
 <Container class="py-12 md:py-16">
     <header class="max-w-2xl border-b border-neutral-200 pb-8">
@@ -26,7 +35,8 @@
 
     {#if nav.quickStartDocs.length > 0}
         <section class="mt-10">
-            <ul class="grid gap-3 sm:grid-cols-2">
+            <h2 class="text-sm font-semibold tracking-wide text-neutral-950 uppercase">Quick start</h2>
+            <ul class="mt-4 grid gap-3 sm:grid-cols-2">
                 {#each nav.quickStartDocs as doc (doc.slug)}
                     <li>
                         <a

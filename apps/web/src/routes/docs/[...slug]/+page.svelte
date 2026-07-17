@@ -1,7 +1,9 @@
 <script lang="ts">
     import Container from "../../../lib/components/Container.svelte";
     import DocProse from "../../../lib/components/DocProse.svelte";
+    import SeoHead from "../../../lib/components/SeoHead.svelte";
     import { groupDocNav } from "../../../lib/content/doc-nav";
+    import { breadcrumbLd } from "../../../lib/seo";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
@@ -9,10 +11,15 @@
     const nav = $derived(groupDocNav(data.docTree));
 </script>
 
-<svelte:head>
-    <title>{data.doc.title} | Proval Docs</title>
-    <meta name="description" content={data.doc.description} />
-</svelte:head>
+<SeoHead
+    title="{data.doc.title} | Proval Docs"
+    description={data.doc.description}
+    path="/docs/{data.doc.slug}"
+    jsonLd={breadcrumbLd([
+        { name: "Home", path: "/" },
+        { name: "Docs", path: "/docs" },
+        { name: data.doc.title, path: `/docs/${data.doc.slug}` },
+    ])} />
 
 <Container wide class="py-12 md:py-16">
     <div class="grid gap-12 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16 xl:grid-cols-[240px_minmax(0,1fr)]">

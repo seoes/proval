@@ -1,15 +1,13 @@
 <script lang="ts">
     import Container from "../../lib/components/Container.svelte";
     import Eyebrow from "../../lib/components/Eyebrow.svelte";
+    import SeoHead from "../../lib/components/SeoHead.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
 </script>
 
-<svelte:head>
-    <title>Blog | Proval</title>
-    <meta name="description" content="Updates and notes from the Proval project." />
-</svelte:head>
+<SeoHead title="Blog | Proval" description="Updates and notes from the Proval project." path="/blog" />
 
 <Container class="py-16 md:py-24">
     <Eyebrow>Blog</Eyebrow>
@@ -25,7 +23,9 @@
                 <a
                     href="/blog/{post.slug}"
                     class="group block rounded-2xl border border-neutral-200 bg-white p-6 transition-colors hover:border-neutral-300 hover:bg-neutral-50">
-                    <p class="text-sm text-neutral-500">{post.date}</p>
+                    <p class="text-sm text-neutral-500">
+                        <time datetime={post.date}>{post.date}</time>
+                    </p>
                     <h2 class="mt-2 text-xl font-semibold tracking-tight text-neutral-950 group-hover:underline">
                         {post.title}
                     </h2>
