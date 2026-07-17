@@ -1,4 +1,4 @@
-import type { Activity } from "./database.js";
+import type { ActivityResponse } from "./activity-log.js";
 
 export type DashboardRange = "24h" | "7d" | "30d" | "mtd" | "year";
 
@@ -25,9 +25,9 @@ export type TokenBreakdownItem = {
 export type ActivitySummaryResponse = {
     range: DashboardRange;
     stats: ActivityStats;
-    recent: Activity[];
+    recent: ActivityResponse[];
     tokenSeries: TokenSeriesPoint[];
     tokensByModel: TokenBreakdownItem[];
     tokensByRepository: TokenBreakdownItem[];
-    inProgress: Activity[];
+    inProgress: ActivityResponse[];
 };

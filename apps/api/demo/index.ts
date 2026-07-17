@@ -165,6 +165,7 @@ async function main() {
             prIid: 1,
             isInlineReview: false,
             language,
+            activityId: 0,
         });
     } else {
         await runPullRequestReply({
@@ -175,6 +176,7 @@ async function main() {
             commentId: entry.data.commentList?.[0]?.id ?? 1,
             inlineReviewId: null,
             language,
+            activityId: 0,
         });
     }
 

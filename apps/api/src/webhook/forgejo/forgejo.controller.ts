@@ -225,7 +225,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
             type: "pr_review",
             targetIid: prNumber,
         },
-        () =>
+        (activityId) =>
             runPullRequestReview({
                 provider: forgejoProvider,
                 workspace,
@@ -233,6 +233,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
                 prIid: prNumber,
                 isInlineReview,
                 language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);
@@ -320,8 +321,8 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
                 type: "pr_reply",
                 targetIid: prNumber,
             },
-            () =>
-                runPullRequestReply({
+            (activityId) =>
+            runPullRequestReply({
                     provider: forgejoProvider,
                     workspace,
                     llmSender,
@@ -329,7 +330,8 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
                     commentId: payload.comment.id,
                     inlineReviewId: null,
                     language: repository.language,
-                }),
+                    activityId,
+            }),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -390,15 +392,16 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
                 type: "issue_reply",
                 targetIid: issueNumber,
             },
-            () =>
-                runIssueReply({
+            (activityId) =>
+            runIssueReply({
                     provider: forgejoProvider,
                     workspace,
                     llmSender,
                     issueIid: issueNumber,
                     commentId,
                     language: repository.language,
-                }),
+                    activityId,
+            }),
         ).catch((error) => {
             logError("Issue reply failed", error);
         });
@@ -458,13 +461,14 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () =>
+        (activityId) =>
             runIssueReplyOnOpen({
                 provider: forgejoProvider,
                 workspace,
                 llmSender,
                 issueIid: issueNumber,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Issue comment failed", error);
@@ -601,7 +605,7 @@ const handleForgejoInlineReviewReplyWebhook = async (
             type: "pr_reply",
             targetIid: prNumber,
         },
-        () =>
+        (activityId) =>
             runPullRequestReply({
                 provider: forgejoProvider,
                 workspace,
@@ -610,6 +614,7 @@ const handleForgejoInlineReviewReplyWebhook = async (
                 commentId,
                 inlineReviewId,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request inline review reply failed", error);

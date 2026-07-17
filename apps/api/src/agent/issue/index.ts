@@ -12,6 +12,7 @@ type IssueReplyOnOpenParams = {
     llmSender: LlmSender;
     issueIid: number;
     language: string;
+    activityId: number;
 };
 
 type IssueReplyParams = {
@@ -21,6 +22,7 @@ type IssueReplyParams = {
     issueIid: number;
     commentId: number;
     language: string;
+    activityId: number;
 };
 
 export type IssueReplyOnOpen = (params: IssueReplyOnOpenParams) => Promise<ActivityTokenUsage>;

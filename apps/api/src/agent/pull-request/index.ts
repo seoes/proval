@@ -10,6 +10,7 @@ type PullRequestReviewParams = {
     prIid: number;
     isInlineReview: boolean;
     language: string;
+    activityId: number;
 };
 
 type PullRequestReplyParams = {
@@ -19,6 +20,7 @@ type PullRequestReplyParams = {
     prIid: number;
     commentId: number;
     language: string;
+    activityId: number;
 };
 
 export type PullRequestReview = (params: PullRequestReviewParams) => Promise<ActivityTokenUsage>;

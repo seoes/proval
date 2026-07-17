@@ -149,7 +149,7 @@ async function handlePullRequestWebhook(
             type: "pr_review",
             targetIid: prNumber,
         },
-        () =>
+        (activityId) =>
             runPullRequestReview({
                 provider: gitHubProvider,
                 workspace,
@@ -157,6 +157,7 @@ async function handlePullRequestWebhook(
                 prIid: prNumber,
                 isInlineReview,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);
@@ -213,13 +214,14 @@ async function handleIssueWebhook(
             type: "issue_open",
             targetIid: issueNumber,
         },
-        () =>
+        (activityId) =>
             runIssueReplyOnOpen({
                 provider: gitHubProvider,
                 workspace,
                 llmSender,
                 issueIid: issueNumber,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Issue comment failed", error);
@@ -292,8 +294,8 @@ async function handleIssueCommentWebhook(
                 type: "pr_reply",
                 targetIid: issueNumber,
             },
-            () =>
-                runPullRequestReply({
+            (activityId) =>
+            runPullRequestReply({
                     provider: gitHubProvider,
                     workspace,
                     llmSender,
@@ -301,7 +303,8 @@ async function handleIssueCommentWebhook(
                     commentId,
                     inlineReviewId: null,
                     language: repository.language,
-                }),
+                    activityId,
+            }),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -341,7 +344,7 @@ async function handleIssueCommentWebhook(
             type: "issue_reply",
             targetIid: issueNumber,
         },
-        () =>
+        (activityId) =>
             runIssueReply({
                 provider: gitHubProvider,
                 workspace,
@@ -349,6 +352,7 @@ async function handleIssueCommentWebhook(
                 issueIid: issueNumber,
                 commentId,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Issue reply failed", error);
@@ -412,7 +416,7 @@ async function handlePullRequestReviewCommentWebhook(
             type: "pr_reply",
             targetIid: prNumber,
         },
-        () =>
+        (activityId) =>
             runPullRequestReply({
                 provider: gitHubProvider,
                 workspace,
@@ -421,6 +425,7 @@ async function handlePullRequestReviewCommentWebhook(
                 commentId: comment.id,
                 inlineReviewId,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request inline review reply failed", error);

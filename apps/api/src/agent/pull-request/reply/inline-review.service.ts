@@ -1,4 +1,5 @@
 import type { PullRequestInlineReviewReply } from "../index.js";
+import { activityLog } from "../../../util/activity-log.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
@@ -24,11 +25,14 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
     inlineReviewId,
     commentId,
     language,
+    activityId,
 }) => {
     try {
+        activityLog(activityId, "info", "context", `fetching inline review comment ${commentId} on !${prIid}`);
         const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
         const { headSha } = await provider.fetchPullRequestVersion(prIid);
-        await workspace.load({ headRef: headSha, prIid });
+        activityLog(activityId, "info", "context", `version ready head=${headSha.slice(0, 12)}…`);
+        await workspace.load({ headRef: headSha, prIid, activityId });
 
         const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
             "\n",
@@ -57,6 +61,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
             toolList,
             requiredToolList,
+            activityId,
         });
 
         await postDevDebugPullRequestComment(provider, prIid, {

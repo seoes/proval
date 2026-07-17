@@ -1,3 +1,4 @@
+import { activityLog } from "../../../util/activity-log.js";
 import { debug } from "../../../util/log";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
@@ -21,11 +22,14 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     prIid,
     commentId,
     language,
+    activityId,
 }) => {
     try {
+        activityLog(activityId, "info", "context", `fetching PR comment ${commentId} on !${prIid}`);
         const comment = await provider.fetchPullRequestComment(prIid, commentId);
         const { headSha } = await provider.fetchPullRequestVersion(prIid);
-        await workspace.load({ headRef: headSha, prIid });
+        activityLog(activityId, "info", "context", `version ready head=${headSha.slice(0, 12)}…`);
+        await workspace.load({ headRef: headSha, prIid, activityId });
 
         const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Reply to the new conversation comment on PR #${prIid}. (commentId: ${commentId})`;
@@ -49,6 +53,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Reply`, {
             toolList,
             requiredToolList,
+            activityId,
         });
 
         await postDevDebugPullRequestComment(provider, prIid, {

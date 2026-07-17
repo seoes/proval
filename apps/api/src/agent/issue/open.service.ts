@@ -1,3 +1,4 @@
+import { activityLog } from "../../util/activity-log.js";
 import { debug } from "../../util/log";
 import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
@@ -20,10 +21,12 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     llmSender,
     issueIid,
     language,
+    activityId,
 }) => {
     try {
+        activityLog(activityId, "info", "context", `fetching repository detail for issue #${issueIid}`);
         const repository = await provider.fetchRepositoryDetail();
-        await workspace.load({ headRef: repository.defaultBranch });
+        await workspace.load({ headRef: repository.defaultBranch, activityId });
 
         const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;
@@ -46,6 +49,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
         const result = await runAgentLoop(llmSender, system, prompt, `[Issue #${issueIid}] Open`, {
             toolList,
             requiredToolList,
+            activityId,
         });
 
         await postDevDebugIssueComment(provider, issueIid, {

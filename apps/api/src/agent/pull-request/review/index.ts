@@ -4,16 +4,21 @@ import { generatePullRequestPrompt } from "../prompt/context.js";
 import { runReviewPlanAgent } from "./plan.service.js";
 import { runReviewSubAgent } from "./sub.service.js";
 import { runReviewWritingAgent } from "./writing.service.js";
+import { activityLog } from "../../../util/activity-log.js";
 
 export const runPullRequestReview: PullRequestReview = async (params) => {
-    const { provider, workspace, llmSender, prIid, isInlineReview, language } = params;
+    const { provider, workspace, llmSender, prIid, isInlineReview, language, activityId } = params;
     try {
+        activityLog(activityId, "info", "context", `fetching pull request version for !${prIid}`);
         const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
-        await workspace.load({ headRef: headSha, prIid });
+        activityLog(activityId, "info", "context", `version ready head=${headSha.slice(0, 12)}…`);
 
+        await workspace.load({ headRef: headSha, prIid, activityId });
+
+        activityLog(activityId, "info", "context", "building pull request prompt");
         const prompt = await generatePullRequestPrompt(workspace, prIid, headSha);
 
-        const planResult = await runReviewPlanAgent(provider, workspace, llmSender, prompt, prIid);
+        const planResult = await runReviewPlanAgent(provider, workspace, llmSender, prompt, prIid, activityId);
 
         const subAgentResultList = await Promise.all(
             planResult.reviewUnitList.map((reviewUnit, index) =>
@@ -26,6 +31,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                     reviewUnit,
                     index + 1,
                     planResult.reviewUnitList.length,
+                    activityId,
                 ),
             ),
         );
@@ -42,6 +48,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             subAgentResultList.map((result) => result.finalMessage),
             isInlineReview,
             language,
+            activityId,
         );
 
         const usage = {

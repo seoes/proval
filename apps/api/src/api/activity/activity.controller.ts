@@ -40,6 +40,34 @@ export const findActivityById: Handler = async (c) => {
         return c.json({ error: "Invalid activity ID" }, 400);
     }
     const activityService = new ActivityService();
-    const activity = await activityService.findById(activityId);
-    return c.json(activity, 200);
+    try {
+        const activity = await activityService.findById(activityId);
+        if (activity === null) {
+            return c.json({ error: "Activity not found" }, 404);
+        }
+        return c.json(activity, 200);
+    } catch {
+        return c.json({ error: "Failed to load activity" }, 500);
+    }
+};
+
+export const findActivityLogById: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        const logList = await activityService.findLogListById(activityId);
+        if (logList === null) {
+            return c.json({ error: "Activity not found" }, 404);
+        }
+        return c.json(logList, 200);
+    } catch {
+        return c.json({ error: "Failed to load activity logs" }, 500);
+    }
 };

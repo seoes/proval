@@ -1,5 +1,5 @@
 import fetchApi from "$lib/utils";
-import type { Activity, Pagination } from "@proval/types";
+import type { ActivityResponse, Pagination } from "@proval/types";
 import type { PageLoad } from "./$types";
 
 const REVIEW_LIST_LIMIT = 10;
@@ -13,7 +13,7 @@ function parsePage(value: string | null): number {
 export const load: PageLoad = async ({ url }) => {
     const page = parsePage(url.searchParams.get("page"));
     const response = await fetchApi(`/activity?page=${page}&limit=${REVIEW_LIST_LIMIT}`);
-    const result: Pagination<Activity> = await response.json();
+    const result: Pagination<ActivityResponse> = await response.json();
 
     return {
         reviewList: result.itemList,

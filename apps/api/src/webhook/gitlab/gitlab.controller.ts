@@ -134,7 +134,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
             type: "pr_review",
             targetIid: pullRequest.iid,
         },
-        () =>
+        (activityId) =>
             runPullRequestReview({
                 provider: gitlabProvider,
                 workspace,
@@ -142,6 +142,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
                 prIid: pullRequest.iid,
                 isInlineReview,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);
@@ -230,7 +231,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
             type: "pr_reply",
             targetIid: prIid,
         },
-        () =>
+        (activityId) =>
             runPullRequestReply({
                 provider: gitlabProvider,
                 workspace,
@@ -239,6 +240,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
                 commentId,
                 inlineReviewId: isInlineReviewComment ? inlineReviewId : null,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Pull request reply failed", error);
@@ -298,13 +300,14 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
             type: "issue_open",
             targetIid: issueIid,
         },
-        () =>
+        (activityId) =>
             runIssueReplyOnOpen({
                 provider: gitlabProvider,
                 workspace,
                 llmSender,
                 issueIid,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Issue comment failed", error);
@@ -394,7 +397,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
             type: "issue_reply",
             targetIid: issueIid,
         },
-        () =>
+        (activityId) =>
             runIssueReply({
                 provider: gitlabProvider,
                 workspace,
@@ -402,6 +405,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
                 issueIid,
                 commentId,
                 language: repository.language,
+                activityId,
             }),
     ).catch((error) => {
         logError("Issue reply failed", error);

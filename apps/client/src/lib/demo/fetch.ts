@@ -4,6 +4,7 @@ import {
     getAccessById,
     getAccessRepositoryList,
     getActivityById,
+    getActivityLogsById,
     getGitHubInstallationById,
     getGitHubRepositoryList,
     getModelListByProviderId,
@@ -116,6 +117,12 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
         const page = parsePositiveInt(searchParams.get("page"), 1);
         const limit = parsePositiveInt(searchParams.get("limit"), 10);
         return jsonResponse(paginateActivities(page, limit));
+    }
+
+    const activityLogMatch = pathname.match(/^\/activity\/(\d+)\/log$/);
+    if (activityLogMatch) {
+        const log = getActivityLogsById(Number(activityLogMatch[1]));
+        return log ? jsonResponse(log) : notFoundResponse();
     }
 
     const activityMatch = pathname.match(/^\/activity\/(\d+)$/);
