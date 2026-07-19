@@ -56,9 +56,20 @@
     }
 
     $effect(() => {
-        review = data.review;
-        log = data.log;
-        if (log.status !== "started" && review.status !== "started") return;
+        const nextReview = data.review;
+        const nextLog = data.log;
+        untrack(() => {
+            review = nextReview;
+            log = nextLog;
+        });
+    });
+
+    $effect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const id = data.review.id;
+        const shouldPoll = log.status !== "started" && review.status !== "started";
+        if (!shouldPoll) return;
+
         const timer = setInterval(() => {
             void refreshLog();
         }, POLL_MS);
