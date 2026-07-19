@@ -71,7 +71,7 @@ export interface GitDiffBase {
 }
 
 export interface GitDiffSingleLine extends GitDiffBase {
-    /** Line on the new file side (added/changed lines). GitLab expects a number. */
+    /** Line on the new file side (added/changed lines). */
     newLine?: number;
     /** Line on the old file side (deletions / old side of diff). */
     oldLine?: number;

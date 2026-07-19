@@ -90,6 +90,9 @@ export function createSingleLineCommentTool(
 
             const newLines = new Set<number>();
             const oldLines = new Set<number>();
+            // Context lines need both sides for GitLab. Map new↔old when we see a " " hunk line.
+            const contextOldByNew = new Map<number, number>();
+            const contextNewByOld = new Map<number, number>();
             let oldLineNum = 0;
             let newLineNum = 0;
             let inHunk = false;
@@ -113,6 +116,8 @@ export function createSingleLineCommentTool(
                 if (line.startsWith(" ")) {
                     newLines.add(newLineNum);
                     oldLines.add(oldLineNum);
+                    contextOldByNew.set(newLineNum, oldLineNum);
+                    contextNewByOld.set(oldLineNum, newLineNum);
                     oldLineNum += 1;
                     newLineNum += 1;
                 } else if (line.startsWith("+")) {
@@ -137,14 +142,15 @@ export function createSingleLineCommentTool(
 
             const body = formatReviewFindingCommentBody(finding);
 
+            // GitLab needs both sides on context lines. Fill the missing side from the hunk map.
             const comment = await provider.createCommentToSingleLine(prIid, body, {
                 baseSha,
                 headSha,
                 startSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
-                newLine: position.newLine,
-                oldLine: position.oldLine,
+                newLine: newLine ?? (oldLine !== undefined ? contextNewByOld.get(oldLine) : undefined),
+                oldLine: oldLine ?? (newLine !== undefined ? contextOldByNew.get(newLine) : undefined),
             });
             return comment;
         },
