@@ -9,7 +9,8 @@ export const ISSUE_BASE_PROMPT = [
     "- Search related issues and pull requests before calling something a duplicate.",
     "- Prefer repository exploration for code-related issues. Only skip code exploration when the issue is clearly process-only or policy-only.",
     "- If overlap is partial, say possible duplicate instead of duplicate.",
-    "- Mention only the strongest related items instead of a long list.",
+    "- Mention only the strongest related items instead of a long list. Do not pad with weak matches.",
     "- Avoid repeating what the discussion already established.",
+    "- When you refer to code, cite exact file paths (and line numbers when you inspected a specific line).",
     "- Be concise, practical, and honest about uncertainty.",
 ].join("\n");

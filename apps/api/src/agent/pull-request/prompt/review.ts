@@ -5,15 +5,18 @@
 const SORT = ["List code review findings in order of importance."];
 
 export const INLINE_ENABLED = [
-    "Use the create_single_line_comment and create_multi_line_comment tools to post review items as inline comments, then use post_pull_request_comment exactly once to write the review summary comment.",
+    "Tool intent for publishing:",
+    "- Call create_single_line_comment or create_multi_line_comment for each Main Issue so the finding appears on the exact diff line (why: authors act on anchored comments first).",
+    "- Call post_pull_request_comment exactly once afterward for the summary (why: one top-level overview for readers who skip the diff).",
     ...SORT,
     "Include minor review items in the review summary comment instead of inline comments.",
     "Post inline comments in order of importance, highest priority first.",
 ].join("\n");
 
-export const INLINE_DISABLED = ["Use post_pull_request_comment exactly once to post all review items.", ...SORT].join(
-    "\n",
-);
+export const INLINE_DISABLED = [
+    "Call post_pull_request_comment exactly once to post all review items (why: inline mode is off, so the summary is the only published surface).",
+    ...SORT,
+].join("\n");
 
 // #########################################################
 // # Severity
@@ -58,6 +61,8 @@ export const REVIEW_CHECKLIST = [
     "# What to Review",
     "",
     "Analyze changed files and diffs against this checklist. Only report problems evidenced by the diff or by files you read to validate a specific concern — never fabricate.",
+    "Do not force a finding for every checklist row. Important, evidenced items only.",
+    "When you report a problem, cite the exact file path and line that shows it.",
     "",
     "Correctness",
     "  - Logic errors, off-by-one mistakes, wrong operator, incorrect condition",
