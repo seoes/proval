@@ -1,6 +1,4 @@
-import pc from "picocolors";
-import { activityLog } from "../../util/activity-log.js";
-import { log, logAgentResult, logError } from "../../util/log.js";
+import { logAgent, logAgentError, logAgentResult } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
 import {
     UNTRUSTED_WARNING_SYSTEM_PROMPT,
@@ -49,24 +47,6 @@ export interface AgentRunResult {
     usage: ActivityTokenUsage;
 }
 
-function formatAgentResultPlain(
-    label: string,
-    result: AgentRunResult,
-    elapsedMs: number,
-    reason: "completed" | "max_steps",
-): string {
-    const secs = (elapsedMs / 1000).toFixed(1);
-    const status = reason === "completed" ? "completed" : "max steps";
-    const toolEntryList = Object.entries(result.toolCallCount);
-    const tools =
-        toolEntryList.length === 0 ? "none" : toolEntryList.map(([name, n]) => `${name}×${n}`).join(", ");
-    return `${label}: ${status} in ${secs}s · ${result.stepCount} steps · tools: ${tools} · in=${result.usage.inputToken} out=${result.usage.outputToken}`;
-}
-
-function shortenArgs(args: string, max = 120): string {
-    return args.length > max ? `${args.slice(0, max)}…` : args;
-}
-
 export async function runAgentLoop(
     sender: LlmSender,
     system: string,
@@ -76,7 +56,7 @@ export async function runAgentLoop(
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
         requiredToolList?: (AgentTool | null)[];
-        activityId?: number;
+        activityId: number;
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -110,9 +90,7 @@ export async function runAgentLoop(
             toolList.push(tool);
         }
 
-        if (activityId != null) {
-            activityLog(activityId, "info", "agent", `${label}: loop started`);
-        }
+        logAgent(activityId, "loop started", label);
 
         const toolCallCount: Record<string, number> = {};
         let stepCount = 0;
@@ -144,11 +122,8 @@ export async function runAgentLoop(
                         throw error;
                     }
 
-                    logError("agent loop failed", error, label);
-                    log(`${pc.yellow("→")} ${pc.yellow(`retrying… ${i + 1}/3`)}`, label);
-                    if (activityId != null) {
-                        activityLog(activityId, "warn", "agent", `${label}: retrying… ${i + 1}/3`);
-                    }
+                    logAgentError(activityId, "agent loop failed", error, label);
+                    logAgent(activityId, `→ retrying… ${i + 1}/3`, label);
 
                     await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i));
                 }
@@ -186,15 +161,7 @@ export async function runAgentLoop(
                     toolCallCount,
                     usage,
                 };
-                logAgentResult(label, result, performance.now() - startedAt, "completed");
-                if (activityId != null) {
-                    activityLog(
-                        activityId,
-                        "info",
-                        "agent",
-                        formatAgentResultPlain(label, result, performance.now() - startedAt, "completed"),
-                    );
-                }
+                logAgentResult(activityId, label, result, performance.now() - startedAt, "completed");
                 return result;
             }
 
@@ -209,16 +176,8 @@ export async function runAgentLoop(
                     toolCallCount,
                     usage,
                 };
-                log(pc.yellow(`stopping at max steps (${maxSteps})`), label);
-                logAgentResult(label, result, performance.now() - startedAt, "max_steps");
-                if (activityId != null) {
-                    activityLog(
-                        activityId,
-                        "warn",
-                        "agent",
-                        formatAgentResultPlain(label, result, performance.now() - startedAt, "max_steps"),
-                    );
-                }
+                logAgent(activityId, `stopping at max steps (${maxSteps})`, label);
+                logAgentResult(activityId, label, result, performance.now() - startedAt, "max_steps");
                 return result;
             }
 
@@ -228,27 +187,13 @@ export async function runAgentLoop(
                 toolCalls: response.message.toolCalls,
             });
 
-            log(
-                `step ${pc.bold(String(stepCount))}: ${pc.bold(String(response.message.toolCalls.length))} tool call(s)`,
-                label,
-            );
-            if (activityId != null) {
-                activityLog(
-                    activityId,
-                    "info",
-                    "agent",
-                    `${label}: step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`,
-                );
-            }
+            logAgent(activityId, `step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`, label);
 
             const results = await Promise.all(
                 response.message.toolCalls.map(async (tc) => {
                     const tool = toolList.find((t) => t.name === tc.name);
                     if (!tool) {
-                        log(`  ${pc.dim("→")} ${pc.yellow(tc.name)} ${pc.dim("— unknown tool, skipping")}`, label);
-                        if (activityId != null) {
-                            activityLog(activityId, "warn", "agent", `${label}: unknown tool ${tc.name}, skipping`);
-                        }
+                        logAgent(activityId, `  → ${tc.name} - unknown tool, skipping`, label);
                         return {
                             toolCallId: tc.id,
                             content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
@@ -256,11 +201,7 @@ export async function runAgentLoop(
                     }
 
                     const args = JSON.parse(tc.arguments);
-                    const argsPreview = shortenArgs(JSON.stringify(args));
-                    log(`  ${pc.dim("→")} ${pc.cyan(tool.name)}${pc.dim(`(${JSON.stringify(args)})`)}`, label);
-                    if (activityId != null) {
-                        activityLog(activityId, "info", "agent", `${label}: → ${tool.name}(${argsPreview})`);
-                    }
+                    logAgent(activityId, `  → ${tool.name}(${JSON.stringify(args)})`, label);
 
                     try {
                         const result = await tool.execute(args);
@@ -269,18 +210,11 @@ export async function runAgentLoop(
                         if (tool.untrustedResult) {
                             content = wrapUntrustedToolContent(content);
                         }
-                        const preview = content.slice(0, 50) + (content.length > 50 ? "…" : "");
-                        log(`    ${pc.green("result")}: ${pc.dim(preview)}`, label);
-                        if (activityId != null) {
-                            activityLog(activityId, "info", "agent", `${label}: result: ${preview}`);
-                        }
+                        logAgent(activityId, `    result: ${content}`, label);
                         return { toolCallId: tc.id, content };
                     } catch (err) {
                         const errorMsg = err instanceof Error ? err.message : String(err);
-                        log(`    ${pc.red("error")}: ${errorMsg}`, label);
-                        if (activityId != null) {
-                            activityLog(activityId, "error", "agent", `${label}: tool error: ${errorMsg}`);
-                        }
+                        logAgentError(activityId, `    error: ${errorMsg}`, err, label);
                         return { toolCallId: tc.id, content: JSON.stringify({ error: errorMsg }) };
                     }
                 }),
@@ -295,11 +229,7 @@ export async function runAgentLoop(
             }
         }
     } catch (error: unknown) {
-        logError("agent loop failed", error, label);
-        if (activityId != null) {
-            const msg = error instanceof Error ? error.message : String(error);
-            activityLog(activityId, "error", "agent", `${label}: loop failed: ${msg}`);
-        }
+        logAgentError(activityId, "agent loop failed", error, label);
         throw error;
     }
     throw new Error(`${label} loop exited unexpectedly`);

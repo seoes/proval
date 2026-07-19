@@ -98,7 +98,7 @@ export const repositoryTable = sqliteTable(
 export type ActivityLogEntryJson = {
     timestamp: string;
     level: "info" | "warn" | "error" | "debug";
-    step: "lifecycle" | "context" | "workspace" | "agent";
+    label: string;
     message: string;
 };
 

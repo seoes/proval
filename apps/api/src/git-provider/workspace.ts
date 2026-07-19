@@ -1,8 +1,7 @@
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { GitChangedFile, GitDiff, GitProvider, GitTree } from "./types.js";
-import { activityLog } from "../util/activity-log.js";
-import { debug, log, logError } from "../util/log.js";
+import { debug, logAgent, logAgentError } from "../util/log.js";
 
 export type WorkspaceGrepMatch = {
     path: string;
@@ -14,7 +13,8 @@ export type WorkspaceLoadOpts = {
     headRef: string;
     /** When set, fetch and cache PR diffs for changedFiles / getFileDiff. */
     prIid?: number;
-    activityId?: number;
+    activityId: number;
+    label: string;
 };
 
 export function getWorkspaceRoot(): string {
@@ -62,28 +62,25 @@ export class Workspace {
 
     async load(opts: WorkspaceLoadOpts): Promise<void> {
         if (this.loaded) {
-            debug(`already loaded at ${this.rootDir}`, "workspace");
+            debug(`already loaded at ${this.rootDir}`, opts.label);
             return;
         }
 
         const id = crypto.randomUUID();
         const rootDir = join(getWorkspaceRoot(), id);
         const archivePath = join(getWorkspaceRoot(), `${id}.tar.gz`);
-        const activityId = opts.activityId;
+        const { activityId, label } = opts;
 
-        log(`loading archive → ${rootDir}`, "workspace");
-        if (activityId != null) {
-            activityLog(activityId, "info", "workspace", `loading archive (head=${opts.headRef.slice(0, 12)}…)`);
-        }
-        debug(`headRef=${opts.headRef}${opts.prIid != null ? ` prIid=${opts.prIid}` : ""}`, "workspace");
+        logAgent(activityId, `loading archive → ${rootDir}`, label);
+        debug(`headRef=${opts.headRef}${opts.prIid != null ? ` prIid=${opts.prIid}` : ""}`, label);
 
         await mkdir(rootDir, { recursive: true });
 
         try {
-            debug("downloadArchive", "workspace");
+            debug("downloadArchive", label);
             await this.provider.downloadArchive(opts.headRef, archivePath);
 
-            debug("tar extract", "workspace");
+            debug("tar extract", label);
             await runCommand(["tar", "-xzf", archivePath, "-C", rootDir, "--strip-components=1"]);
             await rm(archivePath, { force: true });
 
@@ -91,27 +88,17 @@ export class Workspace {
             this.headRef = opts.headRef;
 
             if (opts.prIid != null) {
-                debug(`fetchPullRequestDiffList pr=${opts.prIid}`, "workspace");
+                debug(`fetchPullRequestDiffList pr=${opts.prIid}`, label);
                 this.diffs = await this.provider.fetchPullRequestDiffList(opts.prIid);
-                log(`cached ${this.diffs.length} file diffs`, "workspace");
-                if (activityId != null) {
-                    activityLog(activityId, "info", "workspace", `cached ${this.diffs.length} file diffs`);
-                }
+                logAgent(activityId, `cached ${this.diffs.length} file diffs`, label);
             } else {
                 this.diffs = null;
             }
 
             this.loaded = true;
-            log(`ready (head=${opts.headRef.slice(0, 12)}…)`, "workspace");
-            if (activityId != null) {
-                activityLog(activityId, "info", "workspace", `ready (head=${opts.headRef.slice(0, 12)}…)`);
-            }
+            logAgent(activityId, `ready (head=${opts.headRef.slice(0, 12)}…)`, label);
         } catch (error) {
-            logError("load failed, removing checkout", error, "workspace");
-            if (activityId != null) {
-                const msg = error instanceof Error ? error.message : String(error);
-                activityLog(activityId, "error", "workspace", `load failed: ${msg}`);
-            }
+            logAgentError(activityId, "load failed, removing checkout", error, label);
             await rm(rootDir, { recursive: true, force: true });
             await rm(archivePath, { force: true });
             throw error;

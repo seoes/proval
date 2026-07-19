@@ -853,32 +853,32 @@ export function getActivityLogsById(id: number): ActivityLogResponse | undefined
         {
             timestamp: new Date(base).toISOString(),
             level: "info",
-            step: "lifecycle",
-            message: `started ${activity.type} target=${activity.targetIid}`,
+            label: `[PR #${activity.targetIid}] Review`,
+            message: "fetching pull request version",
         },
         {
             timestamp: new Date(base + 400).toISOString(),
             level: "info",
-            step: "context",
-            message: "fetching pull request version",
+            label: `[PR #${activity.targetIid}] Review`,
+            message: "version ready head=abc123def456…",
         },
         {
             timestamp: new Date(base + 1800).toISOString(),
             level: "info",
-            step: "workspace",
+            label: `[PR #${activity.targetIid}] Review`,
             message: "ready (head=abc123def456…)",
         },
         {
             timestamp: new Date(base + 3200).toISOString(),
             level: "info",
-            step: "agent",
-            message: `[PR #${activity.targetIid}] Plan: loop started`,
+            label: `[PR #${activity.targetIid}] Plan`,
+            message: "loop started",
         },
         {
             timestamp: new Date(base + 5100).toISOString(),
             level: "info",
-            step: "agent",
-            message: `[PR #${activity.targetIid}] Plan: → get_file_diff({"path":"src/app.ts"})`,
+            label: `[PR #${activity.targetIid}] Plan`,
+            message: '→ get_file_diff({"path":"src/app.ts"})',
         },
     ];
 
@@ -886,22 +886,22 @@ export function getActivityLogsById(id: number): ActivityLogResponse | undefined
         sample.push({
             timestamp: new Date(base + 8000).toISOString(),
             level: "error",
-            step: "lifecycle",
-            message: `failed: ${activity.errorMessage ?? "unknown error"}`,
+            label: `[PR #${activity.targetIid}] Writing`,
+            message: `agent loop failed: ${activity.errorMessage ?? "unknown error"}`,
         });
     } else if (activity.status === "completed") {
         sample.push({
             timestamp: new Date(base + 12000).toISOString(),
             level: "info",
-            step: "lifecycle",
-            message: "completed",
+            label: `[PR #${activity.targetIid}] Writing`,
+            message: "completed in 8.2s · 4 steps · tools: post_pull_request_comment×1 · in=1200 out=400",
         });
     } else {
         sample.push({
             timestamp: new Date(base + 7000).toISOString(),
             level: "info",
-            step: "agent",
-            message: `[PR #${activity.targetIid}] Writing: loop started`,
+            label: `[PR #${activity.targetIid}] Writing`,
+            message: "loop started",
         });
     }
 

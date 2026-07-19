@@ -125,7 +125,8 @@ export class GitLabProvider implements GitProvider {
             const errorText = await response.text();
             throw new Error(`GitLab archive download failed (${response.status}): ${errorText}`);
         }
-        await Bun.write(destPath, response);
+        const arrayBuffer = await response.arrayBuffer();
+        await Bun.write(destPath, new Uint8Array(arrayBuffer));
     }
 
     public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {

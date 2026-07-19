@@ -11,7 +11,9 @@
         "format": "bun run --parallel --filter '*' --filter '!@proval/config' format",
         "tunnel": "cloudflared tunnel run proval-dev",
         "tunnel:tmp": "cloudflared tunnel --url http://localhost:7901",
-        "studio": "bun run --filter 'api' studio"
+        "studio": "bun run --filter 'api' studio",
+        "generate": "bun run --filter 'api' generate",
+        "migrate": "bun run --filter 'api' migrate"
     },
     "workspaces": [
         "apps/*",

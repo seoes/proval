@@ -4,18 +4,19 @@ import { generatePullRequestPrompt } from "../prompt/context.js";
 import { runReviewPlanAgent } from "./plan.service.js";
 import { runReviewSubAgent } from "./sub.service.js";
 import { runReviewWritingAgent } from "./writing.service.js";
-import { activityLog } from "../../../util/activity-log.js";
+import { logAgent } from "../../../util/log.js";
 
 export const runPullRequestReview: PullRequestReview = async (params) => {
     const { provider, workspace, llmSender, prIid, isInlineReview, language, activityId } = params;
+    const label = `[PR #${prIid}] Review`;
     try {
-        activityLog(activityId, "info", "context", `fetching pull request version for !${prIid}`);
+        logAgent(activityId, "fetching pull request version", label);
         const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
-        activityLog(activityId, "info", "context", `version ready head=${headSha.slice(0, 12)}…`);
+        logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
 
-        await workspace.load({ headRef: headSha, prIid, activityId });
+        await workspace.load({ headRef: headSha, prIid, activityId, label });
 
-        activityLog(activityId, "info", "context", "building pull request prompt");
+        logAgent(activityId, "building pull request prompt", label);
         const prompt = await generatePullRequestPrompt(workspace, prIid, headSha);
 
         const planResult = await runReviewPlanAgent(provider, workspace, llmSender, prompt, prIid, activityId);

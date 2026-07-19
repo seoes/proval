@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onDestroy, onMount } from "svelte";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
@@ -8,6 +7,7 @@
     import fetchApi from "$lib/utils";
     import type { ActivityLogEntry, ActivityLogResponse, ActivityResponse } from "@proval/types";
     import type { PageProps } from "./$types";
+    import { untrack } from "svelte";
 
     const POLL_MS = 2000;
 
@@ -25,7 +25,21 @@
         return value === null ? "—" : value.toLocaleString();
     }
 
-    function levelClass(level: ActivityLogEntry["level"]): string {
+    function formatLogTime(timestamp: string): string {
+        const date = new Date(timestamp);
+        if (Number.isNaN(date.getTime())) {
+            return timestamp;
+        }
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hour = String(date.getHours()).padStart(2, "0");
+        const minute = String(date.getMinutes()).padStart(2, "0");
+        const second = String(date.getSeconds()).padStart(2, "0");
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+    }
+
+    function logLevelTextColor(level: ActivityLogEntry["level"]): string {
         switch (level) {
             case "error":
                 return "text-red-700";
@@ -33,9 +47,19 @@
                 return "text-amber-700";
             case "debug":
                 return "text-neutral-400";
+            case "info":
+                return "text-neutral-800";
             default:
                 return "text-neutral-800";
         }
+    }
+
+    function logRowClass(level: ActivityLogEntry["level"], index: number): string {
+        if (level === "error") {
+            return "bg-red-50 hover:bg-red-50/80";
+        }
+        const stripe = index % 2 === 1 ? "bg-neutral-100/80 md:bg-transparent" : "";
+        return `${stripe} hover:bg-neutral-100/80`;
     }
 
     async function refreshLog(): Promise<void> {
@@ -143,21 +167,26 @@
     </Card>
 
     <div class="mt-4">
-        <Card spaceY>
-            <h2 class="text-sm font-medium text-neutral-800">Run log</h2>
-            {#if log.logs.length === 0}
-                <p class="text-sm text-neutral-500">No log entries yet.</p>
-            {:else}
-                <ul class="max-h-[28rem] space-y-2 overflow-y-auto font-mono text-xs">
-                    {#each log.logs as entry (entry.timestamp + entry.message)}
-                        <li class="flex gap-2 {levelClass(entry.level)}">
-                            <span class="shrink-0 text-neutral-400">{entry.timestamp.slice(11, 19)}</span>
-                            <span class="shrink-0 font-sans text-neutral-500">[{entry.step}]</span>
-                            <span class="min-w-0 break-words">{entry.message}</span>
-                        </li>
-                    {/each}
-                </ul>
-            {/if}
+        <Card>
+            <h2 class="mb-3 text-sm font-medium text-neutral-800">Log</h2>
+            <div class="overflow-hidden rounded-md border border-neutral-200 bg-neutral-50">
+                {#if log.logs.length === 0}
+                    <p class="px-3 py-8 text-center font-mono text-xs text-neutral-400">No log entries yet.</p>
+                {:else}
+                    <ul class="max-h-[32rem] overflow-y-auto py-1 font-mono text-[11px] leading-5 tracking-tight">
+                        {#each log.logs as entry, index (index)}
+                            <li class="group flex gap-2.5 px-3 py-1.5 md:py-1 {logRowClass(entry.level, index)}">
+                                <span class="hidden shrink-0 text-neutral-400 md:inline">{entry.label}</span>
+                                <span class="min-w-0 flex-1 break-words {logLevelTextColor(entry.level)}"
+                                    >{entry.message}<span
+                                        class="ml-2 inline-block font-normal text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100"
+                                        >{formatLogTime(entry.timestamp)}</span
+                                    ></span>
+                            </li>
+                        {/each}
+                    </ul>
+                {/if}
+            </div>
         </Card>
     </div>
 </DefaultLayout>

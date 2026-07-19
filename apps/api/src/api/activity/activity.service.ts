@@ -297,7 +297,23 @@ export class ActivityService {
             return null;
         }
 
-        return { status: rows[0].status, logs: rows[0].logs ?? [] };
+        const rawLogList = (rows[0].logs ?? []) as Array<{
+            timestamp: string;
+            level: ActivityLogEntry["level"];
+            label?: string;
+            step?: string;
+            message: string;
+        }>;
+
+        return {
+            status: rows[0].status,
+            logs: rawLogList.map((entry) => ({
+                timestamp: entry.timestamp,
+                level: entry.level,
+                label: entry.label ?? entry.step ?? "log",
+                message: entry.message,
+            })),
+        };
     }
 
     public async appendLog(id: number, entry: ActivityLogEntry): Promise<void> {

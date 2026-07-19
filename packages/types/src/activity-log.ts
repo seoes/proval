@@ -2,12 +2,10 @@ import type { Activity } from "./database.js";
 
 export type ActivityLogLevel = "info" | "warn" | "error" | "debug";
 
-export type ActivityLogStep = "lifecycle" | "context" | "workspace" | "agent";
-
 export type ActivityLogEntry = {
     timestamp: string;
     level: ActivityLogLevel;
-    step: ActivityLogStep;
+    label: string;
     message: string;
 };
 

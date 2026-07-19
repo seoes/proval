@@ -1,7 +1,6 @@
 import type { PullRequestInlineReviewReply } from "../index.js";
-import { activityLog } from "../../../util/activity-log.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
-import { debug } from "../../../util/log";
+import { logAgent, debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_INLINE_REVIEW_REPLY_APPENDIX } from "./inline-review.prompt.js";
@@ -27,12 +26,13 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
     language,
     activityId,
 }) => {
+    const label = `[PR #${prIid}] Inline Review Reply`;
     try {
-        activityLog(activityId, "info", "context", `fetching inline review comment ${commentId} on !${prIid}`);
+        logAgent(activityId, `fetching inline review comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
         const { headSha } = await provider.fetchPullRequestVersion(prIid);
-        activityLog(activityId, "info", "context", `version ready head=${headSha.slice(0, 12)}…`);
-        await workspace.load({ headRef: headSha, prIid, activityId });
+        logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
+        await workspace.load({ headRef: headSha, prIid, activityId, label });
 
         const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
             "\n",
@@ -58,7 +58,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
         ];
 
-        const result = await runAgentLoop(llmSender, system, prompt, `[PR #${prIid}] Inline Review Reply`, {
+        const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
             activityId,
