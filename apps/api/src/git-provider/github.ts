@@ -527,9 +527,6 @@ export class GitHubProvider implements GitProvider {
         body: string,
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
-        if (position.newLine !== undefined && position.oldLine !== undefined) {
-            throw new Error("Provide only newLine or oldLine, not both.");
-        }
         if (position.newLine === undefined && position.oldLine === undefined) {
             throw new Error("Either newLine or oldLine is required.");
         }
