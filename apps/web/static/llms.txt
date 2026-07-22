@@ -1,0 +1,39 @@
+# Proval
+
+> Self-hosted, privacy-first AI code review agent for GitLab, Forgejo, and GitHub.
+
+Proval connects to your Git provider via webhooks, runs a lightweight agent loop with your own LLM, and posts reviews and replies on your infrastructure. It is not an IDE copilot. It is a team review tool with set and forget configuration.
+
+## Key facts
+
+- Open source and self-hosted (Docker Compose)
+- Bring your own model (OpenAI-compatible APIs, Anthropic, Ollama, llama.cpp)
+- GitHub, GitLab, and Forgejo (Gitea and Codeberg via Forgejo-compatible APIs)
+- Pull request review, inline comments, issue comments, and threaded replies
+- No seat based pricing for the core product
+
+## Primary links
+
+- Home: https://proval.app/
+- Docs: https://proval.app/docs
+- Quick start: https://proval.app/docs/quick-start
+- Alternatives: https://proval.app/alternatives
+- Demo: https://demo.proval.app
+- GitHub: https://github.com/seoes/proval
+- Sitemap: https://proval.app/sitemap.xml
+
+## Alternative comparison pages
+
+- CodeRabbit: https://proval.app/alternatives/coderabbit
+- Qodo: https://proval.app/alternatives/qodo
+- Greptile: https://proval.app/alternatives/greptile
+- Graphite: https://proval.app/alternatives/graphite
+
+## Docs
+
+- GitLab: https://proval.app/docs/gitlab
+- Forgejo: https://proval.app/docs/forgejo
+- GitHub: https://proval.app/docs/github
+- Set LLM: https://proval.app/docs/set-llm
+- llama.cpp: https://proval.app/docs/llama-cpp
+- OpenRouter: https://proval.app/docs/openrouter

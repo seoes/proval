@@ -276,11 +276,11 @@
         <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
             <h2
                 class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-                From setup to review output.
+                Self-hosted code review from setup to output.
             </h2>
             <p
                 class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
-                Browse the self-hosted dashboard and merge request review output.
+                Browse the dashboard and merge request review output on your Git host.
             </p>
         </div>
 
@@ -293,13 +293,24 @@
                         <span class="size-2.5 rounded-full bg-emerald-300"></span>
                         <span class="ml-3 truncate font-mono text-xs text-neutral-500">{currentShot.frame}</span>
                     </div>
-                    <div class="relative aspect-16/10">
+                    <div
+                        class="relative aspect-16/10"
+                        role="tabpanel"
+                        id="screenshot-panel"
+                        aria-labelledby={`shot-tab-${currentShot.id}`}>
                         {#key currentShot.id}
-                            <img
-                                src={`/${currentShot.id}.png`}
-                                alt={currentShot.alt}
-                                class="absolute inset-0 h-full w-full object-cover"
-                                in:fade={{ duration: 200 }} />
+                            <picture class="absolute inset-0 block h-full w-full">
+                                <source srcset={`/${currentShot.id}.webp`} type="image/webp" />
+                                <img
+                                    src={`/${currentShot.id}.png`}
+                                    alt={currentShot.alt}
+                                    width="1600"
+                                    height="1000"
+                                    decoding="async"
+                                    loading={currentShot.id === screenshots[0].id ? "eager" : "lazy"}
+                                    class="h-full w-full object-cover"
+                                    in:fade={{ duration: 200 }} />
+                            </picture>
                         {/key}
                     </div>
                 </div>
@@ -315,6 +326,11 @@
                     {#each screenshots as shot (shot.id)}
                         <Button
                             variant="segment"
+                            role="tab"
+                            id={`shot-tab-${shot.id}`}
+                            aria-controls="screenshot-panel"
+                            aria-selected={activeShot === shot.id}
+                            tabindex={activeShot === shot.id ? 0 : -1}
                             pressed={activeShot === shot.id}
                             onclick={() => (activeShot = shot.id)}>
                             {shot.label}
@@ -331,7 +347,7 @@
         <Eyebrow>Why Proval</Eyebrow>
         <h2
             class="mt-3 max-w-3xl bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-            Built for teams that want control.
+            Privacy-first AI code review your team controls.
         </h2>
         <ul class="mt-12 grid gap-6 sm:grid-cols-2">
             {#each BENEFITS as benefit (benefit.title)}
@@ -350,7 +366,7 @@
         <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
             <h2
                 class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-                Plug into the Git host you already run.
+                Connect GitLab, Forgejo, or GitHub you already run.
             </h2>
             <p
                 class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
@@ -735,11 +751,11 @@
         <div class="mt-3 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-12">
             <h2
                 class="bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-                Consistent flows for every repository event.
+                How the self-hosted code review agent works.
             </h2>
             <p
                 class="bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent lg:text-right">
-                The same flow on every event. See how it runs.
+                The same flow on every repository event. See how it runs.
             </p>
         </div>
 
@@ -787,7 +803,7 @@
                 <Eyebrow>Deployment</Eyebrow>
                 <h2
                     class="mt-3 bg-linear-to-r from-neutral-800 to-neutral-950 bg-clip-text pb-[0.15em] text-4xl leading-[1.15] font-semibold tracking-[-0.035em] text-transparent md:text-5xl">
-                    Start with a small self-hosted deployment.
+                    Deploy self-hosted code review with Docker Compose.
                 </h2>
                 <p
                     class="mt-4 bg-linear-to-r from-neutral-500 to-neutral-800 bg-clip-text text-2xl leading-9 font-medium tracking-tight text-transparent">
@@ -853,7 +869,20 @@ Repository      -> review and reply policy</code></pre>
                 {#each faqs as faq (faq.question)}
                     <div class="px-5 py-6 md:px-6">
                         <h3 class="font-semibold tracking-tight text-neutral-950">{faq.question}</h3>
-                        <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
+                        {#if faq.question.includes("Ollama")}
+                            <p class="mt-2 text-sm leading-6 text-neutral-600">
+                                Yes. Point Proval at any OpenAI-compatible endpoint, including local or on-prem servers
+                                such as llama.cpp. See the
+                                <a href="/docs/set-llm" class="font-medium text-primary underline underline-offset-2"
+                                    >Set LLM</a>
+                                and
+                                <a href="/docs/llama-cpp" class="font-medium text-primary underline underline-offset-2"
+                                    >llama.cpp</a>
+                                docs for setup details.
+                            </p>
+                        {:else}
+                            <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
+                        {/if}
                     </div>
                 {/each}
             </div>

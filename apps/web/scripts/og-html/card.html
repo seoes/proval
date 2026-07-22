@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                --primary: #006fea;
+                --ink: #0a0a0a;
+                --paper: #ffffff;
+                --muted: #525252;
+            }
+
+            html,
+            body {
+                width: 1200px;
+                height: 630px;
+                overflow: hidden;
+                background: var(--paper);
+                font-family:
+                    ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                color: var(--ink);
+                -webkit-font-smoothing: antialiased;
+            }
+
+            .canvas {
+                position: relative;
+                width: 1200px;
+                height: 630px;
+                overflow: hidden;
+                background: linear-gradient(160deg, #ffffff 0%, #eef5ff 55%, #dbeafe 100%);
+                padding: 64px 72px 80px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .bar {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 14px;
+                background: var(--primary);
+            }
+
+            .top {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-shrink: 0;
+            }
+
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+
+            .mark {
+                width: 52px;
+                height: 52px;
+                border-radius: 14px;
+                background: var(--primary);
+                color: white;
+                display: grid;
+                place-items: center;
+                font-size: 28px;
+                font-weight: 800;
+                letter-spacing: -0.06em;
+            }
+
+            .brand-name {
+                font-size: 26px;
+                font-weight: 750;
+                letter-spacing: -0.045em;
+            }
+
+            .eyebrow {
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 16px;
+                font-weight: 700;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: var(--primary);
+            }
+
+            .main {
+                max-width: 1040px;
+                margin-top: auto;
+                margin-bottom: auto;
+                padding-bottom: 8px;
+            }
+
+            .title {
+                font-size: 92px;
+                line-height: 0.94;
+                font-weight: 800;
+                letter-spacing: -0.06em;
+                color: var(--ink);
+            }
+
+            .title .accent {
+                color: var(--primary);
+            }
+
+            .sub {
+                margin-top: 28px;
+                max-width: 860px;
+                font-size: 28px;
+                line-height: 1.4;
+                font-weight: 500;
+                letter-spacing: -0.025em;
+                color: var(--muted);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="canvas">
+            <div class="top">
+                <div class="brand">
+                    <div class="mark">P</div>
+                    <div class="brand-name">Proval</div>
+                </div>
+                <div class="eyebrow" id="eyebrow">Alternatives</div>
+            </div>
+            <div class="main">
+                <h1 class="title" id="title">Proval vs <span class="accent">Qodo</span></h1>
+                <p class="sub" id="sub">Self-hosted AI code review with your own model on your infrastructure.</p>
+            </div>
+            <div class="bar"></div>
+        </div>
+        <script>
+            const params = new URLSearchParams(location.search);
+            const eyebrow = params.get("eyebrow");
+            const titleHtml = params.get("titleHtml");
+            const title = params.get("title");
+            const sub = params.get("sub");
+
+            if (eyebrow) document.getElementById("eyebrow").textContent = eyebrow;
+            if (titleHtml) document.getElementById("title").innerHTML = titleHtml;
+            else if (title) document.getElementById("title").textContent = title;
+            if (sub) document.getElementById("sub").textContent = sub;
+        </script>
+    </body>
+</html>

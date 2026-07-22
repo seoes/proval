@@ -9,7 +9,7 @@ export const SITE_NAME = "Proval";
 export const DEFAULT_OG_IMAGE_PATH = "/og.png";
 
 export const SITE_DESCRIPTION =
-    "Self-hosted, privacy-first AI code review for GitLab, Forgejo, and GitHub. Bring your own LLM.";
+    "Self-hosted, privacy-first AI code review for GitLab, Forgejo, and GitHub. Bring your own model with Ollama, llama.cpp, or any OpenAI-compatible API.";
 
 export const BENEFITS = [
     {

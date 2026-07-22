@@ -20,21 +20,23 @@
             button.type = "button";
             button.className = "doc-copy-btn";
             button.textContent = "Copy";
-            button.addEventListener("click", async () => {
+            button.addEventListener("click", () => {
                 const code = pre.querySelector("code");
                 const text = code?.textContent ?? pre.textContent ?? "";
-                try {
-                    await navigator.clipboard.writeText(text);
-                    button.textContent = "Copied";
-                    setTimeout(() => {
-                        button.textContent = "Copy";
-                    }, 2000);
-                } catch {
-                    button.textContent = "Failed";
-                    setTimeout(() => {
-                        button.textContent = "Copy";
-                    }, 2000);
-                }
+                void navigator.clipboard.writeText(text).then(
+                    () => {
+                        button.textContent = "Copied";
+                        setTimeout(() => {
+                            button.textContent = "Copy";
+                        }, 2000);
+                    },
+                    () => {
+                        button.textContent = "Failed";
+                        setTimeout(() => {
+                            button.textContent = "Copy";
+                        }, 2000);
+                    },
+                );
             });
             wrap.appendChild(button);
         }

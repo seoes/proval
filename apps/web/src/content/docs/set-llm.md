@@ -22,10 +22,10 @@ This guide covers how to fill in the model provider form in the dashboard. For r
 
 In **Model Provider → Add model provider**, pick the provider that matches your endpoint:
 
-| Provider in Proval | Protocol | Use when |
-| ------------------ | -------- | -------- |
-| **OpenAI** | Chat Completions API | OpenRouter, llama.cpp, Ollama, vLLM, or any OpenAI-compatible server |
-| **Anthropic** | Messages API | Anthropic directly, or a proxy that speaks the Messages API |
+| Provider in Proval | Protocol             | Use when                                                             |
+| ------------------ | -------------------- | -------------------------------------------------------------------- |
+| **OpenAI**         | Chat Completions API | OpenRouter, llama.cpp, Ollama, vLLM, or any OpenAI-compatible server |
+| **Anthropic**      | Messages API         | Anthropic directly, or a proxy that speaks the Messages API          |
 
 Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch to **Anthropic** only when your endpoint expects the Messages API.
 
@@ -36,20 +36,20 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch
 1. Open the dashboard → **Model Provider** → **Add model provider**
 2. Complete each field:
 
-| Field | What to enter |
-| ----- | ------------- |
-| **Display Name** | A label for your team, e.g. `Main Reviewer` |
-| **API Provider** | **OpenAI** or **Anthropic** (see above) |
-| **Model ID** | The model name your API expects, e.g. `anthropic/claude-sonnet-4.6` or `llama-3.1-8b-instruct` |
-| **Base URL** | Root URL of the API, including `/v1` when your server uses it, e.g. `https://openrouter.ai/api/v1` or `http://<llm-host>:8080/v1` |
-| **API Key** | Key required by that endpoint (`sk-or-...`, `sk-ant-...`, or a placeholder if the server has no auth) |
+| Field            | What to enter                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Display Name** | A label for your team, e.g. `Main Reviewer`                                                                                       |
+| **API Provider** | **OpenAI** or **Anthropic** (see above)                                                                                           |
+| **Model ID**     | The model name your API expects, e.g. `anthropic/claude-sonnet-4.6` or `llama-3.1-8b-instruct`                                    |
+| **Base URL**     | Root URL of the API, including `/v1` when your server uses it, e.g. `https://openrouter.ai/api/v1` or `http://<llm-host>:8080/v1` |
+| **API Key**      | Key required by that endpoint (`sk-or-...`, `sk-ant-...`, or a placeholder if the server has no auth)                             |
 
 <figure>
     <img src="/docs/set-llm/01-form.png" alt="Proval Create Model Provider form with all fields filled in" />
     <figcaption>Example: OpenAI provider with an OpenRouter base URL</figcaption>
 </figure>
 
-> **Base URL + API key** are the two values that define *where* requests go and *how* they authenticate. Get them from your provider. [OpenRouter](/docs/openrouter) and [llama.cpp](/docs/llama-cpp) walk through common cases.
+> **Base URL + API key** are the two values that define _where_ requests go and _how_ they authenticate. Get them from your provider. [OpenRouter](/docs/openrouter) and [llama.cpp](/docs/llama-cpp) walk through common cases.
 
 ---
 

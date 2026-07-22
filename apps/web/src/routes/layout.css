@@ -25,17 +25,23 @@
         background: white;
         color: theme(colors.neutral.950);
         font-family:
-            Inter,
             ui-sans-serif,
             system-ui,
             -apple-system,
             BlinkMacSystemFont,
             "Segoe UI",
+            Roboto,
+            "Helvetica Neue",
+            Arial,
             sans-serif;
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         cursor: default;
-        user-select: none;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
     }
 
     a,
@@ -44,6 +50,25 @@
     summary,
     label[for] {
         cursor: pointer;
+    }
+
+    p,
+    li,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    td,
+    th,
+    pre,
+    code,
+    blockquote,
+    label,
+    figcaption,
+    time {
+        user-select: text;
     }
 
     input,
@@ -115,6 +140,17 @@
         border-bottom: 1px solid theme(colors.neutral.200);
         font-size: 1.375rem;
         scroll-margin-top: 5rem;
+    }
+
+    .prose :is(h2, h3, h4) .doc-anchor {
+        color: inherit;
+        font-weight: inherit;
+        text-decoration: none;
+    }
+
+    .prose :is(h2, h3, h4) .doc-anchor:hover {
+        color: var(--primary);
+        text-decoration: none;
     }
 
     .prose h2:first-child {

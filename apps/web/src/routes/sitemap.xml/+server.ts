@@ -1,3 +1,4 @@
+import { COMPETITOR_LIST } from "$lib/alternative/competitorList";
 import { SITE_URL } from "$lib/constants";
 import { getBlogPosts, getDocTree } from "$lib/content/loader.server";
 
@@ -25,6 +26,8 @@ export function GET() {
         ...docs.map((doc) => urlEntry(`/docs/${doc.slug}`, "0.8")),
         urlEntry("/blog", "0.5"),
         ...posts.map((post) => urlEntry(`/blog/${post.slug}`, "0.5", post.date || undefined)),
+        urlEntry("/alternatives", "0.8"),
+        ...COMPETITOR_LIST.map((item) => urlEntry(`/alternatives/${item.slug}`, "0.8")),
     ];
 
     const body = `<?xml version="1.0" encoding="UTF-8"?>

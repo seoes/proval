@@ -94,6 +94,35 @@ apps/api/ is a API server for Proval. It's built with Bun. It's called api, back
 
 apps/web/ is a web application for Proval. It's built with Bun. It's called landing page, website. It uses 7903 port for development. It's deployed by Cloudflare Pages through GitHub Actions.
 
+##### web OG images
+
+Open Graph images for the landing site live in `apps/web/static/` (`og.png`, `og-alternatives.png`, `og-coderabbit.png`, `og-qodo.png`, `og-greptile.png`, `og-graphite.png`). Size is always `1200x630`.
+
+**Design direction**
+
+- Palette is primary (`#006fea`, from site `--primary`), white, and black only.
+- Layout should feel like a clean HTML/CSS landing hero, not a generic Magick poster.
+- Keep large bold headlines with primary accent on the key phrase.
+- Keep the Proval mark (`P` on a primary rounded square) plus brand name, an optional monospace eyebrow, and a short supporting sentence.
+- Bottom primary bar is allowed as a thin brand accent.
+- Do not add chip/pill buttons, `proval.app` URL text, glassmorphism, frosted cards, inset rounded rectangles, diagonal slash panels, or grid textures.
+- Background must be a simple soft gradient (white into a light primary tint). No decorative noise.
+
+**Workflow**
+
+1. Edit the HTML/CSS template at `apps/web/scripts/og-html/card.html`.
+2. Update copy variants in `apps/web/scripts/render-og.ts` when titles or subtitles change.
+3. Render with Chrome headless from `apps/web`:
+
+```bash
+bun scripts/render-og.ts
+```
+
+4. Confirm each PNG under `apps/web/static/` is `1200x630` and matches the design rules above.
+5. Wire page specific images through `SeoHead` (`ogImagePath`) and competitor `ogImagePath` in `competitorList.ts`.
+
+When adding a new alternatives page, add a matching OG file, a `render-og.ts` card entry, and the `ogImagePath` field together.
+
 ### Rules
 
 - Do not use emdash, semicolon, colon or hyphen while writing something. especially in English.
@@ -104,3 +133,31 @@ apps/web/ is a web application for Proval. It's built with Bun. It's called land
     - Avoid unnecessary dependencies. prefer lightweight dependency. But if you can implement it more lightweight, That's better so do it.
     - Creating new package(packages/) is allowed if it's necessary.
 - English is the main language on this project.
+
+## Community Edition and Enterprise Edition
+
+Proval is started from just Open Sourced project, but planned to be separated into Community Edition(CE) and Enterprise Edition(EE). It's like a 'open core' model. ex. GitLab, Plausible, Mattermost
+
+CE and EE is all self-hosted. Features of EE will be stay in Repository and be protected by license.
+
+Community Edition will be free to use. You can use core features of Proval.
+Enterprise Edition will be paid. You can use Premium features of Proval.
+
+### SaaS Cloud Service
+
+Proval is Self-hosted project, but planned to be launched to SaaS Cloud Service in the future. It will be based on Cloudflare Workers, D1. You must consider compatibility with 'cloudflare workers and d1' when you write/modify the code for Proval.
+
+### Core Features (CE, Basic Plan from SaaS)
+
+- Pull Request Review
+- Pull Request Approval/Rejection
+- Issue Management
+- Reply
+
+### Premium Features (EE, Premium Plan from SaaS)
+
+- SSO
+- RBAC
+- Audit Log
+- Team Management
+- Centralized Configuration
