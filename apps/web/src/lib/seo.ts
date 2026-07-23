@@ -79,6 +79,32 @@ export function articleLd(input: {
     };
 }
 
+export function techArticleLd(input: { title: string; description: string; path: string }) {
+    const url = `${SITE_URL}${input.path}`;
+    return {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        headline: input.title,
+        description: input.description,
+        url,
+        mainEntityOfPage: url,
+        author: {
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: SITE_URL,
+        },
+        publisher: {
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: SITE_URL,
+            logo: {
+                "@type": "ImageObject",
+                url: `${SITE_URL}/apple-touch-icon.png`,
+            },
+        },
+    };
+}
+
 export function breadcrumbLd(items: readonly { name: string; path: string }[]) {
     return {
         "@context": "https://schema.org",
@@ -89,5 +115,51 @@ export function breadcrumbLd(items: readonly { name: string; path: string }[]) {
             name: item.name,
             item: `${SITE_URL}${item.path === "/" ? "" : item.path}`,
         })),
+    };
+}
+
+export function itemListLd(input: {
+    name: string;
+    description: string;
+    path: string;
+    itemList: readonly { name: string; path: string }[];
+}) {
+    const url = `${SITE_URL}${input.path}`;
+    return {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: input.name,
+        description: input.description,
+        url,
+        numberOfItems: input.itemList.length,
+        itemListElement: input.itemList.map((item, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.name,
+            url: `${SITE_URL}${item.path}`,
+        })),
+    };
+}
+
+export function comparisonPageLd(input: { name: string; description: string; path: string; competitor: string }) {
+    const url = `${SITE_URL}${input.path}`;
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: input.name,
+        description: input.description,
+        url,
+        about: {
+            "@type": "SoftwareApplication",
+            name: SITE_NAME,
+            applicationCategory: "DeveloperApplication",
+            operatingSystem: "Self-hosted",
+            url: SITE_URL,
+        },
+        mentions: {
+            "@type": "SoftwareApplication",
+            name: input.competitor,
+            applicationCategory: "DeveloperApplication",
+        },
     };
 }

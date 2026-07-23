@@ -18,4 +18,11 @@ export type DocMeta = {
 
 export type DocPage = DocMeta & {
     html: string;
+    headingList: DocHeading[];
+};
+
+export type DocHeading = {
+    id: string;
+    text: string;
+    level: 2 | 3;
 };

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import Breadcrumb from "../../lib/components/Breadcrumb.svelte";
     import Container from "../../lib/components/Container.svelte";
     import DocProse from "../../lib/components/DocProse.svelte";
     import Eyebrow from "../../lib/components/Eyebrow.svelte";
@@ -10,9 +11,7 @@
     let { data }: { data: PageData } = $props();
 
     const nav = $derived(groupDocNav(data.docs));
-    const description = $derived(
-        data.index?.description ?? "Install and run Proval on your own infrastructure.",
-    );
+    const description = $derived(data.index?.description ?? "Install and run Proval on your own infrastructure.");
 </script>
 
 <SeoHead
@@ -25,7 +24,8 @@
     ])} />
 
 <Container class="py-12 md:py-16">
-    <header class="max-w-2xl border-b border-neutral-200 pb-8">
+    <Breadcrumb items={[{ name: "Home", href: "/" }, { name: "Docs" }]} />
+    <header class="mt-6 max-w-2xl border-b border-neutral-200 pb-8">
         <Eyebrow>Docs</Eyebrow>
         <h1 class="mt-3 text-3xl font-semibold tracking-tight text-neutral-950 md:text-4xl">Documentation</h1>
         {#if data.index}

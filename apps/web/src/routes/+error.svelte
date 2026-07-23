@@ -2,12 +2,10 @@
     import Container from "$lib/components/Container.svelte";
     import ButtonLink from "$lib/components/ButtonLink.svelte";
     import SeoHead from "$lib/components/SeoHead.svelte";
-    import { page } from "$app/stores";
+    import { page } from "$app/state";
 
-    const status = $derived($page.status);
-    const message = $derived(
-        status === 404 ? "Page not found" : ($page.error?.message ?? "Something went wrong"),
-    );
+    const status = $derived(page.status);
+    const message = $derived(status === 404 ? "Page not found" : (page.error?.message ?? "Something went wrong"));
 </script>
 
 <SeoHead title="Page not found | Proval" description="This page could not be found." path="/404" noindex />

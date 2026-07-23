@@ -6,6 +6,7 @@
     const product = [
         { href: "/docs", label: "Docs" },
         { href: "/docs/quick-start", label: "Quick start" },
+        { href: "/alternatives", label: "Alternatives" },
         { href: "/docs/gitlab", label: "GitLab" },
         { href: "/docs/set-llm", label: "Set LLM" },
     ];
@@ -13,6 +14,7 @@
     const connect = [
         { href: DEMO_URL, label: "Demo", external: true },
         { href: GITHUB_URL, label: "GitHub", external: true },
+        { href: "mailto:me@dowonseo.com", label: "me@dowonseo.com", external: false },
     ];
 </script>
 
@@ -64,11 +66,11 @@
                 </div>
             </div>
 
-            <!-- <div
+            <div
                 class="mt-10 flex flex-col gap-2 border-t border-neutral-200/80 pt-6 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
                 <p>© {year} Proval</p>
                 <p>Open source. Self-hosted. Bring your own model.</p>
-            </div> -->
+            </div>
         </div>
     </div>
 </footer>
