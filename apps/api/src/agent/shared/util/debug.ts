@@ -40,11 +40,17 @@ export async function postDevDebugPullRequestComment(
     provider: GitProvider,
     prIid: number,
     input: DebugCommentInput,
+    inlineReviewId?: string,
 ): Promise<void> {
     if (!isDevEnvironment()) return;
 
     try {
-        await provider.createPullRequestComment(prIid, buildDebugCommentBody(input));
+        const body = buildDebugCommentBody(input);
+        if (inlineReviewId) {
+            await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, body);
+        } else {
+            await provider.createPullRequestComment(prIid, body);
+        }
     } catch (error) {
         logError("Failed to post dev debug pull request comment", error);
     }

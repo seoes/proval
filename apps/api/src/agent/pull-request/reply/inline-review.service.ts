@@ -64,16 +64,21 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             activityId,
         });
 
-        await postDevDebugPullRequestComment(provider, prIid, {
-            sender: llmSender,
-            workflow: "PR Inline Review Reply",
-            usage: result.usage,
-            fields: {
-                "Pull Request IID": prIid,
-                "Inline Review ID": inlineReviewId,
-                "Comment ID": commentId,
+        await postDevDebugPullRequestComment(
+            provider,
+            prIid,
+            {
+                sender: llmSender,
+                workflow: "PR Inline Review Reply",
+                usage: result.usage,
+                fields: {
+                    "Pull Request IID": prIid,
+                    "Inline Review ID": inlineReviewId,
+                    "Comment ID": commentId,
+                },
             },
-        });
+            inlineReviewId,
+        );
 
         return result.usage;
     } finally {
