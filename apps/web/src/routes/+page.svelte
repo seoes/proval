@@ -869,20 +869,7 @@ Repository      -> review and reply policy</code></pre>
                 {#each faqs as faq (faq.question)}
                     <div class="px-5 py-6 md:px-6">
                         <h3 class="font-semibold tracking-tight text-neutral-950">{faq.question}</h3>
-                        {#if faq.question.includes("Ollama")}
-                            <p class="mt-2 text-sm leading-6 text-neutral-600">
-                                Yes. Point Proval at any OpenAI-compatible endpoint, including local or on-prem servers
-                                such as llama.cpp. See the
-                                <a href="/docs/set-llm" class="font-medium text-primary underline underline-offset-2"
-                                    >Set LLM</a>
-                                and
-                                <a href="/docs/llama-cpp" class="font-medium text-primary underline underline-offset-2"
-                                    >llama.cpp</a>
-                                docs for setup details.
-                            </p>
-                        {:else}
-                            <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
-                        {/if}
+                        <p class="mt-2 text-sm leading-6 text-neutral-600">{faq.answer}</p>
                     </div>
                 {/each}
             </div>

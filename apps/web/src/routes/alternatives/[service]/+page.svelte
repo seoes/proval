@@ -20,7 +20,7 @@
         breadcrumbLd([
             { name: "Home", path: "/" },
             { name: "Alternatives", path: "/alternatives" },
-            { name: `${competitor.name} alternative`, path },
+            { name: competitor.name, path },
         ]),
         comparisonPageLd({
             name: competitor.title,

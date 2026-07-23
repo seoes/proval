@@ -41,7 +41,7 @@
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="robots" content={robots} />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#006fea" />
     <link rel="canonical" href={canonical} />
 
     <meta property="og:type" content={type} />

@@ -245,22 +245,34 @@ function cardElement(card: Card): El {
     );
 }
 
+async function loadFont(fileName: string): Promise<ArrayBuffer> {
+    const path = resolve(fontDir, fileName);
+    if (!existsSync(path)) {
+        throw new Error(`OG font missing: ${path}`);
+    }
+    const file = Bun.file(path);
+    if (!(await file.exists()) || file.size === 0) {
+        throw new Error(`OG font missing or empty: ${path}`);
+    }
+    return file.arrayBuffer();
+}
+
 const fontList = [
     {
         name: "Inter",
-        data: await Bun.file(resolve(fontDir, "Inter-Medium.ttf")).arrayBuffer(),
+        data: await loadFont("Inter-Medium.ttf"),
         weight: 500 as const,
         style: "normal" as const,
     },
     {
         name: "Inter",
-        data: await Bun.file(resolve(fontDir, "Inter-Bold.ttf")).arrayBuffer(),
+        data: await loadFont("Inter-Bold.ttf"),
         weight: 700 as const,
         style: "normal" as const,
     },
     {
         name: "JetBrains Mono",
-        data: await Bun.file(resolve(fontDir, "JetBrainsMono-Bold.ttf")).arrayBuffer(),
+        data: await loadFont("JetBrainsMono-Bold.ttf"),
         weight: 700 as const,
         style: "normal" as const,
     },
