@@ -96,7 +96,7 @@ apps/web/ is a web application for Proval. It's built with Bun. It's called land
 
 ##### web OG images
 
-Open Graph images for the landing site live in `apps/web/static/` (`og.png`, `og-alternatives.png`, `og-coderabbit.png`, `og-qodo.png`, `og-greptile.png`, `og-graphite.png`). Size is always `1200x630`.
+Open Graph images for the landing site are generated into `apps/web/static/` (`og.png`, `og-alternatives.png`, `og-coderabbit.png`, `og-qodo.png`, `og-greptile.png`, `og-graphite.png`). Size is always `1200x630`. PNG files are gitignored and created at build time.
 
 **Design direction**
 
@@ -110,18 +110,24 @@ Open Graph images for the landing site live in `apps/web/static/` (`og.png`, `og
 
 **Workflow**
 
-1. Edit the HTML/CSS template at `apps/web/scripts/og-html/card.html`.
-2. Update copy variants in `apps/web/scripts/render-og.ts` when titles or subtitles change.
-3. Render with Chrome headless from `apps/web`:
+1. Edit card copy and layout in `apps/web/scripts/render-og.ts`.
+2. Fonts live in `apps/web/scripts/og-font/` (Inter + JetBrains Mono TTF).
+3. Generate PNGs only (debug / preview) from `apps/web`:
 
 ```bash
-bun scripts/render-og.ts
+bun run build:og
 ```
 
-4. Confirm each PNG under `apps/web/static/` is `1200x630` and matches the design rules above.
-5. Wire page specific images through `SeoHead` (`ogImagePath`) and competitor `ogImagePath` in `competitorList.ts`.
+4. Full site build runs `build:og` then Vite, so Cloudflare Pages and `bun run build` always include fresh OG images:
 
-When adding a new alternatives page, add a matching OG file, a `render-og.ts` card entry, and the `ogImagePath` field together.
+```bash
+bun run build
+```
+
+5. Confirm each PNG under `apps/web/static/` is `1200x630` and matches the design rules above.
+6. Wire page specific images through `SeoHead` (`ogImagePath`) and competitor `ogImagePath` in `competitorList.ts`.
+
+When adding a new alternatives page, add a matching `render-og.ts` card entry and the `ogImagePath` field together. Do not commit the PNG.
 
 ### Rules
 
