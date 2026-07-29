@@ -2,8 +2,9 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { GitDiff, GitPullRequestVersion } from "../src/git-provider/types.js";
 import type { PostedAction } from "../mock/provider.js";
-import type { PullRequestReviewResult } from "../src/agent/pull-request/index.js";
-import type { ReviewConfig } from "./config.js";
+import type { PullRequestReviewResult, PullRequestReviewSubAgentResult } from "../src/agent/pull-request/index.js";
+import type { ReviewUnit } from "../src/agent/pull-request/review/plan.schema.js";
+import type { ReviewConfig, SaveResultFormat } from "./config.js";
 
 export type ReviewResultPayload = {
     config: ReviewConfig;
@@ -15,156 +16,152 @@ export type ReviewResultPayload = {
     ranAt: string;
 };
 
+type ResultDocument = {
+    ranAt: string;
+    config: {
+        repoUrl: string;
+        baseBranch: string;
+        headBranch: string;
+        prTitle: string;
+        prBody: string;
+        language: string;
+        inlineReview: boolean;
+        llmBaseUrl: string;
+        llmModel: string;
+    };
+    version: { headSha: string; baseSha: string; startSha: string };
+    fileCount: number;
+    changedFileList: Array<{ flag: string; path: string }>;
+    review: {
+        inputToken: number;
+        outputToken: number;
+        cachedInputToken: number;
+        reviewUnitList: ReviewUnit[];
+        subAgentList: PullRequestReviewSubAgentResult[];
+    };
+    posted: Array<{ type: string; kind: string; body: string }>;
+};
+
 const RESULT_DIR = resolve(import.meta.dir, "result");
 
-function yamlEscape(value: string): string {
-    return JSON.stringify(value);
-}
-
-function slugBranch(branch: string): string {
-    return branch.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "branch";
-}
-
-function fileTimestamp(iso: string): string {
-    const d = new Date(iso);
-    const y = d.getUTCFullYear();
-    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    const h = String(d.getUTCHours()).padStart(2, "0");
-    const mi = String(d.getUTCMinutes()).padStart(2, "0");
-    const s = String(d.getUTCSeconds()).padStart(2, "0");
-    return `${y}-${mo}-${day}-${h}${mi}${s}`;
-}
-
-function diffFlag(diff: GitDiff): string {
-    if (diff.deletedFile) return "D";
-    if (diff.newFile) return "A";
-    if (diff.renamedFile) return "R";
-    return "M";
-}
-
-function diffLabel(diff: GitDiff): string {
-    return diff.renamedFile ? `${diff.oldPath} → ${diff.newPath}` : diff.newPath;
-}
-
-function postedKind(posted: PostedAction): string {
-    return posted.body.startsWith("## Debug") ? "debug" : posted.type;
-}
-
-function buildMarkdown(payload: ReviewResultPayload): string {
+function buildResultDocument(payload: ReviewResultPayload): ResultDocument {
     const { config, version, diffs, fileCount, review, posted, ranAt } = payload;
+    return {
+        ranAt,
+        config,
+        version,
+        fileCount,
+        changedFileList: diffs.map((diff) => ({
+            flag: diff.deletedFile ? "D" : diff.newFile ? "A" : diff.renamedFile ? "R" : "M",
+            path: diff.renamedFile ? `${diff.oldPath} → ${diff.newPath}` : diff.newPath,
+        })),
+        review,
+        posted: posted.map((item) => ({
+            type: item.type,
+            kind: item.body.startsWith("## Debug") ? "debug" : item.type,
+            body: item.body,
+        })),
+    };
+}
+
+function renderMarkdown(doc: ResultDocument): string {
+    const { config, version, fileCount, review, posted, ranAt } = doc;
+    const { headSha, baseSha } = version;
+    const { inputToken, outputToken, cachedInputToken, reviewUnitList } = review;
+    const { repoUrl, baseBranch, headBranch, prTitle, language, inlineReview, llmBaseUrl, llmModel } = config;
+    const frontMatter: Record<string, string | number | boolean> = {
+        ranAt,
+        repoUrl,
+        baseBranch,
+        headBranch,
+        baseSha,
+        headSha,
+        prTitle,
+        language,
+        inlineReview,
+        llmBaseUrl,
+        llmModel,
+        fileCount,
+        postedCount: posted.length,
+        reviewUnitCount: reviewUnitList.length,
+        inputToken,
+        outputToken,
+        cachedInputToken,
+    };
+
     const lines: string[] = ["---"];
-    lines.push(`ranAt: ${yamlEscape(ranAt)}`);
-    lines.push(`repoUrl: ${yamlEscape(config.repoUrl)}`);
-    lines.push(`baseBranch: ${yamlEscape(config.baseBranch)}`);
-    lines.push(`headBranch: ${yamlEscape(config.headBranch)}`);
-    lines.push(`baseSha: ${yamlEscape(version.baseSha)}`);
-    lines.push(`headSha: ${yamlEscape(version.headSha)}`);
-    lines.push(`mergeBase: ${yamlEscape(version.baseSha)}`);
-    lines.push(`prTitle: ${yamlEscape(config.prTitle)}`);
-    lines.push(`language: ${yamlEscape(config.language)}`);
-    lines.push(`inlineReview: ${config.inlineReview}`);
-    lines.push(`llmBaseUrl: ${yamlEscape(config.llmBaseUrl)}`);
-    lines.push(`llmModel: ${yamlEscape(config.llmModel)}`);
-    lines.push(`diffCount: ${diffs.length}`);
-    lines.push(`fileCount: ${fileCount}`);
-    lines.push(`usage.inputToken: ${review.inputToken}`);
-    lines.push(`usage.outputToken: ${review.outputToken}`);
-    lines.push(`usage.cachedInputToken: ${review.cachedInputToken}`);
-    lines.push(`postedCount: ${posted.length}`);
-    lines.push(`reviewUnitCount: ${review.reviewUnitList.length}`);
-    lines.push("---");
-    lines.push("");
-    lines.push("# Local agent review");
-    lines.push("");
+    for (const [key, value] of Object.entries(frontMatter)) {
+        lines.push(`${key}: ${typeof value === "string" ? JSON.stringify(value) : value}`);
+    }
+    lines.push("---", "");
+
+    lines.push("# Local agent review", "");
     lines.push(
-        `\`${config.headBranch}\` → \`${config.baseBranch}\` · model \`${config.llmModel}\` · inline \`${config.inlineReview}\``,
+        `\`${doc.config.headBranch}\` → \`${doc.config.baseBranch}\` · model \`${doc.config.llmModel}\` · inline \`${doc.config.inlineReview}\``,
+        "",
     );
+
+    lines.push("## Config", "");
+    lines.push(`- repo: ${doc.config.repoUrl}`);
+    lines.push(`- branches: ${doc.config.headBranch} → ${doc.config.baseBranch}`);
+    lines.push(`- title: ${doc.config.prTitle}`);
+    lines.push(`- language: ${doc.config.language}`);
+    lines.push(`- inlineReview: ${doc.config.inlineReview}`);
+    lines.push(`- llm: ${doc.config.llmModel} @ ${doc.config.llmBaseUrl}`);
+    lines.push(`- headSha: \`${doc.version.headSha}\``);
+    lines.push(`- mergeBase: \`${doc.version.baseSha}\``);
     lines.push("");
 
-    lines.push("## Config");
-    lines.push("");
-    lines.push(`- repo: ${config.repoUrl}`);
-    lines.push(`- branches: ${config.headBranch} → ${config.baseBranch}`);
-    lines.push(`- title: ${config.prTitle}`);
-    lines.push(`- language: ${config.language}`);
-    lines.push(`- inlineReview: ${config.inlineReview}`);
-    lines.push(`- llm: ${config.llmModel} @ ${config.llmBaseUrl}`);
-    lines.push(`- headSha: \`${version.headSha}\``);
-    lines.push(`- mergeBase: \`${version.baseSha}\``);
-    lines.push("");
-
-    lines.push("## Changed files");
-    lines.push("");
-    if (diffs.length === 0) {
+    lines.push("## Changed files", "");
+    if (doc.changedFileList.length === 0) {
         lines.push("(none)");
     } else {
-        for (const diff of diffs) {
-            lines.push(`- \`${diffFlag(diff)}\` ${diffLabel(diff)}`);
+        for (const file of doc.changedFileList) {
+            lines.push(`- \`${file.flag}\` ${file.path}`);
         }
     }
-    lines.push("");
-    lines.push(`Loaded file count for mock archive: ${fileCount}`);
-    lines.push("");
+    lines.push("", `Loaded file count for mock archive: ${doc.fileCount}`, "");
 
-    lines.push("## Plan review units");
-    lines.push("");
-    if (review.reviewUnitList.length === 0) {
-        lines.push("(none)");
-        lines.push("");
+    lines.push("## Plan review units", "");
+    if (doc.review.reviewUnitList.length === 0) {
+        lines.push("(none)", "");
     } else {
-        for (const unit of review.reviewUnitList) {
-            lines.push(`### Unit ${unit.id}: ${unit.name}`);
-            lines.push("");
-            lines.push(unit.description);
-            lines.push("");
+        for (const unit of doc.review.reviewUnitList) {
+            lines.push(`### Unit ${unit.id}: ${unit.name}`, "");
+            lines.push(unit.description, "");
             lines.push("```json");
             lines.push(JSON.stringify({ files: unit.files, references: unit.references ?? [] }, null, 2));
-            lines.push("```");
-            lines.push("");
+            lines.push("```", "");
         }
     }
 
-    lines.push("## Sub agent outputs");
-    lines.push("");
-    lines.push("Messages passed to the writing agent.");
-    lines.push("");
-    if (review.subAgentList.length === 0) {
-        lines.push("(none)");
-        lines.push("");
+    lines.push("## Sub agent outputs", "");
+    lines.push("Messages passed to the writing agent.", "");
+    if (doc.review.subAgentList.length === 0) {
+        lines.push("(none)", "");
     } else {
-        for (const sub of review.subAgentList) {
-            lines.push(`### Sub ${sub.index}/${sub.total}: ${sub.reviewUnit.name}`);
-            lines.push("");
-            lines.push(
-                `tokens in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`,
-            );
-            lines.push("");
-            lines.push(sub.finalMessage.trimEnd() || "(empty)");
-            lines.push("");
+        for (const sub of doc.review.subAgentList) {
+            lines.push(`### Sub ${sub.index}/${sub.total}: ${sub.reviewUnit.name}`, "");
+            lines.push(`tokens in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`, "");
+            lines.push(sub.finalMessage.trimEnd() || "(empty)", "");
         }
     }
 
-    lines.push("## Posted comments");
-    lines.push("");
-    if (posted.length === 0) {
-        lines.push("(none)");
-        lines.push("");
+    lines.push("## Posted comments", "");
+    if (doc.posted.length === 0) {
+        lines.push("(none)", "");
     } else {
-        for (const [index, item] of posted.entries()) {
-            lines.push(`### Posted #${index + 1} [${postedKind(item)}]`);
-            lines.push("");
-            lines.push(item.body.trimEnd() || "(empty)");
-            lines.push("");
+        for (const [index, item] of doc.posted.entries()) {
+            lines.push(`### Posted #${index + 1} [${item.kind}]`, "");
+            lines.push(item.body.trimEnd() || "(empty)", "");
         }
     }
 
-    lines.push("## Token usage");
-    lines.push("");
+    lines.push("## Token usage", "");
     lines.push(
-        `- total: input=${review.inputToken} output=${review.outputToken} cached=${review.cachedInputToken}`,
+        `- total: input=${doc.review.inputToken} output=${doc.review.outputToken} cached=${doc.review.cachedInputToken}`,
     );
-    for (const sub of review.subAgentList) {
+    for (const sub of doc.review.subAgentList) {
         lines.push(
             `- sub ${sub.index}/${sub.total} (${sub.reviewUnit.name}): in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`,
         );
@@ -174,10 +171,28 @@ function buildMarkdown(payload: ReviewResultPayload): string {
     return lines.join("\n");
 }
 
-export async function writeReviewResultMd(payload: ReviewResultPayload): Promise<string> {
+export async function writeReviewResult(
+    payload: ReviewResultPayload,
+    format: Exclude<SaveResultFormat, "none">,
+): Promise<string> {
+    const doc = buildResultDocument(payload);
+    const content = format === "json" ? `${JSON.stringify(doc, null, 2)}\n` : renderMarkdown(doc);
+
+    const d = new Date(payload.ranAt);
+    const stamp = [
+        d.getUTCFullYear(),
+        String(d.getUTCMonth() + 1).padStart(2, "0"),
+        String(d.getUTCDate()).padStart(2, "0"),
+        "-",
+        String(d.getUTCHours()).padStart(2, "0"),
+        String(d.getUTCMinutes()).padStart(2, "0"),
+        String(d.getUTCSeconds()).padStart(2, "0"),
+    ].join("");
+    const slug = payload.config.headBranch.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "branch";
+    const ext = format === "json" ? "json" : "md";
+
     await mkdir(RESULT_DIR, { recursive: true });
-    const name = `${fileTimestamp(payload.ranAt)}-${slugBranch(payload.config.headBranch)}.md`;
-    const outPath = resolve(RESULT_DIR, name);
-    await Bun.write(outPath, buildMarkdown(payload));
+    const outPath = resolve(RESULT_DIR, `${stamp}-${slug}.${ext}`);
+    await Bun.write(outPath, content);
     return outPath;
 }

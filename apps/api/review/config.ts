@@ -1,3 +1,5 @@
+export type SaveResultFormat = "none" | "json" | "markdown";
+
 export type ReviewConfig = {
     repoUrl: string;
     repoToken: string;
@@ -10,7 +12,7 @@ export type ReviewConfig = {
     llmModel: string;
     language: string;
     inlineReview: boolean;
-    saveResult: boolean;
+    saveResult: SaveResultFormat;
 };
 
 function requireEnv(key: string): string {
@@ -32,12 +34,21 @@ function parseInlineReview(raw: string | undefined): boolean {
     return true;
 }
 
-function parseSaveResult(raw: string | undefined): boolean {
+function parseSaveResult(raw: string | undefined): SaveResultFormat {
     if (raw == null || raw.trim() === "") {
-        return false;
+        return "none";
     }
     const normalized = raw.trim().toLowerCase();
-    return normalized === "true" || normalized === "1";
+    if (normalized === "none" || normalized === "false" || normalized === "0") {
+        return "none";
+    }
+    if (normalized === "json") {
+        return "json";
+    }
+    if (normalized === "markdown" || normalized === "md" || normalized === "true" || normalized === "1") {
+        return "markdown";
+    }
+    throw new Error(`Invalid SAVE_RESULT: ${raw} (expected none | json | markdown)`);
 }
 
 export function loadConfig(): ReviewConfig {

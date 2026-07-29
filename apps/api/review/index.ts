@@ -10,7 +10,7 @@ import {
 } from "../src/agent/pull-request/index.js";
 import { loadConfig, type ReviewConfig } from "./config.js";
 import { logBlock, logError, logInfo, logSection, logStep } from "./log.js";
-import { writeReviewResultMd } from "./save-result.js";
+import { writeReviewResult } from "./save-result.js";
 
 const CLONE_DIR = resolve(import.meta.dir, "data/repo");
 
@@ -323,16 +323,19 @@ async function main(): Promise<void> {
 
         printResult(provider, review);
 
-        if (config.saveResult) {
-            const outPath = await writeReviewResultMd({
-                config,
-                version,
-                diffs,
-                fileCount: Object.keys(files).length,
-                review,
-                posted: provider.posted,
-                ranAt: new Date().toISOString(),
-            });
+        if (config.saveResult !== "none") {
+            const outPath = await writeReviewResult(
+                {
+                    config,
+                    version,
+                    diffs,
+                    fileCount: Object.keys(files).length,
+                    review,
+                    posted: provider.posted,
+                    ranAt: new Date().toISOString(),
+                },
+                config.saveResult,
+            );
             logStep("save", `wrote ${outPath}`);
         }
     } finally {
