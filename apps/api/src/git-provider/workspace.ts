@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
-import { dirname, join, resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import type { GitChangedFile, GitDiff, GitProvider, GitTree } from "./types.js";
 import { debug, logAgent, logAgentError } from "../util/log.js";
 
@@ -101,33 +101,6 @@ export class Workspace {
             logAgentError(activityId, "load failed, removing checkout", error, label);
             await rm(rootDir, { recursive: true, force: true });
             await rm(archivePath, { force: true });
-            throw error;
-        }
-    }
-
-    /**
-     * Demo/test helper: materialize files (and optional diffs) without remote archive.
-     */
-    async loadMock(opts: { files: Record<string, string>; diffs?: GitDiff[] }): Promise<void> {
-        if (this.loaded) {
-            return;
-        }
-        const id = crypto.randomUUID();
-        const rootDir = join(getWorkspaceRoot(), id);
-        await mkdir(rootDir, { recursive: true });
-
-        try {
-            for (const [filePath, content] of Object.entries(opts.files)) {
-                const abs = this.safePath(filePath);
-                await mkdir(dirname(abs), { recursive: true });
-                await Bun.write(abs, content);
-            }
-            this.rootDir = resolve(rootDir);
-            this.headRef = "mock-head";
-            this.diffs = opts.diffs ?? null;
-            this.loaded = true;
-        } catch (error) {
-            await rm(rootDir, { recursive: true, force: true });
             throw error;
         }
     }

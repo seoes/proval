@@ -34,7 +34,4 @@ local.db
 
 public
 
-# demo LLM outputs
-demo/result/*.md
-
 server

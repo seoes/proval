@@ -10,10 +10,12 @@ node_modules
 .env
 .env.development
 .env.production
-.env.demo
 .env.test
+.env.review
 
 dist
 build
 
 workspaces/
+apps/api/review/data/
+apps/api/review/result/

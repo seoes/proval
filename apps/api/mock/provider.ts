@@ -18,7 +18,7 @@ import type {
     ListPaginationOptions,
 } from "../src/git-provider/types.js";
 
-export interface TestInput {
+export interface MockInput {
     detail: GitPullRequest;
     diffs: GitDiff[];
     /** Conversation comments returned by fetchPullRequestCommentList (default []) */
@@ -45,7 +45,7 @@ export type PostedAction = { type: "comment" | "inline" | "approve" | "unapprove
 export class MockProvider implements GitProvider {
     public readonly posted: PostedAction[] = [];
 
-    constructor(private readonly input: TestInput) {}
+    constructor(private readonly input: MockInput) {}
 
     async fetchCurrentUser(): Promise<GitUser> {
         return this.input.currentUser ?? { username: "test_bot" };
