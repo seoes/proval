@@ -20,6 +20,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         const prompt = await generatePullRequestPrompt(workspace, prIid, headSha);
 
         const planResult = await runReviewPlanAgent(provider, workspace, llmSender, prompt, prIid, activityId);
+        const total = planResult.reviewUnitList.length;
 
         const subAgentResultList = await Promise.all(
             planResult.reviewUnitList.map((reviewUnit, index) =>
@@ -31,7 +32,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                     prIid,
                     reviewUnit,
                     index + 1,
-                    planResult.reviewUnitList.length,
+                    total,
                     activityId,
                 ),
             ),
@@ -77,7 +78,19 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             },
         });
 
-        return usage;
+        return {
+            ...usage,
+            reviewUnitList: planResult.reviewUnitList,
+            subAgentList: subAgentResultList.map((result, index) => ({
+                index: index + 1,
+                total,
+                reviewUnit: planResult.reviewUnitList[index]!,
+                finalMessage: result.finalMessage,
+                inputToken: result.inputToken,
+                outputToken: result.outputToken,
+                cachedInputToken: result.cachedInputToken,
+            })),
+        };
     } finally {
         await workspace.clean();
     }
