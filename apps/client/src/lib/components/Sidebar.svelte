@@ -1,6 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon, ChatCircleTextIcon } from "phosphor-svelte";
+    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon, ChatCircleTextIcon, GearIcon } from "phosphor-svelte";
     import type { Component } from "svelte";
 
     interface SidebarItem {
@@ -47,6 +47,11 @@
                     label: "Model Provider",
                     href: "/model-provider",
                     icon: CubeIcon,
+                },
+                {
+                    label: "Settings",
+                    href: "/settings",
+                    icon: GearIcon,
                 },
             ],
         },

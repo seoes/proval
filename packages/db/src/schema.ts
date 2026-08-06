@@ -11,6 +11,34 @@ const timeStamp = {
         .$onUpdateFn(() => sql`(unixepoch())`),
 };
 
+export const instanceSettingTable = sqliteTable("instance_setting", {
+    id: integer().primaryKey(),
+    authEnabled: integer({ mode: "boolean" }).notNull().default(false),
+    registrationEnabled: integer({ mode: "boolean" }).notNull().default(false),
+    ...timeStamp,
+});
+
+export const userTable = sqliteTable("user", {
+    id: text().primaryKey(),
+    email: text().notNull().unique(),
+    passwordHash: text().notNull(),
+    role: text({ enum: ["admin", "user"] }).notNull().default("user"),
+    ...timeStamp,
+});
+
+export const sessionTable = sqliteTable(
+    "session",
+    {
+        token: text().primaryKey(),
+        userId: text()
+            .notNull()
+            .references(() => userTable.id, { onDelete: "cascade" }),
+        expiresAt: integer({ mode: "timestamp" }).notNull(),
+        ...timeStamp,
+    },
+    (table) => [index("session_user_id_idx").on(table.userId)],
+);
+
 export const modelProviderTable = sqliteTable("model_provider", {
     id: integer().primaryKey({ autoIncrement: true }),
     provider: text({ enum: ["openai", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp

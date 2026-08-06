@@ -5,7 +5,10 @@ const fetchApi = async (path: string, options: RequestInit = {}) => {
     if (isDemoMode()) {
         return demoFetch(path, options);
     }
-    const response = await fetch(`/api${path}`, options);
+    const response = await fetch(`/api${path}`, {
+        ...options,
+        credentials: "include",
+    });
     return response;
 };
 

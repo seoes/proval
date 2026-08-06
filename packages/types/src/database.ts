@@ -5,6 +5,9 @@ import type {
     gitProviderAccessTable,
     githubAppTable,
     githubInstallationTable,
+    instanceSettingTable,
+    userTable,
+    sessionTable,
 } from "@proval/db";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
@@ -22,6 +25,12 @@ export type GitHubInstallation = InferSelectModel<typeof githubInstallationTable
 
 export type Activity = InferSelectModel<typeof activityTable>;
 
+export type InstanceSetting = InferSelectModel<typeof instanceSettingTable>;
+
+export type User = InferSelectModel<typeof userTable>;
+
+export type Session = InferSelectModel<typeof sessionTable>;
+
 // Insert types (for creating new records)
 export type RepositoryInsert = InferInsertModel<typeof repositoryTable>;
 export type ModelProviderInsert = InferInsertModel<typeof modelProviderTable>;
@@ -29,6 +38,9 @@ export type AccessInsert = InferInsertModel<typeof gitProviderAccessTable>;
 export type GitHubAppInsert = InferInsertModel<typeof githubAppTable>;
 export type GitHubInstallationInsert = InferInsertModel<typeof githubInstallationTable>;
 export type ActivityInsert = InferInsertModel<typeof activityTable>;
+export type InstanceSettingInsert = InferInsertModel<typeof instanceSettingTable>;
+export type UserInsert = InferInsertModel<typeof userTable>;
+export type SessionInsert = InferInsertModel<typeof sessionTable>;
 
 // API response types (sensitive fields omitted)
 export type RepositoryResponse = Omit<Repository, "webhookSecret" | "accessToken" | "accessTokenId"> & {
@@ -110,4 +122,30 @@ export type ActivityTokenUsage = {
 export type ModelProviderModelListResponse = {
     models: { id: string }[];
     source: "openai_compatible" | "unavailable";
+};
+
+export type UserRole = User["role"];
+
+export type UserResponse = Omit<User, "passwordHash">;
+
+export type AuthMeResponse = {
+    user: UserResponse | null;
+    isAuthEnabled: boolean;
+    isRegistrationEnabled: boolean;
+    isSetupRequired: boolean;
+};
+
+export type InstanceSettingResponse = {
+    isAuthEnabled: boolean;
+    isRegistrationEnabled: boolean;
+};
+
+export type InstanceSettingUpdateInput = {
+    isAuthEnabled?: boolean;
+    isRegistrationEnabled?: boolean;
+};
+
+export type AuthCredentialInput = {
+    email: string;
+    password: string;
 };
