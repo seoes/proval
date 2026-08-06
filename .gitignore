@@ -19,3 +19,5 @@ build
 workspaces/
 apps/api/review/data/
 apps/api/review/result/
+
+*.backup
