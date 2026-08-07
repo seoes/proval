@@ -26,13 +26,20 @@ import {
     findActivityLogById,
     getActivitySummary,
 } from "./activity/activity.controller.js";
+import { authRouter, settingsRouter } from "./auth/index.js";
+import { resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
 
-export const apiRouter = new Hono();
+export const apiRouter = new Hono<{ Variables: AuthVariables }>();
+
+apiRouter.use("*", resolveAuth);
 
 // Health check routes
 apiRouter.get("/health", (c) => {
     return c.json({ message: "OK" }, 200);
 });
+
+apiRouter.route("/auth", authRouter);
+apiRouter.route("/settings", settingsRouter);
 
 // Model provider routes
 apiRouter.get("/model-provider", findAllModelProvider);
