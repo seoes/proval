@@ -141,8 +141,8 @@ export type InstanceSettingResponse = {
 };
 
 export type InstanceSettingUpdateInput = {
-    isAuthEnabled?: boolean;
-    isRegistrationEnabled?: boolean;
+    isAuthEnabled: boolean;
+    isRegistrationEnabled: boolean;
 };
 
 export type AuthCredentialInput = {

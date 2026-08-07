@@ -7,7 +7,7 @@
     import Description from "$lib/components/atom/Description.svelte";
     import Button from "$lib/components/atom/Button.svelte";
     import fetchApi from "$lib/utils";
-    import { openAlert } from "$lib/store/modal";
+    import { openAlert, openConfirm } from "$lib/store/modal";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
@@ -17,64 +17,78 @@
     let isSaving = $state(false);
     let isLoggingOut = $state(false);
 
+    const isLoggedIn = $derived(!!data.auth.user);
     const canEditSettings = $derived(data.auth.user?.role === "admin");
+    const isDirty = $derived(
+        isAuthEnabled !== data.setting.isAuthEnabled ||
+            isRegistrationEnabled !== data.setting.isRegistrationEnabled,
+    );
 
     $effect(() => {
         isAuthEnabled = data.setting.isAuthEnabled;
         isRegistrationEnabled = data.setting.isRegistrationEnabled;
     });
 
-    async function patchSettings(body: { isAuthEnabled?: boolean; isRegistrationEnabled?: boolean }) {
+    async function onAuthToggle() {
+        if (!canEditSettings) {
+            return;
+        }
+        const nextValue = isAuthEnabled;
+        const previous = !nextValue;
+        if (previous && !nextValue) {
+            const confirmed = await openConfirm(
+                "Turning this off lets anyone use the dashboard without signing in. Continue?",
+                { title: "Disable authentication", confirmText: "OK" },
+            );
+            if (!confirmed) {
+                isAuthEnabled = true;
+                return;
+            }
+            isRegistrationEnabled = false;
+        }
+    }
+
+    async function onSave() {
+        if (!canEditSettings || !isDirty) {
+            return;
+        }
+        const confirmed = await openConfirm("Save these authentication settings?", {
+            title: "Save settings",
+            confirmText: "Save",
+        });
+        if (!confirmed) {
+            return;
+        }
         isSaving = true;
         try {
+            const registrationEnabled = isAuthEnabled ? isRegistrationEnabled : false;
             const response = await fetchApi("/settings", {
-                method: "PATCH",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
+                body: JSON.stringify({
+                    isAuthEnabled,
+                    isRegistrationEnabled: registrationEnabled,
+                }),
             });
             if (response.status === 401) {
                 await goto(`/login?next=${encodeURIComponent("/settings")}`, { invalidateAll: true });
-                return false;
+                return;
             }
             if (response.status === 403) {
                 await openAlert("You don't have permission to change these settings.");
-                return false;
+                return;
             }
             if (!response.ok) {
                 const errorBody = await response.json().catch(() => ({ error: "Failed to update settings" }));
                 await openAlert(errorBody.error ?? "Failed to update settings");
-                return false;
+                return;
             }
             const updated = await response.json();
             isAuthEnabled = updated.isAuthEnabled;
             isRegistrationEnabled = updated.isRegistrationEnabled;
             await invalidateAll();
-            return true;
         } finally {
             isSaving = false;
-        }
-    }
-
-    async function onAuthToggle() {
-        const nextValue = isAuthEnabled;
-        const previous = !nextValue;
-        if (nextValue && !data.auth.user) {
-            isAuthEnabled = previous;
-            await goto(`/login?next=${encodeURIComponent("/settings")}`, { invalidateAll: true });
-            return;
-        }
-        const ok = await patchSettings({ isAuthEnabled: nextValue });
-        if (!ok) {
-            isAuthEnabled = previous;
-        }
-    }
-
-    async function onRegistrationToggle() {
-        const nextValue = isRegistrationEnabled;
-        const previous = !nextValue;
-        const ok = await patchSettings({ isRegistrationEnabled: nextValue });
-        if (!ok) {
-            isRegistrationEnabled = previous;
         }
     }
 
@@ -92,35 +106,53 @@
 <DefaultLayout title="Settings" narrow>
     <div class="space-y-6">
         <Card border title="Authentication">
-            <div class="space-y-6">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <FieldTitle class="ml-1 mb-1">Require authentication</FieldTitle>
-                        <Description placement="below">
-                            When enabled, users must sign in to use the dashboard.
-                        </Description>
-                    </div>
-                    <ToggleSwitch
-                        bind:checked={isAuthEnabled}
-                        disabled={isSaving || !canEditSettings}
-                        onchange={onAuthToggle} />
+            {#if !isLoggedIn}
+                <div class="space-y-4">
+                    <Description placement="below">
+                        Sign in as an admin to change authentication settings.
+                    </Description>
+                    <Button primary onclick={() => goto(`/login?next=${encodeURIComponent("/settings")}`)}>
+                        Sign in
+                    </Button>
                 </div>
-
-                {#if isAuthEnabled}
-                    <div class="flex items-start justify-between gap-4 border-t border-neutral-200 pt-6">
+            {:else}
+                <div class="space-y-6">
+                    <div class="flex items-start justify-between gap-4">
                         <div>
-                            <FieldTitle class="ml-1 mb-1">Allow new user registration</FieldTitle>
+                            <FieldTitle class="ml-1 mb-1">Require authentication</FieldTitle>
                             <Description placement="below">
-                                When enabled, anyone can create an account from the register page.
+                                When enabled, users must sign in to use the dashboard.
                             </Description>
                         </div>
                         <ToggleSwitch
-                            bind:checked={isRegistrationEnabled}
+                            bind:checked={isAuthEnabled}
                             disabled={isSaving || !canEditSettings}
-                            onchange={onRegistrationToggle} />
+                            onchange={onAuthToggle} />
                     </div>
-                {/if}
-            </div>
+
+                    {#if isAuthEnabled}
+                        <div class="flex items-start justify-between gap-4 border-t border-neutral-200 pt-6">
+                            <div>
+                                <FieldTitle class="ml-1 mb-1">Allow new user registration</FieldTitle>
+                                <Description placement="below">
+                                    When enabled, anyone can create an account from the register page.
+                                </Description>
+                            </div>
+                            <ToggleSwitch
+                                bind:checked={isRegistrationEnabled}
+                                disabled={isSaving || !canEditSettings} />
+                        </div>
+                    {/if}
+
+                    {#if canEditSettings}
+                        <div class="flex justify-end border-t border-neutral-200 pt-6">
+                            <Button primary disabled={!isDirty || isSaving} onclick={onSave}>
+                                {isSaving ? "Saving…" : "Save"}
+                            </Button>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
         </Card>
 
         {#if data.auth.user}

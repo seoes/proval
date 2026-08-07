@@ -261,22 +261,17 @@ export class AuthService {
     }
 
     async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
-        const current = await this.getOrCreateInstanceSetting();
-        if (typeof input.isAuthEnabled !== "boolean" && typeof input.isRegistrationEnabled !== "boolean") {
-            return this.toInstanceSettingResponse(current);
+        if (typeof input.isAuthEnabled !== "boolean" || typeof input.isRegistrationEnabled !== "boolean") {
+            throw new Error("isAuthEnabled and isRegistrationEnabled are required");
         }
 
-        const nextAuth = typeof input.isAuthEnabled === "boolean" ? input.isAuthEnabled : current.authEnabled;
-        let nextRegistration =
-            typeof input.isRegistrationEnabled === "boolean"
-                ? input.isRegistrationEnabled
-                : current.registrationEnabled;
-
-        if (typeof input.isAuthEnabled === "boolean" && !input.isAuthEnabled) {
-            nextRegistration = false;
-        } else if (nextRegistration && !nextAuth) {
+        if (input.isRegistrationEnabled && !input.isAuthEnabled) {
             throw new Error("Registration cannot be enabled while authentication is disabled");
         }
+
+        const current = await this.getOrCreateInstanceSetting();
+        const nextAuth = input.isAuthEnabled;
+        const nextRegistration = input.isAuthEnabled ? input.isRegistrationEnabled : false;
 
         if (nextAuth === current.authEnabled && nextRegistration === current.registrationEnabled) {
             return this.toInstanceSettingResponse(current);

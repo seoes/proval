@@ -6,7 +6,7 @@ import {
     registerAuth,
     setupAuth,
     getSettings,
-    patchSettings,
+    putSettings,
 } from "./auth.controller.js";
 import { checkIfAdmin, type AuthVariables } from "./auth.middleware.js";
 
@@ -21,4 +21,4 @@ authRouter.post("/logout", logoutAuth);
 export const settingsRouter = new Hono<{ Variables: AuthVariables }>();
 
 settingsRouter.get("/", getSettings);
-settingsRouter.patch("/", checkIfAdmin, patchSettings);
+settingsRouter.put("/", checkIfAdmin, putSettings);

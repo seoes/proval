@@ -105,14 +105,17 @@ export const getSettings = async (c: Context<{ Variables: AuthVariables }>) => {
     return c.json(authService.toInstanceSettingResponse(setting), 200);
 };
 
-export const patchSettings = async (c: Context<{ Variables: AuthVariables }>) => {
+export const putSettings = async (c: Context<{ Variables: AuthVariables }>) => {
     const body = await c.req.json<InstanceSettingUpdateInput>();
     try {
         const updated = await authService.updateInstanceSetting(body);
         return c.json(updated, 200);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (msg === "Registration cannot be enabled while authentication is disabled") {
+        if (
+            msg === "Registration cannot be enabled while authentication is disabled" ||
+            msg === "isAuthEnabled and isRegistrationEnabled are required"
+        ) {
             return c.json({ error: msg }, 400);
         }
         throw e;
