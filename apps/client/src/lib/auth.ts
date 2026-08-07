@@ -10,12 +10,7 @@ export function isAuthPagePath(pathname: string): boolean {
 export async function fetchAuthMe(): Promise<AuthMeResponse> {
     const response = await fetchApi("/auth/me");
     if (!response.ok) {
-        return {
-            user: null,
-            isAuthEnabled: false,
-            isRegistrationEnabled: false,
-            isSetupRequired: true,
-        };
+        throw new Error(`Failed to load auth state (${response.status})`);
     }
     return response.json();
 }

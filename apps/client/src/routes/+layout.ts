@@ -7,7 +7,12 @@ export const ssr = false;
 export const prerender = false;
 
 export const load: LayoutLoad = async ({ url }) => {
+    const pathname = url.pathname;
+
     if (isDemoMode()) {
+        if (isAuthPagePath(pathname)) {
+            throw redirect(302, "/");
+        }
         return {
             auth: {
                 user: null,
@@ -19,7 +24,6 @@ export const load: LayoutLoad = async ({ url }) => {
     }
 
     const auth = await fetchAuthMe();
-    const pathname = url.pathname;
 
     if (auth.isSetupRequired) {
         if (pathname !== "/setup") {

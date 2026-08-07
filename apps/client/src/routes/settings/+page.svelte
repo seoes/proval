@@ -17,6 +17,8 @@
     let isSaving = $state(false);
     let isLoggingOut = $state(false);
 
+    const canEditSettings = $derived(data.auth.user?.role === "admin");
+
     $effect(() => {
         isAuthEnabled = data.setting.isAuthEnabled;
         isRegistrationEnabled = data.setting.isRegistrationEnabled;
@@ -30,8 +32,12 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
             });
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 await goto(`/login?next=${encodeURIComponent("/settings")}`, { invalidateAll: true });
+                return false;
+            }
+            if (response.status === 403) {
+                await openAlert("You don't have permission to change these settings.");
                 return false;
             }
             if (!response.ok) {
@@ -94,7 +100,10 @@
                             When enabled, users must sign in to use the dashboard.
                         </Description>
                     </div>
-                    <ToggleSwitch bind:checked={isAuthEnabled} disabled={isSaving} onchange={onAuthToggle} />
+                    <ToggleSwitch
+                        bind:checked={isAuthEnabled}
+                        disabled={isSaving || !canEditSettings}
+                        onchange={onAuthToggle} />
                 </div>
 
                 {#if isAuthEnabled}
@@ -107,7 +116,7 @@
                         </div>
                         <ToggleSwitch
                             bind:checked={isRegistrationEnabled}
-                            disabled={isSaving}
+                            disabled={isSaving || !canEditSettings}
                             onchange={onRegistrationToggle} />
                     </div>
                 {/if}

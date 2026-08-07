@@ -4,18 +4,21 @@ import type { AuthCredentialInput, InstanceSettingUpdateInput } from "@proval/ty
 import { authService, SESSION_COOKIE_NAME } from "./auth.service.js";
 import type { AuthVariables } from "./auth.middleware.js";
 
-function setSessionCookie(c: Context, token: string, expiresAt: Date) {
-    setCookie(c, SESSION_COOKIE_NAME, token, {
+function sessionSettings() {
+    return {
         path: "/",
         httpOnly: true,
-        sameSite: "Lax",
+        sameSite: "Lax" as const,
         secure: process.env.NODE_ENV === "production",
-        expires: expiresAt,
-    });
+    };
+}
+
+function setSessionCookie(c: Context, token: string, expiresAt: Date) {
+    setCookie(c, SESSION_COOKIE_NAME, token, { ...sessionSettings(), expires: expiresAt });
 }
 
 function clearSessionCookie(c: Context) {
-    deleteCookie(c, SESSION_COOKIE_NAME, { path: "/" });
+    deleteCookie(c, SESSION_COOKIE_NAME, { ...sessionSettings() });
 }
 
 export const getAuthMe = async (c: Context<{ Variables: AuthVariables }>) => {
@@ -104,6 +107,14 @@ export const getSettings = async (c: Context<{ Variables: AuthVariables }>) => {
 
 export const patchSettings = async (c: Context<{ Variables: AuthVariables }>) => {
     const body = await c.req.json<InstanceSettingUpdateInput>();
-    const updated = await authService.updateInstanceSetting(body);
-    return c.json(updated, 200);
+    try {
+        const updated = await authService.updateInstanceSetting(body);
+        return c.json(updated, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg === "Registration cannot be enabled while authentication is disabled") {
+            return c.json({ error: msg }, 400);
+        }
+        throw e;
+    }
 };

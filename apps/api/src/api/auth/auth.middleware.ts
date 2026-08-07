@@ -74,7 +74,10 @@ export const resolveAuth = createMiddleware<{ Variables: AuthVariables }>(async 
 
 export const checkIfAdmin = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     const user = c.get("user");
-    if (user?.role !== "admin") {
+    if (!user) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+    if (user.role !== "admin") {
         return c.json({ error: "Admin access required" }, 403);
     }
     await next();

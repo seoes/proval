@@ -3,6 +3,6 @@ import type { PageLoad } from "./$types";
 export const load: PageLoad = async ({ url, parent }) => {
     const { auth } = await parent();
     const next = url.searchParams.get("next");
-    const nextPath = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    const nextPath = next && /^\/[^/\\]/.test(next) ? next : "/";
     return { auth, nextPath };
 };

@@ -29,10 +29,6 @@ function createSessionToken(): string {
 
 export class AuthService {
     async getOrCreateInstanceSetting() {
-        const existing = await db.select().from(instanceSettingTable).where(eq(instanceSettingTable.id, 1)).limit(1);
-        if (existing.length > 0) {
-            return existing[0];
-        }
         const inserted = await db
             .insert(instanceSettingTable)
             .values({
@@ -40,8 +36,16 @@ export class AuthService {
                 authEnabled: false,
                 registrationEnabled: false,
             })
+            .onConflictDoNothing()
             .returning();
-        return inserted[0];
+
+        if (inserted.length > 0) {
+            return inserted[0];
+        }
+
+        const existing = await db.select().from(instanceSettingTable).where(eq(instanceSettingTable.id, 1)).limit(1);
+
+        return existing[0];
     }
 
     async getUserCount(): Promise<number> {
@@ -138,28 +142,76 @@ export class AuthService {
         }
     }
 
-    async createInitialAdmin(input: AuthCredentialInput): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
-        const isSetupRequired = await this.isSetupRequired();
-        if (!isSetupRequired) {
-            throw new Error("Setup already completed");
+    async createInitialAdmin(
+        input: AuthCredentialInput,
+    ): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
+        const email = input.email.trim().toLowerCase();
+        if (!email || !input.password) {
+            throw new Error("Email and password are required");
+        }
+        if (input.password.length < 8) {
+            throw new Error("Password must be at least 8 characters");
         }
 
-        await this.getOrCreateInstanceSetting();
-        const user = await this.createUser(input, "admin");
-        await db
-            .update(instanceSettingTable)
-            .set({
-                authEnabled: true,
-                registrationEnabled: false,
-            })
-            .where(eq(instanceSettingTable.id, 1));
+        const passwordHash = await Bun.password.hash(input.password, {
+            algorithm: "argon2id",
+        });
+        const id = Bun.randomUUIDv7();
+        const token = createSessionToken();
+        const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-        const session = await this.createSession(user.id);
-        return {
-            user: toUserResponse(user),
-            token: session.token,
-            expiresAt: session.expiresAt,
-        };
+        await this.getOrCreateInstanceSetting();
+
+        try {
+            return db.transaction(
+                (tx) => {
+                    const userCount = tx.select({ value: count() }).from(userTable).get()?.value ?? 0;
+                    if (userCount > 0) {
+                        throw new Error("Setup already completed");
+                    }
+
+                    const user = tx
+                        .insert(userTable)
+                        .values({
+                            id,
+                            email,
+                            passwordHash,
+                            role: "admin",
+                        })
+                        .returning()
+                        .get();
+
+                    tx.update(instanceSettingTable)
+                        .set({
+                            authEnabled: true,
+                            registrationEnabled: false,
+                        })
+                        .where(eq(instanceSettingTable.id, 1))
+                        .run();
+
+                    tx.insert(sessionTable)
+                        .values({
+                            token,
+                            userId: id,
+                            expiresAt,
+                        })
+                        .run();
+
+                    return {
+                        user: toUserResponse(user),
+                        token,
+                        expiresAt,
+                    };
+                },
+                { behavior: "immediate" },
+            );
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes("UNIQUE") || msg.includes("unique")) {
+                throw new Error("Email already registered");
+            }
+            throw e;
+        }
     }
 
     async registerUser(input: AuthCredentialInput): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
@@ -209,25 +261,33 @@ export class AuthService {
     }
 
     async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
-        await this.getOrCreateInstanceSetting();
-        const patch: { authEnabled?: boolean; registrationEnabled?: boolean } = {};
-        if (typeof input.isAuthEnabled === "boolean") {
-            patch.authEnabled = input.isAuthEnabled;
-            if (input.isAuthEnabled === false) {
-                patch.registrationEnabled = false;
-            }
+        const current = await this.getOrCreateInstanceSetting();
+        if (typeof input.isAuthEnabled !== "boolean" && typeof input.isRegistrationEnabled !== "boolean") {
+            return this.toInstanceSettingResponse(current);
         }
-        if (typeof input.isRegistrationEnabled === "boolean" && input.isAuthEnabled !== false) {
-            patch.registrationEnabled = input.isRegistrationEnabled;
+
+        const nextAuth = typeof input.isAuthEnabled === "boolean" ? input.isAuthEnabled : current.authEnabled;
+        let nextRegistration =
+            typeof input.isRegistrationEnabled === "boolean"
+                ? input.isRegistrationEnabled
+                : current.registrationEnabled;
+
+        if (typeof input.isAuthEnabled === "boolean" && !input.isAuthEnabled) {
+            nextRegistration = false;
+        } else if (nextRegistration && !nextAuth) {
+            throw new Error("Registration cannot be enabled while authentication is disabled");
         }
-        if (Object.keys(patch).length === 0) {
-            const setting = await this.getOrCreateInstanceSetting();
-            return this.toInstanceSettingResponse(setting);
+
+        if (nextAuth === current.authEnabled && nextRegistration === current.registrationEnabled) {
+            return this.toInstanceSettingResponse(current);
         }
 
         const updated = await db
             .update(instanceSettingTable)
-            .set(patch)
+            .set({
+                authEnabled: nextAuth,
+                registrationEnabled: nextRegistration,
+            })
             .where(eq(instanceSettingTable.id, 1))
             .returning();
         return this.toInstanceSettingResponse(updated[0]);
