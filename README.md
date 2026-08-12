@@ -136,4 +136,6 @@ I believe the local LLM market is growing. Models keep getting better at code re
 - Only respond to certain users
 - Benchmark by models
 
-<!-- ## LICENSE -->
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE).
