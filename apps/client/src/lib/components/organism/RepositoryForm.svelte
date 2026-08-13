@@ -6,6 +6,7 @@
         ModelProviderResponse,
         ProviderOption,
         CommentReplyPolicy,
+        ReviewOnPullRequestPush,
         RepositoryInsert,
         RepositorySelectItem,
         RepositoryUpdateInput,
@@ -29,7 +30,8 @@
 
         description: string | null;
         language: string | null;
-        reviewOnPullRequestOpen: boolean;
+        reviewOnPullRequestPush: ReviewOnPullRequestPush;
+        ignoreDraftPullRequest: boolean;
         inlineReview: boolean;
         replyToPullRequestComment: CommentReplyPolicy;
         replyToIssueComment: CommentReplyPolicy;
@@ -55,8 +57,23 @@
         description: string;
     }
 
-    const { modelList, provider, repositoryList, editRepositoryId, config, onSubmit, onDelete, onCancel, onBack }: Props =
-        $props();
+    interface ReviewPushOption {
+        value: ReviewOnPullRequestPush;
+        label: string;
+        description: string;
+    }
+
+    const {
+        modelList,
+        provider,
+        repositoryList,
+        editRepositoryId,
+        config,
+        onSubmit,
+        onDelete,
+        onCancel,
+        onBack,
+    }: Props = $props();
 
     let selectedModelProviderId = $state<string>(String(config.modelProviderId ?? ""));
     let modelName = $state<string>(config.modelName ?? "");
@@ -108,7 +125,8 @@
     let language = $state<string>(config.language ?? "English");
 
     // Pull Request Configuration
-    let reviewOnPullRequestOpen = $state<boolean>(config.reviewOnPullRequestOpen);
+    let reviewOnPullRequestPush = $state<ReviewOnPullRequestPush>(config.reviewOnPullRequestPush);
+    let ignoreDraftPullRequest = $state<boolean>(config.ignoreDraftPullRequest);
     let inlineReview = $state<boolean>(config.inlineReview);
     let replyToPullRequestComment = $state<CommentReplyPolicy>(config.replyToPullRequestComment);
 
@@ -154,6 +172,20 @@
         { value: "off", description: "Do not reply to comments" },
     ];
 
+    const reviewPushOptionList: ReviewPushOption[] = [
+        { value: "off", label: "Off", description: "Do not run pull request reviews" },
+        {
+            value: "on_first_push",
+            label: "First push only",
+            description: "Review once when the first meaningful push or ready transition arrives",
+        },
+        {
+            value: "on_every_push",
+            label: "Every push",
+            description: "Review on each push",
+        },
+    ];
+
     async function handleSubmit(e: Event) {
         e.preventDefault();
 
@@ -194,7 +226,8 @@
             language,
             modelProviderId: Number(selectedModelProviderId),
             modelName: modelName.trim(),
-            reviewOnPullRequestOpen,
+            reviewOnPullRequestPush,
+            ignoreDraftPullRequest,
             inlineReview,
             replyToPullRequestComment,
             replyToIssueComment,
@@ -341,15 +374,32 @@
     </Card>
 
     <Card title="Pull request" spaceY>
-        <div class="space-y-4">
-            <div class="flex items-center justify-between gap-2">
-                <FieldTitle class="ml-1">Review when PR opens</FieldTitle>
-                <ToggleSwitch bind:checked={reviewOnPullRequestOpen} />
-            </div>
-            <div class="flex items-center justify-between gap-2">
-                <FieldTitle class="ml-1">Inline review</FieldTitle>
-                <ToggleSwitch bind:checked={inlineReview} />
-            </div>
+        <div>
+            <FormField
+                label="Review on pull request push"
+                description="When Proval starts a pull request review"
+                linkLabelToControl={false}
+                upper>
+                {#snippet children({ id: _id })}
+                    <div class="flex flex-col gap-2" id={_id} role="group">
+                        {#each reviewPushOptionList as o}
+                            <SimpleSelectCard
+                                label={o.label}
+                                description={o.description}
+                                selected={reviewOnPullRequestPush === o.value}
+                                onclick={() => (reviewOnPullRequestPush = o.value)} />
+                        {/each}
+                    </div>
+                {/snippet}
+            </FormField>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+            <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
+            <ToggleSwitch bind:checked={ignoreDraftPullRequest} />
+        </div>
+        <div class="flex items-center justify-between gap-2">
+            <FieldTitle class="ml-1">Inline review</FieldTitle>
+            <ToggleSwitch bind:checked={inlineReview} />
         </div>
         <div>
             <FormField

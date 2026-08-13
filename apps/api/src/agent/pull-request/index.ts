@@ -12,6 +12,7 @@ type PullRequestReviewParams = {
     isInlineReview: boolean;
     language: string;
     activityId: number;
+    isFollowUpReview?: boolean;
 };
 
 type PullRequestReplyParams = {

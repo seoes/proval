@@ -12,6 +12,7 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
+import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
@@ -96,7 +97,73 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
             status: 500,
         });
     }
+
+    const reviewMode = repository.reviewOnPullRequestPush;
+    if (reviewMode === "off") {
+        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+    }
+
+    const pullRequest = payload.object_attributes;
+    const action = pullRequest?.action ?? "";
+    if (!action) {
+        return new Response(JSON.stringify({ message: "No action found" }), { status: 200 });
+    }
+
+    const isDraft = Boolean(
+        (pullRequest as { draft?: boolean; work_in_progress?: boolean }).draft ||
+            (pullRequest as { draft?: boolean; work_in_progress?: boolean }).work_in_progress,
+    );
+    const oldrev = (pullRequest as { oldrev?: string | null }).oldrev;
+    const hasPush = typeof oldrev === "string" && oldrev.length > 0;
+    const changes = (payload as { changes?: { draft?: { previous?: boolean; current?: boolean } } }).changes;
+    const becameReady =
+        changes?.draft?.previous === true && changes?.draft?.current === false;
+
+    const allowedAction =
+        action === "open" ||
+        action === "reopen" ||
+        (action === "update" && (hasPush || becameReady));
+    if (!allowedAction) {
+        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
+            status: 200,
+        });
+    }
+
+    if (repository.ignoreDraftPullRequest && isDraft && !becameReady) {
+        return new Response(JSON.stringify({ message: "Skipped: draft merge request" }), { status: 200 });
+    }
+
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
+    const activityService = new ActivityService();
+    const prIid = pullRequest.iid;
+
+    if (reviewMode === "on_first_push") {
+        const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+        if (hasCompleted) {
+            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
+                status: 200,
+            });
+        }
+    }
+
+    const version = await gitlabProvider.fetchPullRequestVersion(prIid);
+    const headSha =
+        (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
+
+    if (reviewMode === "on_every_push") {
+        const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
+        if (lastHeadSha && lastHeadSha === headSha) {
+            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
+        }
+    }
+
+    const changedFileList = await gitlabProvider.fetchChangedFileList(prIid);
+    if (changedFileList.length === 0) {
+        return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
+    }
+
+    const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+    const isFollowUpReview = hasCompleted;
 
     const llmSender = createSender({
         provider: modelProvider.provider,
@@ -104,24 +171,6 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
     });
-
-    const pullRequest = payload.object_attributes;
-
-    const action = payload.object_attributes?.action ?? "";
-
-    if (!action) {
-        return new Response(JSON.stringify({ message: "No action found" }), { status: 200 });
-    }
-
-    if (action !== "open") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
-            status: 200,
-        });
-    }
-
-    if (!repository.reviewOnPullRequestOpen) {
-        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
-    }
 
     const isInlineReview = repository.inlineReview;
 
@@ -132,17 +181,19 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
             modelProviderId: modelProvider.id,
             modelName: repository.modelName,
             type: "pr_review",
-            targetIid: pullRequest.iid,
+            targetIid: prIid,
+            headSha,
         },
         (activityId) =>
             runPullRequestReview({
                 provider: gitlabProvider,
                 workspace,
                 llmSender,
-                prIid: pullRequest.iid,
+                prIid,
                 isInlineReview,
                 language: repository.language,
                 activityId,
+                isFollowUpReview,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

@@ -35,6 +35,7 @@ export type {
     AccessProvider,
     LlmApiProvider,
     CommentReplyPolicy,
+    ReviewOnPullRequestPush,
     GitProviderRepositoryListResponse,
     RepositorySelectItem,
     ActivityTokenUsage,

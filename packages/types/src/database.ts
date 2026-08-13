@@ -81,6 +81,7 @@ export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type LlmApiProvider = ModelProvider["provider"];
 export type CommentReplyPolicy = Repository["replyToPullRequestComment"];
+export type ReviewOnPullRequestPush = Repository["reviewOnPullRequestPush"];
 
 // Composite / list API types
 export type GitProviderRepositoryListResponse = {

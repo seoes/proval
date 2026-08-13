@@ -51,7 +51,7 @@
                 {#snippet badge()}
                     <div class="flex w-full flex-col gap-2">
                         <div class="flex flex-wrap gap-1.5">
-                            {#if repository.reviewOnPullRequestOpen}
+                            {#if repository.reviewOnPullRequestPush !== "off"}
                                 <Badge variant="success">Pull Request Review</Badge>
                             {/if}
                             {#if pullRequestReply}

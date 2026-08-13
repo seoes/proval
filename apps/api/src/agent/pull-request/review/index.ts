@@ -3,11 +3,36 @@ import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { generatePullRequestPrompt } from "../prompt/context.js";
 import { runReviewPlanAgent } from "./plan.service.js";
 import { runReviewSubAgent } from "./sub.service.js";
-import { runReviewWritingAgent } from "./writing.service.js";
+import { runReviewWritingAgent, truncatePriorSummary } from "./writing.service.js";
 import { logAgent } from "../../../util/log.js";
 
+async function loadPriorBotSummary(
+    provider: Parameters<PullRequestReview>[0]["provider"],
+    prIid: number,
+): Promise<string | null> {
+    try {
+        const bot = await provider.fetchCurrentUser();
+        const commentList = await provider.fetchPullRequestCommentList(prIid, { page: 1, limit: 50 });
+        const botCommentList = commentList.filter((comment) => comment.author === bot.username && comment.body.trim());
+        const prior = botCommentList[botCommentList.length - 1];
+        if (!prior) return null;
+        return truncatePriorSummary(prior.body);
+    } catch {
+        return null;
+    }
+}
+
 export const runPullRequestReview: PullRequestReview = async (params) => {
-    const { provider, workspace, llmSender, prIid, isInlineReview, language, activityId } = params;
+    const {
+        provider,
+        workspace,
+        llmSender,
+        prIid,
+        isInlineReview,
+        language,
+        activityId,
+        isFollowUpReview = false,
+    } = params;
     const label = `[PR #${prIid}] Review`;
     try {
         logAgent(activityId, "fetching pull request version", label);
@@ -19,7 +44,21 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         logAgent(activityId, "building pull request prompt", label);
         const prompt = await generatePullRequestPrompt(workspace, prIid, headSha);
 
-        const planResult = await runReviewPlanAgent(provider, workspace, llmSender, prompt, prIid, activityId);
+        let priorBotSummary: string | null = null;
+        if (isFollowUpReview) {
+            logAgent(activityId, "loading prior bot review summary", label);
+            priorBotSummary = await loadPriorBotSummary(provider, prIid);
+        }
+
+        const planResult = await runReviewPlanAgent(
+            provider,
+            workspace,
+            llmSender,
+            prompt,
+            prIid,
+            activityId,
+            isFollowUpReview,
+        );
         const total = planResult.reviewUnitList.length;
 
         const subAgentResultList = await Promise.all(
@@ -51,6 +90,8 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             isInlineReview,
             language,
             activityId,
+            isFollowUpReview,
+            priorBotSummary,
         );
 
         const usage = {
@@ -75,6 +116,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             fields: {
                 "Pull Request IID": prIid,
                 "Inline Review": isInlineReview,
+                "Follow Up Review": isFollowUpReview,
             },
         });
 

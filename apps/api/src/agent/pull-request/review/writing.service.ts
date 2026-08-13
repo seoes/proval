@@ -5,6 +5,7 @@ import { runAgentLoop, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { WRITING_WORKFLOW } from "./writing.prompt.js";
+import { FOLLOW_UP_REVIEW_RULE } from "./follow-up.prompt.js";
 import {
     createMultiLineCommentTool,
     createSingleLineCommentTool,
@@ -12,6 +13,8 @@ import {
     postPullRequestCommentTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
+
+const PRIOR_SUMMARY_MAX_CHARS = 4000;
 
 export async function runReviewWritingAgent(
     provider: GitProvider,
@@ -26,19 +29,28 @@ export async function runReviewWritingAgent(
     isInlineReview: boolean,
     language: string,
     activityId: number,
+    isFollowUpReview = false,
+    priorBotSummary: string | null = null,
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
+        isFollowUpReview ? FOLLOW_UP_REVIEW_RULE : null,
         SEVERITY,
         isInlineReview ? INLINE_ENABLED : INLINE_DISABLED,
         COMMENT_LANGUAGE_RULE,
-    ].join("\n\n");
-    const prompt = [
-        pullRequestContextPrompt,
-        `Review unit handoffs (plain text, one block per sub agent, each includes Findings and Good Points).\n\n${reviewResultList.join("\n\n")}`,
-    ].join("\n\n");
+    ]
+        .filter(Boolean)
+        .join("\n\n");
 
-    const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Writing`, {
+    const promptPartList = [
+        pullRequestContextPrompt,
+        isFollowUpReview && priorBotSummary
+            ? `Prior Proval review summary (already posted, do not repeat the same findings):\n\n${priorBotSummary}`
+            : null,
+        `Review unit handoffs (plain text, one block per sub agent, each includes Findings and Good Points).\n\n${reviewResultList.join("\n\n")}`,
+    ].filter(Boolean);
+
+    const result = await runAgentLoop(sender, system, promptPartList.join("\n\n"), `[PR #${prIid}] Writing`, {
         toolList: [
             getFileDiffTool(workspace),
             grepTool(workspace),
@@ -53,4 +65,9 @@ export async function runReviewWritingAgent(
     });
 
     return result.usage;
+}
+
+export function truncatePriorSummary(body: string): string {
+    if (body.length <= PRIOR_SUMMARY_MAX_CHARS) return body;
+    return `${body.slice(0, PRIOR_SUMMARY_MAX_CHARS)}\n… (truncated)`;
 }

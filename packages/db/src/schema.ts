@@ -103,7 +103,10 @@ export const repositoryTable = sqliteTable(
         accessTokenId: integer(),
 
         // pull request
-        reviewOnPullRequestOpen: integer({ mode: "boolean" }).notNull().default(true),
+        reviewOnPullRequestPush: text({ enum: ["off", "on_first_push", "on_every_push"] })
+            .notNull()
+            .default("on_every_push"),
+        ignoreDraftPullRequest: integer({ mode: "boolean" }).notNull().default(true),
         inlineReview: integer({ mode: "boolean" }).notNull().default(true),
         replyToPullRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
             .notNull()
@@ -142,6 +145,7 @@ export const activityTable = sqliteTable(
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["started", "completed", "failed"] }).notNull(),
         targetIid: integer().notNull(),
+        headSha: text(),
         inputToken: integer(),
         cachedInputToken: integer(),
         outputToken: integer(),

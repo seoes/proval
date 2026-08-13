@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/5afc0bba-d89e-43cd-b4d7-d5e7b022eeb1
 ## Features
 
 - **Pull request review**
-  When a new pull request opens, Proval reads the diff, groups changed files into review units, runs specialist sub-agents to investigate each group, and writes a consolidated review with findings grouped by severity. Each sub-agent explores the codebase on its own, so it can catch cross-file issues and hidden dependencies.
+  When a pull request gets a meaningful push (or a draft becomes ready), Proval reads the diff, groups changed files into review units, runs specialist sub-agents to investigate each group, and writes a consolidated review with findings grouped by severity. Each sub-agent explores the codebase on its own, so it can catch cross-file issues and hidden dependencies. Repository settings choose off, first push only, or every push.
 
 - **Issue replies**
   Works on issues too. Proval leaves a comment when one opens, and can reply when someone comments back. You can set it to respond to every message or only when @mentioned.

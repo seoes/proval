@@ -11,7 +11,7 @@ import type {
     TokenSeriesPoint,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, getTableColumns, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, sql } from "drizzle-orm";
 
 const MAX_ACTIVITY_LOGS = 200;
 
@@ -145,6 +145,7 @@ export type ActivityStartInput = {
     modelName: string;
     type: Activity["type"];
     targetIid: number;
+    headSha?: string | null;
 };
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
@@ -284,6 +285,39 @@ export class ActivityService {
         }
 
         return rows[0];
+    }
+
+    public async findLastReviewedHeadSha(repositoryId: number, targetIid: number): Promise<string | null> {
+        const rows = await db
+            .select({ headSha: activityTable.headSha })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    eq(activityTable.status, "completed"),
+                    isNotNull(activityTable.headSha),
+                ),
+            )
+            .orderBy(desc(activityTable.completedAt), desc(activityTable.id))
+            .limit(1);
+        return rows[0]?.headSha ?? null;
+    }
+
+    public async hasCompletedPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
+        const [{ total }] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    eq(activityTable.status, "completed"),
+                ),
+            );
+        return total > 0;
     }
 
     public async findLogListById(id: number): Promise<ActivityLogResponse | null> {

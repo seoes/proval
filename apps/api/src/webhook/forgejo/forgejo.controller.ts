@@ -3,6 +3,7 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
+import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
@@ -18,6 +19,8 @@ interface ForgejoPullRequestPayload {
         body: string | null;
         state: string;
         merged: boolean;
+        draft?: boolean;
+        head?: { sha?: string };
     };
     repository: {
         id: number;
@@ -182,15 +185,26 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     access,
 ) => {
     const action = payload.action;
-
-    if (!repository.reviewOnPullRequestOpen) {
+    const reviewMode = repository.reviewOnPullRequestPush;
+    if (reviewMode === "off") {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
-    if (action !== "opened" && action !== "reopened") {
+    const allowedAction =
+        action === "opened" ||
+        action === "reopened" ||
+        action === "synchronized" ||
+        action === "synchronize" ||
+        action === "ready_for_review";
+    if (!allowedAction) {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });
+    }
+
+    const isDraft = payload.pull_request.draft === true;
+    if (repository.ignoreDraftPullRequest && isDraft && action !== "ready_for_review") {
+        return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
     }
 
     const token = access.accessToken;
@@ -203,6 +217,35 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const activityService = new ActivityService();
+    const prNumber = payload.pull_request.number;
+
+    if (reviewMode === "on_first_push") {
+        const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        if (hasCompleted) {
+            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
+                status: 200,
+            });
+        }
+    }
+
+    const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
+    const headSha = payload.pull_request.head?.sha ?? version.headSha;
+
+    if (reviewMode === "on_every_push") {
+        const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
+        if (lastHeadSha && lastHeadSha === headSha) {
+            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
+        }
+    }
+
+    const changedFileList = await forgejoProvider.fetchChangedFileList(prNumber);
+    if (changedFileList.length === 0) {
+        return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
+    }
+
+    const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    const isFollowUpReview = hasCompleted;
 
     const llmSender = createSender({
         provider: modelProvider.provider,
@@ -210,8 +253,6 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
     });
-
-    const prNumber = payload.pull_request.number;
 
     const isInlineReview = repository.inlineReview;
     const language = repository.language;
@@ -224,6 +265,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
             modelName: repository.modelName,
             type: "pr_review",
             targetIid: prNumber,
+            headSha,
         },
         (activityId) =>
             runPullRequestReview({
@@ -234,6 +276,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
                 isInlineReview,
                 language,
                 activityId,
+                isFollowUpReview,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

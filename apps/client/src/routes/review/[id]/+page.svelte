@@ -129,6 +129,10 @@
                     {typeLabel}
                     <span class="text-neutral-300">·</span>
                     {review.modelName}
+                    {#if review.headSha}
+                        <span class="text-neutral-300">·</span>
+                        <span class="font-mono text-neutral-600">{review.headSha.slice(0, 7)}</span>
+                    {/if}
                 </p>
             </div>
             <div class="shrink-0 space-y-1 text-right text-xs">

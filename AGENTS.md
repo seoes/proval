@@ -10,7 +10,7 @@ Proval is a self hosted, privacy focused AI code review agent. It connects to yo
 
 ### Capabilities
 
-- **Pull request review**. On PR or MR open, Proval reviews the diff and posts findings, including optional inline comments on changed lines.
+- **Pull request review**. On a meaningful PR or MR push (and when a draft becomes ready), Proval reviews the diff and posts findings, including optional inline comments on changed lines. Per repository you can choose off, first push only, or every push, and whether to ignore draft pull requests.
 - **Issue comments**. On issue open, Proval can leave an initial comment after checking related issues and pull requests.
 - **Threaded replies**. On PR and issue comments, Proval can reply according to repository policy (`all`, `mentioned_only`, or `off`).
 
@@ -45,7 +45,7 @@ A webhook event leads to repository settings, then the Git Provider API, then an
 
 #### Pull Request Review
 
-The plan agent groups changed files. Specialist sub agents run in parallel. The writing agent posts a summary and optional inline comments through the Git Provider.
+Webhook events for open, push updates, reopen, and ready for review can start a review based on `reviewOnPullRequestPush`. The plan agent groups changed files. Specialist sub agents run in parallel. The writing agent posts a summary and optional inline comments through the Git Provider. Follow up reviews reuse the full PR context and prompt the writing agent to avoid repeating prior Proval findings.
 
 #### Issue Comment
 
