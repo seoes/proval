@@ -374,6 +374,14 @@
     </Card>
 
     <Card title="Pull request" spaceY>
+        <div class="flex items-center justify-between gap-2">
+            <FieldTitle class="ml-1">Inline review</FieldTitle>
+            <ToggleSwitch bind:checked={inlineReview} />
+        </div>
+        <div class="flex items-center justify-between gap-2">
+            <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
+            <ToggleSwitch bind:checked={ignoreDraftPullRequest} />
+        </div>
         <div>
             <FormField
                 label="Review on pull request push"
@@ -393,14 +401,7 @@
                 {/snippet}
             </FormField>
         </div>
-        <div class="flex items-center justify-between gap-2">
-            <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
-            <ToggleSwitch bind:checked={ignoreDraftPullRequest} />
-        </div>
-        <div class="flex items-center justify-between gap-2">
-            <FieldTitle class="ml-1">Inline review</FieldTitle>
-            <ToggleSwitch bind:checked={inlineReview} />
-        </div>
+
         <div>
             <FormField
                 label="Reply to comments"
