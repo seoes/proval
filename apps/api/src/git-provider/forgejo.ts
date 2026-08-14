@@ -2,6 +2,7 @@ import type {
     GitChangedFile,
     GitComment,
     GitCodeSearchResult,
+    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -153,6 +154,36 @@ export class ForgejoProvider implements GitProvider {
             }
         }
         return all;
+    }
+
+    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
+        const path = `/repos/${this.owner}/${this.repo}/compare/${encodeURIComponent(fromSha)}...${encodeURIComponent(toSha)}`;
+        const data = await this.requestJson<{
+            commits?: Array<{ sha?: string; commit?: { message?: string } }>;
+            files?: Array<{
+                filename: string;
+                previous_filename?: string;
+                status: string;
+                patch?: string;
+            }>;
+        }>(path);
+
+        const diffList = (data.files ?? []).map((file) => ({
+            oldPath: file.previous_filename ?? file.filename,
+            newPath: file.filename,
+            newFile: file.status === "added",
+            renamedFile: file.status === "renamed",
+            deletedFile: file.status === "removed",
+            diff: file.patch ?? "",
+        }));
+
+        const commitTitleList = (data.commits ?? []).map((commit) => {
+            const message = commit.commit?.message ?? "";
+            const title = message.split("\n")[0]?.trim();
+            return title || (commit.sha ? commit.sha.slice(0, 12) : "commit");
+        });
+
+        return { diffList, commitTitleList };
     }
 
     public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {

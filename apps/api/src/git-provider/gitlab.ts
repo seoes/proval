@@ -4,6 +4,7 @@ import type {
     GitComment,
     GitChangedFile,
     GitCodeSearchResult,
+    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -163,6 +164,36 @@ export class GitLabProvider implements GitProvider {
             deletedFile: change.deleted_file,
             diff: change.diff,
         }));
+    }
+
+    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
+        const result = await this.gitlab.Repositories.compare(this.projectId, fromSha, toSha, {
+            straight: true,
+        });
+
+        if (result.compare_timeout) {
+            throw new Error("GitLab compare timed out or exceeded size limits");
+        }
+
+        const diffList = (result.diffs ?? []).map((change) => ({
+            oldPath: change.old_path,
+            newPath: change.new_path,
+            newFile: Boolean(change.new_file),
+            renamedFile: Boolean(change.renamed_file),
+            deletedFile: Boolean(change.deleted_file),
+            diff: change.diff ?? "",
+        }));
+
+        const commitTitleList = (result.commits ?? []).map((commit) => {
+            const title = typeof commit.title === "string" ? commit.title.trim() : "";
+            if (title) return title;
+            const message = typeof commit.message === "string" ? commit.message : "";
+            const firstLine = message.split("\n")[0]?.trim();
+            const id = typeof commit.id === "string" ? commit.id : "";
+            return firstLine || id.slice(0, 12) || "commit";
+        });
+
+        return { diffList, commitTitleList };
     }
 
     public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {

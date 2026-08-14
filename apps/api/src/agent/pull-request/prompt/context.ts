@@ -15,8 +15,9 @@ export async function generatePullRequestPrompt(workspace: Workspace, prIid: num
     return [
         "# Workspace rules and tool intent",
         "- The workspace is a **head-only** snapshot of this PR. There is no base tree checkout.",
-        "- Call `get_file_diff` on candidate paths first (why: primary before/after evidence for what changed).",
-        "- Call `get_file_content` / `grep` / `glob` / `list_directory` only for **head** context (callers, contracts, surrounding lines) after you have a specific suspicion from the diff (why: avoid dumping the repo into context).",
+        "- Call `get_file_diff` on candidate paths first (why: primary before/after evidence for what changed across the full PR).",
+        "- On a follow-up push review, prefer `get_push_file_diff` / `get_push_changed_file_list` for this push, and use full-PR diff tools only for regression or boundary checks.",
+        "- Call `get_file_content` / `grep` / `glob` / `list_directory` only for **head** context (callers, contracts, surrounding lines, imports) after you have a specific suspicion from the diff (why: avoid dumping the repo into context).",
         "- Deleted paths: rely on diff hunks only — the file will not exist in the workspace.",
         "- Do not dump the whole repository into context.",
         "- When stating a claim about code, cite the exact file path and line you inspected.",

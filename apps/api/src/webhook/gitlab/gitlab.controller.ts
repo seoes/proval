@@ -150,8 +150,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     const headSha =
         (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
 
+    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
+
     if (reviewMode === "on_every_push") {
-        const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -194,6 +195,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
                 language: repository.language,
                 activityId,
                 isFollowUpReview,
+                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

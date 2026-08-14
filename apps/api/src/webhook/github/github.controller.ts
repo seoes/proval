@@ -161,8 +161,9 @@ async function handlePullRequestWebhook(
     const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request?.head?.sha ?? version.headSha;
 
+    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
+
     if (reviewMode === "on_every_push") {
-        const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -205,6 +206,7 @@ async function handlePullRequestWebhook(
                 language: repository.language,
                 activityId,
                 isFollowUpReview,
+                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

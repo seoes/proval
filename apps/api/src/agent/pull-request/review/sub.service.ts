@@ -4,8 +4,9 @@ import type { Workspace } from "../../../git-provider/workspace.js";
 import type { LlmSender } from "../../llm/loop";
 import type { ReviewUnit } from "./plan.schema.js";
 import { REVIEW_SUB_AGENT_BODY, REVIEW_SUB_AGENT_OUTPUT_FORMAT } from "./sub.prompt.js";
+import { FOLLOW_UP_PUSH_SUB_HINT } from "./follow-up.prompt.js";
 import { REVIEW_CHECKLIST } from "../prompt";
-import { getFileDiffTool } from "../tool";
+import { getFileDiffTool, getPushFileDiffTool } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
 
@@ -19,10 +20,19 @@ export async function runReviewSubAgent(
     index: number,
     totalIndex: number,
     activityId: number,
+    usePushScope = false,
 ): Promise<ActivityTokenUsage & { finalMessage: string }> {
-    const system = [REVIEW_SUB_AGENT_BODY, REVIEW_CHECKLIST, REVIEW_SUB_AGENT_OUTPUT_FORMAT].join("\n\n");
+    const system = [
+        REVIEW_SUB_AGENT_BODY,
+        usePushScope ? FOLLOW_UP_PUSH_SUB_HINT : null,
+        REVIEW_CHECKLIST,
+        REVIEW_SUB_AGENT_OUTPUT_FORMAT,
+    ]
+        .filter(Boolean)
+        .join("\n\n");
     const prompt = [pullRequestContextPrompt, `review unit: ${JSON.stringify(reviewUnit)}`].join("\n\n");
     const toolList = [
+        usePushScope ? getPushFileDiffTool(workspace) : null,
         getFileDiffTool(workspace),
         grepTool(workspace),
         globTool(workspace),

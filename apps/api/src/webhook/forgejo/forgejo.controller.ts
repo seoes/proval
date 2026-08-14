@@ -232,8 +232,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request.head?.sha ?? version.headSha;
 
+    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
+
     if (reviewMode === "on_every_push") {
-        const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -277,6 +278,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
                 language,
                 activityId,
                 isFollowUpReview,
+                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

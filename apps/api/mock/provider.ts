@@ -2,6 +2,7 @@ import type {
     GitComment,
     GitChangedFile,
     GitCodeSearchResult,
+    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -32,6 +33,8 @@ export interface MockInput {
     reviewers?: string[];
     /** Returned by fetchCurrentUser (default test_bot) */
     currentUser?: GitUser;
+    /** Returned by fetchCompare (default empty) */
+    compare?: GitCompareResult;
 }
 
 const defaultVersion: GitPullRequestVersion = {
@@ -97,6 +100,10 @@ export class MockProvider implements GitProvider {
 
     async fetchPullRequestDiffList(_prIid: number): Promise<GitDiff[]> {
         return this.input.diffs;
+    }
+
+    async fetchCompare(_fromSha: string, _toSha: string): Promise<GitCompareResult> {
+        return this.input.compare ?? { diffList: [], commitTitleList: [] };
     }
 
     async fetchChangedFileList(_prIid: number): Promise<GitChangedFile[]> {

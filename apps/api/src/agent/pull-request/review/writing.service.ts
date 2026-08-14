@@ -10,6 +10,12 @@ import {
     createMultiLineCommentTool,
     createSingleLineCommentTool,
     getFileDiffTool,
+    getPullRequestCommentListTool,
+    getPullRequestCommentTool,
+    getPullRequestInlineReviewCommentTool,
+    getPullRequestInlineReviewListTool,
+    getPushChangedFileListTool,
+    getPushFileDiffTool,
     postPullRequestCommentTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
@@ -31,6 +37,7 @@ export async function runReviewWritingAgent(
     activityId: number,
     isFollowUpReview = false,
     priorBotSummary: string | null = null,
+    usePushScope = false,
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -52,11 +59,17 @@ export async function runReviewWritingAgent(
 
     const result = await runAgentLoop(sender, system, promptPartList.join("\n\n"), `[PR #${prIid}] Writing`, {
         toolList: [
+            usePushScope ? getPushChangedFileListTool(workspace) : null,
+            usePushScope ? getPushFileDiffTool(workspace) : null,
             getFileDiffTool(workspace),
             grepTool(workspace),
             globTool(workspace),
             listDirectoryTool(workspace),
             getFileContentTool(workspace),
+            isFollowUpReview ? getPullRequestCommentListTool(provider, prIid) : null,
+            isFollowUpReview ? getPullRequestCommentTool(provider, prIid) : null,
+            isFollowUpReview ? getPullRequestInlineReviewListTool(provider, prIid) : null,
+            isFollowUpReview ? getPullRequestInlineReviewCommentTool(provider, prIid) : null,
             isInlineReview ? createSingleLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
             isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
         ],

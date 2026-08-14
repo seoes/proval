@@ -62,6 +62,12 @@ export interface GitDiff {
     diff: string;
 }
 
+/** Result of comparing two refs (e.g. previous review head → current head). */
+export interface GitCompareResult {
+    diffList: GitDiff[];
+    commitTitleList: string[];
+}
+
 export interface GitDiffBase {
     baseSha: string;
     headSha: string;
@@ -156,6 +162,11 @@ export interface GitProvider {
     fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
     /** Bulk PR diffs (one API family; paginate pages if needed — not per-file requests). */
     fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]>;
+    /**
+     * Compare two commit SHAs (fromSha..toSha). Used for follow-up push reviews.
+     * Throws on API failure or provider timeout / incomplete compare.
+     */
+    fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult>;
 
     // Pull Request conversation comment (PR timeline / issue_comment)
     fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment>;
