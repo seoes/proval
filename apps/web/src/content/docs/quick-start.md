@@ -89,5 +89,6 @@ Details depend on your Git host. See [GitLab](/docs/gitlab), [Forgejo](/docs/for
 
 ## What's next
 
-1. [Set LLM](/docs/set-llm), or [OpenRouter](/docs/openrouter) / [llama.cpp](/docs/llama-cpp) for example endpoint values
-2. Your Git provider: [GitLab](/docs/gitlab) · [Forgejo](/docs/forgejo) · [GitHub](/docs/github)
+1. Optional: run on Kubernetes with the [Kubernetes example](/docs/kubernetes)
+2. [Set LLM](/docs/set-llm), or [OpenRouter](/docs/openrouter) / [llama.cpp](/docs/llama-cpp) for example endpoint values
+3. Your Git provider: [GitLab](/docs/gitlab) · [Forgejo](/docs/forgejo) · [GitHub](/docs/github)

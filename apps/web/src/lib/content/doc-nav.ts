@@ -1,6 +1,6 @@
 import type { DocMeta } from "./types";
 
-export const QUICK_START_SLUGS = ["quick-start"] as const;
+export const QUICK_START_SLUGS = ["quick-start", "kubernetes"] as const;
 export const GIT_PROVIDER_SLUGS = ["gitlab", "forgejo", "github"] as const;
 export const LLM_SLUGS = ["set-llm", "llama-cpp", "openrouter"] as const;
 

@@ -6,11 +6,7 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 
 [Website](https://proval.app) | [Demo](https://demo.proval.app) | [Docs](https://proval.app/docs)
 
-
-
 https://github.com/user-attachments/assets/5afc0bba-d89e-43cd-b4d7-d5e7b022eeb1
-
-
 
 - **Easy deploy**
   Proval takes 3 min, less than 10 lines to deploy to your server
@@ -79,6 +75,94 @@ docker run -d \
   -e DB_FILE_NAME=/data/app.db \
   -e ENCRYPTION_KEY=[Encryption Key] \  # openssl rand -base64 32
   ghcr.io/seoes/proval:latest
+```
+
+### Kubernetes example
+
+Keep one replica (SQLite on `/data`), use `Recreate`, and pin an image tag. Full notes: [Kubernetes example](https://proval.app/docs/kubernetes).
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: proval
+type: Opaque
+stringData:
+    encryption-key: "[Encryption Key]"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: proval-data
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: proval
+spec:
+    replicas: 1
+    strategy:
+        type: Recreate
+    selector:
+        matchLabels:
+            app: proval
+    template:
+        metadata:
+            labels:
+                app: proval
+        spec:
+            containers:
+                - name: proval
+                  image: ghcr.io/seoes/proval:latest
+                  ports:
+                      - name: dashboard
+                        containerPort: 7900
+                      - name: webhook
+                        containerPort: 7901
+                  env:
+                      - name: ENCRYPTION_KEY
+                        valueFrom:
+                            secretKeyRef:
+                                name: proval
+                                key: encryption-key
+                      - name: DB_FILE_NAME
+                        value: /data/app.db
+                  volumeMounts:
+                      - name: data
+                        mountPath: /data
+                  readinessProbe:
+                      httpGet:
+                          path: /api/health
+                          port: 7900
+                  livenessProbe:
+                      httpGet:
+                          path: /api/health
+                          port: 7900
+            volumes:
+                - name: data
+                  persistentVolumeClaim:
+                      claimName: proval-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: proval
+spec:
+    selector:
+        app: proval
+    ports:
+        - name: dashboard
+          port: 7900
+          targetPort: dashboard
+        - name: webhook
+          port: 7901
+          targetPort: webhook
 ```
 
 ## How it works
