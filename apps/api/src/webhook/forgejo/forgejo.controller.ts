@@ -220,8 +220,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const activityService = new ActivityService();
     const prNumber = payload.pull_request.number;
 
+    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -232,9 +233,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request.head?.sha ?? version.headSha;
 
-    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-
+    let lastHeadSha: string | null = null;
     if (reviewMode === "on_every_push") {
+        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -245,7 +246,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    if (hasCompleted === null) {
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    }
     const isFollowUpReview = hasCompleted;
 
     const llmSender = createSender({

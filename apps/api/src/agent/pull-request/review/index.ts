@@ -10,15 +10,20 @@ import { logAgent, logAgentError } from "../../../util/log.js";
 async function loadPriorBotSummary(
     provider: Parameters<PullRequestReview>[0]["provider"],
     prIid: number,
+    activityId: number,
+    label: string,
 ): Promise<string | null> {
     try {
         const bot = await provider.fetchCurrentUser();
-        const commentList = await provider.fetchPullRequestCommentList(prIid, { page: 1, limit: 50 });
-        const botCommentList = commentList.filter((comment) => comment.author === bot.username && comment.body.trim());
+        const commentList = await provider.fetchPullRequestCommentList(prIid);
+        const botCommentList = [...commentList]
+            .filter((comment) => comment.author === bot.username && comment.body.trim())
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         const prior = botCommentList[botCommentList.length - 1];
         if (!prior) return null;
         return truncatePriorSummary(prior.body);
-    } catch {
+    } catch (error) {
+        logAgentError(activityId, "prior bot summary load failed", error, label);
         return null;
     }
 }
@@ -99,7 +104,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         let threadContext: string | null = null;
         if (isFollowUpReview) {
             logAgent(activityId, "loading prior bot review summary", label);
-            priorBotSummary = await loadPriorBotSummary(provider, prIid);
+            priorBotSummary = await loadPriorBotSummary(provider, prIid, activityId, label);
             logAgent(activityId, "loading follow-up thread context", label);
             try {
                 threadContext = await buildFollowUpThreadContext(provider, prIid);

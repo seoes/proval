@@ -146,11 +146,10 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
 
-    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const activityService = new ActivityService();
-
+    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -158,12 +157,13 @@ async function handlePullRequestWebhook(
         }
     }
 
+    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request?.head?.sha ?? version.headSha;
 
-    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-
+    let lastHeadSha: string | null = null;
     if (reviewMode === "on_every_push") {
+        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -174,7 +174,9 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    if (hasCompleted === null) {
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    }
     const isFollowUpReview = hasCompleted;
 
     const llmSender = createSender({

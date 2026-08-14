@@ -137,6 +137,98 @@ describe("follow-up context builders", () => {
         expect(text).toContain("thread thread-1");
         expect(text).toContain("get_pull_request_comment");
     });
+
+    it("buildFollowUpThreadContext keeps the newest 50 comments, not the oldest page", async () => {
+        const commentList = Array.from({ length: 51 }, (_, i) => ({
+            id: i + 1,
+            body: `comment-body-${i}`,
+            author: "reviewer",
+            createdAt: `2026-08-13T00:${String(i).padStart(2, "0")}:00Z`,
+        }));
+        const provider = new MockProvider({
+            detail: {
+                title: "Test",
+                description: null,
+                sourceBranch: "feature",
+                targetBranch: "main",
+                author: "dev",
+                state: "opened",
+            },
+            diffs: [sampleDiff],
+            commentList,
+        });
+        const text = await buildFollowUpThreadContext(provider, 1);
+        expect(text).toContain("comment-body-50");
+        expect(text).not.toContain("comment-body-0");
+    });
+
+    it("buildFollowUpThreadContext keeps the newest 50 inline threads, not the oldest page", async () => {
+        const inlineReviewList = Array.from({ length: 51 }, (_, i) => ({
+            id: `thread-${i}`,
+            path: "src/auth.ts",
+            createdAt: `2026-08-13T00:${String(i).padStart(2, "0")}:00Z`,
+            isResolved: false,
+            start: { type: "new" as const, newLine: 1 },
+            end: { type: "new" as const, newLine: 1 },
+            commentList: [
+                {
+                    id: 1000 + i,
+                    body: `inline-body-${i}`,
+                    author: "bot",
+                    createdAt: `2026-08-13T00:${String(i).padStart(2, "0")}:00Z`,
+                },
+            ],
+        }));
+        const provider = new MockProvider({
+            detail: {
+                title: "Test",
+                description: null,
+                sourceBranch: "feature",
+                targetBranch: "main",
+                author: "dev",
+                state: "opened",
+            },
+            diffs: [sampleDiff],
+            inlineReviewList,
+        });
+        const text = await buildFollowUpThreadContext(provider, 1);
+        expect(text).toContain("inline-body-50");
+        expect(text).toContain("thread thread-50");
+        expect(text).not.toContain("inline-body-0");
+        expect(text).not.toContain("thread thread-0");
+    });
+});
+
+describe("MockProvider comment ordering", () => {
+    it("fetchPullRequestCommentList sorts by createdAt ascending without options", async () => {
+        const provider = new MockProvider({
+            detail: {
+                title: "Test",
+                description: null,
+                sourceBranch: "feature",
+                targetBranch: "main",
+                author: "dev",
+                state: "opened",
+            },
+            diffs: [sampleDiff],
+            commentList: [
+                {
+                    id: 2,
+                    body: "newer",
+                    author: "a",
+                    createdAt: "2026-08-13T02:00:00Z",
+                },
+                {
+                    id: 1,
+                    body: "older",
+                    author: "a",
+                    createdAt: "2026-08-13T01:00:00Z",
+                },
+            ],
+        });
+        const commentList = await provider.fetchPullRequestCommentList(1);
+        expect(commentList.map((c) => c.body)).toEqual(["older", "newer"]);
+    });
 });
 
 describe("follow-up prompts", () => {

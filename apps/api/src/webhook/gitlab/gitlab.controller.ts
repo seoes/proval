@@ -137,8 +137,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
 
+    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
         if (hasCompleted) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -150,9 +151,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     const headSha =
         (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
 
-    const lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
-
+    let lastHeadSha: string | null = null;
     if (reviewMode === "on_every_push") {
+        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
         if (lastHeadSha && lastHeadSha === headSha) {
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
@@ -163,7 +164,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    const hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+    if (hasCompleted === null) {
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+    }
     const isFollowUpReview = hasCompleted;
 
     const llmSender = createSender({

@@ -27,14 +27,18 @@ function formatInlineReview(review: GitPullRequestInlineReview): string {
  * Compact conversation + inline thread summary for plan/writing follow-up context.
  * Full bodies stay behind get_pull_request_comment / get_pull_request_inline_review_comment.
  */
+function byCreatedAtAsc<T extends { createdAt: string }>(a: T, b: T): number {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+}
+
 export async function buildFollowUpThreadContext(provider: GitProvider, prIid: number): Promise<string> {
     const [commentList, inlineReviewList] = await Promise.all([
-        provider.fetchPullRequestCommentList(prIid, { page: 1, limit: FOLLOW_UP_THREAD_LIMIT }),
-        provider.fetchPullRequestInlineReviewList(prIid, { page: 1, limit: FOLLOW_UP_THREAD_LIMIT }),
+        provider.fetchPullRequestCommentList(prIid),
+        provider.fetchPullRequestInlineReviewList(prIid),
     ]);
 
-    const recentCommentList = commentList.slice(-FOLLOW_UP_THREAD_LIMIT);
-    const recentInlineList = inlineReviewList.slice(-FOLLOW_UP_THREAD_LIMIT);
+    const recentCommentList = [...commentList].sort(byCreatedAtAsc).slice(-FOLLOW_UP_THREAD_LIMIT);
+    const recentInlineList = [...inlineReviewList].sort(byCreatedAtAsc).slice(-FOLLOW_UP_THREAD_LIMIT);
 
     const commentBlock =
         recentCommentList.length === 0

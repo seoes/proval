@@ -45,7 +45,7 @@ export async function runReviewSubAgent(
     });
 
     if (!result.finalMessage) {
-        throw new Error("Sub agent failed to return final message");
+        throw new Error(`Sub agent failed to return final message: ${JSON.stringify(result)}`);
     }
 
     return {

@@ -125,7 +125,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchPullRequestCommentList(_prIid: number, options?: ListPaginationOptions) {
-        const commentList = this.input.commentList ?? [];
+        const commentList = [...(this.input.commentList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return commentList;
         }
@@ -161,7 +163,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchIssueCommentList(_issueIid: number, options?: ListPaginationOptions) {
-        const commentList = this.input.commentList ?? [];
+        const commentList = [...(this.input.commentList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return commentList;
         }
@@ -229,7 +233,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchPullRequestInlineReviewList(_prIid: number, options?: ListPaginationOptions) {
-        const inlineReviewList = this.input.inlineReviewList ?? [];
+        const inlineReviewList = [...(this.input.inlineReviewList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return inlineReviewList;
         }
