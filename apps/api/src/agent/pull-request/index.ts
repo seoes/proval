@@ -12,6 +12,9 @@ type PullRequestReviewParams = {
     isInlineReview: boolean;
     language: string;
     activityId: number;
+    isFollowUpReview?: boolean;
+    /** Head SHA of the last completed Proval review on this PR (follow-up compare base). */
+    previousHeadSha?: string | null;
 };
 
 type PullRequestReplyParams = {

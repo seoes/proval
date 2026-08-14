@@ -1,6 +1,8 @@
 export { getPullRequestDetailTool } from "./get-pull-request-detail.js";
 export { getChangedFileListTool } from "./get-changed-file-list.js";
 export { getFileDiffTool } from "./get-file-diff.js";
+export { getPushChangedFileListTool } from "./get-push-changed-file-list.js";
+export { getPushFileDiffTool } from "./get-push-file-diff.js";
 export { getPullRequestCommentListTool } from "./get-pull-request-comment-list.js";
 export { postPullRequestCommentTool } from "./post-pull-request-comment.js";
 export { postPullRequestReplyTool } from "./post-pull-request-reply.js";

@@ -3,6 +3,7 @@ import type {
     GitChangedFile,
     GitComment,
     GitCodeSearchResult,
+    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -127,6 +128,31 @@ export class GitHubProvider implements GitProvider {
             deletedFile: file.status === "removed",
             diff: file.patch ?? "",
         }));
+    }
+
+    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
+        const { data } = await this.octokit.repos.compareCommitsWithBasehead({
+            owner: this.owner,
+            repo: this.repo,
+            basehead: `${fromSha}...${toSha}`,
+        });
+
+        const fileList = data.files ?? [];
+        const diffList = fileList.map((file) => ({
+            oldPath: file.previous_filename ?? file.filename,
+            newPath: file.filename,
+            newFile: file.status === "added",
+            renamedFile: file.status === "renamed",
+            deletedFile: file.status === "removed",
+            diff: file.patch ?? "",
+        }));
+
+        const commitTitleList = (data.commits ?? []).map((commit) => {
+            const message = commit.commit?.message ?? "";
+            return message.split("\n")[0]?.trim() || commit.sha.slice(0, 12);
+        });
+
+        return { diffList, commitTitleList };
     }
 
     public async fetchChangedFileList(prNumber: number): Promise<GitChangedFile[]> {

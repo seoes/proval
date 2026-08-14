@@ -134,7 +134,7 @@
     const isSetupComplete = $derived(completedSetupCount === SETUP_TOTAL);
 
     const activeReviewCount = $derived(
-        data.repositoryList.filter((repository) => repository.reviewOnPullRequestOpen).length,
+        data.repositoryList.filter((repository) => repository.reviewOnPullRequestPush !== "off").length,
     );
 
     const stats = $derived(activitySummary.stats);
@@ -161,7 +161,8 @@
             <p class="truncate text-sm font-medium {isFailed ? 'text-red-700' : 'text-neutral-800'}">
                 {activity.repositoryPath}
                 <span class="font-normal {isFailed ? 'text-red-500' : 'text-neutral-500'}">
-                    · {target} · {typeLabel}
+                    · {target} · {typeLabel}{#if activity.headSha}
+                        · <span class="font-mono">{activity.headSha.slice(0, 7)}</span>{/if}
                 </span>
             </p>
             {#if isFailed && activity.errorMessage}

@@ -2,6 +2,7 @@ import type {
     GitComment,
     GitChangedFile,
     GitCodeSearchResult,
+    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -32,6 +33,8 @@ export interface MockInput {
     reviewers?: string[];
     /** Returned by fetchCurrentUser (default test_bot) */
     currentUser?: GitUser;
+    /** Returned by fetchCompare (default empty) */
+    compare?: GitCompareResult;
 }
 
 const defaultVersion: GitPullRequestVersion = {
@@ -99,6 +102,10 @@ export class MockProvider implements GitProvider {
         return this.input.diffs;
     }
 
+    async fetchCompare(_fromSha: string, _toSha: string): Promise<GitCompareResult> {
+        return this.input.compare ?? { diffList: [], commitTitleList: [] };
+    }
+
     async fetchChangedFileList(_prIid: number): Promise<GitChangedFile[]> {
         return this.input.diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
             oldPath,
@@ -118,7 +125,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchPullRequestCommentList(_prIid: number, options?: ListPaginationOptions) {
-        const commentList = this.input.commentList ?? [];
+        const commentList = [...(this.input.commentList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return commentList;
         }
@@ -154,7 +163,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchIssueCommentList(_issueIid: number, options?: ListPaginationOptions) {
-        const commentList = this.input.commentList ?? [];
+        const commentList = [...(this.input.commentList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return commentList;
         }
@@ -222,7 +233,9 @@ export class MockProvider implements GitProvider {
     }
 
     async fetchPullRequestInlineReviewList(_prIid: number, options?: ListPaginationOptions) {
-        const inlineReviewList = this.input.inlineReviewList ?? [];
+        const inlineReviewList = [...(this.input.inlineReviewList ?? [])].sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
         if (!options) {
             return inlineReviewList;
         }

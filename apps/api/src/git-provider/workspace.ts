@@ -49,6 +49,7 @@ export class Workspace {
     private rootDir: string | null = null;
     private headRef: string | null = null;
     private diffs: GitDiff[] | null = null;
+    private pushDiffList: GitDiff[] | null = null;
     private loaded = false;
 
     constructor(private readonly provider: GitProvider) {}
@@ -58,6 +59,14 @@ export class Workspace {
             throw new Error("Workspace is not loaded. Call load() first.");
         }
         return this.rootDir;
+    }
+
+    get hasPushDiffList(): boolean {
+        return this.pushDiffList != null;
+    }
+
+    setPushDiffList(list: GitDiff[]): void {
+        this.pushDiffList = list;
     }
 
     async load(opts: WorkspaceLoadOpts): Promise<void> {
@@ -111,6 +120,7 @@ export class Workspace {
         this.rootDir = null;
         this.headRef = null;
         this.diffs = null;
+        this.pushDiffList = null;
         this.loaded = false;
         if (dir) {
             await rm(dir, { recursive: true, force: true });
@@ -236,6 +246,30 @@ export class Workspace {
         const diff = this.diffs.find((item) => item.newPath === filePath || item.oldPath === filePath);
         if (!diff) {
             throw new Error(`Changed file not found in pull request: ${filePath}`);
+        }
+        return diff;
+    }
+
+    async pushChangedFileList(): Promise<GitChangedFile[]> {
+        if (!this.pushDiffList) {
+            throw new Error("Workspace push diffs are not loaded. Call setPushDiffList() first.");
+        }
+        return this.pushDiffList.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
+            oldPath,
+            newPath,
+            newFile,
+            renamedFile,
+            deletedFile,
+        }));
+    }
+
+    async getPushFileDiff(filePath: string): Promise<GitDiff> {
+        if (!this.pushDiffList) {
+            throw new Error("Workspace push diffs are not loaded. Call setPushDiffList() first.");
+        }
+        const diff = this.pushDiffList.find((item) => item.newPath === filePath || item.oldPath === filePath);
+        if (!diff) {
+            throw new Error(`Changed file not found in push compare: ${filePath}`);
         }
         return diff;
     }

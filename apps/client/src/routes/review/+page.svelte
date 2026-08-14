@@ -30,7 +30,10 @@
                     <div class="min-w-0">
                         <p class="truncate text-sm font-medium text-neutral-800">
                             {review.repositoryPath}
-                            <span class="font-normal text-neutral-500">· {target} · {typeLabel}</span>
+                            <span class="font-normal text-neutral-500">
+                                · {target} · {typeLabel}{#if review.headSha}
+                                    · <span class="font-mono">{review.headSha.slice(0, 7)}</span>{/if}
+                            </span>
                         </p>
                         {#if review.status === "failed" && review.errorMessage}
                             <p class="mt-0.5 line-clamp-2 text-xs text-red-700 lg:line-clamp-1">

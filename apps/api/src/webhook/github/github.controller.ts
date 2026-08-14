@@ -5,6 +5,7 @@ import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
+import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
@@ -12,7 +13,11 @@ import { Workspace } from "../../git-provider/workspace.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
-    pull_request?: { number: number };
+    pull_request?: {
+        number: number;
+        draft?: boolean;
+        head?: { sha?: string };
+    };
 };
 
 type IssueWebhookPayload = {
@@ -115,14 +120,25 @@ async function handlePullRequestWebhook(
     installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";
-    if (action !== "opened") {
+    const reviewMode = repository.reviewOnPullRequestPush;
+    if (reviewMode === "off") {
+        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+    }
+
+    const allowedAction =
+        action === "opened" ||
+        action === "synchronize" ||
+        action === "ready_for_review" ||
+        action === "reopened";
+    if (!allowedAction) {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });
     }
 
-    if (!repository.reviewOnPullRequestOpen) {
-        return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
+    const isDraft = payload.pull_request?.draft === true;
+    if (repository.ignoreDraftPullRequest && isDraft && action !== "ready_for_review") {
+        return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
     }
 
     const prNumber = payload.pull_request?.number;
@@ -130,7 +146,39 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
 
+    const activityService = new ActivityService();
+    let hasCompleted: boolean | null = null;
+    if (reviewMode === "on_first_push") {
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        if (hasCompleted) {
+            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
+                status: 200,
+            });
+        }
+    }
+
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
+    const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
+    const headSha = payload.pull_request?.head?.sha ?? version.headSha;
+
+    let lastHeadSha: string | null = null;
+    if (reviewMode === "on_every_push") {
+        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
+        if (lastHeadSha && lastHeadSha === headSha) {
+            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
+        }
+    }
+
+    const changedFileList = await gitHubProvider.fetchChangedFileList(prNumber);
+    if (changedFileList.length === 0) {
+        return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
+    }
+
+    if (hasCompleted === null) {
+        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+    }
+    const isFollowUpReview = hasCompleted;
+
     const llmSender = createSender({
         provider: modelProvider.provider,
         apiKey: modelProvider.apiKey,
@@ -148,6 +196,7 @@ async function handlePullRequestWebhook(
             modelName: repository.modelName,
             type: "pr_review",
             targetIid: prNumber,
+            headSha,
         },
         (activityId) =>
             runPullRequestReview({
@@ -158,6 +207,8 @@ async function handlePullRequestWebhook(
                 isInlineReview,
                 language: repository.language,
                 activityId,
+                isFollowUpReview,
+                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);
