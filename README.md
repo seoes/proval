@@ -199,13 +199,13 @@ cp .env.example .env
 bun dev
 ```
 
-## Note
+## Personal Note
 
-I looked for a self-hosted code review agent that works with GitLab or Forgejo and found almost nothing. Most review tools are SaaS, they lock you into their model, and they send your code to someone elses server. I run my home lab with local LLMs and wanted something that keeps everything on my network. So I built Proval.
+I was looking for a self hosted code review using my own LLM but couldn't find one I liked. As a HomeLab user, I also found only few code review agents that worked with my personal GitLab. That's why I built this self hosted code review agent Proval
 
-Proval is still early. There are rough edges, missing features, and things that will break. I am actively developing it and feedback is the most useful thing you can give. Open an issue, start a discussion, or send a pull request.
+It's still early. There are rough edges, missing features. I am actively developing it and feedback is the most useful thing you can give. If you open an issue for feature request or bug report, it'll helps me and everyone else using Proval.
 
-I believe the local LLM market is growing. Models keep getting better at code review, and running them on your own hardware keeps costs predictable and data private.
+I believe everyone will get their own Local LLM someday. Models keep getting smarter, and they keep getting better at code review. Hardware is quite expensive now but someday it will get cheaper. Hope we can run personal LLMs with better performance, keep our data private and safe.
 
 ## Planned Features
 
