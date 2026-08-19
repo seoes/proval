@@ -1,0 +1,20 @@
+{
+    "name": "@proval/brand",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "exports": {
+        "./mark.svg": "./mark.svg",
+        "./plugin": "./plugin.ts"
+    },
+    "scripts": {
+        "generate": "bun scripts/generate.ts",
+        "lint": "prettier --check .",
+        "format": "prettier --write ."
+    },
+    "devDependencies": {
+        "@proval/config": "workspace:*",
+        "@resvg/resvg-js": "^2.6.2",
+        "prettier": "^3.8.1"
+    }
+}

@@ -8,10 +8,18 @@ import { Resvg } from "@resvg/resvg-js";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fontDir = resolve(root, "scripts/og-font");
 const outDir = resolve(root, "static");
+const markSvgPath = resolve(root, "../../packages/brand/mark.svg");
 
 const PRIMARY = "#006fea";
 const INK = "#0a0a0a";
 const MUTED = "#525252";
+
+const markSvg = await Bun.file(markSvgPath).text();
+if (!markSvg) {
+    throw new Error(`Missing brand mark at ${markSvgPath}`);
+}
+const markPng = new Resvg(markSvg, { fitTo: { mode: "width", value: 104 } }).render().asPng();
+const markSrc = `data:image/png;base64,${Buffer.from(markPng).toString("base64")}`;
 
 type TitlePart = { text: string; accent?: boolean };
 
@@ -139,26 +147,16 @@ function cardElement(card: Card): El {
                         gap: "14px",
                     },
                 },
-                el(
-                    "div",
-                    {
-                        style: {
-                            width: "52px",
-                            height: "52px",
-                            borderRadius: "14px",
-                            backgroundColor: PRIMARY,
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "28px",
-                            fontWeight: 700,
-                            letterSpacing: "-0.06em",
-                            fontFamily: "Inter",
-                        },
+                el("img", {
+                    src: markSrc,
+                    width: 52,
+                    height: 52,
+                    style: {
+                        width: "52px",
+                        height: "52px",
+                        borderRadius: "14px",
                     },
-                    "P",
-                ),
+                }),
                 el(
                     "div",
                     {
