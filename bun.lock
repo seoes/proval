@@ -33,12 +33,12 @@
       "name": "client",
       "version": "0.0.1",
       "dependencies": {
+        "@proval/brand": "workspace:*",
         "@proval/types": "workspace:*",
         "phosphor-svelte": "^3.1.0",
         "simple-icons": "^16.12.0",
       },
       "devDependencies": {
-        "@proval/brand": "workspace:*",
         "@proval/config": "workspace:*",
         "@sveltejs/adapter-auto": "^7.0.0",
         "@sveltejs/adapter-static": "^3.0.10",
