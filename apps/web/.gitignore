@@ -30,5 +30,3 @@ vite.config.ts.timestamp-*
 /static/favicon.ico
 /static/apple-touch-icon.png
 /static/icon-512.png
-/static/favicon-16x16.png
-/static/favicon-32x32.png

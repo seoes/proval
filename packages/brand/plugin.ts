@@ -8,9 +8,13 @@ const iconDir = resolve(brandRoot, "icon");
 const generateScript = resolve(brandRoot, "scripts/generate.ts");
 
 export function brandIconPlugin() {
+    let staticDir = resolve(process.cwd(), "static");
     return {
         name: "proval-brand-icon",
-        async buildStart() {
+        configResolved(config: { root: string }) {
+            staticDir = resolve(config.root, "static");
+        },
+        buildStart() {
             if (!existsSync(resolve(iconDir, "favicon.ico"))) {
                 const result = spawnSync("bun", [generateScript], {
                     cwd: brandRoot,
@@ -20,10 +24,6 @@ export function brandIconPlugin() {
                     throw new Error("Failed to generate brand icons");
                 }
             }
-            if (!existsSync(resolve(iconDir, "favicon.ico"))) {
-                throw new Error(`Brand icons missing at ${iconDir}`);
-            }
-            const staticDir = resolve(process.cwd(), "static");
             cpSync(iconDir, staticDir, { recursive: true });
         },
     };

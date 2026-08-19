@@ -15,7 +15,7 @@ const INK = "#0a0a0a";
 const MUTED = "#525252";
 
 const markSvg = await Bun.file(markSvgPath).text();
-if (!markSvg) {
+if (!markSvg.trim()) {
     throw new Error(`Missing brand mark at ${markSvgPath}`);
 }
 const markPng = new Resvg(markSvg, { fitTo: { mode: "width", value: 104 } }).render().asPng();
