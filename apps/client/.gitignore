@@ -22,3 +22,9 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Brand icons copied by @proval/brand/plugin
+/static/favicon.svg
+/static/favicon.ico
+/static/apple-touch-icon.png
+/static/icon-512.png

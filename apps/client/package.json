@@ -16,6 +16,7 @@
         "format": "prettier --write ."
     },
     "dependencies": {
+        "@proval/brand": "workspace:*",
         "@proval/types": "workspace:*",
         "phosphor-svelte": "^3.1.0",
         "simple-icons": "^16.12.0"

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { page } from "$app/stores";
+    import ProvalMark from "$lib/components/atom/ProvalMark.svelte";
     import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon, ChatCircleTextIcon, GearIcon } from "phosphor-svelte";
     import type { Component } from "svelte";
 
@@ -65,13 +66,16 @@
     }
 </script>
 
-<div class="h-full min-h-screen w-full bg-neutral-100 px-4 pt-14 pb-4 lg:py-4">
-    <div class="hidden lg:block">
-        <div class="px-4 text-3xl font-semibold tracking-tight text-neutral-800">
-            <a href="/">Proval</a>
-        </div>
+<div class="h-full min-h-screen w-full bg-neutral-100 px-4 py-4">
+    <div class="px-3.5">
+        <a href="/" class="inline-flex items-center" aria-label="Proval home">
+            <ProvalMark
+                wordmark
+                class="size-8"
+                wordmarkClass="text-2xl font-semibold tracking-tight text-neutral-800" />
+        </a>
     </div>
-    <div class="divide-y divide-neutral-300 lg:mt-4">
+    <div class="mt-4 divide-y divide-neutral-300">
         {#each sidebarItemList as itemGroup}
             <div class="py-3">
                 <!-- <h2 class="h-6 leading-6 tracking-tight cursor-default text-neutral-500 text-sm px-2">{itemGroup.label}</h2> -->

@@ -12,6 +12,7 @@ COPY apps/web/package.json ./apps/web/
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
 COPY packages/config/package.json ./packages/config/
+COPY packages/brand/package.json ./packages/brand/
 
 RUN bun install --frozen-lockfile
 
@@ -21,9 +22,9 @@ COPY apps/api ./apps/api
 RUN bun run --filter api generate
 RUN bun run --filter @proval/db build
 RUN bun run --filter @proval/types build
+RUN bun run --filter @proval/brand generate
 
 COPY apps/client ./apps/client
-
 
 RUN bun run --filter client build
 

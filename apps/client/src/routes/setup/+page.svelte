@@ -4,6 +4,7 @@
     import InputText from "$lib/components/atom/InputText.svelte";
     import FormField from "$lib/components/molecule/FormField.svelte";
     import Card from "$lib/components/layout/Card.svelte";
+    import ProvalMark from "$lib/components/atom/ProvalMark.svelte";
     import fetchApi from "$lib/utils";
 
     let email = $state("");
@@ -38,9 +39,9 @@
 </svelte:head>
 
 <div class="w-full">
-    <div class="mb-8 text-center">
-        <p class="text-3xl font-semibold tracking-tight text-neutral-800">Proval</p>
-        <p class="mt-2 text-sm text-neutral-500">Create the admin account to get started.</p>
+    <div class="mb-8 flex flex-col items-center text-center">
+        <ProvalMark wordmark class="size-10" wordmarkClass="text-3xl font-semibold tracking-tight text-neutral-800" />
+        <p class="mt-3 text-sm text-neutral-500">Create the admin account to get started.</p>
     </div>
     <Card border title="Initial setup">
         <form class="space-y-4" onsubmit={onSubmit}>

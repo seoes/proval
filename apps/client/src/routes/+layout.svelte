@@ -3,6 +3,7 @@
     import { afterNavigate } from "$app/navigation";
     import { page } from "$app/state";
     import Sidebar from "$lib/components/Sidebar.svelte";
+    import ProvalMark from "$lib/components/atom/ProvalMark.svelte";
     import ModalRoot from "$lib/components/organism/ModalRoot.svelte";
     import { isDemoMode } from "$lib/demo/enabled";
     import { isAuthPagePath } from "$lib/auth";
@@ -51,9 +52,8 @@
 </script>
 
 <svelte:head>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#fafafa" />
@@ -117,10 +117,12 @@
                             <line x1="4" y1="17" x2="20" y2="17" />
                         </svg>
                     </button>
-                    <a
-                        href="/"
-                        class="absolute left-1/2 -translate-x-1/2 text-3xl font-semibold tracking-tight text-neutral-800"
-                        >Proval</a>
+                    <a href="/" class="absolute left-1/2 -translate-x-1/2" aria-label="Proval home">
+                        <ProvalMark
+                            wordmark
+                            class="size-7"
+                            wordmarkClass="text-2xl font-semibold tracking-tight text-neutral-800" />
+                    </a>
                     <div class="size-10" aria-hidden="true"></div>
                 </header>
                 <main class="">

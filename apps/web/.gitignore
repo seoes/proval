@@ -24,3 +24,9 @@ vite.config.ts.timestamp-*
 
 # Generated OG images (bun run build:og)
 /static/og*.png
+
+# Brand icons copied by @proval/brand/plugin
+/static/favicon.svg
+/static/favicon.ico
+/static/apple-touch-icon.png
+/static/icon-512.png
