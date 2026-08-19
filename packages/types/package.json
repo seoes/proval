@@ -12,6 +12,7 @@
     },
     "scripts": {
         "build": "tsc",
+        "typecheck": "tsc --noEmit",
         "dev": "tsc --watch",
         "lint": "prettier --check . && eslint .",
         "format": "prettier --write ."
