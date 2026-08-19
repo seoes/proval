@@ -100,7 +100,7 @@ Open Graph images for the landing site are generated into `apps/web/static/` (`o
 
 **Design direction**
 
-- Palette is primary (`#006fea`, from site `--primary`), white, and black only.
+- Palette is primary (`#3b82f6`, from site `--primary`), white, and black only.
 - Layout should feel like a clean HTML/CSS landing hero, not a generic Magick poster.
 - Keep large bold headlines with primary accent on the key phrase.
 - Keep the Proval mark (`P` on a primary rounded square) plus brand name, an optional monospace eyebrow, and a short supporting sentence.

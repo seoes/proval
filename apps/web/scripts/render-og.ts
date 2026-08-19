@@ -10,7 +10,7 @@ const fontDir = resolve(root, "scripts/og-font");
 const outDir = resolve(root, "static");
 const markSvgPath = resolve(root, "../../packages/brand/mark.svg");
 
-const PRIMARY = "#006fea";
+const PRIMARY = "#3b82f6";
 const INK = "#0a0a0a";
 const MUTED = "#525252";
 
