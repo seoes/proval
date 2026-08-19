@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "FORCE_COLOR=1 bun run --parallel --filter '*' dev",
         "build": "bun run --parallel --filter '*' build",
-        "test": "bun run --parallel --filter '*' test",
+        "build:docker": "docker build -t proval:ci .",
+        "typecheck": "bun run --parallel --filter '*' --filter '!@proval/config' typecheck",
+        "test": "bun run --filter api test",
         "lint": "bun run --parallel --filter '*' --filter '!@proval/config' lint",
         "format": "bun run --parallel --filter '*' --filter '!@proval/config' format",
         "tunnel": "cloudflared tunnel run proval-dev",
