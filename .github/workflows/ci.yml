@@ -1,0 +1,63 @@
+name: CI
+
+on:
+    pull_request:
+
+permissions:
+    contents: read
+
+jobs:
+    typecheck:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
+            - run: bun run typecheck
+
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
+            - run: bun run test
+
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
+            - run: bun run build
+
+    docker:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - run: docker build -t proval:ci .

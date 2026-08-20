@@ -1,5 +1,52 @@
 stages:
+    - verify
     - build
+
+.bun_verify:
+    image: oven/bun:1.3.11
+    stage: verify
+    tags:
+        - container
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    before_script:
+        - bun install --frozen-lockfile
+
+typecheck:
+    extends: .bun_verify
+    script:
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
+        - bun run typecheck
+
+test:
+    extends: .bun_verify
+    script:
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
+        - bun run test
+
+build:
+    extends: .bun_verify
+    script:
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
+        - bun run build
+
+docker_build:
+    image: docker:24
+    stage: verify
+    tags:
+        - container
+    services:
+        - docker:24-dind
+    variables:
+        DOCKER_TLS_CERTDIR: "/certs"
+        DOCKER_DRIVER: overlay2
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    script:
+        - docker build -t proval:ci .
 
 .docker_build:
     image: docker:24
