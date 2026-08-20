@@ -29,6 +29,8 @@ test:
 build:
     extends: .bun_verify
     script:
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
         - bun run build
 
 docker_build:

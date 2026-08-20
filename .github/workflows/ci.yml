@@ -50,6 +50,9 @@ jobs:
 
             - run: bun install --frozen-lockfile
 
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
             - run: bun run build
 
     docker:
