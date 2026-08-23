@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" fill="#3b82f6"/><path fill="#ffffff" d="M227.6 384L175.2 384L175.2 127.9L275.1 127.9Q304.3 127.9 324.7 139.0Q345.2 150.1 355.9 169.6Q366.7 189.1 366.7 214.4L366.7 214.4Q366.7 239.8 355.8 259.1Q344.8 278.5 324.0 289.4Q303.3 300.3 273.9 300.3L273.9 300.3L227.6 300.3L227.6 384ZM227.6 171.2L227.6 258.0L265.4 258.0Q289.5 258.0 301.0 245.8Q312.5 233.6 312.5 214.4L312.5 214.4Q312.5 194.9 301.0 183.1Q289.5 171.2 265.3 171.2L265.3 171.2L227.6 171.2Z "/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <rect width="512" height="512" fill="#3b82f6" />
+    <g transform="translate(256 256)">
+        <path d="M 34 -106.8 L 173.5 -141.7 A 11.8 27.3 0 0 1 173.5 -87.1 L 34 -82.8 Z" fill="#ffffff" />
+        <path d="M -28 -48 L 28 -48 L 64 112 L -64 112 Z" fill="#ffffff" />
+        <path d="M -88 112 L 88 112 L 108 158 L -108 158 Z" fill="#ffffff" />
+        <rect x="-50" y="-62" width="100" height="14" fill="#ffffff" />
+        <path d="M -34 -97.2 L -173.5 -93.0 A 11.8 27.3 0 0 0 -173.5 -38.4 L -34 -73.2 Z" fill="#ffffff" />
+        <rect x="-30" y="-122" width="60" height="62" fill="#ffffff" />
+        <path d="M -50 -122 A 56 56 0 0 1 50 -122 Z" fill="#ffffff" />
+        <circle cx="0" cy="-155" r="12" fill="#ffffff" />
+    </g>
+</svg>
