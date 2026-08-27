@@ -9,7 +9,7 @@ function sessionSettings() {
         path: "/",
         httpOnly: true,
         sameSite: "Lax" as const,
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.COOKIE_SECURE === "true",
     };
 }
 

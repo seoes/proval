@@ -31,6 +31,8 @@ services:
 openssl rand -base64 32
 ```
 
+LAN HTTP needs no extra setting. When the dashboard is served over HTTPS, set `COOKIE_SECURE=true` (see [HTTPS](#https)).
+
 Start the stack:
 
 ```bash
@@ -74,7 +76,9 @@ http://<your-server>:7901/webhook/github
 <p>GitHub requires a public <code>https://</code> URL for webhooks. Set up HTTPS before you connect.</p>
 </blockquote>
 
-To use HTTPS, put a reverse proxy in front of Proval. Common choices:
+To use HTTPS, put a reverse proxy in front of Proval. When the dashboard is reached over HTTPS, set `COOKIE_SECURE=true` on the Proval container so the browser will not send `proval_session` on plain HTTP.
+
+Common choices:
 
 - **nginx**
 - **Caddy**

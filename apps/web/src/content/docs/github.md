@@ -34,7 +34,7 @@ Terminate TLS with **nginx**, **Caddy**, **Traefik**, or **Cloudflare Tunnel** a
 https://proval.example.com/webhook/github   →   http://127.0.0.1:7901/webhook/github
 ```
 
-The dashboard can share the same hostname (→ **7900**) or stay on an internal port.
+The dashboard can share the same hostname (→ **7900**) or stay on an internal port. When the dashboard is served over HTTPS, set `COOKIE_SECURE=true` on the Proval container.
 
 ---
 

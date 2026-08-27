@@ -17,7 +17,7 @@ This page is a **reference example**. Docker Compose remains the recommended ins
 | **Image** | `ghcr.io/seoes/proval:<tag>` |
 | **Ports** | **7900** dashboard, **7901** webhooks |
 | **Volume** | `/data` |
-| **Env** | `ENCRYPTION_KEY`, `DB_FILE_NAME=/data/app.db` |
+| **Env** | `ENCRYPTION_KEY`, `DB_FILE_NAME=/data/app.db`. Optional `COOKIE_SECURE=true` when the dashboard is served over HTTPS |
 | **Health** | `GET /api/health` on port **7900** |
 
 Generate `ENCRYPTION_KEY` with `openssl rand -base64 32`.
@@ -113,6 +113,13 @@ spec:
 ## HTTPS
 
 Put an Ingress (or another reverse proxy) in front of ports **7900** and **7901**. Ingress annotations depend on your cluster. This example does not include them.
+
+When the dashboard is reached over HTTPS, add `COOKIE_SECURE=true` to the Deployment so the session cookie is marked Secure.
+
+```yaml
+- name: COOKIE_SECURE
+  value: "true"
+```
 
 Webhook URLs still use the paths from [Quick Start](/docs/quick-start#network).
 
