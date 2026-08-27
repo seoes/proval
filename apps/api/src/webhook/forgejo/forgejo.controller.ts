@@ -220,11 +220,13 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const authorLogin = payload.pull_request.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
-        { login: payload.pull_request.user?.login ?? "" },
+        authorLogin ? { login: authorLogin } : null,
         repository.prMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -358,9 +360,10 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const mentioned = noteBody.includes(`@${botUsername}`);
         const accessSkip = await skipIfInsufficientAccess(
             forgejoProvider,
-            { login: commenterUsername },
+            commenterUsername ? { login: commenterUsername } : null,
             repository.prMinAccessLevel,
             repository.prMentionOnly && mentioned,
+            "Skipped: missing user",
         );
         if (accessSkip) return accessSkip;
 
@@ -433,9 +436,10 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const mentioned = noteBody.includes(`@${botUsername}`);
         const accessSkip = await skipIfInsufficientAccess(
             forgejoProvider,
-            { login: commenterUsername },
+            commenterUsername ? { login: commenterUsername } : null,
             repository.issueMinAccessLevel,
             repository.issueMentionOnly && mentioned,
+            "Skipped: missing user",
         );
         if (accessSkip) return accessSkip;
 
@@ -508,11 +512,13 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const authorLogin = payload.issue.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
-        { login: payload.issue.user?.login ?? "" },
+        authorLogin ? { login: authorLogin } : null,
         repository.issueMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -659,9 +665,10 @@ const handleForgejoInlineReviewReplyWebhook = async (
     const mentioned = noteBody.includes(`@${botUsername}`);
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
-        { login: commenterUsername },
+        commenterUsername ? { login: commenterUsername } : null,
         repository.prMinAccessLevel,
         repository.prMentionOnly && mentioned,
+        "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
@@ -701,15 +708,20 @@ const handleForgejoInlineReviewReplyWebhook = async (
 
 async function skipIfInsufficientAccess(
     provider: GitProvider,
-    identity: GitUserPermissionIdentity,
+    identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
     mentionBypass: boolean,
+    missingMessage: string,
 ): Promise<Response | null> {
     if (mentionBypass || minAccessLevel <= 0) return null;
+    if (identity == null) {
+        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
+    }
     let level = 0;
     try {
         level = await provider.fetchUserPermission(identity);
-    } catch {
+    } catch (error) {
+        logError("permission lookup failed", error);
         return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
     }
     if (level < minAccessLevel) {

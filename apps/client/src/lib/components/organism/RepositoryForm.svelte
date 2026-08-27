@@ -69,6 +69,7 @@
         value: string;
         label: string;
         description: string;
+        hideOnForgejo?: boolean;
     }
 
     const {
@@ -132,14 +133,9 @@
     let description = $state<string>(config.description ?? "");
     let language = $state<string>(config.language ?? "English");
 
-    function formAccessLevel(level: number): string {
-        if (level === 2) return "1";
-        return String(level);
-    }
-
     // Pull Request Configuration
     let prEnabled = $state<boolean>(config.prEnabled);
-    let prMinAccessLevel = $state<string>(formAccessLevel(config.prMinAccessLevel));
+    let prMinAccessLevel = $state<string>(String(config.prMinAccessLevel));
     let prReviewEnabled = $state<boolean>(config.prReviewEnabled);
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
@@ -149,7 +145,7 @@
 
     // Issue Configuration
     let issueEnabled = $state<boolean>(config.issueEnabled);
-    let issueMinAccessLevel = $state<string>(formAccessLevel(config.issueMinAccessLevel));
+    let issueMinAccessLevel = $state<string>(String(config.issueMinAccessLevel));
     let issueCommentOnOpenEnabled = $state<boolean>(config.issueCommentOnOpenEnabled);
     let issueReplyEnabled = $state<boolean>(config.issueReplyEnabled);
     let issueMentionOnly = $state<boolean>(config.issueMentionOnly);
@@ -211,6 +207,12 @@
             description: "People who can read the repository, and everyone above.",
         },
         {
+            value: "2",
+            label: "Reviewer",
+            description: "People who can manage issues and pull requests without write access, and everyone above.",
+            hideOnForgejo: true,
+        },
+        {
             value: "3",
             label: "Developer",
             description: "People who can push code, and everyone above.",
@@ -226,6 +228,10 @@
             description: "Owners and admins only.",
         },
     ];
+
+    const visibleAccessLevelOptionList = $derived(
+        accessLevelOptionList.filter((option) => provider.type !== "forgejo" || !option.hideOnForgejo),
+    );
 
     const repositorySelectOptionList = $derived(
         repositoryList.map((r) => ({
@@ -484,7 +490,7 @@
                 description="Lowest repository role that can trigger pull request review and reply"
                 upper
                 bind:value={prMinAccessLevel}
-                options={accessLevelOptionList} />
+                options={visibleAccessLevelOptionList} />
         </div>
     </Card>
     <Card spaceY>
@@ -518,7 +524,7 @@
                 description="Lowest repository role that can trigger issue comments and replies"
                 upper
                 bind:value={issueMinAccessLevel}
-                options={accessLevelOptionList} />
+                options={visibleAccessLevelOptionList} />
         </div>
     </Card>
 

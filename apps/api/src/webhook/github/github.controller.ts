@@ -149,12 +149,13 @@ async function handlePullRequestWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
-    const authorLogin = payload.pull_request?.user?.login ?? "";
+    const authorLogin = payload.pull_request?.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
-        { login: authorLogin },
+        authorLogin ? { login: authorLogin } : null,
         repository.prMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -260,11 +261,13 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
+    const authorLogin = payload.issue?.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
-        { login: payload.issue?.user?.login ?? "" },
+        authorLogin ? { login: authorLogin } : null,
         repository.issueMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -336,11 +339,13 @@ async function handleIssueCommentWebhook(
         }
 
         const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+        const senderLogin = sender?.login;
         const accessSkip = await skipIfInsufficientAccess(
             gitHubProvider,
-            { login: sender?.login ?? "" },
+            senderLogin ? { login: senderLogin } : null,
             repository.prMinAccessLevel,
             repository.prMentionOnly && mentioned,
+            "Skipped: missing user",
         );
         if (accessSkip) return accessSkip;
 
@@ -389,11 +394,13 @@ async function handleIssueCommentWebhook(
     }
 
     const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
-        { login: sender?.login ?? "" },
+        senderLogin ? { login: senderLogin } : null,
         repository.issueMinAccessLevel,
         repository.issueMentionOnly && mentioned,
+        "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
@@ -466,11 +473,13 @@ async function handlePullRequestReviewCommentWebhook(
 
     const noteBody = comment.body ?? "";
     const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
-        { login: sender?.login ?? "" },
+        senderLogin ? { login: senderLogin } : null,
         repository.prMinAccessLevel,
         repository.prMentionOnly && mentioned,
+        "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
@@ -515,15 +524,20 @@ function isBotMentioned(noteBody: string, botUsername: string, appSlug: string):
 
 async function skipIfInsufficientAccess(
     provider: GitProvider,
-    identity: GitUserPermissionIdentity,
+    identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
     mentionBypass: boolean,
+    missingMessage: string,
 ): Promise<Response | null> {
     if (mentionBypass || minAccessLevel <= 0) return null;
+    if (identity == null) {
+        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
+    }
     let level = 0;
     try {
         level = await provider.fetchUserPermission(identity);
-    } catch {
+    } catch (error) {
+        logError("permission lookup failed", error);
         return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
     }
     if (level < minAccessLevel) {

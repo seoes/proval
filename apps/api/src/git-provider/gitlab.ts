@@ -778,7 +778,7 @@ function gitlabAccessToLevel(raw: number): number {
         [10, 1],
         [15, 2],
         [20, 1],
-        [25, 2],
+        [25, 2], // GitLab custom role treated as Planner
     ]);
-    return gitlabSpecial.get(raw) ?? 1;
+    return gitlabSpecial.get(raw) ?? 0;
 }

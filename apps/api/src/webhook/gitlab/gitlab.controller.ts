@@ -138,9 +138,10 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     const authorId = (pullRequest as { author_id?: number }).author_id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
-        { userId: authorId ?? 0 },
+        authorId == null ? null : { userId: authorId },
         repository.prMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -270,11 +271,13 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const noteBody: string = payload.object_attributes?.note;
     const mentioned = noteBody.includes(`@${botUsername}`);
+    const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
-        { userId: payload.user?.id ?? 0 },
+        commenterId == null ? null : { userId: commenterId },
         repository.prMinAccessLevel,
         repository.prMentionOnly && mentioned,
+        "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
@@ -356,9 +359,10 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     const authorId = payload.object_attributes?.author_id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
-        { userId: authorId ?? 0 },
+        authorId == null ? null : { userId: authorId },
         repository.issueMinAccessLevel,
         false,
+        "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
@@ -454,11 +458,13 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const mentioned = noteBody.includes(`@${botUsername}`);
+    const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
-        { userId: payload.user?.id ?? 0 },
+        commenterId == null ? null : { userId: commenterId },
         repository.issueMinAccessLevel,
         repository.issueMentionOnly && mentioned,
+        "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
@@ -497,15 +503,20 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
 
 async function skipIfInsufficientAccess(
     provider: GitProvider,
-    identity: GitUserPermissionIdentity,
+    identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
     mentionBypass: boolean,
+    missingMessage: string,
 ): Promise<Response | null> {
     if (mentionBypass || minAccessLevel <= 0) return null;
+    if (identity == null) {
+        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
+    }
     let level = 0;
     try {
         level = await provider.fetchUserPermission(identity);
-    } catch {
+    } catch (error) {
+        logError("permission lookup failed", error);
         return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
     }
     if (level < minAccessLevel) {
