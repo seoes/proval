@@ -9,6 +9,7 @@ import type {
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { GitLabProvider } from "../../git-provider/gitlab.js";
+import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
@@ -98,8 +99,8 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         });
     }
 
-    const reviewMode = repository.reviewOnPullRequestPush;
-    if (reviewMode === "off") {
+    const reviewMode = repository.prReviewOnPush;
+    if (!repository.prEnabled || !repository.prReviewEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
@@ -129,11 +130,21 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         });
     }
 
-    if (repository.ignoreDraftPullRequest && isDraft && !becameReady) {
+    if (repository.prIgnoreDraft && isDraft && !becameReady) {
         return new Response(JSON.stringify({ message: "Skipped: draft merge request" }), { status: 200 });
     }
 
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
+    const authorId = (pullRequest as { author_id?: number }).author_id;
+    const accessSkip = await skipIfInsufficientAccess(
+        gitlabProvider,
+        authorId == null ? null : { userId: authorId },
+        repository.prMinAccessLevel,
+        false,
+        "Skipped: missing author",
+    );
+    if (accessSkip) return accessSkip;
+
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
 
@@ -176,7 +187,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         model: repository.modelName,
     });
 
-    const isInlineReview = repository.inlineReview;
+    const isInlineReview = repository.prInlineReview;
 
     const workspace = new Workspace(gitlabProvider);
     runWithActivity(
@@ -221,7 +232,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     access,
 ) => {
     // If reply to pull request comment is off, skip
-    if (repository.replyToPullRequestComment === "off") {
+    if (!repository.prEnabled || !repository.prReplyEnabled) {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
             status: 200,
         });
@@ -259,6 +270,17 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     }
 
     const noteBody: string = payload.object_attributes?.note;
+    const mentioned = noteBody.includes(`@${botUsername}`);
+    const commenterId = payload.user?.id;
+    const accessSkip = await skipIfInsufficientAccess(
+        gitlabProvider,
+        commenterId == null ? null : { userId: commenterId },
+        repository.prMinAccessLevel,
+        repository.prMentionOnly && mentioned,
+        "Skipped: missing user",
+    );
+    if (accessSkip) return accessSkip;
+
     const commentId = payload.object_attributes?.id;
     const prIid = payload.merge_request.iid;
 
@@ -268,12 +290,6 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
     });
-
-    if (repository.replyToPullRequestComment === "mentioned_only") {
-        if (!noteBody.includes(`@${botUsername}`)) {
-            return new Response(JSON.stringify({ message: "Skipped: commenter is not mentioned" }), { status: 200 });
-        }
-    }
 
     const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
     const inlineReviewId = payload.object_attributes.discussion_id ?? null;
@@ -320,7 +336,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         });
     }
 
-    if (!repository.commentOnIssueOpen) {
+    if (!repository.issueEnabled || !repository.issueCommentOnOpenEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
             status: 200,
         });
@@ -340,6 +356,16 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     }
 
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
+    const authorId = payload.object_attributes?.author_id;
+    const accessSkip = await skipIfInsufficientAccess(
+        gitlabProvider,
+        authorId == null ? null : { userId: authorId },
+        repository.issueMinAccessLevel,
+        false,
+        "Skipped: missing author",
+    );
+    if (accessSkip) return accessSkip;
+
     const llmSender = createSender({
         provider: modelProvider.provider,
         apiKey: modelProvider.apiKey,
@@ -386,7 +412,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     access,
 ) => {
     // If reply to issue comment is off, skip
-    if (repository.replyToIssueComment === "off") {
+    if (!repository.issueEnabled || !repository.issueReplyEnabled) {
         return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
             status: 200,
         });
@@ -431,11 +457,16 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         return new Response(JSON.stringify({ message: "No comment id found" }), { status: 200 });
     }
 
-    if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
-        return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
-            status: 200,
-        });
-    }
+    const mentioned = noteBody.includes(`@${botUsername}`);
+    const commenterId = payload.user?.id;
+    const accessSkip = await skipIfInsufficientAccess(
+        gitlabProvider,
+        commenterId == null ? null : { userId: commenterId },
+        repository.issueMinAccessLevel,
+        repository.issueMentionOnly && mentioned,
+        "Skipped: missing user",
+    );
+    if (accessSkip) return accessSkip;
 
     const llmSender = createSender({
         provider: modelProvider.provider,
@@ -469,3 +500,27 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
 };
+
+async function skipIfInsufficientAccess(
+    provider: GitProvider,
+    identity: GitUserPermissionIdentity | null,
+    minAccessLevel: number,
+    mentionBypass: boolean,
+    missingMessage: string,
+): Promise<Response | null> {
+    if (mentionBypass || minAccessLevel <= 0) return null;
+    if (identity == null) {
+        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
+    }
+    let level = 0;
+    try {
+        level = await provider.fetchUserPermission(identity);
+    } catch (error) {
+        logError("permission lookup failed", error);
+        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
+    }
+    if (level < minAccessLevel) {
+        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
+    }
+    return null;
+}

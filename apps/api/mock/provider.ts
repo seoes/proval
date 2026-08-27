@@ -14,6 +14,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitUserPermissionIdentity,
     GitRepositoryListItem,
     GitPullRequestInlineReview,
     ListPaginationOptions,
@@ -35,6 +36,8 @@ export interface MockInput {
     currentUser?: GitUser;
     /** Returned by fetchCompare (default empty) */
     compare?: GitCompareResult;
+    /** Returned by fetchUserPermission (default 5) */
+    permissionLevel?: number;
 }
 
 const defaultVersion: GitPullRequestVersion = {
@@ -52,6 +55,10 @@ export class MockProvider implements GitProvider {
 
     async fetchCurrentUser(): Promise<GitUser> {
         return this.input.currentUser ?? { username: "test_bot" };
+    }
+
+    async fetchUserPermission(_identity: GitUserPermissionIdentity): Promise<number> {
+        return this.input.permissionLevel ?? 5;
     }
 
     async fetchRepositoryDetail(): Promise<GitRepository> {

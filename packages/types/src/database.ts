@@ -80,8 +80,7 @@ export type SecretInput = { value: string };
 export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type LlmApiProvider = ModelProvider["provider"];
-export type CommentReplyPolicy = Repository["replyToPullRequestComment"];
-export type ReviewOnPullRequestPush = Repository["reviewOnPullRequestPush"];
+export type PrReviewOnPush = Repository["prReviewOnPush"];
 
 // Composite / list API types
 export type GitProviderRepositoryListResponse = {

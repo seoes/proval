@@ -18,6 +18,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitUserPermissionIdentity,
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
@@ -42,6 +43,25 @@ export class GitHubProvider implements GitProvider {
 
     public async fetchCurrentUser(): Promise<GitUser> {
         return { username: this.botUsername };
+    }
+
+    public async fetchUserPermission(identity: GitUserPermissionIdentity): Promise<number> {
+        if (!("login" in identity) || !identity.login) {
+            throw new Error("GitHub fetchUserPermission requires login");
+        }
+
+        try {
+            const { data } = await this.octokit.repos.getCollaboratorPermissionLevel({
+                owner: this.owner,
+                repo: this.repo,
+                username: identity.login,
+            });
+            return githubPermissionToLevel(data.permission);
+        } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (status === 404) return 0;
+            throw error;
+        }
     }
 
     public async fetchRepositoryDetail(): Promise<GitRepository> {
@@ -718,4 +738,18 @@ export class GitHubProvider implements GitProvider {
         if (state === "closed") return "closed";
         return "opened";
     }
+}
+
+function githubPermissionToLevel(permission: string): number {
+    const githubPermissionToLevelMap: Record<string, number> = {
+        none: 0,
+        pull: 1,
+        read: 1,
+        triage: 2,
+        push: 3,
+        write: 3,
+        maintain: 4,
+        admin: 5,
+    };
+    return githubPermissionToLevelMap[permission] ?? 0;
 }
