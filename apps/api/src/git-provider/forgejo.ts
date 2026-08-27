@@ -17,6 +17,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitUserPermissionIdentity,
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
@@ -55,6 +56,25 @@ export class ForgejoProvider implements GitProvider {
             login: string;
         }>("/user");
         return { username: user.login };
+    }
+
+    public async fetchUserPermission(identity: GitUserPermissionIdentity): Promise<number> {
+        if (!("login" in identity) || !identity.login) {
+            throw new Error("Forgejo fetchUserPermission requires login");
+        }
+
+        try {
+            const result = await this.requestJson<{
+                permission?: string;
+                role_name?: string;
+            }>(`/repos/${this.owner}/${this.repo}/collaborators/${identity.login}/permission`);
+            if (result.role_name === "owner") return 5;
+            return forgejoPermissionToLevel(result.permission ?? "none");
+        } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (status === 404) return 0;
+            throw error;
+        }
     }
 
     public async fetchRepositoryDetail(): Promise<GitRepository> {
@@ -865,4 +885,15 @@ export class ForgejoProvider implements GitProvider {
         if (state === "closed") return "closed";
         return "opened";
     }
+}
+
+function forgejoPermissionToLevel(permission: string): number {
+    const forgejoPermissionToLevelMap: Record<string, number> = {
+        none: 0,
+        read: 1,
+        write: 3,
+        admin: 4,
+        owner: 5,
+    };
+    return forgejoPermissionToLevelMap[permission] ?? 0;
 }

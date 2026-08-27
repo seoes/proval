@@ -1,13 +1,13 @@
 import type { BadgeVariant } from "$lib/components/atom/Badge.svelte";
-import type { ActivityResponse, LlmApiProvider, CommentReplyPolicy, RepositoryProvider } from "@proval/types";
+import type { ActivityResponse, LlmApiProvider, RepositoryProvider } from "@proval/types";
 
 export type OptionBadge = { variant: BadgeVariant; label: string };
 
-export function replyOptionBadge(label: string, mode: CommentReplyPolicy): OptionBadge | null {
-    if (mode === "off") return null;
-    const suffix = mode === "mentioned_only" ? " (Mentioned Only)" : "";
+export function replyOptionBadge(label: string, enabled: boolean, mentionOnly: boolean): OptionBadge | null {
+    if (!enabled) return null;
+    const suffix = mentionOnly ? " (Mentioned Only)" : "";
     return {
-        variant: mode === "all" ? "success" : "warning",
+        variant: mentionOnly ? "warning" : "success",
         label: `${label}${suffix}`,
     };
 }

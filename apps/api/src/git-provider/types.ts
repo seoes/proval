@@ -145,6 +145,8 @@ export interface GitUser {
     username: string;
 }
 
+export type GitUserPermissionIdentity = { login: string } | { userId: number };
+
 export interface GitRepositoryListItem {
     id: number;
     name: string;
@@ -158,6 +160,7 @@ export interface GitProvider {
     fetchRepositoryDetail(): Promise<GitRepository>;
     fetchPullRequestDetail(prIid: number): Promise<GitPullRequest>;
     fetchChangedFileList(prIid: number): Promise<GitChangedFile[]>;
+    fetchUserPermission(identity: GitUserPermissionIdentity): Promise<number>;
     /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
     fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
     /** Bulk PR diffs (one API family; paginate pages if needed — not per-file requests). */

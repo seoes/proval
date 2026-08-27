@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { GitHubProvider } from "../../git-provider/github.js";
+import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
@@ -17,12 +18,13 @@ type PullRequestWebhookPayload = {
         number: number;
         draft?: boolean;
         head?: { sha?: string };
+        user?: { login?: string };
     };
 };
 
 type IssueWebhookPayload = {
     action?: string;
-    issue?: { number: number; pull_request?: unknown };
+    issue?: { number: number; pull_request?: unknown; user?: { login?: string } };
 };
 
 type IssueCommentWebhookPayload = {
@@ -120,10 +122,10 @@ async function handlePullRequestWebhook(
     installationId: number,
 ): Promise<Response> {
     const action = payload.action ?? "";
-    const reviewMode = repository.reviewOnPullRequestPush;
-    if (reviewMode === "off") {
+    if (!repository.prEnabled || !repository.prReviewEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
+    const reviewMode = repository.prReviewOnPush;
 
     const allowedAction =
         action === "opened" ||
@@ -137,7 +139,7 @@ async function handlePullRequestWebhook(
     }
 
     const isDraft = payload.pull_request?.draft === true;
-    if (repository.ignoreDraftPullRequest && isDraft && action !== "ready_for_review") {
+    if (repository.prIgnoreDraft && isDraft && action !== "ready_for_review") {
         return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
     }
 
@@ -145,6 +147,16 @@ async function handlePullRequestWebhook(
     if (prNumber === undefined) {
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
+
+    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
+    const authorLogin = payload.pull_request?.user?.login ?? "";
+    const accessSkip = await skipIfInsufficientAccess(
+        gitHubProvider,
+        { login: authorLogin },
+        repository.prMinAccessLevel,
+        false,
+    );
+    if (accessSkip) return accessSkip;
 
     const activityService = new ActivityService();
     let hasCompleted: boolean | null = null;
@@ -157,7 +169,6 @@ async function handlePullRequestWebhook(
         }
     }
 
-    const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request?.head?.sha ?? version.headSha;
 
@@ -186,7 +197,7 @@ async function handlePullRequestWebhook(
         model: repository.modelName,
     });
 
-    const isInlineReview = repository.inlineReview;
+    const isInlineReview = repository.prInlineReview;
 
     const workspace = new Workspace(gitHubProvider);
     runWithActivity(
@@ -231,7 +242,7 @@ async function handleIssueWebhook(
         });
     }
 
-    if (!repository.commentOnIssueOpen) {
+    if (!repository.issueEnabled || !repository.issueCommentOnOpenEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
             status: 200,
         });
@@ -249,6 +260,14 @@ async function handleIssueWebhook(
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
+    const accessSkip = await skipIfInsufficientAccess(
+        gitHubProvider,
+        { login: payload.issue?.user?.login ?? "" },
+        repository.issueMinAccessLevel,
+        false,
+    );
+    if (accessSkip) return accessSkip;
+
     const llmSender = createSender({
         provider: modelProvider.provider,
         apiKey: modelProvider.apiKey,
@@ -312,18 +331,18 @@ async function handleIssueCommentWebhook(
     const commentId = payload.comment?.id;
 
     if (payload.issue?.pull_request) {
-        if (repository.replyToPullRequestComment === "off") {
+        if (!repository.prEnabled || !repository.prReplyEnabled) {
             return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
         }
 
-        if (
-            repository.replyToPullRequestComment === "mentioned_only" &&
-            !isBotMentioned(noteBody, botUsername, githubApp.slug)
-        ) {
-            return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
-                status: 200,
-            });
-        }
+        const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+        const accessSkip = await skipIfInsufficientAccess(
+            gitHubProvider,
+            { login: sender?.login ?? "" },
+            repository.prMinAccessLevel,
+            repository.prMentionOnly && mentioned,
+        );
+        if (accessSkip) return accessSkip;
 
         if (commentId === undefined) {
             return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
@@ -363,17 +382,20 @@ async function handleIssueCommentWebhook(
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     }
 
-    if (repository.replyToIssueComment === "off") {
+    if (!repository.issueEnabled || !repository.issueReplyEnabled) {
         return new Response(JSON.stringify({ message: "Issue reply mode is off" }), {
             status: 200,
         });
     }
 
-    if (repository.replyToIssueComment === "mentioned_only" && !isBotMentioned(noteBody, botUsername, githubApp.slug)) {
-        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), {
-            status: 200,
-        });
-    }
+    const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const accessSkip = await skipIfInsufficientAccess(
+        gitHubProvider,
+        { login: sender?.login ?? "" },
+        repository.issueMinAccessLevel,
+        repository.issueMentionOnly && mentioned,
+    );
+    if (accessSkip) return accessSkip;
 
     if (commentId === undefined) {
         return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
@@ -438,17 +460,19 @@ async function handlePullRequestReviewCommentWebhook(
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
     }
 
-    if (repository.replyToPullRequestComment === "off") {
+    if (!repository.prEnabled || !repository.prReplyEnabled) {
         return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
     }
 
     const noteBody = comment.body ?? "";
-    if (
-        repository.replyToPullRequestComment === "mentioned_only" &&
-        !isBotMentioned(noteBody, botUsername, githubApp.slug)
-    ) {
-        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
-    }
+    const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const accessSkip = await skipIfInsufficientAccess(
+        gitHubProvider,
+        { login: sender?.login ?? "" },
+        repository.prMinAccessLevel,
+        repository.prMentionOnly && mentioned,
+    );
+    if (accessSkip) return accessSkip;
 
     const inlineReviewId = String(comment.in_reply_to_id ?? comment.id);
     const llmSender = createSender({
@@ -487,4 +511,23 @@ async function handlePullRequestReviewCommentWebhook(
 
 function isBotMentioned(noteBody: string, botUsername: string, appSlug: string): boolean {
     return noteBody.includes(`@${botUsername}`) || noteBody.includes(`@${appSlug}`);
+}
+
+async function skipIfInsufficientAccess(
+    provider: GitProvider,
+    identity: GitUserPermissionIdentity,
+    minAccessLevel: number,
+    mentionBypass: boolean,
+): Promise<Response | null> {
+    if (mentionBypass || minAccessLevel <= 0) return null;
+    let level = 0;
+    try {
+        level = await provider.fetchUserPermission(identity);
+    } catch {
+        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
+    }
+    if (level < minAccessLevel) {
+        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
+    }
+    return null;
 }

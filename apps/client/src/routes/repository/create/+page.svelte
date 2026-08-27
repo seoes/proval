@@ -2,7 +2,7 @@
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import RepositoryForm from "$lib/components/organism/RepositoryForm.svelte";
     import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
-    import FormField from "$lib/components/molecule/FormField.svelte";
+    import Select from "$lib/components/atom/Select.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import Button from "$lib/components/atom/Button.svelte";
     import { goto } from "$app/navigation";
@@ -23,8 +23,21 @@
 
     let selectedProviderOption = $state<ProviderOption | null>(null);
 
-    const selectClass =
-        "h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
+    const repositorySelectOptionList = $derived(
+        repositoryList.map((r) => ({
+            value: r.id.toString(),
+            label: r.path,
+            description: r.isConnected ? "Already connected" : undefined,
+        })),
+    );
+
+    const repositorySelectPlaceholder = $derived(
+        isLoadingRepositoryList
+            ? "Loading..."
+            : repositoryList.length === 0
+              ? "No repositories available"
+              : "Select a repository",
+    );
 
     $effect(() => {
         if (selectedProviderOption) {
@@ -131,33 +144,16 @@
                         {/each}
                         {#if selectedProviderOption}
                             <div class="mt-4">
-                                <FormField
+                                <Select
                                     description={isLoadingRepositoryList
                                         ? "Loading repository list..."
-                                        : "Select a repository from the list"}>
-                                    {#snippet children({ id })}
-                                        <select
-                                            {id}
-                                            bind:value={selectedRepositoryId}
-                                            disabled={!selectedProviderOption ||
-                                                repositoryList.length === 0 ||
-                                                isLoadingRepositoryList}
-                                            class={selectClass}>
-                                            <option value="">
-                                                {isLoadingRepositoryList
-                                                    ? "Loading..."
-                                                    : repositoryList.length === 0
-                                                      ? "No repositories available"
-                                                      : "Select a repository"}
-                                            </option>
-                                            {#each repositoryList as r}
-                                                <option value={r.id.toString()}>
-                                                    {r.path}{r.isConnected ? " (connected)" : ""}
-                                                </option>
-                                            {/each}
-                                        </select>
-                                    {/snippet}
-                                </FormField>
+                                        : "Select a repository from the list"}
+                                    bind:value={selectedRepositoryId}
+                                    disabled={!selectedProviderOption ||
+                                        repositoryList.length === 0 ||
+                                        isLoadingRepositoryList}
+                                    placeholder={repositorySelectPlaceholder}
+                                    options={repositorySelectOptionList} />
                             </div>
                         {/if}
                         <div class="mt-4 flex justify-between">
@@ -184,12 +180,19 @@
                     repositoryId: selectedRepositoryId ? Number(selectedRepositoryId) : null,
                     description: null,
                     language: null,
-                    reviewOnPullRequestPush: "on_every_push",
-                    ignoreDraftPullRequest: true,
-                    inlineReview: true,
-                    replyToPullRequestComment: "all",
-                    replyToIssueComment: "all",
-                    commentOnIssueOpen: true,
+                    prEnabled: true,
+                    prMinAccessLevel: 0,
+                    prReviewEnabled: true,
+                    prInlineReview: true,
+                    prReviewOnPush: "on_every_push",
+                    prIgnoreDraft: true,
+                    prReplyEnabled: true,
+                    prMentionOnly: false,
+                    issueEnabled: true,
+                    issueMinAccessLevel: 0,
+                    issueCommentOnOpenEnabled: true,
+                    issueReplyEnabled: true,
+                    issueMentionOnly: false,
                 }}
                 onSubmit={handleSubmit}
                 onCancel={handleCancel}

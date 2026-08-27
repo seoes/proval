@@ -85,19 +85,14 @@
     {title}
 </h3>
 <div class="space-y-4">
-    <FormField label="Provider">
-        {#snippet children({ id })}
-            <Select
-                {id}
-                options={[
-                    { value: "gitlab", label: "GitLab" },
-                    { value: "forgejo", label: "Forgejo" },
-                ]}
-                value={formProvider}
-                disabled={editingId !== null}
-                onchange={(e) => (formProvider = (e.target as HTMLSelectElement).value as AccessProvider)} />
-        {/snippet}
-    </FormField>
+    <Select
+        label="Provider"
+        bind:value={formProvider}
+        disabled={editingId !== null}
+        options={[
+            { value: "gitlab", label: "GitLab", description: "Self hosted GitLab" },
+            { value: "forgejo", label: "Forgejo", description: "Forgejo, Gitea, or Codeberg" },
+        ]} />
     <FormField label="Name" description="A friendly label for this connection">
         {#snippet children({ id })}
             <InputText {id} placeholder={accessFormNamePlaceholder} bind:value={formName} />

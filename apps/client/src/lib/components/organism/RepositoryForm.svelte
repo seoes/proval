@@ -5,14 +5,14 @@
         ModelProviderModelListResponse,
         ModelProviderResponse,
         ProviderOption,
-        CommentReplyPolicy,
-        ReviewOnPullRequestPush,
+        PrReviewOnPush,
         RepositoryInsert,
         RepositorySelectItem,
         RepositoryUpdateInput,
     } from "@proval/types";
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
+    import Select from "../atom/Select.svelte";
     import PatchSecret from "../molecule/PatchSecret.svelte";
     import GitProviderIcon from "../atom/GitProviderIcon.svelte";
     import Card from "../layout/Card.svelte";
@@ -30,12 +30,19 @@
 
         description: string | null;
         language: string | null;
-        reviewOnPullRequestPush: ReviewOnPullRequestPush;
-        ignoreDraftPullRequest: boolean;
-        inlineReview: boolean;
-        replyToPullRequestComment: CommentReplyPolicy;
-        replyToIssueComment: CommentReplyPolicy;
-        commentOnIssueOpen: boolean;
+        prEnabled: boolean;
+        prMinAccessLevel: number;
+        prReviewEnabled: boolean;
+        prInlineReview: boolean;
+        prReviewOnPush: PrReviewOnPush;
+        prIgnoreDraft: boolean;
+        prReplyEnabled: boolean;
+        prMentionOnly: boolean;
+        issueEnabled: boolean;
+        issueMinAccessLevel: number;
+        issueCommentOnOpenEnabled: boolean;
+        issueReplyEnabled: boolean;
+        issueMentionOnly: boolean;
     }
 
     interface Props {
@@ -52,13 +59,14 @@
         onBack?: () => void;
     }
 
-    interface CommentOption {
-        value: CommentReplyPolicy;
+    interface ReviewPushOption {
+        value: PrReviewOnPush;
+        label: string;
         description: string;
     }
 
-    interface ReviewPushOption {
-        value: ReviewOnPullRequestPush;
+    interface AccessLevelOption {
+        value: string;
         label: string;
         description: string;
     }
@@ -124,15 +132,27 @@
     let description = $state<string>(config.description ?? "");
     let language = $state<string>(config.language ?? "English");
 
+    function formAccessLevel(level: number): string {
+        if (level === 2) return "1";
+        return String(level);
+    }
+
     // Pull Request Configuration
-    let reviewOnPullRequestPush = $state<ReviewOnPullRequestPush>(config.reviewOnPullRequestPush);
-    let ignoreDraftPullRequest = $state<boolean>(config.ignoreDraftPullRequest);
-    let inlineReview = $state<boolean>(config.inlineReview);
-    let replyToPullRequestComment = $state<CommentReplyPolicy>(config.replyToPullRequestComment);
+    let prEnabled = $state<boolean>(config.prEnabled);
+    let prMinAccessLevel = $state<string>(formAccessLevel(config.prMinAccessLevel));
+    let prReviewEnabled = $state<boolean>(config.prReviewEnabled);
+    let prInlineReview = $state<boolean>(config.prInlineReview);
+    let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
+    let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
+    let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
+    let prMentionOnly = $state<boolean>(config.prMentionOnly);
 
     // Issue Configuration
-    let commentOnIssueOpen = $state<boolean>(config.commentOnIssueOpen);
-    let replyToIssueComment = $state<CommentReplyPolicy>(config.replyToIssueComment);
+    let issueEnabled = $state<boolean>(config.issueEnabled);
+    let issueMinAccessLevel = $state<string>(formAccessLevel(config.issueMinAccessLevel));
+    let issueCommentOnOpenEnabled = $state<boolean>(config.issueCommentOnOpenEnabled);
+    let issueReplyEnabled = $state<boolean>(config.issueReplyEnabled);
+    let issueMentionOnly = $state<boolean>(config.issueMentionOnly);
 
     let webhookSecret = $state<string | null>(editRepositoryId ? null : "");
     let webhookSecretModalOpen = $state(false);
@@ -166,14 +186,7 @@
     const selectClass =
         "h-10 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-4 text-sm outline-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800";
 
-    const commentOptionList: CommentOption[] = [
-        { value: "all", description: "Reply on all comments" },
-        { value: "mentioned_only", description: "Reply only when the bot is @mentioned" },
-        { value: "off", description: "Do not reply to comments" },
-    ];
-
     const reviewPushOptionList: ReviewPushOption[] = [
-        { value: "off", label: "Off", description: "Do not run pull request reviews" },
         {
             value: "on_first_push",
             label: "First push only",
@@ -185,6 +198,49 @@
             description: "Review on each push",
         },
     ];
+
+    const accessLevelOptionList: AccessLevelOption[] = [
+        {
+            value: "0",
+            label: "Anyone",
+            description: "Anyone who can see this repository can trigger the bot. Public repos can raise model cost.",
+        },
+        {
+            value: "1",
+            label: "Reader",
+            description: "People who can read the repository, and everyone above.",
+        },
+        {
+            value: "3",
+            label: "Developer",
+            description: "People who can push code, and everyone above.",
+        },
+        {
+            value: "4",
+            label: "Maintainer",
+            description: "People who can manage repository settings, and everyone above.",
+        },
+        {
+            value: "5",
+            label: "Owner",
+            description: "Owners and admins only.",
+        },
+    ];
+
+    const repositorySelectOptionList = $derived(
+        repositoryList.map((r) => ({
+            value: r.id.toString(),
+            label: r.path,
+            description: r.isConnected ? "Already connected" : undefined,
+        })),
+    );
+
+    const modelProviderSelectOptionList = $derived(
+        modelList.map((mp) => ({
+            value: mp.id.toString(),
+            label: mp.label,
+        })),
+    );
 
     async function handleSubmit(e: Event) {
         e.preventDefault();
@@ -226,12 +282,19 @@
             language,
             modelProviderId: Number(selectedModelProviderId),
             modelName: modelName.trim(),
-            reviewOnPullRequestPush,
-            ignoreDraftPullRequest,
-            inlineReview,
-            replyToPullRequestComment,
-            replyToIssueComment,
-            commentOnIssueOpen,
+            prEnabled,
+            prMinAccessLevel: Number(prMinAccessLevel),
+            prReviewEnabled,
+            prInlineReview,
+            prReviewOnPush,
+            prIgnoreDraft,
+            prReplyEnabled,
+            prMentionOnly,
+            issueEnabled,
+            issueMinAccessLevel: Number(issueMinAccessLevel),
+            issueCommentOnOpenEnabled,
+            issueReplyEnabled,
+            issueMentionOnly,
         };
 
         if (provider.type === "gitlab" || provider.type === "forgejo") {
@@ -250,9 +313,11 @@
             body.githubRepositoryId = Number(selectedRepositoryId);
         }
 
-        const confirm = await openConfirm(
-            editRepositoryId ? "Save changes to this repository?" : "Create this repository?",
-        );
+        let confirmMessage = editRepositoryId ? "Save changes to this repository?" : "Create this repository?";
+        if (prMinAccessLevel === "0" || issueMinAccessLevel === "0") {
+            confirmMessage += " Minimum access is Anyone. Anyone can trigger the bot and that can increase model cost.";
+        }
+        const confirm = await openConfirm(confirmMessage);
         if (!confirm) return;
 
         try {
@@ -263,7 +328,6 @@
         }
     }
 
-    const removeUnderscore = (value: string) => value.replace(/_/g, " ");
     const capitalizeFirstLetter = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 </script>
 
@@ -290,24 +354,13 @@
         </div>
 
         {#if editRepositoryId}
-            <FormField label="Repository" description="Select a repository from the list">
-                {#snippet children({ id })}
-                    <select
-                        {id}
-                        bind:value={selectedRepositoryId}
-                        disabled={repositoryList.length === 0}
-                        class={selectClass}>
-                        <option value="">
-                            {repositoryList.length === 0 ? "No repositories available" : "Select a repository"}
-                        </option>
-                        {#each repositoryList as r}
-                            <option value={r.id.toString()}>
-                                {r.path}{r.isConnected ? " (connected)" : ""}
-                            </option>
-                        {/each}
-                    </select>
-                {/snippet}
-            </FormField>
+            <Select
+                label="Repository"
+                description="Select a repository from the list"
+                bind:value={selectedRepositoryId}
+                disabled={repositoryList.length === 0}
+                placeholder={repositoryList.length === 0 ? "No repositories available" : "Select a repository"}
+                options={repositorySelectOptionList} />
         {/if}
 
         {#if provider.type === "gitlab" || provider.type === "forgejo"}
@@ -335,16 +388,12 @@
             {/snippet}
         </FormField>
         <div>
-            <FormField label="Model Provider" description="LLM connection for this repository">
-                {#snippet children({ id })}
-                    <select {id} bind:value={selectedModelProviderId} class={selectClass}>
-                        <option value="">Select a model provider</option>
-                        {#each modelList as mp}
-                            <option value={mp.id.toString()}>{mp.label}</option>
-                        {/each}
-                    </select>
-                {/snippet}
-            </FormField>
+            <Select
+                label="Model Provider"
+                description="LLM connection for this repository"
+                bind:value={selectedModelProviderId}
+                placeholder="Select a model provider"
+                options={modelProviderSelectOptionList} />
         </div>
         <div>
             <FormField
@@ -373,78 +422,103 @@
         </div>
     </Card>
 
-    <Card title="Pull request" spaceY>
+    <Card spaceY>
         <div class="flex items-center justify-between gap-2">
-            <FieldTitle class="ml-1">Inline review</FieldTitle>
-            <ToggleSwitch bind:checked={inlineReview} />
+            <h3 class="text-base font-medium text-neutral-800 dark:text-white">Pull request</h3>
+            <ToggleSwitch bind:checked={prEnabled} />
         </div>
-        <div class="flex items-center justify-between gap-2">
-            <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
-            <ToggleSwitch bind:checked={ignoreDraftPullRequest} />
-        </div>
-        <div>
-            <FormField
-                label="Review on pull request push"
-                description="When Proval starts a pull request review"
-                linkLabelToControl={false}
-                upper>
-                {#snippet children({ id: _id })}
-                    <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each reviewPushOptionList as o}
-                            <SimpleSelectCard
-                                label={o.label}
-                                description={o.description}
-                                selected={reviewOnPullRequestPush === o.value}
-                                onclick={() => (reviewOnPullRequestPush = o.value)} />
-                        {/each}
+        <div class="space-y-6 {!prEnabled ? 'pointer-events-none opacity-40' : ''}">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-2">
+                    <FieldTitle class="ml-1">Review</FieldTitle>
+                    <ToggleSwitch bind:checked={prReviewEnabled} disabled={!prEnabled} />
+                </div>
+                <div class="space-y-4 {!prReviewEnabled ? 'pointer-events-none opacity-40' : ''}">
+                    <FormField
+                        label="Review on pull request push"
+                        description="When Proval starts a pull request review"
+                        linkLabelToControl={false}
+                        upper>
+                        {#snippet children({ id: _id })}
+                            <div class="flex flex-col gap-2" id={_id} role="group">
+                                {#each reviewPushOptionList as o}
+                                    <SimpleSelectCard
+                                        label={o.label}
+                                        description={o.description}
+                                        selected={prReviewOnPush === o.value}
+                                        onclick={() => (prReviewOnPush = o.value)} />
+                                {/each}
+                            </div>
+                        {/snippet}
+                    </FormField>
+                    <div class="flex items-center justify-between gap-2">
+                        <FieldTitle class="ml-1">Inline review</FieldTitle>
+                        <ToggleSwitch bind:checked={prInlineReview} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
-                {/snippet}
-            </FormField>
-        </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
+                        <ToggleSwitch bind:checked={prIgnoreDraft} disabled={!prEnabled || !prReviewEnabled} />
+                    </div>
+                </div>
+            </div>
 
-        <div>
-            <FormField
-                label="Reply to comments"
-                description="How the bot responds to PR comments (conversation and inline review)"
-                linkLabelToControl={false}
-                upper>
-                {#snippet children({ id: _id })}
-                    <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each commentOptionList as o}
-                            <SimpleSelectCard
-                                label={removeUnderscore(capitalizeFirstLetter(o.value))}
-                                description={o.description}
-                                selected={replyToPullRequestComment === o.value}
-                                onclick={() => (replyToPullRequestComment = o.value)} />
-                        {/each}
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-2">
+                    <FieldTitle class="ml-1">Reply</FieldTitle>
+                    <ToggleSwitch bind:checked={prReplyEnabled} disabled={!prEnabled} />
+                </div>
+                <div class="space-y-4 {!prReplyEnabled ? 'pointer-events-none opacity-40' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <FieldTitle class="ml-1">Mentioned only</FieldTitle>
+                            <Description class="ml-1"
+                                >Non-members can trigger the bot by mentioning @Proval.</Description>
+                        </div>
+                        <ToggleSwitch bind:checked={prMentionOnly} disabled={!prEnabled || !prReplyEnabled} />
                     </div>
-                {/snippet}
-            </FormField>
+                </div>
+            </div>
+
+            <Select
+                label="Minimum access"
+                description="Lowest repository role that can trigger pull request review and reply"
+                upper
+                bind:value={prMinAccessLevel}
+                options={accessLevelOptionList} />
         </div>
     </Card>
-    <Card title="Issue" spaceY>
+    <Card spaceY>
         <div class="flex items-center justify-between gap-2">
-            <FieldTitle class="ml-1">Comment when issue opens</FieldTitle>
-            <ToggleSwitch bind:checked={commentOnIssueOpen} />
+            <h3 class="text-base font-medium text-neutral-800 dark:text-white">Issue</h3>
+            <ToggleSwitch bind:checked={issueEnabled} />
         </div>
-        <div>
-            <FormField
-                label="Reply to issue comments"
-                description="How the bot responds in issue discussions"
-                linkLabelToControl={false}
-                upper>
-                {#snippet children({ id: _id })}
-                    <div class="flex flex-col gap-2" id={_id} role="group">
-                        {#each commentOptionList as o}
-                            <SimpleSelectCard
-                                label={removeUnderscore(capitalizeFirstLetter(o.value))}
-                                description={o.description}
-                                selected={replyToIssueComment === o.value}
-                                onclick={() => (replyToIssueComment = o.value)} />
-                        {/each}
+        <div class="space-y-6 {!issueEnabled ? 'pointer-events-none opacity-40' : ''}">
+            <div class="flex items-center justify-between gap-2">
+                <FieldTitle class="ml-1">Comment when issue opens</FieldTitle>
+                <ToggleSwitch bind:checked={issueCommentOnOpenEnabled} disabled={!issueEnabled} />
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between gap-2">
+                    <FieldTitle class="ml-1">Reply</FieldTitle>
+                    <ToggleSwitch bind:checked={issueReplyEnabled} disabled={!issueEnabled} />
+                </div>
+                <div class="space-y-4 {!issueReplyEnabled ? 'pointer-events-none opacity-40' : ''}">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <FieldTitle class="ml-1">Mentioned only</FieldTitle>
+                            <Description class="ml-1"
+                                >Non-members can trigger the bot by mentioning @Proval.</Description>
+                        </div>
+                        <ToggleSwitch bind:checked={issueMentionOnly} disabled={!issueEnabled || !issueReplyEnabled} />
                     </div>
-                {/snippet}
-            </FormField>
+                </div>
+            </div>
+            <Select
+                label="Minimum access"
+                description="Lowest repository role that can trigger issue comments and replies"
+                upper
+                bind:value={issueMinAccessLevel}
+                options={accessLevelOptionList} />
         </div>
     </Card>
 

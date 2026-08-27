@@ -18,6 +18,7 @@ import type {
     GitRepository,
     GitTree,
     GitUser,
+    GitUserPermissionIdentity,
     GitRepositoryListItem,
     GitPullRequestInlineReview,
     GitDiffLine,
@@ -579,6 +580,26 @@ export class GitLabProvider implements GitProvider {
         return { username: user.username };
     }
 
+    public async fetchUserPermission(identity: GitUserPermissionIdentity): Promise<number> {
+        if (!("userId" in identity) || identity.userId == null) {
+            throw new Error("GitLab fetchUserPermission requires userId");
+        }
+
+        const url = new URL(`/api/v4/projects/${this.projectId}/members/all/${identity.userId}`, this.baseUrl);
+        const response = await fetch(url, {
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${this.token}`,
+            },
+        });
+        if (response.status === 404) return 0;
+        if (!response.ok) {
+            throw new Error(`GitLab permission lookup failed: ${response.status} ${response.statusText}`);
+        }
+        const member = (await response.json()) as { access_level?: number };
+        return gitlabAccessToLevel(member.access_level ?? 0);
+    }
+
     public async fetchPullRequestReviewerList(prIid: number): Promise<string[]> {
         const mr = await this.gitlab.MergeRequests.show(this.projectId, prIid);
         return (mr.reviewers ?? []).map((r: { username: string }) => r.username);
@@ -747,4 +768,17 @@ export class GitLabProvider implements GitProvider {
         if (state === "closed") return "closed";
         return "opened";
     }
+}
+
+function gitlabAccessToLevel(raw: number): number {
+    if (raw >= 50) return 5;
+    if (raw >= 40) return 4;
+    if (raw >= 30) return 3;
+    const gitlabSpecial = new Map([
+        [10, 1],
+        [15, 2],
+        [20, 1],
+        [25, 2],
+    ]);
+    return gitlabSpecial.get(raw) ?? 1;
 }

@@ -134,7 +134,7 @@
     const isSetupComplete = $derived(completedSetupCount === SETUP_TOTAL);
 
     const activeReviewCount = $derived(
-        data.repositoryList.filter((repository) => repository.reviewOnPullRequestPush !== "off").length,
+        data.repositoryList.filter((repository) => repository.prEnabled && repository.prReviewEnabled).length,
     );
 
     const stats = $derived(activitySummary.stats);

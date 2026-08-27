@@ -22,7 +22,9 @@ export const userTable = sqliteTable("user", {
     id: text().primaryKey(),
     email: text().notNull().unique(),
     passwordHash: text().notNull(),
-    role: text({ enum: ["admin", "user"] }).notNull().default("user"),
+    role: text({ enum: ["admin", "user"] })
+        .notNull()
+        .default("user"),
     ...timeStamp,
 });
 
@@ -102,21 +104,38 @@ export const repositoryTable = sqliteTable(
         accessToken: text(),
         accessTokenId: integer(),
 
-        // pull request
-        reviewOnPullRequestPush: text({ enum: ["off", "on_first_push", "on_every_push"] })
+        // @@@@@@@@@@@@@@@
+        // Pull Request
+        // @@@@@@@@@@@@@@@
+
+        prEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        prMinAccessLevel: integer().notNull().default(0),
+
+        // Pull Request Review
+        prReviewEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        prInlineReview: integer({ mode: "boolean" }).notNull().default(true),
+        prReviewOnPush: text({ enum: ["on_first_push", "on_every_push"] })
             .notNull()
             .default("on_every_push"),
-        ignoreDraftPullRequest: integer({ mode: "boolean" }).notNull().default(true),
-        inlineReview: integer({ mode: "boolean" }).notNull().default(true),
-        replyToPullRequestComment: text({ enum: ["all", "mentioned_only", "off"] })
-            .notNull()
-            .default("all"),
+        prIgnoreDraft: integer({ mode: "boolean" }).notNull().default(true),
 
-        // issue
-        commentOnIssueOpen: integer({ mode: "boolean" }).notNull().default(true),
-        replyToIssueComment: text({ enum: ["all", "mentioned_only", "off"] })
-            .notNull()
-            .default("all"),
+        // Pull Request Reply
+        prReplyEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        prMentionOnly: integer({ mode: "boolean" }).notNull().default(false),
+
+        // @@@@@@@@@@@@@@@
+        // Issue
+        // @@@@@@@@@@@@@@@
+
+        issueEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        issueMinAccessLevel: integer().notNull().default(0),
+
+        // Issue Comment on Open
+        issueCommentOnOpenEnabled: integer({ mode: "boolean" }).notNull().default(true),
+
+        // Issue Reply
+        issueReplyEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        issueMentionOnly: integer({ mode: "boolean" }).notNull().default(false),
 
         modelProviderId: integer().references(() => modelProviderTable.id),
         modelName: text().notNull().default(""),

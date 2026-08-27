@@ -30,8 +30,16 @@
     {:else}
         <div class="space-y-3">
             {#each data.repositoryList as repository (repository.id)}
-                {@const pullRequestReply = replyOptionBadge("Pull Request Reply", repository.replyToPullRequestComment)}
-                {@const issueReply = replyOptionBadge("Issue Reply", repository.replyToIssueComment)}
+                {@const pullRequestReply = replyOptionBadge(
+                    "Pull Request Reply",
+                    repository.prEnabled && repository.prReplyEnabled,
+                    repository.prMentionOnly,
+                )}
+                {@const issueReply = replyOptionBadge(
+                    "Issue Reply",
+                    repository.issueEnabled && repository.issueReplyEnabled,
+                    repository.issueMentionOnly,
+                )}
                 {#snippet header()}
                     <div class="flex items-center justify-between">
                         <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
@@ -51,13 +59,13 @@
                 {#snippet badge()}
                     <div class="flex w-full flex-col gap-2">
                         <div class="flex flex-wrap gap-1.5">
-                            {#if repository.reviewOnPullRequestPush !== "off"}
+                            {#if repository.prEnabled && repository.prReviewEnabled}
                                 <Badge variant="success">Pull Request Review</Badge>
                             {/if}
                             {#if pullRequestReply}
                                 <Badge variant={pullRequestReply.variant}>{pullRequestReply.label}</Badge>
                             {/if}
-                            {#if repository.commentOnIssueOpen}
+                            {#if repository.issueEnabled && repository.issueCommentOnOpenEnabled}
                                 <Badge variant="success">Issue Review</Badge>
                             {/if}
                             {#if issueReply}
@@ -65,7 +73,7 @@
                             {/if}
                         </div>
                         <div class="flex flex-wrap gap-1.5">
-                            {#if repository.inlineReview}
+                            {#if repository.prEnabled && repository.prReviewEnabled && repository.prInlineReview}
                                 <Badge variant="warning">Inline Review</Badge>
                             {/if}
                             <Badge variant="neutral">{repository.language}</Badge>

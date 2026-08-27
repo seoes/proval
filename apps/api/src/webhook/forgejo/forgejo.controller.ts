@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { ForgejoProvider } from "../../git-provider/forgejo.js";
+import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
@@ -21,6 +22,7 @@ interface ForgejoPullRequestPayload {
         merged: boolean;
         draft?: boolean;
         head?: { sha?: string };
+        user?: { login?: string };
     };
     repository: {
         id: number;
@@ -102,6 +104,7 @@ interface ForgejoIssuesPayload {
         title: string;
         body: string | null;
         state: string;
+        user?: { login?: string };
     };
     repository: {
         id: number;
@@ -185,10 +188,10 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     access,
 ) => {
     const action = payload.action;
-    const reviewMode = repository.reviewOnPullRequestPush;
-    if (reviewMode === "off") {
+    if (!repository.prEnabled || !repository.prReviewEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
+    const reviewMode = repository.prReviewOnPush;
 
     const allowedAction =
         action === "opened" ||
@@ -203,7 +206,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     }
 
     const isDraft = payload.pull_request.draft === true;
-    if (repository.ignoreDraftPullRequest && isDraft && action !== "ready_for_review") {
+    if (repository.prIgnoreDraft && isDraft && action !== "ready_for_review") {
         return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
     }
 
@@ -217,6 +220,14 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const accessSkip = await skipIfInsufficientAccess(
+        forgejoProvider,
+        { login: payload.pull_request.user?.login ?? "" },
+        repository.prMinAccessLevel,
+        false,
+    );
+    if (accessSkip) return accessSkip;
+
     const activityService = new ActivityService();
     const prNumber = payload.pull_request.number;
 
@@ -258,7 +269,7 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         model: repository.modelName,
     });
 
-    const isInlineReview = repository.inlineReview;
+    const isInlineReview = repository.prInlineReview;
     const language = repository.language;
 
     const workspace = new Workspace(forgejoProvider);
@@ -313,7 +324,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
     if (isPullRequest) {
         // Handle PR comment
-        if (repository.replyToPullRequestComment === "off") {
+        if (!repository.prEnabled || !repository.prReplyEnabled) {
             return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
                 status: 200,
             });
@@ -344,14 +355,14 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
 
         const noteBody = payload.comment.body;
         const prNumber = payload.issue.number;
-
-        if (repository.replyToPullRequestComment === "mentioned_only") {
-            if (!noteBody.includes(`@${botUsername}`)) {
-                return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), {
-                    status: 200,
-                });
-            }
-        }
+        const mentioned = noteBody.includes(`@${botUsername}`);
+        const accessSkip = await skipIfInsufficientAccess(
+            forgejoProvider,
+            { login: commenterUsername },
+            repository.prMinAccessLevel,
+            repository.prMentionOnly && mentioned,
+        );
+        if (accessSkip) return accessSkip;
 
         const llmSender = createSender({
             provider: modelProvider.provider,
@@ -387,7 +398,7 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
     } else {
         // Handle Issue comment
-        if (repository.replyToIssueComment === "off") {
+        if (!repository.issueEnabled || !repository.issueReplyEnabled) {
             return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
                 status: 200,
             });
@@ -419,10 +430,14 @@ const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async
         const noteBody = payload.comment.body;
         const commentId = payload.comment.id;
         const issueNumber = payload.issue.number;
-
-        if (repository.replyToIssueComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
-            return new Response(JSON.stringify({ message: "Skipped: bot username is not mentioned" }), { status: 200 });
-        }
+        const mentioned = noteBody.includes(`@${botUsername}`);
+        const accessSkip = await skipIfInsufficientAccess(
+            forgejoProvider,
+            { login: commenterUsername },
+            repository.issueMinAccessLevel,
+            repository.issueMentionOnly && mentioned,
+        );
+        if (accessSkip) return accessSkip;
 
         const llmSender = createSender({
             provider: modelProvider.provider,
@@ -473,7 +488,7 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
         });
     }
 
-    if (!repository.commentOnIssueOpen) {
+    if (!repository.issueEnabled || !repository.issueCommentOnOpenEnabled) {
         return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
             status: 200,
         });
@@ -493,6 +508,14 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const accessSkip = await skipIfInsufficientAccess(
+        forgejoProvider,
+        { login: payload.issue.user?.login ?? "" },
+        repository.issueMinAccessLevel,
+        false,
+    );
+    if (accessSkip) return accessSkip;
+
     const llmSender = createSender({
         provider: modelProvider.provider,
         apiKey: modelProvider.apiKey,
@@ -615,7 +638,7 @@ const handleForgejoInlineReviewReplyWebhook = async (
         senderLogin,
     } = params;
 
-    if (repository.replyToPullRequestComment === "off") {
+    if (!repository.prEnabled || !repository.prReplyEnabled) {
         return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
     }
 
@@ -633,9 +656,14 @@ const handleForgejoInlineReviewReplyWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
     }
 
-    if (repository.replyToPullRequestComment === "mentioned_only" && !noteBody.includes(`@${botUsername}`)) {
-        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
-    }
+    const mentioned = noteBody.includes(`@${botUsername}`);
+    const accessSkip = await skipIfInsufficientAccess(
+        forgejoProvider,
+        { login: commenterUsername },
+        repository.prMinAccessLevel,
+        repository.prMentionOnly && mentioned,
+    );
+    if (accessSkip) return accessSkip;
 
     const llmSender = createSender({
         provider: modelProvider.provider,
@@ -670,3 +698,22 @@ const handleForgejoInlineReviewReplyWebhook = async (
 
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
 };
+
+async function skipIfInsufficientAccess(
+    provider: GitProvider,
+    identity: GitUserPermissionIdentity,
+    minAccessLevel: number,
+    mentionBypass: boolean,
+): Promise<Response | null> {
+    if (mentionBypass || minAccessLevel <= 0) return null;
+    let level = 0;
+    try {
+        level = await provider.fetchUserPermission(identity);
+    } catch {
+        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
+    }
+    if (level < minAccessLevel) {
+        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
+    }
+    return null;
+}
