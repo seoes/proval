@@ -35,9 +35,6 @@
                 </div>
 
                 <div>
-                    <p class="font-mono text-[11px] font-semibold tracking-widest text-neutral-400 uppercase">
-                        Product
-                    </p>
                     <ul class="mt-4 space-y-2.5 text-sm">
                         {#each product as link (link.href)}
                             <li>
@@ -47,29 +44,12 @@
                         {/each}
                     </ul>
                 </div>
-
-                <div>
-                    <p class="font-mono text-[11px] font-semibold tracking-widest text-neutral-400 uppercase">
-                        Connect
-                    </p>
-                    <ul class="mt-4 space-y-2.5 text-sm">
-                        {#each connect as link (link.href)}
-                            <li>
-                                <a
-                                    href={link.href}
-                                    target={link.external ? "_blank" : undefined}
-                                    rel={link.external ? "noopener noreferrer" : undefined}
-                                    class="text-neutral-600 transition-colors hover:text-neutral-950">{link.label}</a>
-                            </li>
-                        {/each}
-                    </ul>
-                </div>
             </div>
 
             <div
                 class="mt-10 flex flex-col gap-2 border-t border-neutral-200/80 pt-6 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
                 <p>© {year} Proval</p>
-                <p>Open source. Self-hosted. Bring your own model.</p>
+                <p>Contact: <a href="mailto:me@dowonseo.com">me@dowonseo.com</a></p>
             </div>
         </div>
     </div>
