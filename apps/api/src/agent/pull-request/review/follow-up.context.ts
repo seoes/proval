@@ -66,14 +66,9 @@ export async function buildFollowUpThreadContext(provider: GitProvider, prIid: n
 export function buildPushScopeContext(params: {
     previousHeadSha: string;
     headSha: string;
-    commitTitleList: string[];
     pushPathList: string[];
 }): string {
-    const { previousHeadSha, headSha, commitTitleList, pushPathList } = params;
-    const commitBlock =
-        commitTitleList.length === 0
-            ? "(none listed)"
-            : commitTitleList.map((title) => `- ${title}`).join("\n");
+    const { previousHeadSha, headSha, pushPathList } = params;
     const pathBlock =
         pushPathList.length === 0 ? "(none)" : pushPathList.map((path) => `- ${path}`).join("\n");
 
@@ -82,15 +77,12 @@ export function buildPushScopeContext(params: {
         `Previous reviewed head: ${previousHeadSha}`,
         `Current head: ${headSha}`,
         "",
-        "## Commits in this push",
-        commitBlock,
-        "",
         `## Files changed in this push (${pushPathList.length})`,
         pathBlock,
         "",
         "Diff tools:",
         "- get_push_changed_file_list / get_push_file_diff — THIS push only (previous reviewed head → current head). Prefer these for coverage and findings.",
-        "- get_changed_file_list / get_file_diff — FULL PR (base → head). Use only for regression or boundary context.",
+        "- get_changed_file_list / get_file_diff — FULL PR (default against=start). Optional against=base compares to the merge target tip. Use only for regression or boundary context.",
         "- get_file_content / grep / glob / list_directory — head snapshot for imports, callers, and surrounding code.",
     ].join("\n");
 }

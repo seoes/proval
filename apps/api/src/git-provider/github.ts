@@ -1,10 +1,7 @@
 import { Octokit } from "@octokit/rest";
 import type {
-    GitChangedFile,
     GitComment,
     GitCodeSearchResult,
-    GitCompareResult,
-    GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
@@ -90,29 +87,28 @@ export class GitHubProvider implements GitProvider {
         return path;
     }
 
-    public async downloadArchive(ref: string, destPath: string): Promise<void> {
-        const response = await this.octokit.repos.downloadTarballArchive({
-            owner: this.owner,
-            repo: this.repo,
-            ref,
-            request: { redirect: "follow" },
-        });
-        const data = response.data as ArrayBuffer | Uint8Array | unknown;
-        if (data instanceof ArrayBuffer) {
-            await Bun.write(destPath, data);
-            return;
+    public async fetchGitRepositoryUrl(): Promise<string> {
+        return `https://github.com/${this.owner}/${this.repo}.git`;
+    }
+
+    public async fetchGitRepositoryAuthHeader(): Promise<string> {
+        const auth = await this.octokit.auth();
+        const token =
+            typeof auth === "object" && auth !== null && "token" in auth && typeof auth.token === "string"
+                ? auth.token
+                : null;
+        if (!token) {
+            throw new Error("GitHub installation token is missing");
         }
-        if (data instanceof Uint8Array) {
-            await Bun.write(destPath, data);
-            return;
-        }
-        // Octokit may return a stream-like / Response depending on version
-        const anyData = data as { arrayBuffer?: () => Promise<ArrayBuffer> };
-        if (typeof anyData?.arrayBuffer === "function") {
-            await Bun.write(destPath, await anyData.arrayBuffer());
-            return;
-        }
-        throw new Error("GitHub archive download returned unexpected payload type");
+        return `Authorization: Bearer ${token}`;
+    }
+
+    public getPullRequestHeadFetchRef(prIid: number): string {
+        return `refs/pull/${prIid}/head`;
+    }
+
+    public getBranchFetchRef(branch: string): string {
+        return `refs/heads/${branch}`;
     }
 
     public async fetchPullRequestDetail(prNumber: number): Promise<GitPullRequest> {
@@ -132,67 +128,13 @@ export class GitHubProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestDiffList(prNumber: number): Promise<GitDiff[]> {
-        const files = await this.octokit.paginate(this.octokit.pulls.listFiles, {
+    public async fetchPullRequestChangedFileCount(prNumber: number): Promise<number> {
+        const { data: pr } = await this.octokit.pulls.get({
             owner: this.owner,
             repo: this.repo,
             pull_number: prNumber,
-            per_page: 100,
         });
-
-        return files.map((file) => ({
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
-            diff: file.patch ?? "",
-        }));
-    }
-
-    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
-        const { data } = await this.octokit.repos.compareCommitsWithBasehead({
-            owner: this.owner,
-            repo: this.repo,
-            basehead: `${fromSha}...${toSha}`,
-        });
-
-        const fileList = data.files ?? [];
-        const diffList = fileList.map((file) => ({
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
-            diff: file.patch ?? "",
-        }));
-
-        const commitTitleList = (data.commits ?? []).map((commit) => {
-            const message = commit.commit?.message ?? "";
-            return message.split("\n")[0]?.trim() || commit.sha.slice(0, 12);
-        });
-
-        return { diffList, commitTitleList };
-    }
-
-    public async fetchChangedFileList(prNumber: number): Promise<GitChangedFile[]> {
-        const diffs = await this.fetchPullRequestDiffList(prNumber);
-        return diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
-            oldPath,
-            newPath,
-            newFile,
-            renamedFile,
-            deletedFile,
-        }));
-    }
-
-    public async fetchFileDiff(prNumber: number, filePath: string): Promise<GitDiff> {
-        const files = await this.fetchPullRequestDiffList(prNumber);
-        const file = files.find((f) => f.newPath === filePath || f.oldPath === filePath);
-        if (!file) {
-            throw new Error(`Changed file not found in pull request: ${filePath}`);
-        }
-        return file;
+        return pr.changed_files ?? 0;
     }
 
     public async fetchPullRequestCommentList(prNumber: number, options?: ListPaginationOptions): Promise<GitComment[]> {
@@ -561,11 +503,23 @@ export class GitHubProvider implements GitProvider {
             pull_number: prNumber,
         });
 
-        return {
-            headSha: pr.head.sha,
-            baseSha: pr.base.sha,
-            startSha: pr.base.sha,
-        };
+        const headSha = pr.head.sha;
+        const baseSha = pr.base.sha;
+        let startSha = baseSha;
+        try {
+            const { data } = await this.octokit.repos.compareCommitsWithBasehead({
+                owner: this.owner,
+                repo: this.repo,
+                basehead: `${baseSha}...${headSha}`,
+            });
+            if (data.merge_base_commit?.sha) {
+                startSha = data.merge_base_commit.sha;
+            }
+        } catch {
+            startSha = baseSha;
+        }
+
+        return { headSha, baseSha, startSha };
     }
 
     public async createCommentToSingleLine(
@@ -582,10 +536,7 @@ export class GitHubProvider implements GitProvider {
         if (line === undefined) {
             throw new Error("Either newLine or oldLine is required.");
         }
-        const path =
-            side === "LEFT" && position.oldPath !== position.newPath
-                ? position.oldPath
-                : position.newPath;
+        const path = side === "LEFT" && position.oldPath !== position.newPath ? position.oldPath : position.newPath;
 
         try {
             const { data: comment } = await this.octokit.pulls.createReviewComment({

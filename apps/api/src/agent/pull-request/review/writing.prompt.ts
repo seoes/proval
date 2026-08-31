@@ -20,7 +20,7 @@ export const WRITING_WORKFLOW = [
     "",
     "Sub agent handoffs are drafts, not final judgments. Treat findings and good points as candidates to evaluate.",
     "Before promoting a candidate to Main Issues or Overview Good points, verify its core claim when the handoff alone is not enough evidence:",
-    "  - Call get_file_diff on the cited path to confirm the hunk and line still match the claim (why: handoff lines can be wrong or stale).",
+    "  - Call get_file_diff on the cited path (against=start for inline lines) to confirm the hunk and line still match the claim (why: handoff lines can be wrong or stale).",
     "  - Call get_file_content / grep / glob / list_directory on head when you need surrounding flow, callers, or contracts the handoff skimmed (why: absence claims need path evidence).",
     "Cite the specific File path and Line that confirms or disproves the claim. Claims without a verifiable path+line must not become Main Issues.",
     "If verification supports the claim and impact is clear, keep it. If the claim is contradicted or the evidence is weak, drop it or demote it to Additional Notes.",

@@ -27,9 +27,16 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     try {
         logAgent(activityId, `fetching PR comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestComment(prIid, commentId);
-        const { headSha } = await provider.fetchPullRequestVersion(prIid);
+        const detail = await provider.fetchPullRequestDetail(prIid);
+        const { headSha, startSha, baseSha } = await provider.fetchPullRequestVersion(prIid);
         logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
-        await workspace.load({ headRef: headSha, prIid, activityId, label });
+        await workspace.loadFromPullRequest({
+            prIid,
+            targetBranch: detail.targetBranch,
+            headSha,
+            startSha,
+            baseSha,
+        });
 
         const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Reply to the new conversation comment on PR #${prIid}. (commentId: ${commentId})`;

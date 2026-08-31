@@ -170,8 +170,8 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         }
     }
 
-    const changedFileList = await gitlabProvider.fetchChangedFileList(prIid);
-    if (changedFileList.length === 0) {
+    const changedFileCount = await gitlabProvider.fetchPullRequestChangedFileCount(prIid);
+    if (changedFileCount === 0) {
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 

@@ -4,10 +4,7 @@ import type { GitDiff, GitPullRequestVersion } from "../src/git-provider/types.j
 import { Workspace } from "../src/git-provider/workspace.js";
 import { MockProvider, type MockInput, type PostedAction } from "../mock/provider.js";
 import { createSender } from "../src/agent/llm/factory.js";
-import {
-    runPullRequestReview,
-    type PullRequestReviewResult,
-} from "../src/agent/pull-request/index.js";
+import { runPullRequestReview, type PullRequestReviewResult } from "../src/agent/pull-request/index.js";
 import { loadConfig, type ReviewConfig } from "./config.js";
 import { logBlock, logError, logInfo, logSection, logStep } from "./log.js";
 import { writeReviewResult } from "./save-result.js";
@@ -115,17 +112,17 @@ async function prepareClone(config: ReviewConfig): Promise<string> {
 async function resolveVersion(config: ReviewConfig, cloneDir: string): Promise<GitPullRequestVersion> {
     logStep("version", "resolve SHAs");
     const headSha = await git(["rev-parse", `origin/${config.headBranch}`], cloneDir);
-    const baseTip = await git(["rev-parse", `origin/${config.baseBranch}`], cloneDir);
-    const mergeBase = await git(["merge-base", baseTip, headSha], cloneDir);
+    const baseSha = await git(["rev-parse", `origin/${config.baseBranch}`], cloneDir);
+    const startSha = await git(["merge-base", baseSha, headSha], cloneDir);
 
-    logInfo(`base tip   ${baseTip}`);
-    logInfo(`merge base ${mergeBase}`);
+    logInfo(`base   ${baseSha}`);
+    logInfo(`start  ${startSha}`);
     logInfo(`head       ${headSha}`);
 
     return {
         headSha,
-        baseSha: mergeBase,
-        startSha: mergeBase,
+        baseSha,
+        startSha,
     };
 }
 
@@ -280,9 +277,7 @@ function printResult(provider: MockProvider, review: PullRequestReviewResult): v
     }
 
     logSection("Token usage");
-    logInfo(
-        `total input=${review.inputToken} output=${review.outputToken} cached=${review.cachedInputToken}`,
-    );
+    logInfo(`total input=${review.inputToken} output=${review.outputToken} cached=${review.cachedInputToken}`);
     for (const sub of review.subAgentList) {
         logInfo(
             `sub ${sub.index}/${sub.total} (${sub.reviewUnit.name}) in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`,
@@ -299,11 +294,18 @@ async function main(): Promise<void> {
     try {
         const version = await resolveVersion(config, cloneDir);
         const files = await readFileMap(cloneDir);
-        const diffs = await buildDiffList(version.baseSha, version.headSha, cloneDir);
+        const diffs = await buildDiffList(version.startSha, version.headSha, cloneDir);
 
         logStep("review", "runPullRequestReview");
         const provider = new MockProvider(buildMockInput(config, version, files, diffs));
         const workspace = new Workspace(provider);
+        await workspace.adopt(cloneDir);
+        workspace.setVersion({
+            headSha: version.headSha,
+            startSha: version.startSha,
+            baseSha: version.baseSha,
+        });
+        await workspace.checkout(version.headSha);
         const llmSender = createSender({
             provider: "openai",
             apiKey: config.llmApiKey,

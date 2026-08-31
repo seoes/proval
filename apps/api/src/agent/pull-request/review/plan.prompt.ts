@@ -12,7 +12,7 @@ export const REVIEW_PLAN = [
     "",
     "Phase A — Map the system (why: so units reflect real workflows, not folder layout).",
     "  Start from the changed-file list in context.",
-    "  Call get_file_diff on candidate paths to see what actually changed before/after (workspace is head-only; deleted code exists only in the patch).",
+    "  Call get_file_diff on candidate paths to see what actually changed before/after (default against=start). Use against=base only when you need the merge-target delta. Workspace is head-only; deleted code exists only in the patch.",
     "  Then call glob, list_directory, grep, and get_file_content (head only) when you need callers, contracts, or neighboring layers that the diff alone does not show.",
     "  Trace call direction (who calls whom), data flow (request → transform → persist → response), error and control flow (what throws, what catches, what returns soft errors), and layer boundaries (handlers, services, providers, shared loops, adapters).",
     "  Follow symbols and responsibilities across files even when there is no direct import between them.",

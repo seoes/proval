@@ -1,5 +1,6 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
+import type { Workspace } from "../../../git-provider/workspace.js";
 import { buildCommentToolLanguageNote } from "../../shared/prompt/index.js";
 
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
@@ -12,6 +13,7 @@ function isChangedFileNotFoundError(error: unknown): boolean {
 
 export function createSingleLineCommentTool(
     provider: GitProvider,
+    workspace: Workspace,
     prIid: number,
     language: string,
     baseSha: string,
@@ -27,7 +29,7 @@ export function createSingleLineCommentTool(
             "Paths must match the diff (old_path/new_path).",
             "Prefer newLine for additions/changes on the new file.",
             "Use oldLine for pure deletions on the old side.",
-            "The line must appear in a get_file_diff hunk (+, -, or context). If unsure, put the finding in the summary only.",
+            "The line must appear in a get_file_diff hunk with against=start (+, -, or context). Do not anchor to against=base hunks. If unsure, put the finding in the summary only.",
             buildCommentToolLanguageNote(language),
         ].join("\n"),
         parameters: createSingleLineCommentInputSchema(language).toJSONSchema(),
@@ -54,13 +56,13 @@ export function createSingleLineCommentTool(
 
             let fileDiff;
             try {
-                fileDiff = await provider.fetchFileDiff(prIid, position.newPath);
+                fileDiff = await workspace.getFileDiff(position.newPath, "start");
             } catch (error) {
                 if (!isChangedFileNotFoundError(error)) {
                     throw error;
                 }
                 try {
-                    fileDiff = await provider.fetchFileDiff(prIid, position.oldPath);
+                    fileDiff = await workspace.getFileDiff(position.oldPath, "start");
                 } catch (fallbackError) {
                     if (!isChangedFileNotFoundError(fallbackError)) {
                         throw fallbackError;

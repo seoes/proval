@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitComment, GitDiff, GitDiffSingleLine, GitProvider } from "../../../git-provider/types.js";
+import type { Workspace } from "../../../git-provider/workspace.js";
 import { createSingleLineCommentTool } from "./create-single-line-comment.js";
 
 const FILE_DIFF: GitDiff = {
@@ -19,12 +20,13 @@ const FILE_DIFF: GitDiff = {
 
 describe("createSingleLineCommentTool", () => {
     let captured: GitDiffSingleLine[];
+    let capturedAgainst: Array<string | undefined>;
     let tool: AgentTool;
 
     beforeEach(() => {
         captured = [];
+        capturedAgainst = [];
         const provider = {
-            fetchFileDiff: async () => FILE_DIFF,
             createCommentToSingleLine: async (_prIid: number, body: string, position: GitDiffSingleLine) => {
                 captured.push(position);
                 return {
@@ -35,7 +37,13 @@ describe("createSingleLineCommentTool", () => {
                 } satisfies GitComment;
             },
         } as unknown as GitProvider;
-        tool = createSingleLineCommentTool(provider, 1, "English", "base", "head", "start");
+        const workspace = {
+            getFileDiff: async (_path: string, against?: string) => {
+                capturedAgainst.push(against);
+                return FILE_DIFF;
+            },
+        } as unknown as Workspace;
+        tool = createSingleLineCommentTool(provider, workspace, 1, "English", "base", "head", "start");
     });
 
     function execute(position: { newLine?: number; oldLine?: number }) {
@@ -51,6 +59,7 @@ describe("createSingleLineCommentTool", () => {
         const result = await execute({ newLine: 11 });
 
         expect(result).toMatchObject({ id: 1 });
+        expect(capturedAgainst).toEqual(["start"]);
         expect(captured).toEqual([
             {
                 baseSha: "base",
