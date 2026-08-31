@@ -179,11 +179,11 @@ async function buildDiffList(mergeBase: string, headSha: string, cloneDir: strin
 
         const oldPath = isRename ? tab[1]! : isDelete ? tab[1]! : isAdd ? "" : tab[1]!;
         const newPath = isRename ? tab[2]! : tab[1]!;
-        const pathForDiff = isRename ? newPath : isDelete ? oldPath : newPath;
+        const pathList = isRename && oldPath && oldPath !== newPath ? [oldPath, newPath] : [isDelete ? oldPath : newPath];
 
         let diffText = "";
         try {
-            diffText = await git(["diff", `${mergeBase}...${headSha}`, "--", pathForDiff], cloneDir);
+            diffText = await git(["diff", "-M", `${mergeBase}...${headSha}`, "--", ...pathList], cloneDir);
         } catch {
             diffText = "";
         }

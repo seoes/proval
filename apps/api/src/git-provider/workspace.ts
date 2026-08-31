@@ -274,8 +274,11 @@ export class Workspace {
         if (!file) {
             throw new Error(`${notFoundPrefix}${filePath}`);
         }
-        const pathForDiff = file.deletedFile ? file.oldPath : file.newPath;
-        const { stdout } = await runCommand(["git", "diff", fromSha, toSha, "--", pathForDiff], {
+        const pathList =
+            file.renamedFile && file.oldPath !== file.newPath
+                ? [file.oldPath, file.newPath]
+                : [file.deletedFile ? file.oldPath : file.newPath];
+        const { stdout } = await runCommand(["git", "diff", "-M", fromSha, toSha, "--", ...pathList], {
             cwd: this.rootDir!,
         });
         return { ...file, diff: stdout };

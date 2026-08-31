@@ -95,6 +95,32 @@ async function createStartBaseHeadFixture(): Promise<{
     return { dir, startSha, baseSha, headSha };
 }
 
+async function createRenameFixture(): Promise<{
+    dir: string;
+    startSha: string;
+    headSha: string;
+}> {
+    const dir = await mkdtemp(join(tmpdir(), "proval-ws-rename-"));
+    await git(dir, ["init"]);
+    await git(dir, ["config", "user.email", "test@example.com"]);
+    await git(dir, ["config", "user.name", "Test"]);
+    await git(dir, ["config", "commit.gpgsign", "false"]);
+    await mkdir(join(dir, "src"), { recursive: true });
+    const body = Array.from({ length: 20 }, (_, i) => `export const v${i} = ${i}`).join("\n") + "\n";
+    await writeFile(join(dir, "src/auth.ts"), body);
+    await git(dir, ["add", "."]);
+    await git(dir, ["commit", "-m", "start"]);
+    const startSha = await git(dir, ["rev-parse", "HEAD"]);
+
+    await git(dir, ["mv", "src/auth.ts", "src/login.ts"]);
+    await writeFile(join(dir, "src/login.ts"), `${body}export const extra = 1\n`);
+    await git(dir, ["add", "."]);
+    await git(dir, ["commit", "-m", "rename"]);
+    const headSha = await git(dir, ["rev-parse", "HEAD"]);
+
+    return { dir, startSha, headSha };
+}
+
 function createMockProvider() {
     return new MockProvider({
         detail: {
@@ -282,6 +308,39 @@ describe("Workspace git diffs", () => {
             expect(baseList.length).toBeGreaterThan(1);
             const startDiff = await diffTool.execute({ filePath: "src/auth.ts" });
             expect(startDiff).toMatchObject({ newPath: "src/auth.ts" });
+        } finally {
+            await rm(fixture.dir, { recursive: true, force: true });
+        }
+    });
+
+    it("keeps rename hunks instead of treating the new path as a full add", async () => {
+        const fixture = await createRenameFixture();
+        try {
+            const provider = createMockProvider();
+            const workspace = new Workspace(provider);
+            await workspace.adopt(fixture.dir);
+            workspace.setVersion({
+                headSha: fixture.headSha,
+                startSha: fixture.startSha,
+                baseSha: fixture.startSha,
+            });
+            await workspace.checkout(fixture.headSha);
+
+            const fileList = await workspace.changedFiles("start");
+            expect(fileList).toEqual([
+                {
+                    oldPath: "src/auth.ts",
+                    newPath: "src/login.ts",
+                    newFile: false,
+                    renamedFile: true,
+                    deletedFile: false,
+                },
+            ]);
+            const diff = await workspace.getFileDiff("src/login.ts", "start");
+            expect(diff.diff).toContain("rename from src/auth.ts");
+            expect(diff.diff).toContain("rename to src/login.ts");
+            expect(diff.diff).toContain("+export const extra = 1");
+            expect(diff.diff).not.toContain("+export const v0 = 0");
         } finally {
             await rm(fixture.dir, { recursive: true, force: true });
         }
