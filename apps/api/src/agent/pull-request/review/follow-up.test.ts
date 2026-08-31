@@ -264,6 +264,27 @@ describe("Workspace git diffs", () => {
         }
     });
 
+    it("uses base when startSha is missing", async () => {
+        const fixture = await createStartBaseHeadFixture();
+        try {
+            const provider = createMockProvider();
+            const workspace = new Workspace(provider);
+            await workspace.adopt(fixture.dir);
+            workspace.setVersion({
+                headSha: fixture.headSha,
+                startSha: null,
+                baseSha: fixture.baseSha,
+            });
+            await workspace.checkout(fixture.headSha);
+
+            const startList = await workspace.changedFiles("start");
+            const baseList = await workspace.changedFiles("base");
+            expect(startList).toEqual(baseList);
+        } finally {
+            await rm(fixture.dir, { recursive: true, force: true });
+        }
+    });
+
     it("throws when the requested against object is missing", async () => {
         const fixture = await createWorkspaceGitFixture();
         try {

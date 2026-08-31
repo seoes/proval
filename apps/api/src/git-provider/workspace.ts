@@ -146,6 +146,8 @@ export class Workspace {
         if (!this.rootDir) {
             await this.init();
         }
+        let startSha = input.startSha;
+        let previousSha = input.previousSha ?? null;
         if (this.authHeader) {
             await this.fetch(this.provider.getPullRequestHeadFetchRef(input.prIid));
             await this.fetch(this.provider.getBranchFetchRef(input.targetBranch));
@@ -153,7 +155,8 @@ export class Workspace {
                 try {
                     await this.fetch(input.startSha);
                 } catch (error) {
-                    logError(`Failed to fetch startSha ${input.startSha}`, error);
+                    logError(`Failed to fetch startSha ${input.startSha}, using baseSha`, error);
+                    startSha = input.baseSha;
                 }
             }
             if (input.previousSha) {
@@ -161,14 +164,15 @@ export class Workspace {
                     await this.fetch(input.previousSha);
                 } catch (error) {
                     logError(`Failed to fetch previousSha ${input.previousSha}`, error);
+                    previousSha = null;
                 }
             }
         }
         this.setVersion({
             headSha: input.headSha,
-            startSha: input.startSha,
+            startSha,
             baseSha: input.baseSha,
-            previousSha: input.previousSha,
+            previousSha,
         });
         await this.checkout(input.headSha);
     }
@@ -373,13 +377,13 @@ export class Workspace {
 
     public async changedFiles(against: WorkspaceDiffAgainst = "start"): Promise<GitChangedFile[]> {
         this.isWorkspaceLoaded();
-        const fromSha = against === "start" ? this.startSha : this.baseSha;
+        const fromSha = against === "start" ? (this.startSha ?? this.baseSha) : this.baseSha;
         return this.loadChangedFileList(fromSha!, this.headSha!);
     }
 
     public async getFileDiff(filePath: string, against: WorkspaceDiffAgainst = "start"): Promise<GitDiff> {
         this.isWorkspaceLoaded();
-        const fromSha = against === "start" ? this.startSha : this.baseSha;
+        const fromSha = against === "start" ? (this.startSha ?? this.baseSha) : this.baseSha;
         const fileList = await this.changedFiles(against);
         return this.loadFileDiff(
             fromSha!,

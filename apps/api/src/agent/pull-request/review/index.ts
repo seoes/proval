@@ -57,8 +57,9 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             previousSha: previousHeadSha,
         });
 
-        const usePushScope = Boolean(previousHeadSha);
+        let usePushScope = false;
         let pushScopePrompt: string | null = null;
+        let previousShaForPrompt = previousHeadSha;
 
         if (previousHeadSha) {
             logAgent(
@@ -66,18 +67,31 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 `comparing push scope ${previousHeadSha.slice(0, 12)}… → ${headSha.slice(0, 12)}…`,
                 label,
             );
-            const pushFileList = await workspace.pushChangedFileList();
-            const pushPathList = pushFileList.map((file) => file.newPath || file.oldPath).filter((path) => path !== "");
-            pushScopePrompt = buildPushScopeContext({
-                previousHeadSha,
-                headSha,
-                pushPathList,
-            });
-            logAgent(activityId, `push scope ready (${pushFileList.length} files)`, label);
+            try {
+                const pushFileList = await workspace.pushChangedFileList();
+                const pushPathList = pushFileList
+                    .map((file) => file.newPath || file.oldPath)
+                    .filter((path) => path !== "");
+                pushScopePrompt = buildPushScopeContext({
+                    previousHeadSha,
+                    headSha,
+                    pushPathList,
+                });
+                usePushScope = true;
+                logAgent(activityId, `push scope ready (${pushFileList.length} files)`, label);
+            } catch (error) {
+                previousShaForPrompt = null;
+                logAgentError(
+                    activityId,
+                    "push scope failed, falling back to full pull request diffs",
+                    error,
+                    label,
+                );
+            }
         }
 
         logAgent(activityId, "building pull request prompt", label);
-        let prompt = await generatePullRequestPrompt(workspace, prIid, version, previousHeadSha);
+        let prompt = await generatePullRequestPrompt(workspace, prIid, version, previousShaForPrompt);
 
         let priorBotSummary: string | null = null;
         let threadContext: string | null = null;
