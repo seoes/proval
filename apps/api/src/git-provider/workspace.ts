@@ -146,8 +146,7 @@ export class Workspace {
         if (!this.rootDir) {
             await this.init();
         }
-        let startSha = input.startSha;
-        let previousSha = input.previousSha ?? null;
+
         if (this.authHeader) {
             await this.fetch(this.provider.getPullRequestHeadFetchRef(input.prIid));
             await this.fetch(this.provider.getBranchFetchRef(input.targetBranch));
@@ -155,8 +154,8 @@ export class Workspace {
                 try {
                     await this.fetch(input.startSha);
                 } catch (error) {
-                    logError(`Failed to fetch startSha ${input.startSha}, using baseSha`, error);
-                    startSha = input.baseSha;
+                    logError(`Failed to fetch startSha ${input.startSha}`, error);
+                    throw error;
                 }
             }
             if (input.previousSha) {
@@ -164,15 +163,14 @@ export class Workspace {
                     await this.fetch(input.previousSha);
                 } catch (error) {
                     logError(`Failed to fetch previousSha ${input.previousSha}`, error);
-                    previousSha = null;
                 }
             }
         }
         this.setVersion({
             headSha: input.headSha,
-            startSha,
+            startSha: input.startSha,
             baseSha: input.baseSha,
-            previousSha,
+            previousSha: input.previousSha ?? null,
         });
         await this.checkout(input.headSha);
     }
@@ -375,19 +373,33 @@ export class Workspace {
         return matches;
     }
 
+    private resolveDiffSha(against: WorkspaceDiffAgainst): { fromSha: string; headSha: string } {
+        const fromSha = against === "start" ? this.startSha : this.baseSha;
+        const headSha = this.headSha;
+        if (!fromSha) {
+            throw new Error(
+                against === "start" ? "Workspace startSha is not loaded." : "Workspace baseSha is not loaded.",
+            );
+        }
+        if (!headSha) {
+            throw new Error("Workspace headSha is not loaded.");
+        }
+        return { fromSha, headSha };
+    }
+
     public async changedFiles(against: WorkspaceDiffAgainst = "start"): Promise<GitChangedFile[]> {
         this.isWorkspaceLoaded();
-        const fromSha = against === "start" ? (this.startSha ?? this.baseSha) : this.baseSha;
-        return this.loadChangedFileList(fromSha!, this.headSha!);
+        const { fromSha, headSha } = this.resolveDiffSha(against);
+        return this.loadChangedFileList(fromSha, headSha);
     }
 
     public async getFileDiff(filePath: string, against: WorkspaceDiffAgainst = "start"): Promise<GitDiff> {
         this.isWorkspaceLoaded();
-        const fromSha = against === "start" ? (this.startSha ?? this.baseSha) : this.baseSha;
+        const { fromSha, headSha } = this.resolveDiffSha(against);
         const fileList = await this.changedFiles(against);
         return this.loadFileDiff(
-            fromSha!,
-            this.headSha!,
+            fromSha,
+            headSha,
             filePath,
             fileList,
             against === "start"

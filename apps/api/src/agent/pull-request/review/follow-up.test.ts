@@ -264,7 +264,7 @@ describe("Workspace git diffs", () => {
         }
     });
 
-    it("uses base when startSha is missing", async () => {
+    it("throws when startSha is missing", async () => {
         const fixture = await createStartBaseHeadFixture();
         try {
             const provider = createMockProvider();
@@ -277,9 +277,9 @@ describe("Workspace git diffs", () => {
             });
             await workspace.checkout(fixture.headSha);
 
-            const startList = await workspace.changedFiles("start");
+            await expect(workspace.changedFiles("start")).rejects.toThrow("Workspace startSha is not loaded.");
             const baseList = await workspace.changedFiles("base");
-            expect(startList).toEqual(baseList);
+            expect(baseList.length).toBeGreaterThan(0);
         } finally {
             await rm(fixture.dir, { recursive: true, force: true });
         }
