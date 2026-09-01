@@ -26,7 +26,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     try {
         logAgent(activityId, `fetching repository detail`, label);
         const repository = await provider.fetchRepositoryDetail();
-        await workspace.load({ headRef: repository.defaultBranch, activityId, label });
+        await workspace.loadFromBranch(repository.defaultBranch);
 
         const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;

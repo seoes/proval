@@ -43,62 +43,55 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
     const label = `[PR #${prIid}] Review`;
     try {
         logAgent(activityId, "fetching pull request version", label);
-        const { baseSha, headSha, startSha } = await provider.fetchPullRequestVersion(prIid);
+        const detail = await provider.fetchPullRequestDetail(prIid);
+        const version = await provider.fetchPullRequestVersion(prIid);
+        const { baseSha, headSha, startSha } = version;
         logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
 
-        await workspace.load({ headRef: headSha, prIid, activityId, label });
+        await workspace.loadFromPullRequest({
+            prIid,
+            targetBranch: detail.targetBranch,
+            headSha,
+            startSha,
+            baseSha,
+            previousSha: previousHeadSha,
+        });
 
         let usePushScope = false;
         let pushScopePrompt: string | null = null;
-        let commitTitleList: string[] = [];
+        let previousShaForPrompt = previousHeadSha;
 
-        if (isFollowUpReview && previousHeadSha) {
+        if (previousHeadSha) {
             logAgent(
                 activityId,
                 `comparing push scope ${previousHeadSha.slice(0, 12)}… → ${headSha.slice(0, 12)}…`,
                 label,
             );
-            for (let i = 0; i < 4; i++) {
-                try {
-                    const compare = await provider.fetchCompare(previousHeadSha, headSha);
-                    workspace.setPushDiffList(compare.diffList);
-                    commitTitleList = compare.commitTitleList;
-                    usePushScope = true;
-                    const pushPathList = compare.diffList
-                        .map((diff) => diff.newPath || diff.oldPath)
-                        .filter((path) => path !== "");
-                    pushScopePrompt = buildPushScopeContext({
-                        previousHeadSha,
-                        headSha,
-                        commitTitleList,
-                        pushPathList,
-                    });
-                    logAgent(activityId, `push scope ready (${compare.diffList.length} files)`, label);
-                    break;
-                } catch (error) {
-                    if (i === 3) {
-                        logAgentError(
-                            activityId,
-                            "compare failed after retries, falling back to full PR diffs",
-                            error,
-                            label,
-                        );
-                        break;
-                    }
-                    const delayMs = 2 ** (i + 1) * 1000;
-                    logAgentError(
-                        activityId,
-                        `compare failed (attempt ${i + 1}), retry in ${delayMs}ms`,
-                        error,
-                        label,
-                    );
-                    await Bun.sleep(delayMs);
-                }
+            try {
+                const pushFileList = await workspace.pushChangedFileList();
+                const pushPathList = pushFileList
+                    .map((file) => file.newPath || file.oldPath)
+                    .filter((path) => path !== "");
+                pushScopePrompt = buildPushScopeContext({
+                    previousHeadSha,
+                    headSha,
+                    pushPathList,
+                });
+                usePushScope = true;
+                logAgent(activityId, `push scope ready (${pushFileList.length} files)`, label);
+            } catch (error) {
+                previousShaForPrompt = null;
+                logAgentError(
+                    activityId,
+                    "push scope failed, falling back to full pull request diffs",
+                    error,
+                    label,
+                );
             }
         }
 
         logAgent(activityId, "building pull request prompt", label);
-        let prompt = await generatePullRequestPrompt(workspace, prIid, headSha);
+        let prompt = await generatePullRequestPrompt(workspace, prIid, version, previousShaForPrompt);
 
         let priorBotSummary: string | null = null;
         let threadContext: string | null = null;
@@ -187,7 +180,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 "Inline Review": isInlineReview,
                 "Follow Up Review": isFollowUpReview,
                 "Push Scope": usePushScope,
-                ...(commitTitleList.length > 0 ? { "Push Commits": commitTitleList.length } : {}),
             },
         });
 

@@ -7,7 +7,7 @@ export function getPushFileDiffTool(workspace: Workspace): AgentTool {
         name: "get_push_file_diff",
         description: [
             "Get the unified diff for one file in THIS follow-up push only (previous reviewed head → current head).",
-            "Unlike get_file_diff (entire PR base→head patch for that file), this shows only what changed since the last Proval review.",
+            "Unlike get_file_diff (PR start→head by default, or against=base for the merge target), this shows only what changed since the last Proval review.",
             "On follow-up reviews, call this FIRST for assigned paths. Use get_file_diff only when you need older PR hunks for regression or consistency.",
             "The workspace snapshot is still head-only for get_file_content / grep.",
             UNTRUSTED_WARNING_TOOL_PROMPT,

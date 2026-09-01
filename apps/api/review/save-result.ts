@@ -66,7 +66,7 @@ function buildResultDocument(payload: ReviewResultPayload): ResultDocument {
 
 function renderMarkdown(doc: ResultDocument): string {
     const { config, version, fileCount, review, posted, ranAt } = doc;
-    const { headSha, baseSha } = version;
+    const { headSha, baseSha, startSha } = version;
     const { inputToken, outputToken, cachedInputToken, reviewUnitList } = review;
     const { repoUrl, baseBranch, headBranch, prTitle, language, inlineReview, llmBaseUrl, llmModel } = config;
     const frontMatter: Record<string, string | number | boolean> = {
@@ -74,6 +74,7 @@ function renderMarkdown(doc: ResultDocument): string {
         repoUrl,
         baseBranch,
         headBranch,
+        startSha,
         baseSha,
         headSha,
         prTitle,
@@ -109,7 +110,8 @@ function renderMarkdown(doc: ResultDocument): string {
     lines.push(`- inlineReview: ${doc.config.inlineReview}`);
     lines.push(`- llm: ${doc.config.llmModel} @ ${doc.config.llmBaseUrl}`);
     lines.push(`- headSha: \`${doc.version.headSha}\``);
-    lines.push(`- mergeBase: \`${doc.version.baseSha}\``);
+    lines.push(`- startSha: \`${doc.version.startSha}\``);
+    lines.push(`- baseSha: \`${doc.version.baseSha}\``);
     lines.push("");
 
     lines.push("## Changed files", "");

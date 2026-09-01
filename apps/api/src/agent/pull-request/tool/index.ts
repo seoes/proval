@@ -10,7 +10,6 @@ export { postPullRequestInlineReviewReplyTool } from "./post-pull-request-inline
 export { getPullRequestCommentTool } from "./get-pull-request-comment.js";
 export { getPullRequestInlineReviewCommentTool } from "./get-pull-request-inline-review-comment.js";
 export { getPullRequestInlineReviewListTool } from "./get-pull-request-inline-review-list.js";
-export { getPullRequestVersionTool } from "./get-pull-request-version.js";
 export { createSingleLineCommentTool } from "./create-single-line-comment.js";
 export { createMultiLineCommentTool } from "./create-multi-line-comment.js";
 export { approvePullRequestTool } from "./approve-pull-request.js";

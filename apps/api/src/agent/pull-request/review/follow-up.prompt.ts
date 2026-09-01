@@ -7,7 +7,7 @@ export const FOLLOW_UP_REVIEW_RULE = [
     "Do not republish the same Main Issues or inline comments that prior feedback already raised when the underlying problem is unchanged.",
     "If an old finding is still true but unchanged, omit it rather than repeating it.",
     "Keep the Overview shorter than a first review. Focus on what matters now.",
-    "When push-scoped diffs are available, ground claims in get_push_file_diff first. Use full PR get_file_diff only for regression or consistency checks.",
+    "When push-scoped diffs are available, ground claims in get_push_file_diff first. Use full PR get_file_diff (against=start, or against=base for merge-target drift) only for regression or consistency checks.",
     "Inline comments should target issues tied to this push (new or worsened), not restate settled threads.",
     "If a Prior Proval review summary is provided below, treat it as already posted feedback to avoid duplicating.",
 ].join("\n");
@@ -27,7 +27,7 @@ export const FOLLOW_UP_PUSH_PLAN_HINT = [
     "Coverage and unit files[] MUST be based on get_push_changed_file_list (this push), NOT the full PR changed-file list.",
     "Every path from the push changed-file list must be in some append_review_unit files[] or skip_file before DONE.",
     "Call get_push_file_diff when inspecting what actually changed in this push.",
-    "Use get_changed_file_list / get_file_diff only when a boundary or regression check needs older PR hunks.",
+    "Use get_changed_file_list / get_file_diff (against=start, or against=base for merge-target drift) only when a boundary or regression check needs older PR hunks.",
     "Bias units toward paths and behaviors that changed in this push or that prior threads asked to fix.",
 ].join("\n");
 
@@ -35,6 +35,6 @@ export const FOLLOW_UP_PUSH_SUB_HINT = [
     "# Follow-up push sub-agent hint",
     "",
     "For every path in this unit's files[], call get_push_file_diff FIRST (this push only).",
-    "Use get_file_diff (full PR) only if the push hunk is incomplete for a concrete suspicion (regression / consistency).",
+    "Use get_file_diff (full PR, default against=start) only if the push hunk is incomplete for a concrete suspicion (regression / consistency).",
     "Use get_file_content / grep for head context (imports, callers). Do not discuss prior comments — report findings and good points only.",
 ].join("\n");

@@ -62,12 +62,6 @@ export interface GitDiff {
     diff: string;
 }
 
-/** Result of comparing two refs (e.g. previous review head → current head). */
-export interface GitCompareResult {
-    diffList: GitDiff[];
-    commitTitleList: string[];
-}
-
 export interface GitDiffBase {
     baseSha: string;
     headSha: string;
@@ -95,8 +89,11 @@ export interface GitDiffLine {
 }
 
 export interface GitPullRequestVersion {
+    /** PR branch tip. Checkout and file lookup. */
     headSha: string;
+    /** Tip of the branch this PR merges into. */
     baseSha: string;
+    /** Merge-base of head and base. The branch point. */
     startSha: string;
 }
 
@@ -159,17 +156,9 @@ export interface GitProvider {
     fetchCurrentUser(): Promise<GitUser>;
     fetchRepositoryDetail(): Promise<GitRepository>;
     fetchPullRequestDetail(prIid: number): Promise<GitPullRequest>;
-    fetchChangedFileList(prIid: number): Promise<GitChangedFile[]>;
+    /** Files-changed count for the PR. Metadata only, no patches. */
+    fetchPullRequestChangedFileCount(prIid: number): Promise<number>;
     fetchUserPermission(identity: GitUserPermissionIdentity): Promise<number>;
-    /** Read one changed file's patch from the PR. Accepts either oldPath or newPath. */
-    fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff>;
-    /** Bulk PR diffs (one API family; paginate pages if needed — not per-file requests). */
-    fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]>;
-    /**
-     * Compare two commit SHAs (fromSha..toSha). Used for follow-up push reviews.
-     * Throws on API failure or provider timeout / incomplete compare.
-     */
-    fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult>;
 
     // Pull Request conversation comment (PR timeline / issue_comment)
     fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment>;
@@ -210,6 +199,8 @@ export interface GitProvider {
     assignPullRequestReviewer(prIid: number): Promise<void>;
     fetchRepositoryList(): Promise<GitRepositoryListItem[]>;
     fetchRepositoryPath(): Promise<string>;
-    /** Download repository archive at ref as .tar.gz into destPath. */
-    downloadArchive(ref: string, destPath: string): Promise<void>;
+    fetchGitRepositoryUrl(): Promise<string>;
+    fetchGitRepositoryAuthHeader(): Promise<string>;
+    getPullRequestHeadFetchRef(prIid: number): string;
+    getBranchFetchRef(branch: string): string;
 }

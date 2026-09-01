@@ -4,7 +4,7 @@ export const REVIEW_SUB_AGENT_BODY = [
     "# Input and tool intent",
     "",
     "The user message includes Review unit as JSON: id, name, files[], description, references[].",
-    "- files[]: changed paths to review. Call get_file_diff on every path so you see each hunk before judging (why: surface diffs alone cause false positives).",
+    "- files[]: changed paths to review. Call get_file_diff on every path (default against=start) so you see each hunk before judging (why: surface diffs alone cause false positives). Use against=base only for merge-target drift, never for inline line numbers.",
     "- description: scope context from the planner — why these changed files belong together. Use it to bound what you investigate.",
     "- references[]: context files ({ path, reason }) from the planner — full repo-root paths. Use each path exactly as given.",
     "- For references[] paths that appear in the PR changed file list, call get_file_diff first (why: you need before/after). For paths not in the PR (or for surrounding head context), call get_file_content.",

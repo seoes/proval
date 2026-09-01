@@ -1,8 +1,6 @@
 import type {
     GitComment,
-    GitChangedFile,
     GitCodeSearchResult,
-    GitCompareResult,
     GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
@@ -34,8 +32,6 @@ export interface MockInput {
     reviewers?: string[];
     /** Returned by fetchCurrentUser (default test_bot) */
     currentUser?: GitUser;
-    /** Returned by fetchCompare (default empty) */
-    compare?: GitCompareResult;
     /** Returned by fetchUserPermission (default 5) */
     permissionLevel?: number;
 }
@@ -74,61 +70,28 @@ export class MockProvider implements GitProvider {
         return "mock-org/mock-repo";
     }
 
-    async downloadArchive(_ref: string, destPath: string): Promise<void> {
-        const { mkdir, mkdtemp, rm, writeFile } = await import("node:fs/promises");
-        const { join, dirname } = await import("node:path");
-        const { tmpdir } = await import("node:os");
-        const staging = await mkdtemp(join(tmpdir(), "proval-mock-archive-"));
-        const rootName = "mock-repo";
-        const treeRoot = join(staging, rootName);
-        try {
-            await mkdir(treeRoot, { recursive: true });
-            for (const [filePath, content] of Object.entries(this.input.files ?? {})) {
-                const abs = join(treeRoot, filePath);
-                await mkdir(dirname(abs), { recursive: true });
-                await writeFile(abs, content, "utf-8");
-            }
-            const proc = Bun.spawn(["tar", "-czf", destPath, "-C", staging, rootName], {
-                stdout: "pipe",
-                stderr: "pipe",
-            });
-            const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
-            if (code !== 0) {
-                throw new Error(`Mock archive tar failed: ${stderr}`);
-            }
-        } finally {
-            await rm(staging, { recursive: true, force: true });
-        }
+    public async fetchGitRepositoryUrl(): Promise<string> {
+        return "https://example.com/mock-org/mock-repo.git";
+    }
+
+    public async fetchGitRepositoryAuthHeader(): Promise<string> {
+        return "Authorization: Bearer mock";
+    }
+
+    getPullRequestHeadFetchRef(prIid: number): string {
+        return `refs/pull/${prIid}/head`;
+    }
+
+    getBranchFetchRef(branch: string): string {
+        return `refs/heads/${branch}`;
     }
 
     async fetchPullRequestDetail(_prIid: number): Promise<GitPullRequest> {
         return this.input.detail;
     }
 
-    async fetchPullRequestDiffList(_prIid: number): Promise<GitDiff[]> {
-        return this.input.diffs;
-    }
-
-    async fetchCompare(_fromSha: string, _toSha: string): Promise<GitCompareResult> {
-        return this.input.compare ?? { diffList: [], commitTitleList: [] };
-    }
-
-    async fetchChangedFileList(_prIid: number): Promise<GitChangedFile[]> {
-        return this.input.diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
-            oldPath,
-            newPath,
-            newFile,
-            renamedFile,
-            deletedFile,
-        }));
-    }
-
-    async fetchFileDiff(_prIid: number, filePath: string): Promise<GitDiff> {
-        const diff = this.input.diffs.find((item) => item.newPath === filePath || item.oldPath === filePath);
-        if (!diff) {
-            throw new Error(`Changed file not found in pull request: ${filePath}`);
-        }
-        return diff;
+    async fetchPullRequestChangedFileCount(_prIid: number): Promise<number> {
+        return this.input.diffs.length;
     }
 
     async fetchPullRequestCommentList(_prIid: number, options?: ListPaginationOptions) {

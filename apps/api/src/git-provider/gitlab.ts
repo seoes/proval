@@ -2,10 +2,7 @@ import { createHash } from "node:crypto";
 import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import type {
     GitComment,
-    GitChangedFile,
     GitCodeSearchResult,
-    GitCompareResult,
-    GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
@@ -118,18 +115,22 @@ export class GitLabProvider implements GitProvider {
         return path;
     }
 
-    public async downloadArchive(ref: string, destPath: string): Promise<void> {
+    public async fetchGitRepositoryUrl(): Promise<string> {
+        const path = await this.fetchRepositoryPath();
         const host = this.baseUrl.replace(/\/$/, "");
-        const url = `${host}/api/v4/projects/${this.projectId}/repository/archive.tar.gz?sha=${encodeURIComponent(ref)}`;
-        const response = await fetch(url, {
-            headers: { Authorization: `Bearer ${this.token}` },
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`GitLab archive download failed (${response.status}): ${errorText}`);
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        await Bun.write(destPath, new Uint8Array(arrayBuffer));
+        return `${host}/${path}.git`;
+    }
+
+    public async fetchGitRepositoryAuthHeader(): Promise<string> {
+        return `Authorization: Bearer ${this.token}`;
+    }
+
+    public getPullRequestHeadFetchRef(prIid: number): string {
+        return `refs/merge-requests/${prIid}/head`;
+    }
+
+    public getBranchFetchRef(branch: string): string {
+        return `refs/heads/${branch}`;
     }
 
     public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
@@ -144,66 +145,13 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
-    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
-        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, prIid);
-        return changes.map((change) => ({
-            oldPath: change.old_path,
-            newPath: change.new_path,
-            newFile: change.new_file,
-            renamedFile: change.renamed_file,
-            deletedFile: change.deleted_file,
-        }));
-    }
-
-    public async fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]> {
-        const changes = await this.gitlab.MergeRequests.allDiffs(this.projectId, prIid);
-        return changes.map((change) => ({
-            oldPath: change.old_path,
-            newPath: change.new_path,
-            newFile: change.new_file,
-            renamedFile: change.renamed_file,
-            deletedFile: change.deleted_file,
-            diff: change.diff,
-        }));
-    }
-
-    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
-        const result = await this.gitlab.Repositories.compare(this.projectId, fromSha, toSha, {
-            straight: true,
-        });
-
-        if (result.compare_timeout) {
-            throw new Error("GitLab compare timed out or exceeded size limits");
+    public async fetchPullRequestChangedFileCount(prIid: number): Promise<number> {
+        const mergeRequest = await this.gitlab.MergeRequests.show(this.projectId, prIid);
+        const raw = String(mergeRequest.changes_count ?? "0");
+        if (raw.endsWith("+")) {
+            return Number.parseInt(raw, 10) || 100;
         }
-
-        const diffList = (result.diffs ?? []).map((change) => ({
-            oldPath: change.old_path,
-            newPath: change.new_path,
-            newFile: Boolean(change.new_file),
-            renamedFile: Boolean(change.renamed_file),
-            deletedFile: Boolean(change.deleted_file),
-            diff: change.diff ?? "",
-        }));
-
-        const commitTitleList = (result.commits ?? []).map((commit) => {
-            const title = typeof commit.title === "string" ? commit.title.trim() : "";
-            if (title) return title;
-            const message = typeof commit.message === "string" ? commit.message : "";
-            const firstLine = message.split("\n")[0]?.trim();
-            const id = typeof commit.id === "string" ? commit.id : "";
-            return firstLine || id.slice(0, 12) || "commit";
-        });
-
-        return { diffList, commitTitleList };
-    }
-
-    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
-        const changes = await this.fetchPullRequestDiffList(prIid);
-        const change = changes.find((item) => item.newPath === filePath || item.oldPath === filePath);
-        if (!change) {
-            throw new Error(`Changed file not found in pull request: ${filePath}`);
-        }
-        return change;
+        return Number.parseInt(raw, 10) || 0;
     }
 
     public async fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment> {
@@ -608,10 +556,11 @@ export class GitLabProvider implements GitProvider {
     public async fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion> {
         const versions = await this.gitlab.MergeRequests.allDiffVersions(this.projectId, prIid);
         const latest = versions[0];
+        // start_commit_sha = base. base_commit_sha = start. head_commit_sha = head.
         return {
             headSha: latest.head_commit_sha,
-            baseSha: latest.base_commit_sha,
-            startSha: latest.start_commit_sha,
+            baseSha: latest.start_commit_sha, // start is target tip in GitLab (base in proval)
+            startSha: latest.base_commit_sha, // base is separate point in GitLab (start in proval)
         };
     }
 
@@ -623,8 +572,8 @@ export class GitLabProvider implements GitProvider {
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
-                baseSha: position.baseSha,
-                startSha: position.startSha,
+                baseSha: position.startSha, // start is target tip in GitLab (base in proval)
+                startSha: position.baseSha, // base is target tip in GitLab (start in proval)
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
@@ -659,8 +608,8 @@ export class GitLabProvider implements GitProvider {
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
-                baseSha: position.baseSha,
-                startSha: position.startSha,
+                baseSha: position.startSha, // start is target tip in GitLab (base in proval)
+                startSha: position.baseSha, // base is target tip in GitLab (start in proval)
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,

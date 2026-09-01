@@ -1,9 +1,6 @@
 import type {
-    GitChangedFile,
     GitComment,
     GitCodeSearchResult,
-    GitCompareResult,
-    GitDiff,
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
@@ -110,19 +107,22 @@ export class ForgejoProvider implements GitProvider {
         return path;
     }
 
-    public async downloadArchive(ref: string, destPath: string): Promise<void> {
-        const url = new URL(
-            `/api/v1/repos/${this.owner}/${this.repo}/archive/${encodeURIComponent(ref)}.tar.gz`,
-            this.baseUrl,
-        );
-        const response = await fetch(url, {
-            headers: { Authorization: `token ${this.token}` },
-        });
-        if (!response.ok) {
-            const errorText = await response.text();
-            this.throwRequestError(response, errorText);
-        }
-        await Bun.write(destPath, response);
+    public async fetchGitRepositoryUrl(): Promise<string> {
+        const path = await this.fetchRepositoryPath();
+        const host = this.baseUrl.replace(/\/$/, "");
+        return `${host}/${path}.git`;
+    }
+
+    public async fetchGitRepositoryAuthHeader(): Promise<string> {
+        return `Authorization: token ${this.token}`;
+    }
+
+    public getPullRequestHeadFetchRef(prIid: number): string {
+        return `refs/pull/${prIid}/head`;
+    }
+
+    public getBranchFetchRef(branch: string): string {
+        return `refs/heads/${branch}`;
     }
 
     public async fetchPullRequestDetail(prIid: number): Promise<GitPullRequest> {
@@ -146,90 +146,14 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    public async fetchPullRequestDiffList(prIid: number): Promise<GitDiff[]> {
-        const path = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/files`;
-        const all: GitDiff[] = [];
-        const limit = 50;
-        for (let page = 1; ; page++) {
-            const files = await this.requestJsonPaginated<
-                Array<{
-                    filename: string;
-                    previous_filename?: string;
-                    status: string;
-                    patch?: string;
-                }>
-            >(path, page, limit);
-            for (const file of files) {
-                all.push({
-                    oldPath: file.previous_filename ?? file.filename,
-                    newPath: file.filename,
-                    newFile: file.status === "added",
-                    renamedFile: file.status === "renamed",
-                    deletedFile: file.status === "removed",
-                    diff: file.patch ?? "",
-                });
-            }
-            if (files.length < limit) {
-                break;
-            }
-        }
-        return all;
+    public async fetchPullRequestChangedFileCount(prIid: number): Promise<number> {
+        const pr = await this.requestJson<{ changed_files?: number }>(
+            `/repos/${this.owner}/${this.repo}/pulls/${prIid}`,
+        );
+        return pr.changed_files ?? 0;
     }
 
-    public async fetchCompare(fromSha: string, toSha: string): Promise<GitCompareResult> {
-        const path = `/repos/${this.owner}/${this.repo}/compare/${encodeURIComponent(fromSha)}...${encodeURIComponent(toSha)}`;
-        const data = await this.requestJson<{
-            commits?: Array<{ sha?: string; commit?: { message?: string } }>;
-            files?: Array<{
-                filename: string;
-                previous_filename?: string;
-                status: string;
-                patch?: string;
-            }>;
-        }>(path);
-
-        const diffList = (data.files ?? []).map((file) => ({
-            oldPath: file.previous_filename ?? file.filename,
-            newPath: file.filename,
-            newFile: file.status === "added",
-            renamedFile: file.status === "renamed",
-            deletedFile: file.status === "removed",
-            diff: file.patch ?? "",
-        }));
-
-        const commitTitleList = (data.commits ?? []).map((commit) => {
-            const message = commit.commit?.message ?? "";
-            const title = message.split("\n")[0]?.trim();
-            return title || (commit.sha ? commit.sha.slice(0, 12) : "commit");
-        });
-
-        return { diffList, commitTitleList };
-    }
-
-    public async fetchChangedFileList(prIid: number): Promise<GitChangedFile[]> {
-        const diffs = await this.fetchPullRequestDiffList(prIid);
-        return diffs.map(({ oldPath, newPath, newFile, renamedFile, deletedFile }) => ({
-            oldPath,
-            newPath,
-            newFile,
-            renamedFile,
-            deletedFile,
-        }));
-    }
-
-    public async fetchFileDiff(prIid: number, filePath: string): Promise<GitDiff> {
-        const files = await this.fetchPullRequestDiffList(prIid);
-        const file = files.find((f) => f.newPath === filePath || f.oldPath === filePath);
-        if (!file) {
-            throw new Error(`Changed file not found in pull request: ${filePath}`);
-        }
-        return file;
-    }
-
-    public async fetchPullRequestCommentList(
-        prIid: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchPullRequestCommentList(prIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const path = `/repos/${this.owner}/${this.repo}/issues/${prIid}/comments`;
         if (options) {
             const data = await this.requestJsonPaginated<
@@ -263,6 +187,7 @@ export class ForgejoProvider implements GitProvider {
         return {
             headSha: pr.head.sha,
             baseSha: pr.base.sha,
+            // merge_base is start, fallback to base
             startSha: pr.merge_base ?? pr.base.sha,
         };
     }
@@ -290,10 +215,7 @@ export class ForgejoProvider implements GitProvider {
         return this.fetchPullRequestComment(issueIid, commentId);
     }
 
-    public async fetchIssueCommentList(
-        issueIid: number,
-        options?: ListPaginationOptions,
-    ): Promise<GitComment[]> {
+    public async fetchIssueCommentList(issueIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const path = `/repos/${this.owner}/${this.repo}/issues/${issueIid}/comments`;
         if (options) {
             const data = await this.requestJsonPaginated<
@@ -642,11 +564,7 @@ export class ForgejoProvider implements GitProvider {
 
             return response.content ?? "";
         } catch (error) {
-            if (
-                typeof error === "object" &&
-                error !== null &&
-                (error as { status?: number }).status === 404
-            ) {
+            if (typeof error === "object" && error !== null && (error as { status?: number }).status === 404) {
                 throw new Error(`File not found: ${filePath}`);
             }
             throw error;
@@ -654,9 +572,7 @@ export class ForgejoProvider implements GitProvider {
     }
 
     private throwRequestError(response: Response, errorText: string): never {
-        const error = new Error(
-            `Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`,
-        );
+        const error = new Error(`Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`);
         (error as Error & { status: number }).status = response.status;
         throw error;
     }

@@ -181,8 +181,8 @@ async function handlePullRequestWebhook(
         }
     }
 
-    const changedFileList = await gitHubProvider.fetchChangedFileList(prNumber);
-    if (changedFileList.length === 0) {
+    const changedFileCount = await gitHubProvider.fetchPullRequestChangedFileCount(prNumber);
+    if (changedFileCount === 0) {
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 

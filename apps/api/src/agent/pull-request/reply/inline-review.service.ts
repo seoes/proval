@@ -30,9 +30,16 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
     try {
         logAgent(activityId, `fetching inline review comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
-        const { headSha } = await provider.fetchPullRequestVersion(prIid);
+        const detail = await provider.fetchPullRequestDetail(prIid);
+        const { headSha, startSha, baseSha } = await provider.fetchPullRequestVersion(prIid);
         logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
-        await workspace.load({ headRef: headSha, prIid, activityId, label });
+        await workspace.loadFromPullRequest({
+            prIid,
+            targetBranch: detail.targetBranch,
+            headSha,
+            startSha,
+            baseSha,
+        });
 
         const system = [PR_REPLY_BODY, PR_REPLY_WORKFLOW, PR_INLINE_REVIEW_REPLY_APPENDIX, COMMENT_LANGUAGE_RULE].join(
             "\n",

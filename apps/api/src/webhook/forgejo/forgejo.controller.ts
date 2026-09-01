@@ -254,8 +254,8 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         }
     }
 
-    const changedFileList = await forgejoProvider.fetchChangedFileList(prNumber);
-    if (changedFileList.length === 0) {
+    const changedFileCount = await forgejoProvider.fetchPullRequestChangedFileCount(prNumber);
+    if (changedFileCount === 0) {
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 

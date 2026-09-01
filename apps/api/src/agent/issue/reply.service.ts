@@ -29,7 +29,7 @@ export const runIssueReply: IssueReply = async ({
         logAgent(activityId, `fetching issue comment ${commentId}`, label);
         const comment = await provider.fetchIssueComment(issueIid, commentId);
         const repository = await provider.fetchRepositoryDetail();
-        await workspace.load({ headRef: repository.defaultBranch, activityId, label });
+        await workspace.loadFromBranch(repository.defaultBranch);
 
         const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
         const prompt = `Reply to the new comment on Issue #${issueIid}. (commentId: ${commentId})`;
