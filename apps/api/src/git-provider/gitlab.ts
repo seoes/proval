@@ -556,11 +556,11 @@ export class GitLabProvider implements GitProvider {
     public async fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion> {
         const versions = await this.gitlab.MergeRequests.allDiffVersions(this.projectId, prIid);
         const latest = versions[0];
-        // start_commit_sha = start (merge-base). base_commit_sha = base (target tip).
+        // start_commit_sha = base. base_commit_sha = start. head_commit_sha = head.
         return {
             headSha: latest.head_commit_sha,
-            baseSha: latest.base_commit_sha,
-            startSha: latest.start_commit_sha,
+            baseSha: latest.start_commit_sha, // start is target tip in GitLab (base in proval)
+            startSha: latest.base_commit_sha, // base is separate point in GitLab (start in proval)
         };
     }
 
@@ -572,8 +572,8 @@ export class GitLabProvider implements GitProvider {
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
-                baseSha: position.baseSha,
-                startSha: position.startSha,
+                baseSha: position.startSha, // start is target tip in GitLab (base in proval)
+                startSha: position.baseSha, // base is target tip in GitLab (start in proval)
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
@@ -608,8 +608,8 @@ export class GitLabProvider implements GitProvider {
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
                 positionType: "text",
-                baseSha: position.baseSha,
-                startSha: position.startSha,
+                baseSha: position.startSha, // start is target tip in GitLab (base in proval)
+                startSha: position.baseSha, // base is target tip in GitLab (start in proval)
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
