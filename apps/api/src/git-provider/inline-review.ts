@@ -12,6 +12,7 @@ export type InlineReviewComment = {
     startLine?: number | null;
     side?: string | null;
     startSide?: string | null;
+    reviewId?: number | null;
 };
 
 export function resolveInlineReviewRootId(commentId: number, commentList: InlineReviewComment[]): number {

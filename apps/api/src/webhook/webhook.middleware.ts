@@ -38,20 +38,19 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
     return { webhookEvent, eventType, action, number, title };
 }
 
-function resolveForgejoWebhookEvent(c: Context): string {
-    const eventType = c.req.header("X-Gitea-Event-Type") ?? c.req.header("X-GitHub-Event-Type");
-    if (eventType === "pull_request_review_comment") return "pull_request_review_comment";
-    if (eventType === "pull_request_comment") return "pull_request_comment";
-    return c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event") ?? "unknown";
-}
-
 function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const pr = p?.pull_request;
     const issue = p?.issue;
     const webhookEvent = isForgejo
-        ? resolveForgejoWebhookEvent(c)
+        ? c.req.header("X-Forgejo-Event-Type") ||
+          c.req.header("X-Gitea-Event-Type") ||
+          c.req.header("X-GitHub-Event-Type") ||
+          c.req.header("X-Forgejo-Event") ||
+          c.req.header("X-Gitea-Event") ||
+          c.req.header("X-GitHub-Event") ||
+          "unknown"
         : (c.req.header("X-GitHub-Event") ?? "unknown");
 
     let eventType = "UNKNOWN";
@@ -72,15 +71,20 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
         number = issue?.number;
         title = issue?.title;
     } else if (webhookEvent === "issue_comment") {
-        eventType = issue?.pull_request ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
+        const onPullRequest = isForgejo
+            ? p?.is_pull === true ||
+              p?.pull_request != null ||
+              (p?.issue?.pull_request != null && p?.issue?.pull_request !== undefined)
+            : Boolean(issue?.pull_request);
+        eventType = onPullRequest ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
         action = p?.action;
-        number = issue?.number;
+        number = pr?.number ?? issue?.number;
     } else if (webhookEvent === "pull_request_review_comment") {
-        eventType = "NOTE ON PULL REQUEST (inline review)";
+        eventType = "NOTE ON PULL REQUEST";
         action = p?.action;
         number = p?.pull_request?.number ?? p?.number;
     } else if (webhookEvent === "pull_request_comment") {
-        eventType = "NOTE ON PULL REQUEST (inline review)";
+        eventType = "NOTE ON PULL REQUEST";
         action = p?.action;
         number = p?.pull_request?.number ?? p?.number ?? issue?.number;
     }
