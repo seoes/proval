@@ -18,6 +18,7 @@ import type {
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
+import { log } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -571,8 +572,8 @@ export class ForgejoProvider implements GitProvider {
         }
     }
 
-    private throwRequestError(response: Response, errorText: string): never {
-        const error = new Error(`Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    private throwRequestError(response: Response, path: string): never {
+        log(`request failed ${response.status} ${path}`, "Forgejo");
         (error as Error & { status: number }).status = response.status;
         throw error;
     }
@@ -758,8 +759,8 @@ export class ForgejoProvider implements GitProvider {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            this.throwRequestError(response, errorText);
+            await response.text();
+            this.throwRequestError(response, path);
         }
 
         return (await response.json()) as T;
@@ -777,8 +778,8 @@ export class ForgejoProvider implements GitProvider {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            this.throwRequestError(response, errorText);
+            await response.text();
+            this.throwRequestError(response, path);
         }
 
         // Handle empty responses (e.g., for void returns)
