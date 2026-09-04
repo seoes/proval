@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
-import { logError } from "../../util/log.js";
+import { log, logError } from "../../util/log.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -10,7 +10,6 @@ import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-requ
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 
-// Forgejo webhook payload types
 interface ForgejoPullRequestPayload {
     action: string;
     number: number;
@@ -23,71 +22,6 @@ interface ForgejoPullRequestPayload {
         draft?: boolean;
         head?: { sha?: string };
         user?: { login?: string };
-    };
-    repository: {
-        id: number;
-        full_name: string;
-        owner: { login: string };
-        name: string;
-    };
-}
-
-interface ForgejoIssueCommentPayload {
-    action: string;
-    issue: {
-        number: number;
-        pull_request?: { url: string } | null;
-    };
-    comment: {
-        id: number;
-        body: string;
-        user: { login: string };
-    };
-    repository: {
-        id: number;
-        full_name: string;
-        owner: { login: string };
-        name: string;
-    };
-}
-
-interface ForgejoPullRequestReviewCommentPayload {
-    action: string;
-    number: number;
-    pull_request: {
-        number: number;
-    };
-    review: {
-        type: string;
-        comments?: Array<{
-            id: number;
-            body: string;
-            user: { login: string };
-            in_reply_to?: number | null;
-            path?: string | null;
-        }>;
-    };
-    repository: {
-        id: number;
-        full_name: string;
-        owner: { login: string };
-        name: string;
-    };
-    sender?: { login: string };
-}
-
-interface ForgejoPullRequestCommentPayload {
-    action: string;
-    issue?: { number: number };
-    pull_request: {
-        number: number;
-    };
-    comment: {
-        id: number;
-        body: string;
-        user: { login: string };
-        path?: string | null;
-        in_reply_to?: number | null;
     };
     repository: {
         id: number;
@@ -114,84 +48,100 @@ interface ForgejoIssuesPayload {
     };
 }
 
+interface ForgejoCommentPayload {
+    action: string;
+    is_pull?: boolean;
+    issue?: {
+        number: number;
+        pull_request?: { url: string } | null;
+    };
+    pull_request?: { number: number };
+    comment?: {
+        id: number;
+        body: string;
+        user: { login: string };
+        created_at?: string;
+    };
+    review?: {
+        type: string;
+        content?: string;
+        body?: string;
+        comments?: Array<{
+            id: number;
+            body: string;
+            user: { login: string };
+            in_reply_to?: number | null;
+        }>;
+    };
+    repository: {
+        id: number;
+        full_name: string;
+        owner: { login: string };
+        name: string;
+    };
+    sender?: { login: string };
+}
+
 export const handleForgejoWebhook = async (c: Context) => {
-    const event = resolveForgejoWebhookEvent(c);
+    const event =
+        c.req.header("X-Forgejo-Event-Type") ||
+        c.req.header("X-Gitea-Event-Type") ||
+        c.req.header("X-GitHub-Event-Type") ||
+        c.req.header("X-Forgejo-Event") ||
+        c.req.header("X-Gitea-Event") ||
+        c.req.header("X-GitHub-Event") ||
+        "";
 
     const repository = c.get("repository") as Repository;
     const modelProvider = c.get("modelProvider") as ModelProvider;
     const access = c.get("access") as Access;
 
+    const payload = c.get("forgejoPayload") as ForgejoPullRequestPayload | ForgejoIssuesPayload | ForgejoCommentPayload;
     try {
-        // Handle Pull Request Hook
         if (event === "pull_request") {
-            const payload = c.get("forgejoPayload") as ForgejoPullRequestPayload;
-            const response = await handleForgejoPullRequestWebhook(payload, repository, modelProvider, access);
-            return response;
-        }
-
-        // Handle Issues Hook
-        if (event === "issues") {
-            const payload = c.get("forgejoPayload") as ForgejoIssuesPayload;
-            const response = await handleForgejoIssuesWebhook(payload, repository, modelProvider, access);
-            return response;
-        }
-
-        // Handle Issue Comment Hook (includes PR conversation comments)
-        if (event === "issue_comment") {
-            const payload = c.get("forgejoPayload") as ForgejoIssueCommentPayload;
-            const response = await handleForgejoIssueCommentWebhook(payload, repository, modelProvider, access);
-            return response;
-        }
-
-        if (event === "pull_request_review_comment") {
-            const payload = c.get("forgejoPayload") as ForgejoPullRequestReviewCommentPayload;
-            const response = await handleForgejoPullRequestReviewCommentWebhook(
-                payload,
+            return await handleForgejoPullRequestWebhook(
+                payload as ForgejoPullRequestPayload,
                 repository,
                 modelProvider,
                 access,
             );
-            return response;
         }
 
-        if (event === "pull_request_comment") {
-            const payload = c.get("forgejoPayload") as ForgejoPullRequestCommentPayload;
-            const response = await handleForgejoPullRequestCommentWebhook(payload, repository, modelProvider, access);
-            return response;
+        if (event === "issues") {
+            return await handleForgejoIssuesWebhook(payload as ForgejoIssuesPayload, repository, modelProvider, access);
         }
 
+        // Handle inline review creation
+        if (payload.action === "reviewed") {
+            return await handleForgejoReviewedWebhook(payload, repository, modelProvider, access);
+        }
+
+        // Handle comment (including inline review comments)
+        if (event === "issue_comment" || event === "pull_request_comment" || event === "pull_request_review_comment") {
+            return await handleForgejoCommentWebhook(payload, repository, modelProvider, access, event);
+        }
+
+        log(`Skipped: event '${event}' is not supported (${repository.path})`, "Forgejo");
         return c.json({ message: `Skipped: event '${event}' is not supported` }, 200);
     } catch (error) {
-        logError("Forgejo webhook handler failed", error);
+        logError("Forgejo webhook handler failed", error, "Forgejo");
         return c.json({ error: "Internal server error" }, 500);
     }
 };
 
-function resolveForgejoWebhookEvent(c: Context): string {
-    const eventType = c.req.header("X-Gitea-Event-Type") ?? c.req.header("X-GitHub-Event-Type");
-    if (eventType === "pull_request_review_comment") return "pull_request_review_comment";
-    if (eventType === "pull_request_comment") return "pull_request_comment";
-    return c.req.header("X-Forgejo-Event") ?? c.req.header("X-Gitea-Event") ?? "";
-}
-
-type HandleForgejoPullRequestWebhook = (
+const handleForgejoPullRequestWebhook = async (
     payload: ForgejoPullRequestPayload,
     repository: Repository,
     modelProvider: ModelProvider,
     access: Access,
-) => Promise<Response>;
-
-const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
-    payload,
-    repository,
-    modelProvider,
-    access,
 ) => {
     const action = payload.action;
+    const pr = payload.pull_request;
+    const prInfo = `#${pr.number} ${pr.title}`;
     if (!repository.prEnabled || !repository.prReviewEnabled) {
+        log(`Skipped: review is off (${prInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
-    const reviewMode = repository.prReviewOnPush;
 
     const allowedAction =
         action === "opened" ||
@@ -200,18 +150,18 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         action === "synchronize" ||
         action === "ready_for_review";
     if (!allowedAction) {
+        log(`Skipped: action '${action}' (${prInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });
     }
 
-    const isDraft = payload.pull_request.draft === true;
-    if (repository.prIgnoreDraft && isDraft && action !== "ready_for_review") {
+    if (repository.prIgnoreDraft && pr.draft === true && action !== "ready_for_review") {
+        log(`Skipped: draft pull request (${prInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
     }
 
     const token = access.accessToken;
-
     if (!token) {
         return new Response(JSON.stringify({ error: "Repository has no access token" }), {
             status: 500,
@@ -220,10 +170,9 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-    const authorLogin = payload.pull_request.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
-        authorLogin ? { login: authorLogin } : null,
+        pr.user?.login ? { login: pr.user.login } : null,
         repository.prMinAccessLevel,
         false,
         "Skipped: missing author",
@@ -231,12 +180,14 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     if (accessSkip) return accessSkip;
 
     const activityService = new ActivityService();
-    const prNumber = payload.pull_request.number;
+    const prNumber = pr.number;
+    const reviewMode = repository.prReviewOnPush;
 
     let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
         hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
+            log(`Skipped: already reviewed (on_first_push) (${prInfo})`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
             });
@@ -244,18 +195,19 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     }
 
     const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
-    const headSha = payload.pull_request.head?.sha ?? version.headSha;
+    const headSha = pr.head?.sha ?? version.headSha;
 
     let lastHeadSha: string | null = null;
     if (reviewMode === "on_every_push") {
         lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
+            log(`Skipped: head already reviewed (${prInfo})`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
     }
 
-    const changedFileCount = await forgejoProvider.fetchPullRequestChangedFileCount(prNumber);
-    if (changedFileCount === 0) {
+    if ((await forgejoProvider.fetchPullRequestChangedFileCount(prNumber)) === 0) {
+        log(`Skipped: no changed files (${prInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
@@ -264,17 +216,6 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
     }
     const isFollowUpReview = hasCompleted;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-    });
-
-    const isInlineReview = repository.prInlineReview;
-    const language = repository.language;
-
-    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -287,212 +228,45 @@ const handleForgejoPullRequestWebhook: HandleForgejoPullRequestWebhook = async (
         (activityId) =>
             runPullRequestReview({
                 provider: forgejoProvider,
-                workspace,
-                llmSender,
+                workspace: new Workspace(forgejoProvider),
+                llmSender: createSender({
+                    provider: modelProvider.provider,
+                    apiKey: modelProvider.apiKey,
+                    baseURL: modelProvider.baseUrl,
+                    model: repository.modelName,
+                }),
                 prIid: prNumber,
-                isInlineReview,
-                language,
+                isInlineReview: repository.prInlineReview,
+                language: repository.language,
                 activityId,
                 isFollowUpReview,
                 previousHeadSha: isFollowUpReview ? lastHeadSha : null,
             }),
     ).catch((error) => {
-        logError("Pull request review failed", error);
+        logError("Pull request review failed", error, "Forgejo");
     });
 
+    log(`PR review started (${prInfo})`, "Forgejo");
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
 
-type HandleForgejoIssueCommentWebhook = (
-    payload: ForgejoIssueCommentPayload,
+const handleForgejoIssuesWebhook = async (
+    payload: ForgejoIssuesPayload,
     repository: Repository,
     modelProvider: ModelProvider,
     access: Access,
-) => Promise<Response>;
-
-const handleForgejoIssueCommentWebhook: HandleForgejoIssueCommentWebhook = async (
-    payload,
-    repository,
-    modelProvider,
-    access,
 ) => {
-    if (payload.action !== "created") {
+    const issue = payload.issue;
+    const issueInfo = `#${issue.number} ${issue.title}`;
+    if (payload.action !== "opened") {
+        log(`Skipped: action '${payload.action}' (${issueInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: `Skipped: action '${payload.action}'` }), {
             status: 200,
         });
     }
 
-    const isPullRequest = payload.issue.pull_request !== null && payload.issue.pull_request !== undefined;
-
-    if (isPullRequest) {
-        // Handle PR comment
-        if (!repository.prEnabled || !repository.prReplyEnabled) {
-            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
-                status: 200,
-            });
-        }
-
-        const token = access.accessToken;
-        if (!token) {
-            return new Response(JSON.stringify({ error: "Repository has no access token" }), {
-                status: 500,
-            });
-        }
-
-        const [owner, repo] = payload.repository.full_name.split("/");
-        const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-
-        const botUserData = await forgejoProvider.fetchCurrentUser();
-        const botUsername = botUserData.username;
-        const commenterUsername = payload.comment.user.login;
-
-        if (botUsername === commenterUsername) {
-            return new Response(
-                JSON.stringify({
-                    message: "Skipped: bot username is the same as the commenter username",
-                }),
-                { status: 200 },
-            );
-        }
-
-        const noteBody = payload.comment.body;
-        const prNumber = payload.issue.number;
-        const mentioned = noteBody.includes(`@${botUsername}`);
-        const accessSkip = await skipIfInsufficientAccess(
-            forgejoProvider,
-            commenterUsername ? { login: commenterUsername } : null,
-            repository.prMinAccessLevel,
-            repository.prMentionOnly && mentioned,
-            "Skipped: missing user",
-        );
-        if (accessSkip) return accessSkip;
-
-        const llmSender = createSender({
-            provider: modelProvider.provider,
-            apiKey: modelProvider.apiKey,
-            baseURL: modelProvider.baseUrl,
-            model: repository.modelName,
-        });
-
-        const workspace = new Workspace(forgejoProvider);
-        runWithActivity(
-            {
-                repositoryId: repository.id,
-                modelProviderId: modelProvider.id,
-                modelName: repository.modelName,
-                type: "pr_reply",
-                targetIid: prNumber,
-            },
-            (activityId) =>
-            runPullRequestReply({
-                    provider: forgejoProvider,
-                    workspace,
-                    llmSender,
-                    prIid: prNumber,
-                    commentId: payload.comment.id,
-                    inlineReviewId: null,
-                    language: repository.language,
-                    activityId,
-            }),
-        ).catch((error) => {
-            logError("Pull request reply failed", error);
-        });
-
-        return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
-    } else {
-        // Handle Issue comment
-        if (!repository.issueEnabled || !repository.issueReplyEnabled) {
-            return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), {
-                status: 200,
-            });
-        }
-
-        const token = access.accessToken;
-        if (!token) {
-            return new Response(JSON.stringify({ error: "Repository has no access token" }), {
-                status: 500,
-            });
-        }
-
-        const [owner, repo] = payload.repository.full_name.split("/");
-        const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-
-        const botUserData = await forgejoProvider.fetchCurrentUser();
-        const botUsername = botUserData.username;
-        const commenterUsername = payload.comment.user.login;
-
-        if (botUsername === commenterUsername) {
-            return new Response(
-                JSON.stringify({
-                    message: "Skipped: bot username is the same as the commenter username",
-                }),
-                { status: 200 },
-            );
-        }
-
-        const noteBody = payload.comment.body;
-        const commentId = payload.comment.id;
-        const issueNumber = payload.issue.number;
-        const mentioned = noteBody.includes(`@${botUsername}`);
-        const accessSkip = await skipIfInsufficientAccess(
-            forgejoProvider,
-            commenterUsername ? { login: commenterUsername } : null,
-            repository.issueMinAccessLevel,
-            repository.issueMentionOnly && mentioned,
-            "Skipped: missing user",
-        );
-        if (accessSkip) return accessSkip;
-
-        const llmSender = createSender({
-            provider: modelProvider.provider,
-            apiKey: modelProvider.apiKey,
-            baseURL: modelProvider.baseUrl,
-            model: repository.modelName,
-        });
-
-        const workspace = new Workspace(forgejoProvider);
-        runWithActivity(
-            {
-                repositoryId: repository.id,
-                modelProviderId: modelProvider.id,
-                modelName: repository.modelName,
-                type: "issue_reply",
-                targetIid: issueNumber,
-            },
-            (activityId) =>
-            runIssueReply({
-                    provider: forgejoProvider,
-                    workspace,
-                    llmSender,
-                    issueIid: issueNumber,
-                    commentId,
-                    language: repository.language,
-                    activityId,
-            }),
-        ).catch((error) => {
-            logError("Issue reply failed", error);
-        });
-
-        return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
-    }
-};
-
-type HandleForgejoIssuesWebhook = (
-    payload: ForgejoIssuesPayload,
-    repository: Repository,
-    modelProvider: ModelProvider,
-    access: Access,
-) => Promise<Response>;
-
-const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, repository, modelProvider, access) => {
-    const action = payload.action;
-    if (action !== "opened") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
-            status: 200,
-        });
-    }
-
     if (!repository.issueEnabled || !repository.issueCommentOnOpenEnabled) {
+        log(`Skipped: issue comment on open is off (${issueInfo})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: issue comment on open is off" }), {
             status: 200,
         });
@@ -505,146 +279,235 @@ const handleForgejoIssuesWebhook: HandleForgejoIssuesWebhook = async (payload, r
         });
     }
 
-    const issueNumber = payload.issue.number;
-    if (!issueNumber) {
+    if (!issue.number) {
+        log(`Skipped: no issue number (${issue.title})`, "Forgejo");
         return new Response(JSON.stringify({ message: "No issue number found" }), { status: 200 });
     }
 
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-    const authorLogin = payload.issue.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
-        authorLogin ? { login: authorLogin } : null,
+        issue.user?.login ? { login: issue.user.login } : null,
         repository.issueMinAccessLevel,
         false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-    });
-
-    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
             modelProviderId: modelProvider.id,
             modelName: repository.modelName,
             type: "issue_open",
-            targetIid: issueNumber,
+            targetIid: issue.number,
         },
         (activityId) =>
             runIssueReplyOnOpen({
                 provider: forgejoProvider,
-                workspace,
-                llmSender,
-                issueIid: issueNumber,
+                workspace: new Workspace(forgejoProvider),
+                llmSender: createSender({
+                    provider: modelProvider.provider,
+                    apiKey: modelProvider.apiKey,
+                    baseURL: modelProvider.baseUrl,
+                    model: repository.modelName,
+                }),
+                issueIid: issue.number,
                 language: repository.language,
                 activityId,
             }),
     ).catch((error) => {
-        logError("Issue comment failed", error);
+        logError("Issue comment failed", error, "Forgejo");
     });
 
+    log(`Issue comment started (${issueInfo})`, "Forgejo");
     return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
 };
 
-const handleForgejoPullRequestReviewCommentWebhook = async (
-    payload: ForgejoPullRequestReviewCommentPayload,
+const handleForgejoCommentWebhook = async (
+    payload: ForgejoCommentPayload,
     repository: Repository,
     modelProvider: ModelProvider,
     access: Access,
-): Promise<Response> => {
-    if (payload.action !== "reviewed") {
+    event: string,
+) => {
+    const comment = payload.comment;
+    const targetIid = payload.pull_request?.number ?? payload.issue?.number;
+    const commenterUsername = comment?.user.login ?? "";
+
+    if (payload.action !== "created") {
+        log(`Skipped: action '${payload.action}' (#${targetIid ?? "?"} ${commenterUsername})`, "Forgejo");
         return new Response(JSON.stringify({ message: `Skipped: action '${payload.action}'` }), { status: 200 });
     }
+    if (!comment?.id) {
+        log(`Skipped: missing comment id (#${targetIid ?? "?"})`, "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: missing comment id" }), { status: 200 });
+    }
 
-    if (payload.review.type !== "comment") {
+    const isPullRequest =
+        event === "pull_request_comment" ||
+        event === "pull_request_review_comment" ||
+        payload.is_pull === true ||
+        payload.pull_request != null ||
+        (payload.issue?.pull_request !== null && payload.issue?.pull_request !== undefined);
+
+    if (isPullRequest) {
+        if (!targetIid) {
+            log("Skipped: missing pull request number", "Forgejo");
+            return new Response(JSON.stringify({ message: "Skipped: missing pull request number" }), { status: 200 });
+        }
+        const token = access.accessToken;
+        if (!token) {
+            return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+        }
+        const [owner, repo] = payload.repository.full_name.split("/");
+        const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+        const target = await forgejoProvider.resolvePrReplyTarget(targetIid, comment.id, {
+            body: comment.body,
+            author: comment.user.login,
+            createdAt: comment.created_at,
+        });
+        return startForgejoPrReply(
+            repository,
+            modelProvider,
+            access,
+            payload.repository.full_name,
+            targetIid,
+            target.commentId,
+            target.inlineReviewId,
+            comment.body,
+            comment.user.login,
+            payload.sender?.login,
+            forgejoProvider,
+        );
+    }
+
+    if (!repository.issueEnabled || !repository.issueReplyEnabled) {
+        log(`Skipped: issue reply is off (#${targetIid} ${commenterUsername})`, "Forgejo");
+        return new Response(JSON.stringify({ message: "Reply mode is off, skipping" }), { status: 200 });
+    }
+
+    const token = access.accessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
+    }
+    if (!targetIid) {
+        log("Skipped: missing issue number", "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: missing issue number" }), { status: 200 });
+    }
+
+    const [owner, repo] = payload.repository.full_name.split("/");
+    const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const botUsername = (await forgejoProvider.fetchCurrentUser()).username;
+
+    const accessSkip = await skipIfInsufficientAccess(
+        forgejoProvider,
+        commenterUsername ? { login: commenterUsername } : null,
+        repository.issueMinAccessLevel,
+        repository.issueMentionOnly && comment.body.includes(`@${botUsername}`),
+        "Skipped: missing user",
+    );
+    if (accessSkip) return accessSkip;
+
+    runWithActivity(
+        {
+            repositoryId: repository.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
+            type: "issue_reply",
+            targetIid,
+        },
+        (activityId) =>
+            runIssueReply({
+                provider: forgejoProvider,
+                workspace: new Workspace(forgejoProvider),
+                llmSender: createSender({
+                    provider: modelProvider.provider,
+                    apiKey: modelProvider.apiKey,
+                    baseURL: modelProvider.baseUrl,
+                    model: repository.modelName,
+                }),
+                issueIid: targetIid,
+                commentId: comment.id,
+                language: repository.language,
+                activityId,
+            }),
+    ).catch((error) => {
+        logError("Issue reply failed", error, "Forgejo");
+    });
+
+    log(`Issue reply started (#${targetIid} comment ${comment.id})`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+};
+
+const handleForgejoReviewedWebhook = async (
+    payload: ForgejoCommentPayload,
+    repository: Repository,
+    modelProvider: ModelProvider,
+    access: Access,
+) => {
+    const prNumber = payload.pull_request?.number;
+    const prInfo = `#${prNumber ?? "?"}`;
+    if (!prNumber) {
+        log("Skipped: missing pull request number", "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: missing pull request number" }), { status: 200 });
+    }
+
+    const reviewType = payload.review?.type;
+    if (reviewType !== "comment" && reviewType !== "pull_request_review_comment") {
+        log(`Skipped: not a comment review (${prInfo} ${reviewType ?? "missing"})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: not a comment review" }), { status: 200 });
     }
 
-    const comments = payload.review.comments ?? [];
-    const triggerComment = comments.at(-1);
-    if (!triggerComment) {
-        return new Response(JSON.stringify({ message: "No review comments in payload" }), { status: 200 });
+    const token = access.accessToken;
+    if (!token) {
+        return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
     }
 
-    return handleForgejoInlineReviewReplyWebhook({
-        prNumber: payload.pull_request.number,
-        commentId: triggerComment.id,
-        inlineReviewId: String(triggerComment.in_reply_to ?? triggerComment.id),
-        noteBody: triggerComment.body,
-        commenterUsername: triggerComment.user.login,
+    const [owner, repo] = payload.repository.full_name.split("/");
+    const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
+    const target = await forgejoProvider.resolveReviewedPrReplyTarget(
+        prNumber,
+        payload.review ?? {},
+        payload.sender?.login,
+    );
+    if (!target) {
+        log(`Skipped: no reply target (${prInfo})`, "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: no reply target" }), { status: 200 });
+    }
+
+    const payloadComment = payload.review?.comments?.at(-1);
+    return startForgejoPrReply(
         repository,
         modelProvider,
         access,
-        repositoryPayload: payload.repository,
-        senderLogin: payload.sender?.login,
-    });
+        payload.repository.full_name,
+        prNumber,
+        target.commentId,
+        target.inlineReviewId,
+        payloadComment?.body ?? payload.review?.content ?? payload.review?.body ?? "",
+        payloadComment?.user.login ?? payload.sender?.login ?? "",
+        payload.sender?.login,
+        forgejoProvider,
+    );
 };
 
-const handleForgejoPullRequestCommentWebhook = async (
-    payload: ForgejoPullRequestCommentPayload,
+async function startForgejoPrReply(
     repository: Repository,
     modelProvider: ModelProvider,
     access: Access,
-): Promise<Response> => {
-    if (payload.action !== "created") {
-        return new Response(JSON.stringify({ message: `Skipped: action '${payload.action}'` }), { status: 200 });
-    }
-
-    if (!payload.comment.path) {
-        return new Response(JSON.stringify({ message: "Skipped: not an inline review comment" }), { status: 200 });
-    }
-
-    return handleForgejoInlineReviewReplyWebhook({
-        prNumber: payload.pull_request.number,
-        commentId: payload.comment.id,
-        inlineReviewId: String(payload.comment.in_reply_to ?? payload.comment.id),
-        noteBody: payload.comment.body,
-        commenterUsername: payload.comment.user.login,
-        repository,
-        modelProvider,
-        access,
-        repositoryPayload: payload.repository,
-    });
-};
-
-type ForgejoInlineReviewReplyParams = {
-    prNumber: number;
-    commentId: number;
-    inlineReviewId: string;
-    noteBody: string;
-    commenterUsername: string;
-    repository: Repository;
-    modelProvider: ModelProvider;
-    access: Access;
-    repositoryPayload: { full_name: string };
-    senderLogin?: string;
-};
-
-const handleForgejoInlineReviewReplyWebhook = async (
-    params: ForgejoInlineReviewReplyParams,
-): Promise<Response> => {
-    const {
-        prNumber,
-        commentId,
-        inlineReviewId,
-        noteBody,
-        commenterUsername,
-        repository,
-        modelProvider,
-        access,
-        repositoryPayload,
-        senderLogin,
-    } = params;
-
+    repositoryFullName: string,
+    prNumber: number,
+    commentId: number,
+    inlineReviewId: string | null,
+    noteBody: string,
+    commenterUsername: string,
+    senderLogin?: string,
+    provider?: ForgejoProvider,
+): Promise<Response> {
     if (!repository.prEnabled || !repository.prReplyEnabled) {
+        log(`Skipped: PR reply is off (#${prNumber} ${commenterUsername})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
     }
 
@@ -653,33 +516,24 @@ const handleForgejoInlineReviewReplyWebhook = async (
         return new Response(JSON.stringify({ error: "Repository has no access token" }), { status: 500 });
     }
 
-    const [owner, repo] = repositoryPayload.full_name.split("/");
-    const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
-
+    const [owner, repo] = repositoryFullName.split("/");
+    const forgejoProvider = provider ?? new ForgejoProvider(access.baseUrl, token, owner, repo);
     const botUsername = (await forgejoProvider.fetchCurrentUser()).username;
 
     if (botUsername === commenterUsername || senderLogin === botUsername) {
+        log(`Skipped: bot sender (${botUsername})`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
     }
 
-    const mentioned = noteBody.includes(`@${botUsername}`);
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
         commenterUsername ? { login: commenterUsername } : null,
         repository.prMinAccessLevel,
-        repository.prMentionOnly && mentioned,
+        repository.prMentionOnly && noteBody.includes(`@${botUsername}`),
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-    });
-
-    const workspace = new Workspace(forgejoProvider);
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -691,8 +545,13 @@ const handleForgejoInlineReviewReplyWebhook = async (
         (activityId) =>
             runPullRequestReply({
                 provider: forgejoProvider,
-                workspace,
-                llmSender,
+                workspace: new Workspace(forgejoProvider),
+                llmSender: createSender({
+                    provider: modelProvider.provider,
+                    apiKey: modelProvider.apiKey,
+                    baseURL: modelProvider.baseUrl,
+                    model: repository.modelName,
+                }),
                 prIid: prNumber,
                 commentId,
                 inlineReviewId,
@@ -700,11 +559,15 @@ const handleForgejoInlineReviewReplyWebhook = async (
                 activityId,
             }),
     ).catch((error) => {
-        logError("Pull request inline review reply failed", error);
+        logError("Pull request reply failed", error, "Forgejo");
     });
 
+    log(
+        `PR reply started (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
+        "Forgejo",
+    );
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
-};
+}
 
 async function skipIfInsufficientAccess(
     provider: GitProvider,
@@ -715,16 +578,21 @@ async function skipIfInsufficientAccess(
 ): Promise<Response | null> {
     if (mentionBypass || minAccessLevel <= 0) return null;
     if (identity == null) {
+        log(missingMessage, "Forgejo");
         return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
     }
     let level = 0;
     try {
         level = await provider.fetchUserPermission(identity);
     } catch (error) {
-        logError("permission lookup failed", error);
+        logError("permission lookup failed", error, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
     }
     if (level < minAccessLevel) {
+        log(
+            `Skipped: insufficient permission (${"login" in identity ? identity.login : String(identity.userId)})`,
+            "Forgejo",
+        );
         return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
     }
     return null;

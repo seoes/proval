@@ -4,6 +4,7 @@ import db from "../../db/index.js";
 import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { decrypt } from "../../util/encrypt.js";
+import { log } from "../../util/log.js";
 
 function verifyForgejoSignature(secret: string, rawBody: string, signatureHeader: string | undefined): boolean {
     if (!signatureHeader) {
@@ -59,10 +60,12 @@ export const loadForgejoContext = createMiddleware(async (c, next) => {
 
     const secret = decrypt(repository.webhookSecret).trim();
     if (!secret) {
+        log("Webhook secret not configured", "Forgejo");
         return c.json({ error: "Webhook secret not configured" }, 401);
     }
     const signature = c.req.header("X-Forgejo-Signature") ?? c.req.header("X-Gitea-Signature");
     if (!verifyForgejoSignature(secret, rawBody, signature)) {
+        log("Invalid webhook signature", "Forgejo");
         return c.json({ error: "Invalid webhook signature" }, 401);
     }
 

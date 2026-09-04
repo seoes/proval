@@ -4,10 +4,8 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
-    GitIssueState,
     GitPullRequest,
     GitPullRequestInlineReview,
-    GitPullRequestState,
     GitPullRequestVersion,
     GitProvider,
     GitRelatedItem,
@@ -18,6 +16,7 @@ import type {
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
+import { log } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -34,7 +33,7 @@ type ForgejoInlineReviewCommentDraft = {
 };
 
 export class ForgejoProvider implements GitProvider {
-    /** In-memory drafts for one MR review run; submitted by `createPullRequestComment` via bulk `POST /reviews`. */
+    /** In-memory drafts for one PR review run. `submitPullRequestReview` posts them as bulk `POST /reviews`. */
     private reviewBuffer: ForgejoInlineReviewCommentDraft[] = [];
     private reviewBufferPrIid: number | null = null;
     private reviewBufferCommitId: string | null = null;
@@ -142,7 +141,7 @@ export class ForgejoProvider implements GitProvider {
             sourceBranch: pr.head.ref,
             targetBranch: pr.base.ref,
             author: pr.user?.login ?? "",
-            state: this.mapPRState(pr.state, pr.merged),
+            state: pr.merged ? "merged" : pr.state === "open" ? "opened" : "closed",
         };
     }
 
@@ -155,18 +154,49 @@ export class ForgejoProvider implements GitProvider {
 
     public async fetchPullRequestCommentList(prIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const path = `/repos/${this.owner}/${this.repo}/issues/${prIid}/comments`;
+        const commentList: GitComment[] = [];
         if (options) {
-            const data = await this.requestJsonPaginated<
+            const data = await this.requestJson<
                 Array<{
                     id: number;
                     body: string;
                     user: { login: string } | null;
                     created_at: string;
                 }>
-            >(path, options.page, options.limit);
-            return this.mapIssueCommentList(data);
+            >(`${path}?page=${options.page}&limit=${options.limit}`);
+            commentList.push(
+                ...data.map((comment) => ({
+                    id: comment.id,
+                    body: comment.body,
+                    author: comment.user?.login ?? "",
+                    createdAt: comment.created_at,
+                })),
+            );
+        } else {
+            for (let page = 1; ; page++) {
+                const data = await this.requestJson<
+                    Array<{
+                        id: number;
+                        body: string;
+                        user: { login: string } | null;
+                        created_at: string;
+                    }>
+                >(`${path}?page=${page}&limit=50`);
+                commentList.push(
+                    ...data.map((comment) => ({
+                        id: comment.id,
+                        body: comment.body,
+                        author: comment.user?.login ?? "",
+                        createdAt: comment.created_at,
+                    })),
+                );
+                if (data.length < 50) {
+                    break;
+                }
+            }
         }
-        return this.fetchIssueCommentListFromPath(path);
+        commentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return commentList;
     }
 
     public async fetchPullRequestReviewerList(prIid: number): Promise<string[]> {
@@ -187,7 +217,6 @@ export class ForgejoProvider implements GitProvider {
         return {
             headSha: pr.head.sha,
             baseSha: pr.base.sha,
-            // merge_base is start, fallback to base
             startSha: pr.merge_base ?? pr.base.sha,
         };
     }
@@ -206,7 +235,7 @@ export class ForgejoProvider implements GitProvider {
             title: issue.title,
             description: issue.body,
             author: issue.user?.login ?? "",
-            state: this.mapIssueState(issue.state, issue.is_locked ?? false),
+            state: issue.is_locked ? "locked" : issue.state === "closed" ? "closed" : "opened",
             labels: (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name)),
         };
     }
@@ -217,18 +246,49 @@ export class ForgejoProvider implements GitProvider {
 
     public async fetchIssueCommentList(issueIid: number, options?: ListPaginationOptions): Promise<GitComment[]> {
         const path = `/repos/${this.owner}/${this.repo}/issues/${issueIid}/comments`;
+        const commentList: GitComment[] = [];
         if (options) {
-            const data = await this.requestJsonPaginated<
+            const data = await this.requestJson<
                 Array<{
                     id: number;
                     body: string;
                     user: { login: string } | null;
                     created_at: string;
                 }>
-            >(path, options.page, options.limit);
-            return this.mapIssueCommentList(data);
+            >(`${path}?page=${options.page}&limit=${options.limit}`);
+            commentList.push(
+                ...data.map((comment) => ({
+                    id: comment.id,
+                    body: comment.body,
+                    author: comment.user?.login ?? "",
+                    createdAt: comment.created_at,
+                })),
+            );
+        } else {
+            for (let page = 1; ; page++) {
+                const data = await this.requestJson<
+                    Array<{
+                        id: number;
+                        body: string;
+                        user: { login: string } | null;
+                        created_at: string;
+                    }>
+                >(`${path}?page=${page}&limit=50`);
+                commentList.push(
+                    ...data.map((comment) => ({
+                        id: comment.id,
+                        body: comment.body,
+                        author: comment.user?.login ?? "",
+                        createdAt: comment.created_at,
+                    })),
+                );
+                if (data.length < 50) {
+                    break;
+                }
+            }
         }
-        return this.fetchIssueCommentListFromPath(path);
+        commentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return commentList;
     }
 
     public async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
@@ -251,7 +311,7 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {
-        await this.flushReviewBuffer(prIid);
+        await this.submitPullRequestReview(prIid);
         return this.createIssueComment(prIid, body);
     }
 
@@ -271,18 +331,87 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async fetchPullRequestInlineReviewComment(prIid: number, commentId: number): Promise<GitComment> {
-        const comment = await this.requestJson<{
-            id: number;
-            body: string;
-            user: { login: string } | null;
-            created_at: string;
-        }>(`/repos/${this.owner}/${this.repo}/pulls/comments/${commentId}`);
+        const comment = (await this.fetchPullRequestInlineReviewCommentList(prIid)).find(
+            (item) => item.id === commentId,
+        );
+        if (!comment) {
+            throw new Error(`Forgejo inline review comment not found: ${commentId}`);
+        }
         return {
             id: comment.id,
             body: comment.body,
-            author: comment.user?.login ?? "",
-            createdAt: comment.created_at,
+            author: comment.author,
+            createdAt: comment.createdAt,
         };
+    }
+
+    public async resolvePrReplyTarget(
+        prIid: number,
+        commentId: number,
+        match?: { body?: string; author?: string; createdAt?: string },
+    ): Promise<{ commentId: number; inlineReviewId: string | null }> {
+        const commentList = await this.fetchPullRequestInlineReviewCommentList(prIid);
+        const byId = commentList.find((comment) => comment.id === commentId);
+        if (byId) {
+            return { commentId: byId.id, inlineReviewId: String(byId.inReplyToId ?? byId.id) };
+        }
+        if (!match || (match.body === undefined && match.author === undefined)) {
+            return { commentId, inlineReviewId: null };
+        }
+        const picked = commentList
+            .filter((comment) => {
+                if (match.body !== undefined && comment.body !== match.body) return false;
+                if (match.author !== undefined && comment.author !== match.author) return false;
+                if (match.createdAt !== undefined && comment.createdAt !== match.createdAt) return false;
+                return true;
+            })
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            .at(-1);
+        if (!picked) {
+            return { commentId, inlineReviewId: null };
+        }
+        return { commentId: picked.id, inlineReviewId: String(picked.inReplyToId ?? picked.id) };
+    }
+
+    public async resolveReviewedPrReplyTarget(
+        prIid: number,
+        review: {
+            comments?: Array<{
+                id: number;
+                body?: string;
+                in_reply_to?: number | null;
+                user?: { login?: string };
+            }>;
+            content?: string;
+            body?: string;
+        },
+        senderLogin?: string,
+    ): Promise<{ commentId: number; inlineReviewId: string | null } | null> {
+        const trigger = (review.comments ?? []).at(-1);
+        if (trigger) {
+            const fromList = await this.resolvePrReplyTarget(prIid, trigger.id, {
+                body: trigger.body,
+                author: trigger.user?.login,
+            });
+            if (fromList.inlineReviewId) {
+                return fromList;
+            }
+            return { commentId: trigger.id, inlineReviewId: String(trigger.in_reply_to ?? trigger.id) };
+        }
+
+        const last = (await this.fetchPullRequestInlineReviewCommentList(prIid)).at(-1);
+        if (last) {
+            return { commentId: last.id, inlineReviewId: String(last.inReplyToId ?? last.id) };
+        }
+
+        const reviewBody = review.content ?? review.body ?? "";
+        if (!reviewBody) {
+            return null;
+        }
+        const picked = (await this.fetchPullRequestCommentList(prIid))
+            .filter((comment) => comment.body === reviewBody && (!senderLogin || comment.author === senderLogin))
+            .at(-1);
+        return picked ? { commentId: picked.id, inlineReviewId: null } : null;
     }
 
     public async fetchPullRequestInlineReviewList(
@@ -314,21 +443,30 @@ export class ForgejoProvider implements GitProvider {
         inlineReviewId: string,
         body: string,
     ): Promise<GitComment> {
-        await this.flushReviewBuffer(prIid);
+        await this.submitPullRequestReview(prIid);
 
         const inlineReviewCommentList = await this.fetchPullRequestInlineReviewCommentList(prIid);
         const rootId = resolveInlineReviewRootId(Number(inlineReviewId), inlineReviewCommentList);
+        const root = inlineReviewCommentList.find((comment) => comment.id === rootId);
+        if (!root) {
+            throw new Error(`Forgejo inline review comment not found: ${rootId}`);
+        }
+        const replyPath = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${root.reviewId}/comments`;
 
         const comment = await this.requestJson<{
             id: number;
             body: string;
             user: { login: string } | null;
             created_at: string;
-        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`, {
+        }>(replyPath, {
             method: "POST",
-            body: JSON.stringify({ body }),
+            body: JSON.stringify({
+                body,
+                path: root.path,
+                old_position: root.originalLine ?? 0,
+                new_position: root.line ?? 0,
+            }),
         });
-
         return {
             id: comment.id,
             body: comment.body,
@@ -342,13 +480,27 @@ export class ForgejoProvider implements GitProvider {
         body: string,
         position: GitDiffSingleLine,
     ): Promise<GitComment> {
-        this.resetReviewBufferIfPrMismatch(prIid);
+        if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
+            this.reviewBuffer = [];
+            this.reviewBufferCommitId = null;
+            this.reviewBufferSeq = 0;
+        }
+        this.reviewBufferPrIid = prIid;
         if (!this.reviewBufferCommitId) {
             this.reviewBufferCommitId = position.headSha;
         }
 
-        const draft = this.mapSingleLineToDraft(position, body);
-        this.reviewBuffer.push(draft);
+        const newPos = position.newLine ?? 0;
+        const oldPos = position.oldLine ?? 0;
+        if (newPos === 0 && oldPos === 0) {
+            throw new Error("Forgejo inline comment requires newLine or oldLine in position");
+        }
+        this.reviewBuffer.push({
+            path: position.newPath,
+            body,
+            old_position: oldPos,
+            new_position: newPos,
+        });
         this.reviewBufferSeq += 1;
 
         return {
@@ -364,13 +516,49 @@ export class ForgejoProvider implements GitProvider {
         body: string,
         position: GitDiffMultiLine,
     ): Promise<GitComment> {
-        this.resetReviewBufferIfPrMismatch(prIid);
+        if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
+            this.reviewBuffer = [];
+            this.reviewBufferCommitId = null;
+            this.reviewBufferSeq = 0;
+        }
+        this.reviewBufferPrIid = prIid;
         if (this.reviewBufferCommitId !== null) {
             this.reviewBufferCommitId = position.headSha;
         }
 
-        const draft = this.mapMultiLineToDraft(position, body);
-        this.reviewBuffer.push(draft);
+        let newPos = 0;
+        let oldPos = 0;
+        if (position.end.type === "new") {
+            newPos = position.end.newLine ?? 0;
+        } else {
+            oldPos = position.end.oldLine ?? 0;
+        }
+
+        let text = body;
+        if (position.start.type === "new" && position.end.type === "new") {
+            const a = position.start.newLine;
+            const b = position.end.newLine;
+            if (a !== undefined && b !== undefined && a !== b) {
+                text = `*(lines ${a}-${b})*\n\n${body}`;
+            }
+        } else if (position.start.type === "old" && position.end.type === "old") {
+            const a = position.start.oldLine;
+            const b = position.end.oldLine;
+            if (a !== undefined && b !== undefined && a !== b) {
+                text = `*(lines ${a}-${b})*\n\n${body}`;
+            }
+        }
+
+        if (newPos === 0 && oldPos === 0) {
+            throw new Error("Forgejo multiline comment requires a resolvable end line on old or new side");
+        }
+
+        this.reviewBuffer.push({
+            path: position.newPath,
+            body: text,
+            old_position: oldPos,
+            new_position: newPos,
+        });
         this.reviewBufferSeq += 1;
 
         return {
@@ -392,7 +580,6 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async unapprovePullRequest(prIid: number): Promise<void> {
-        // Get existing reviews
         const pullReviewList = await this.requestJson<
             Array<{
                 id: number;
@@ -405,7 +592,6 @@ export class ForgejoProvider implements GitProvider {
         const userReview = pullReviewList.find((r) => r.user.login === currentUser.username && r.state === "APPROVED");
 
         if (userReview) {
-            // Dismiss the review
             await this.requestJson(
                 `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${userReview.id}/dismissals`,
                 {
@@ -450,7 +636,6 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async searchIssueList(query: string): Promise<GitRelatedItem[]> {
-        // Forgejo/Gitea search API is limited; use issues endpoint with search
         const issues = await this.requestJson<
             Array<{
                 number: number;
@@ -463,7 +648,7 @@ export class ForgejoProvider implements GitProvider {
         >(`/repos/${this.owner}/${this.repo}/issues?state=all&search=${encodeURIComponent(query)}`);
 
         return issues
-            .filter((issue) => !issue.html_url?.includes("/pulls/")) // Filter out PRs
+            .filter((issue) => !issue.html_url?.includes("/pulls/"))
             .map((issue) => ({
                 number: issue.number,
                 title: issue.title,
@@ -571,83 +756,83 @@ export class ForgejoProvider implements GitProvider {
         }
     }
 
-    private throwRequestError(response: Response, errorText: string): never {
-        const error = new Error(`Forgejo request failed: ${response.status} ${response.statusText} - ${errorText}`);
-        (error as Error & { status: number }).status = response.status;
-        throw error;
-    }
-
-    private resetReviewBufferIfPrMismatch(prIid: number): void {
-        if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
-            this.reviewBuffer = [];
-            this.reviewBufferCommitId = null;
-            this.reviewBufferSeq = 0;
-        }
-        this.reviewBufferPrIid = prIid;
-    }
-
-    private clearReviewBuffer(): void {
-        this.reviewBuffer = [];
-        this.reviewBufferPrIid = null;
-        this.reviewBufferCommitId = null;
-    }
-
-    private mapSingleLineToDraft(position: GitDiffSingleLine, body: string): ForgejoInlineReviewCommentDraft {
-        const newPos = position.newLine ?? 0;
-        const oldPos = position.oldLine ?? 0;
-        if (newPos === 0 && oldPos === 0) {
-            throw new Error("Forgejo inline comment requires newLine or oldLine in position");
-        }
-        return {
-            path: position.newPath,
-            body,
-            old_position: oldPos,
-            new_position: newPos,
-        };
-    }
-
-    private mapMultiLineToDraft(position: GitDiffMultiLine, body: string): ForgejoInlineReviewCommentDraft {
-        let newPos = 0;
-        let oldPos = 0;
-        if (position.end.type === "new") {
-            newPos = position.end.newLine ?? 0;
-        } else {
-            oldPos = position.end.oldLine ?? 0;
-        }
-
-        let text = body;
-        if (position.start.type === "new" && position.end.type === "new") {
-            const a = position.start.newLine;
-            const b = position.end.newLine;
-            if (a !== undefined && b !== undefined && a !== b) {
-                text = `*(lines ${a}-${b})*\n\n${body}`;
-            }
-        } else if (position.start.type === "old" && position.end.type === "old") {
-            const a = position.start.oldLine;
-            const b = position.end.oldLine;
-            if (a !== undefined && b !== undefined && a !== b) {
-                text = `*(lines ${a}-${b})*\n\n${body}`;
+    private async fetchPullRequestInlineReviewCommentList(prIid: number): Promise<InlineReviewComment[]> {
+        const reviewPath = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`;
+        const reviewList: Array<{
+            id: number;
+            comments_count?: number;
+        }> = [];
+        for (let page = 1; ; page++) {
+            const data = await this.requestJson<typeof reviewList>(`${reviewPath}?page=${page}&limit=50`);
+            reviewList.push(...data);
+            if (data.length < 50) {
+                break;
             }
         }
 
-        if (newPos === 0 && oldPos === 0) {
-            throw new Error("Forgejo multiline comment requires a resolvable end line on old or new side");
+        const inlineReviewCommentList: InlineReviewComment[] = [];
+        for (const review of reviewList) {
+            if (review.comments_count === 0) {
+                continue;
+            }
+            const path = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`;
+            try {
+                const data = await this.requestJson<
+                    Array<{
+                        id: number;
+                        body?: string;
+                        content?: string;
+                        user?: { login?: string } | null;
+                        created_at?: string;
+                        in_reply_to?: number | null;
+                        in_reply_to_id?: number | null;
+                        path?: string | null;
+                        line?: number | null;
+                        original_line?: number | null;
+                        position?: number | null;
+                        original_position?: number | null;
+                        new_position?: number | null;
+                        old_position?: number | null;
+                        side?: string | null;
+                        pull_request_review_id?: number | null;
+                    }>
+                >(path);
+                inlineReviewCommentList.push(
+                    ...(Array.isArray(data) ? data : []).map((raw) => {
+                        const line = raw.line ?? raw.new_position ?? raw.position ?? null;
+                        const originalLine = raw.original_line ?? raw.old_position ?? raw.original_position ?? null;
+                        return {
+                            id: raw.id,
+                            body: raw.body ?? raw.content ?? "",
+                            author: raw.user?.login ?? "",
+                            createdAt: raw.created_at ?? "",
+                            inReplyToId: raw.in_reply_to ?? raw.in_reply_to_id ?? null,
+                            path: raw.path ?? null,
+                            line,
+                            originalLine,
+                            side: raw.side ?? ((line ?? 0) > 0 ? "RIGHT" : (originalLine ?? 0) > 0 ? "LEFT" : null),
+                            reviewId: raw.pull_request_review_id ?? review.id,
+                        };
+                    }),
+                );
+            } catch (error) {
+                if ((error as { status?: number }).status === 404) {
+                    continue;
+                }
+                throw error;
+            }
         }
-
-        return {
-            path: position.newPath,
-            body: text,
-            old_position: oldPos,
-            new_position: newPos,
-        };
+        return inlineReviewCommentList;
     }
 
-    private async flushReviewBuffer(prIid: number): Promise<void> {
+    private async submitPullRequestReview(prIid: number): Promise<void> {
         if (this.reviewBuffer.length === 0) {
             return;
         }
         if (this.reviewBufferPrIid !== null && this.reviewBufferPrIid !== prIid) {
-            this.clearReviewBuffer();
+            this.reviewBuffer = [];
+            this.reviewBufferPrIid = null;
+            this.reviewBufferCommitId = null;
             this.reviewBufferSeq = 0;
             return;
         }
@@ -669,100 +854,10 @@ export class ForgejoProvider implements GitProvider {
             }),
         });
 
-        this.clearReviewBuffer();
+        this.reviewBuffer = [];
+        this.reviewBufferPrIid = null;
+        this.reviewBufferCommitId = null;
         this.reviewBufferSeq = 0;
-    }
-
-    private mapIssueCommentList(
-        apiCommentList: Array<{
-            id: number;
-            body: string;
-            user: { login: string } | null;
-            created_at: string;
-        }>,
-    ): GitComment[] {
-        const commentList = apiCommentList.map((comment) => ({
-            id: comment.id,
-            body: comment.body,
-            author: comment.user?.login ?? "",
-            createdAt: comment.created_at,
-        }));
-        commentList.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        return commentList;
-    }
-
-    private async fetchIssueCommentListFromPath(path: string): Promise<GitComment[]> {
-        const commentList: GitComment[] = [];
-        for (let page = 1; ; page++) {
-            const data = await this.requestJsonPaginated<
-                Array<{
-                    id: number;
-                    body: string;
-                    user: { login: string } | null;
-                    created_at: string;
-                }>
-            >(path, page, 50);
-            commentList.push(...this.mapIssueCommentList(data));
-            if (data.length < 50) {
-                break;
-            }
-        }
-        return commentList;
-    }
-
-    private async fetchPullRequestInlineReviewCommentList(prIid: number): Promise<InlineReviewComment[]> {
-        const path = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments`;
-        const inlineReviewCommentList: InlineReviewComment[] = [];
-        for (let page = 1; ; page++) {
-            const data = await this.requestJsonPaginated<
-                Array<{
-                    id: number;
-                    body: string;
-                    user: { login: string } | null;
-                    created_at: string;
-                    in_reply_to?: number | null;
-                    path?: string | null;
-                    line?: number | null;
-                    original_line?: number | null;
-                    side?: string | null;
-                }>
-            >(path, page, 50);
-            inlineReviewCommentList.push(
-                ...data.map((comment) => ({
-                    id: comment.id,
-                    body: comment.body,
-                    author: comment.user?.login ?? "",
-                    createdAt: comment.created_at,
-                    inReplyToId: comment.in_reply_to ?? null,
-                    path: comment.path ?? null,
-                    line: comment.line,
-                    originalLine: comment.original_line,
-                    side: comment.side,
-                })),
-            );
-            if (data.length < 50) {
-                break;
-            }
-        }
-        return inlineReviewCommentList;
-    }
-
-    private async requestJsonPaginated<T>(path: string, page: number, limit: number): Promise<T> {
-        const separator = path.includes("?") ? "&" : "?";
-        const url = new URL(`/api/v1${path}${separator}page=${page}&limit=${limit}`, this.baseUrl);
-        const response = await fetch(url, {
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `token ${this.token}`,
-            },
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            this.throwRequestError(response, errorText);
-        }
-
-        return (await response.json()) as T;
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -777,29 +872,19 @@ export class ForgejoProvider implements GitProvider {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            this.throwRequestError(response, errorText);
+            await response.text();
+            log(`request failed ${response.status} ${path}`, "Forgejo");
+            const error = new Error(`Forgejo request failed ${response.status} ${path}`);
+            (error as Error & { status: number }).status = response.status;
+            throw error;
         }
 
-        // Handle empty responses (e.g., for void returns)
         const contentLength = response.headers.get("content-length");
         if (contentLength === "0" || response.status === 204) {
             return {} as T;
         }
 
         return (await response.json()) as T;
-    }
-
-    private mapPRState(state: string, merged: boolean): GitPullRequestState {
-        if (merged) return "merged";
-        if (state === "open") return "opened";
-        return "closed";
-    }
-
-    private mapIssueState(state: string, locked: boolean): GitIssueState {
-        if (locked) return "locked";
-        if (state === "closed") return "closed";
-        return "opened";
     }
 }
 
