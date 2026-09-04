@@ -32,11 +32,22 @@
         registerModalOpen = false;
     }
 
+    function randomUuid() {
+        if (typeof crypto.randomUUID === "function") {
+            return crypto.randomUUID();
+        }
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+
     function postManifestToGitHub(webhookUrl: string) {
         const normalizedWebhookUrl = webhookUrl.trim().replace(/\/$/, "");
         const clientOrigin = window.location.origin;
         const manifest = {
-            name: `Proval-${crypto.randomUUID().replace(/-/g, "").slice(0, 6)}`,
+            name: `Proval-${randomUuid().replace(/-/g, "").slice(0, 6)}`,
             url: normalizedWebhookUrl,
             hook_attributes: {
                 url: `${normalizedWebhookUrl}/webhook/github`,
@@ -64,7 +75,7 @@
         const stateInput = document.createElement("input");
         stateInput.type = "hidden";
         stateInput.name = "state";
-        stateInput.value = crypto.randomUUID();
+        stateInput.value = randomUuid();
         formEl.append(manifestInput, stateInput);
         document.body.appendChild(formEl);
         formEl.submit();
@@ -213,9 +224,6 @@
 
 <Modal bind:open={registerModalOpen} onclose={closeRegisterModal} class="max-w-md">
     {#key registerFormKey}
-        <GitHubAppForm
-            onCancel={closeRegisterModal}
-            onQuickSetup={handleQuickSetup}
-            onSaved={handleAppSaved} />
+        <GitHubAppForm onCancel={closeRegisterModal} onQuickSetup={handleQuickSetup} onSaved={handleAppSaved} />
     {/key}
 </Modal>
