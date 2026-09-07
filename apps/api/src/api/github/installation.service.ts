@@ -132,10 +132,17 @@ export class GitHubInstallationService {
 
         const connected = new Set(connectedRows.map((r) => r.githubRepositoryId).filter((x): x is number => x != null));
 
-        // Get repository list from GitHub
-        const { data } = await octokit.request("GET /installation/repositories", { per_page: 100 });
         type GhRepo = { id: number; full_name: string; private: boolean };
-        const repositoryList = (data.repositories ?? []) as GhRepo[];
+        const repositoryList: GhRepo[] = [];
+        for (let page = 1; ; page++) {
+            const response = await octokit.request("GET /installation/repositories", { per_page: 100, page });
+            repositoryList.push(...((response.data.repositories ?? []) as GhRepo[]));
+            if (!response.headers.link?.includes('rel="next"')) {
+                break;
+            }
+        }
+
+        repositoryList.sort((a, b) => a.full_name.localeCompare(b.full_name));
 
         return repositoryList.map((repo) => ({
             id: repo.id,

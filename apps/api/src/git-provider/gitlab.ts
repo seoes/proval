@@ -669,17 +669,29 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
-        const projects = await this.requestJson<
-            Array<{
-                id: number;
-                name: string;
-                path_with_namespace: string;
-                description: string | null;
-                default_branch: string;
-            }>
-        >("/projects?membership=true&per_page=100");
+        type GitLabProject = {
+            id: number;
+            name: string;
+            path_with_namespace: string;
+            description: string | null;
+            default_branch: string;
+        };
 
-        return projects.map((project) => ({
+        const pageSize = 100;
+        const projectList: GitLabProject[] = [];
+        for (let page = 1; ; page++) {
+            const pageList = await this.requestJson<GitLabProject[]>(
+                `/projects?membership=true&per_page=${pageSize}&page=${page}`,
+            );
+            projectList.push(...pageList);
+            if (pageList.length === 0 || pageList.length < pageSize) {
+                break;
+            }
+        }
+
+        projectList.sort((a, b) => a.path_with_namespace.localeCompare(b.path_with_namespace));
+
+        return projectList.map((project) => ({
             id: project.id,
             name: project.name,
             fullName: project.path_with_namespace,

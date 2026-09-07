@@ -4,9 +4,51 @@
     import RepositoryForm from "$lib/components/organism/RepositoryForm.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import fetchApi from "$lib/utils";
+    import { loadGitAccessRepositoryList, loadGitHubInstallationRepositoryList } from "$lib/utils/repository-list";
+    import type { RepositorySelectItem } from "@proval/types";
+    import { onMount } from "svelte";
     import type { PageProps } from "./$types";
 
     const { data }: PageProps = $props();
+
+    const storedGitHostId =
+        data.repository.provider === "github"
+            ? data.repository.githubRepositoryId
+            : data.repository.gitProviderRepositoryId;
+
+    const storedRepositoryItem: RepositorySelectItem | null =
+        storedGitHostId != null ? { id: storedGitHostId, path: data.repository.path, isConnected: true } : null;
+
+    let repositoryList = $state<RepositorySelectItem[]>(storedRepositoryItem ? [storedRepositoryItem] : []);
+    let isLoadingRepositoryList = $state(true);
+
+    onMount(() => {
+        void (async () => {
+            isLoadingRepositoryList = true;
+            try {
+                let liveList: RepositorySelectItem[] = [];
+                if (data.repository.provider === "github") {
+                    if (data.repository.githubInstallationId == null) {
+                        return;
+                    }
+                    liveList = await loadGitHubInstallationRepositoryList(data.repository.githubInstallationId);
+                } else if (data.repository.gitProviderAccessId != null) {
+                    liveList = await loadGitAccessRepositoryList(data.repository.gitProviderAccessId);
+                }
+
+                if (storedRepositoryItem && !liveList.some((item) => item.id === storedRepositoryItem.id)) {
+                    repositoryList = [storedRepositoryItem, ...liveList];
+                } else {
+                    repositoryList = liveList;
+                }
+            } catch (error) {
+                console.error("Failed to load repository list", error);
+                await openAlert("Failed to load repository list");
+            } finally {
+                isLoadingRepositoryList = false;
+            }
+        })();
+    });
 
     async function handleSubmit(body: Record<string, unknown>) {
         try {
@@ -62,15 +104,13 @@
     <RepositoryForm
         editRepositoryId={data.repository.id}
         modelList={data.modelList}
-        repositoryList={data.repositoryList}
+        {repositoryList}
+        {isLoadingRepositoryList}
         provider={data.provider}
         config={{
             modelProviderId: data.repository.modelProviderId,
             modelName: data.repository.modelName,
-            repositoryId:
-                data.repository.provider === "github"
-                    ? data.repository.githubRepositoryId
-                    : data.repository.gitProviderRepositoryId,
+            repositoryId: storedGitHostId,
             description: data.repository.description,
             language: data.repository.language,
             prEnabled: data.repository.prEnabled,
