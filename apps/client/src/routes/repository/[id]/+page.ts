@@ -6,11 +6,9 @@ import type {
     ModelProviderResponse,
     ProviderOption,
     RepositoryResponse,
-    RepositorySelectItem,
 } from "@proval/types";
 import type { PageLoad } from "./$types";
 import { error } from "@sveltejs/kit";
-import { loadGitAccessRepositoryList, loadGitHubInstallationRepositoryList } from "$lib/utils/repository-list";
 
 export const ssr = false;
 
@@ -28,7 +26,6 @@ export const load: PageLoad = async ({ params }) => {
     const modelList: ModelProviderResponse[] = modelListResponse.ok ? await modelListResponse.json() : [];
 
     let provider: ProviderOption;
-    let repositoryList: RepositorySelectItem[];
 
     if (repository.provider === "github") {
         if (repository.githubInstallationId == null) {
@@ -60,7 +57,6 @@ export const load: PageLoad = async ({ params }) => {
             githubInstallationId: installation.id,
             label: installation.accountName,
         };
-        repositoryList = await loadGitHubInstallationRepositoryList(repository.githubInstallationId);
     } else {
         if (repository.gitProviderAccessId == null) {
             throw error(400, "Git provider access is missing");
@@ -78,13 +74,11 @@ export const load: PageLoad = async ({ params }) => {
             label: access.name,
             baseUrl: access.baseUrl,
         };
-        repositoryList = await loadGitAccessRepositoryList(repository.gitProviderAccessId);
     }
 
     return {
         repository,
         modelList,
-        repositoryList,
         provider,
     };
 };

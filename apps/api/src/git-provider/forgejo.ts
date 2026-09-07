@@ -616,17 +616,26 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
-        const repos = await this.requestJson<
-            Array<{
-                id: number;
-                name: string;
-                full_name: string;
-                description: string | null;
-                default_branch: string;
-            }>
-        >("/user/repos");
+        type ForgejoRepo = {
+            id: number;
+            name: string;
+            full_name: string;
+            description: string | null;
+            default_branch: string;
+        };
 
-        return repos.map((repo) => ({
+        const repoList: ForgejoRepo[] = [];
+        for (let page = 1; ; page++) {
+            const pageList = await this.requestJson<ForgejoRepo[]>(`/user/repos?page=${page}&limit=50`);
+            if (pageList.length === 0) {
+                break;
+            }
+            repoList.push(...pageList);
+        }
+
+        repoList.sort((a, b) => a.full_name.localeCompare(b.full_name));
+
+        return repoList.map((repo) => ({
             id: repo.id,
             name: repo.name,
             fullName: repo.full_name,

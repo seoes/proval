@@ -1,8 +1,8 @@
 <script lang="ts">
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import RepositoryForm from "$lib/components/organism/RepositoryForm.svelte";
+    import RepositoryPicker from "$lib/components/organism/RepositoryPicker.svelte";
     import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
-    import Select from "$lib/components/atom/Select.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import Button from "$lib/components/atom/Button.svelte";
     import { goto } from "$app/navigation";
@@ -23,12 +23,8 @@
 
     let selectedProviderOption = $state<ProviderOption | null>(null);
 
-    const repositorySelectOptionList = $derived(
-        repositoryList.map((r) => ({
-            value: r.id.toString(),
-            label: r.path,
-            description: r.isConnected ? "Already connected" : undefined,
-        })),
+    const isSelectedConnected = $derived(
+        repositoryList.find((item) => item.id.toString() === selectedRepositoryId)?.isConnected === true,
     );
 
     const repositorySelectPlaceholder = $derived(
@@ -144,23 +140,23 @@
                         {/each}
                         {#if selectedProviderOption}
                             <div class="mt-4">
-                                <Select
+                                <RepositoryPicker
                                     description={isLoadingRepositoryList
                                         ? "Loading repository list..."
                                         : "Select a repository from the list"}
                                     bind:value={selectedRepositoryId}
-                                    disabled={!selectedProviderOption ||
-                                        repositoryList.length === 0 ||
-                                        isLoadingRepositoryList}
+                                    disabled={!selectedProviderOption}
+                                    loading={isLoadingRepositoryList}
                                     placeholder={repositorySelectPlaceholder}
-                                    options={repositorySelectOptionList} />
+                                    {repositoryList} />
                             </div>
                         {/if}
                         <div class="mt-4 flex justify-between">
                             <Button
                                 primary
                                 onclick={() => (step = 2)}
-                                disabled={!selectedProviderOption || !selectedRepositoryId}>Continue</Button>
+                                disabled={!selectedProviderOption || !selectedRepositoryId || isSelectedConnected}
+                                >Continue</Button>
                             <Button text onclick={() => goto("/repository")}>Cancel</Button>
                         </div>
                     </div>

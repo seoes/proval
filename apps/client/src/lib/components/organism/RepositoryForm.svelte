@@ -13,6 +13,7 @@
     import FormField from "../molecule/FormField.svelte";
     import SimpleSelectCard from "../atom/SimpleSelectCard.svelte";
     import Select from "../atom/Select.svelte";
+    import RepositoryPicker from "./RepositoryPicker.svelte";
     import PatchSecret from "../molecule/PatchSecret.svelte";
     import GitProviderIcon from "../atom/GitProviderIcon.svelte";
     import Card from "../layout/Card.svelte";
@@ -50,6 +51,7 @@
 
         modelList: ModelProviderResponse[];
         repositoryList: RepositorySelectItem[];
+        isLoadingRepositoryList?: boolean;
 
         provider: ProviderOption;
         config: Config;
@@ -76,6 +78,7 @@
         modelList,
         provider,
         repositoryList,
+        isLoadingRepositoryList = false,
         editRepositoryId,
         config,
         onSubmit,
@@ -233,14 +236,6 @@
         accessLevelOptionList.filter((option) => provider.type !== "forgejo" || !option.hideOnForgejo),
     );
 
-    const repositorySelectOptionList = $derived(
-        repositoryList.map((r) => ({
-            value: r.id.toString(),
-            label: r.path,
-            description: r.isConnected ? "Already connected" : undefined,
-        })),
-    );
-
     const modelProviderSelectOptionList = $derived(
         modelList.map((mp) => ({
             value: mp.id.toString(),
@@ -360,13 +355,16 @@
         </div>
 
         {#if editRepositoryId}
-            <Select
+            <RepositoryPicker
                 label="Repository"
-                description="Select a repository from the list"
+                description={isLoadingRepositoryList
+                    ? "Loading repository list..."
+                    : "Select a repository from the list"}
                 bind:value={selectedRepositoryId}
-                disabled={repositoryList.length === 0}
+                loading={isLoadingRepositoryList}
                 placeholder={repositoryList.length === 0 ? "No repositories available" : "Select a repository"}
-                options={repositorySelectOptionList} />
+                {repositoryList}
+                allowConnectedId={config.repositoryId ?? undefined} />
         {/if}
 
         {#if provider.type === "gitlab" || provider.type === "forgejo"}
