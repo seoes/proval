@@ -579,9 +579,9 @@ export class GitHubProvider implements GitProvider {
             body,
             commit_id: position.headSha,
             path: position.newPath,
-            start_line: position.start.newLine,
+            start_line: position.start.type === "new" ? position.start.newLine : position.start.oldLine,
             start_side: position.start.type === "new" ? "RIGHT" : "LEFT",
-            line: position.end.newLine,
+            line: position.end.type === "new" ? position.end.newLine : position.end.oldLine,
             side: position.end.type === "new" ? "RIGHT" : "LEFT",
         });
 

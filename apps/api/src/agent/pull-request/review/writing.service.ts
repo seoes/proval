@@ -73,7 +73,9 @@ export async function runReviewWritingAgent(
             isInlineReview
                 ? createSingleLineCommentTool(provider, workspace, prIid, language, baseSha, headSha, startSha)
                 : null,
-            isInlineReview ? createMultiLineCommentTool(provider, prIid, language, baseSha, headSha, startSha) : null,
+            isInlineReview
+                ? createMultiLineCommentTool(provider, workspace, prIid, language, baseSha, headSha, startSha)
+                : null,
         ],
         requiredToolList: [postPullRequestCommentTool(provider, prIid, language)],
         activityId,

@@ -599,11 +599,11 @@ export class GitLabProvider implements GitProvider {
         body: string,
         position: GitDiffMultiLine,
     ): Promise<GitComment> {
-        // GitLab expects the "anchor" new_line/old_line to be the last line of the selected range.
-        const anchorNewLine = position.end.type === "new" ? position.end.newLine : undefined;
-        const anchorOldLine = position.end.type === "old" ? position.end.oldLine : undefined;
-        const lineCode = (path: string, oldL: number, newL: number) =>
-            `${createHash("sha1").update(path).digest("hex")}_${oldL}_${newL}`;
+        const fileHash = createHash("sha1")
+            .update(position.newPath || position.oldPath)
+            .digest("hex");
+        const lineCode = (line: GitDiffLine) =>
+            `${fileHash}_${line.oldLine ?? 0}_${line.newLine ?? 0}`;
 
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {
@@ -613,25 +613,17 @@ export class GitLabProvider implements GitProvider {
                 headSha: position.headSha,
                 oldPath: position.oldPath,
                 newPath: position.newPath,
-                ...(anchorNewLine !== undefined && { newLine: String(anchorNewLine) }),
-                ...(anchorOldLine !== undefined && { oldLine: String(anchorOldLine) }),
+                ...(position.end.newLine !== undefined && { newLine: String(position.end.newLine) }),
+                ...(position.end.oldLine !== undefined && { oldLine: String(position.end.oldLine) }),
                 lineRange: {
                     start: {
-                        lineCode: lineCode(
-                            position.start.type === "new" ? position.newPath : position.oldPath,
-                            position.start.oldLine ?? 0,
-                            position.start.newLine ?? 0,
-                        ),
+                        lineCode: lineCode(position.start),
                         type: position.start.type,
                         ...(position.start.newLine !== undefined && { newLine: position.start.newLine }),
                         ...(position.start.oldLine !== undefined && { oldLine: position.start.oldLine }),
                     },
                     end: {
-                        lineCode: lineCode(
-                            position.end.type === "new" ? position.newPath : position.oldPath,
-                            position.end.oldLine ?? 0,
-                            position.end.newLine ?? 0,
-                        ),
+                        lineCode: lineCode(position.end),
                         type: position.end.type,
                         ...(position.end.newLine !== undefined && { newLine: position.end.newLine }),
                         ...(position.end.oldLine !== undefined && { oldLine: position.end.oldLine }),

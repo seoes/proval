@@ -10,8 +10,8 @@ const singleLinePositionSchema = z.object({
 
 const multiLineEndpointSchema = z.object({
     type: z.enum(["old", "new"]),
-    newLine: z.number(),
-    oldLine: z.number(),
+    newLine: z.number().optional().describe("1-based line on the new file. Required when type is new."),
+    oldLine: z.number().optional().describe("1-based line on the old file. Required when type is old."),
 });
 
 const multiLinePositionSchema = z.object({
