@@ -92,7 +92,7 @@ export class GitHubProvider implements GitProvider {
     }
 
     public async fetchGitRepositoryAuthHeader(): Promise<string> {
-        const auth = await this.octokit.auth();
+        const auth = await this.octokit.auth({ type: "installation" });
         const token =
             typeof auth === "object" && auth !== null && "token" in auth && typeof auth.token === "string"
                 ? auth.token
@@ -100,7 +100,8 @@ export class GitHubProvider implements GitProvider {
         if (!token) {
             throw new Error("GitHub installation token is missing");
         }
-        return `Authorization: Bearer ${token}`;
+        const basic = Buffer.from(`x-access-token:${token}`, "utf8").toString("base64");
+        return `Authorization: Basic ${basic}`;
     }
 
     public getPullRequestHeadFetchRef(prIid: number): string {
