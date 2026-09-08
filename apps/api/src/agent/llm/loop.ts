@@ -1,4 +1,4 @@
-import { logAgent, logAgentError, logAgentResult } from "../../util/log.js";
+import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
 import {
     UNTRUSTED_WARNING_SYSTEM_PROMPT,
@@ -193,7 +193,7 @@ export async function runAgentLoop(
                 response.message.toolCalls.map(async (tc) => {
                     const tool = toolList.find((t) => t.name === tc.name);
                     if (!tool) {
-                        logAgent(activityId, `  → ${tc.name} - unknown tool, skipping`, label);
+                        logAgentTool(activityId, label, `  → ${tc.name}`, "unknown tool, skipping");
                         return {
                             toolCallId: tc.id,
                             content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
@@ -201,7 +201,7 @@ export async function runAgentLoop(
                     }
 
                     const args = JSON.parse(tc.arguments);
-                    logAgent(activityId, `  → ${tool.name}(${JSON.stringify(args)})`, label);
+                    logAgentTool(activityId, label, `  → ${tool.name}`, JSON.stringify(args));
 
                     try {
                         const result = await tool.execute(args);
@@ -210,7 +210,7 @@ export async function runAgentLoop(
                         if (tool.untrustedResult) {
                             content = wrapUntrustedToolContent(content);
                         }
-                        logAgent(activityId, `    result: ${content}`, label);
+                        logAgentTool(activityId, label, "result:", content);
                         return { toolCallId: tc.id, content };
                     } catch (err) {
                         const errorMsg = err instanceof Error ? err.message : String(err);

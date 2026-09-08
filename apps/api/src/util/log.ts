@@ -11,6 +11,10 @@ const formatLabel = (label: string) => `${pc.cyan(pc.bold(label))}${pc.dim(" · 
 
 /** Terminal stays short for live scrolling. */
 const TERMINAL_LOG_MAX = 120;
+/** Tool call and result lines. Longer so args stay readable, still capped. */
+const TERMINAL_TOOL_LOG_MAX = 800;
+/** Tool errors need the provider message. Keep close to full text. */
+const TERMINAL_ERROR_LOG_MAX = 2000;
 /** Dashboard keeps more context for postmortem. */
 const DASHBOARD_LOG_MAX = 1000;
 
@@ -65,8 +69,26 @@ export function logAgent(activityId: number, message: string, label: string): vo
     persistAgentLog(activityId, "info", label, message);
 }
 
+function logToolLine(label: string, heading: string, body: string): void {
+    const prefix = formatLabel(label);
+    const trimmed = shortenLogMessage(body, TERMINAL_TOOL_LOG_MAX);
+    const lineList = trimmed.length === 0 ? [""] : trimmed.split("\n");
+    const first = lineList[0] ?? "";
+    const firstText = first.length > 0 ? `${heading} ${pc.dim(first)}` : heading;
+    console.log(`${prefix}${firstText}`);
+    for (const line of lineList.slice(1)) {
+        console.log(`${prefix}${pc.dim(line)}`);
+    }
+}
+
+export function logAgentTool(activityId: number, label: string, heading: string, body = ""): void {
+    logToolLine(label, heading, body);
+    const stored = body.length > 0 ? `${heading} ${body}` : heading;
+    persistAgentLog(activityId, "info", label, stored);
+}
+
 export function logAgentError(activityId: number, message: string, error?: unknown, label?: string): void {
-    logError(shortenLogMessage(message, TERMINAL_LOG_MAX), error, label);
+    logError(shortenLogMessage(message, TERMINAL_ERROR_LOG_MAX), error, label);
     persistAgentLog(activityId, "error", label ?? "log", message);
 }
 
