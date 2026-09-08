@@ -1,14 +1,35 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import type { AgentTool } from "../../llm/loop.js";
-import type { GitComment, GitDiffMultiLine, GitProvider } from "../../../git-provider/types.js";
+import type { GitComment, GitDiff, GitDiffMultiLine, GitProvider } from "../../../git-provider/types.js";
+import type { Workspace } from "../../../git-provider/workspace.js";
 import { createMultiLineCommentTool } from "./create-multi-line-comment.js";
+
+const FILE_DIFF: GitDiff = {
+    oldPath: "a.ts",
+    newPath: "a.ts",
+    newFile: false,
+    renamedFile: false,
+    deletedFile: false,
+    diff: `@@ -10,6 +10,6 @@
+ context_a
+ context_b
+-removed_a
+-removed_b
++added_a
++added_b
+ context_c
+ context_d
+`,
+};
 
 describe("createMultiLineCommentTool", () => {
     let captured: GitDiffMultiLine[];
+    let capturedAgainst: Array<string | undefined>;
     let tool: AgentTool;
 
     beforeEach(() => {
         captured = [];
+        capturedAgainst = [];
         const provider = {
             createCommentToMultiLine: async (_prIid: number, body: string, position: GitDiffMultiLine) => {
                 captured.push(position);
@@ -20,7 +41,13 @@ describe("createMultiLineCommentTool", () => {
                 } satisfies GitComment;
             },
         } as unknown as GitProvider;
-        tool = createMultiLineCommentTool(provider, 1, "English", "base", "head", "start");
+        const workspace = {
+            getFileDiff: async (_path: string, against?: string) => {
+                capturedAgainst.push(against);
+                return FILE_DIFF;
+            },
+        } as unknown as Workspace;
+        tool = createMultiLineCommentTool(provider, workspace, 1, "English", "base", "head", "start");
     });
 
     function execute(start: GitDiffMultiLine["start"], end: GitDiffMultiLine["end"]) {
@@ -32,12 +59,11 @@ describe("createMultiLineCommentTool", () => {
         });
     }
 
-    it("when start and end form a valid new-side range, passes the range position to the provider", async () => {
-        const start = { type: "new" as const, newLine: 11, oldLine: 0 };
-        const end = { type: "new" as const, newLine: 12, oldLine: 0 };
-        const result = await execute(start, end);
+    it("when start and end are context lines, keeps the requested type and fills the opposite side", async () => {
+        const result = await execute({ type: "new", newLine: 10 }, { type: "new", newLine: 11 });
 
         expect(result).toMatchObject({ id: 1 });
+        expect(capturedAgainst).toEqual(["start"]);
         expect(captured).toEqual([
             {
                 baseSha: "base",
@@ -45,31 +71,41 @@ describe("createMultiLineCommentTool", () => {
                 startSha: "start",
                 oldPath: "a.ts",
                 newPath: "a.ts",
-                start,
-                end,
+                start: { type: "new", newLine: 10, oldLine: 10 },
+                end: { type: "new", newLine: 11, oldLine: 11 },
             },
         ]);
     });
 
-    it("when start and end form a valid old-side range, passes the range position to the provider", async () => {
-        const start = { type: "old" as const, newLine: 0, oldLine: 10 };
-        const end = { type: "old" as const, newLine: 0, oldLine: 11 };
-        await execute(start, end);
+    it("when start and end are added lines, omits oldLine", async () => {
+        await execute({ type: "new", newLine: 12 }, { type: "new", newLine: 13 });
 
         expect(captured).toHaveLength(1);
-        expect(captured[0]?.start).toEqual(start);
-        expect(captured[0]?.end).toEqual(end);
+        expect(captured[0]?.start).toEqual({ type: "new", newLine: 12, oldLine: undefined });
+        expect(captured[0]?.end).toEqual({ type: "new", newLine: 13, oldLine: undefined });
+    });
+
+    it("when start and end are deleted lines, omits newLine", async () => {
+        await execute({ type: "old", oldLine: 12 }, { type: "old", oldLine: 13 });
+
+        expect(captured).toHaveLength(1);
+        expect(captured[0]?.start).toEqual({ type: "old", oldLine: 12, newLine: undefined });
+        expect(captured[0]?.end).toEqual({ type: "old", oldLine: 13, newLine: undefined });
     });
 
     it("when start line is after end line on the same side, returns an error and does not call the provider", async () => {
-        const result = await execute(
-            { type: "new", newLine: 12, oldLine: 0 },
-            { type: "new", newLine: 11, oldLine: 0 },
-        );
+        const result = await execute({ type: "new", newLine: 11 }, { type: "new", newLine: 10 });
 
         expect(result).toMatchObject({
             error: "position.start line must be <= position.end line on the same side.",
         });
+        expect(captured).toHaveLength(0);
+    });
+
+    it("when a line is outside the diff hunk, returns an error and does not call the provider", async () => {
+        const result = await execute({ type: "new", newLine: 10 }, { type: "new", newLine: 99 });
+
+        expect(result).toMatchObject({ error: expect.stringContaining("not in the PR diff hunk") });
         expect(captured).toHaveLength(0);
     });
 });
