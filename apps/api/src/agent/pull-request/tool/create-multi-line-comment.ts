@@ -4,6 +4,7 @@ import type { Workspace } from "../../../git-provider/workspace.js";
 import { buildCommentToolLanguageNote } from "../../shared/prompt/index.js";
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
 import { createMultiLineCommentInputSchema } from "../schema/inline-comment.schema.js";
+import { CommentService } from "../../../api/comment/comment.service.js";
 
 function isChangedFileNotFoundError(error: unknown): boolean {
     const message = error instanceof Error ? error.message : String(error);
@@ -18,7 +19,9 @@ export function createMultiLineCommentTool(
     baseSha: string,
     headSha: string,
     startSha: string,
+    activityId: number,
 ): AgentTool {
+    const commentService = new CommentService();
     return {
         name: "create_multi_line_comment",
         description: [
@@ -165,6 +168,7 @@ export function createMultiLineCommentTool(
                 start: resolvedStart.line,
                 end: resolvedEnd.line,
             });
+            await commentService.create(activityId, "inline_review", comment.id, comment.body);
             return comment;
         },
     };

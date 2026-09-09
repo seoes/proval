@@ -9,6 +9,7 @@ import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
+import { CommentService } from "../../api/comment/comment.service.js";
 
 interface ForgejoPullRequestPayload {
     action: string;
@@ -378,7 +379,6 @@ const handleForgejoCommentWebhook = async (
             target.inlineReviewId,
             comment.body,
             comment.user.login,
-            payload.sender?.login,
             forgejoProvider,
         );
     }
@@ -409,6 +409,11 @@ const handleForgejoCommentWebhook = async (
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
+
+    const postedComment = await new CommentService().find(repository.id, "comment", comment.id);
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
+    }
 
     runWithActivity(
         {
@@ -488,7 +493,6 @@ const handleForgejoReviewedWebhook = async (
         target.inlineReviewId,
         payloadComment?.body ?? payload.review?.content ?? payload.review?.body ?? "",
         payloadComment?.user.login ?? payload.sender?.login ?? "",
-        payload.sender?.login,
         forgejoProvider,
     );
 };
@@ -503,7 +507,6 @@ async function startForgejoPrReply(
     inlineReviewId: string | null,
     noteBody: string,
     commenterUsername: string,
-    senderLogin?: string,
     provider?: ForgejoProvider,
 ): Promise<Response> {
     if (!repository.prEnabled || !repository.prReplyEnabled) {
@@ -520,9 +523,13 @@ async function startForgejoPrReply(
     const forgejoProvider = provider ?? new ForgejoProvider(access.baseUrl, token, owner, repo);
     const botUsername = (await forgejoProvider.fetchCurrentUser()).username;
 
-    if (botUsername === commenterUsername || senderLogin === botUsername) {
-        log(`Skipped: bot sender (${botUsername})`, "Forgejo");
-        return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
+    const postedComment = await new CommentService().find(
+        repository.id,
+        inlineReviewId ? "inline_review" : "comment",
+        commentId,
+    );
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
     const accessSkip = await skipIfInsufficientAccess(

@@ -16,7 +16,7 @@ import type {
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
-import { log } from "../util/log.js";
+import { log, logError } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -38,6 +38,7 @@ export class ForgejoProvider implements GitProvider {
     private reviewBufferPrIid: number | null = null;
     private reviewBufferCommitId: string | null = null;
     private reviewBufferSeq = 0;
+    private flushedInlineCommentList: GitComment[] = [];
 
     constructor(
         private readonly baseUrl: string,
@@ -313,6 +314,12 @@ export class ForgejoProvider implements GitProvider {
     public async createPullRequestComment(prIid: number, body: string): Promise<GitComment> {
         await this.submitPullRequestReview(prIid);
         return this.createIssueComment(prIid, body);
+    }
+
+    public takeFlushedInlineCommentList(): GitComment[] {
+        const commentList = this.flushedInlineCommentList;
+        this.flushedInlineCommentList = [];
+        return commentList;
     }
 
     public async fetchPullRequestComment(prIid: number, commentId: number): Promise<GitComment> {
@@ -835,6 +842,7 @@ export class ForgejoProvider implements GitProvider {
     }
 
     private async submitPullRequestReview(prIid: number): Promise<void> {
+        this.flushedInlineCommentList = [];
         if (this.reviewBuffer.length === 0) {
             return;
         }
@@ -848,25 +856,48 @@ export class ForgejoProvider implements GitProvider {
 
         const commitId = this.reviewBufferCommitId ?? (await this.fetchPullRequestVersion(prIid)).headSha;
 
-        await this.requestJson(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`, {
-            method: "POST",
-            body: JSON.stringify({
-                event: "COMMENT",
-                body: "",
-                commit_id: commitId,
-                comments: this.reviewBuffer.map((c) => ({
-                    path: c.path,
-                    body: c.body,
-                    old_position: c.old_position,
-                    new_position: c.new_position,
-                })),
-            }),
-        });
+        const review = await this.requestJson<{ id: number }>(
+            `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`,
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    event: "COMMENT",
+                    body: "",
+                    commit_id: commitId,
+                    comments: this.reviewBuffer.map((c) => ({
+                        path: c.path,
+                        body: c.body,
+                        old_position: c.old_position,
+                        new_position: c.new_position,
+                    })),
+                }),
+            },
+        );
 
         this.reviewBuffer = [];
         this.reviewBufferPrIid = null;
         this.reviewBufferCommitId = null;
         this.reviewBufferSeq = 0;
+
+        try {
+            const commentList = await this.requestJson<
+                Array<{
+                    id: number;
+                    body: string;
+                    user: { login: string } | null;
+                    created_at: string;
+                }>
+            >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
+            this.flushedInlineCommentList = commentList.map((comment) => ({
+                id: comment.id,
+                body: comment.body,
+                author: comment.user?.login ?? "",
+                createdAt: comment.created_at,
+            }));
+        } catch (error) {
+            log("failed to fetch flushed inline comment list", "Forgejo");
+            logError("Failed to fetch flushed Forgejo inline comments", error, "Forgejo");
+        }
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {

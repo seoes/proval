@@ -2,6 +2,7 @@ import type { ActivityTokenUsage } from "@proval/types";
 import type { GitProvider } from "../../../git-provider/types.js";
 import { logError } from "../../../util/log.js";
 import type { LlmSender } from "../../llm/loop.js";
+import { CommentService } from "../../../api/comment/comment.service.js";
 
 type DebugCommentInput = {
     sender: LlmSender;
@@ -39,6 +40,7 @@ function buildDebugCommentBody({ sender, workflow, usage, fields }: DebugComment
 export async function postDevDebugPullRequestComment(
     provider: GitProvider,
     prIid: number,
+    activityId: number,
     input: DebugCommentInput,
     inlineReviewId?: string,
 ): Promise<void> {
@@ -46,10 +48,18 @@ export async function postDevDebugPullRequestComment(
 
     try {
         const body = buildDebugCommentBody(input);
-        if (inlineReviewId) {
-            await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, body);
-        } else {
-            await provider.createPullRequestComment(prIid, body);
+        const commentService = new CommentService();
+        const comment = inlineReviewId
+            ? await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, body)
+            : await provider.createPullRequestComment(prIid, body);
+        await commentService.create(
+            activityId,
+            inlineReviewId ? "inline_review" : "comment",
+            comment.id,
+            comment.body,
+        );
+        for (const flushed of provider.takeFlushedInlineCommentList()) {
+            await commentService.create(activityId, "inline_review", flushed.id, flushed.body);
         }
     } catch (error) {
         logError("Failed to post dev debug pull request comment", error);
@@ -59,12 +69,14 @@ export async function postDevDebugPullRequestComment(
 export async function postDevDebugIssueComment(
     provider: GitProvider,
     issueIid: number,
+    activityId: number,
     input: DebugCommentInput,
 ): Promise<void> {
     if (!isDevEnvironment()) return;
 
     try {
-        await provider.createIssueComment(issueIid, buildDebugCommentBody(input));
+        const comment = await provider.createIssueComment(issueIid, buildDebugCommentBody(input));
+        await new CommentService().create(activityId, "comment", comment.id, comment.body);
     } catch (error) {
         logError("Failed to post dev debug issue comment", error);
     }

@@ -171,7 +171,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 writingResult.cachedInputToken,
         };
 
-        await postDevDebugPullRequestComment(provider, prIid, {
+        await postDevDebugPullRequestComment(provider, prIid, activityId, {
             sender: llmSender,
             workflow: "PR Review",
             usage,

@@ -256,6 +256,10 @@ export class MockProvider implements GitProvider {
         };
     }
 
+    takeFlushedInlineCommentList(): GitComment[] {
+        return [];
+    }
+
     async fetchPullRequestComment(_prIid: number, _commentId: number): Promise<GitComment> {
         return {
             id: _commentId,

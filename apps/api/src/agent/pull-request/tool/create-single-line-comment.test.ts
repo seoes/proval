@@ -30,7 +30,7 @@ describe("createSingleLineCommentTool", () => {
             createCommentToSingleLine: async (_prIid: number, body: string, position: GitDiffSingleLine) => {
                 captured.push(position);
                 return {
-                    id: 1,
+                    id: -1,
                     body,
                     author: "bot",
                     createdAt: "2026-01-01T00:00:00.000Z",
@@ -43,7 +43,7 @@ describe("createSingleLineCommentTool", () => {
                 return FILE_DIFF;
             },
         } as unknown as Workspace;
-        tool = createSingleLineCommentTool(provider, workspace, 1, "English", "base", "head", "start");
+        tool = createSingleLineCommentTool(provider, workspace, 1, "English", "base", "head", "start", 1);
     });
 
     function execute(position: { newLine?: number; oldLine?: number }) {
@@ -58,7 +58,7 @@ describe("createSingleLineCommentTool", () => {
     it("when newLine points at an added hunk line, passes only newLine to the provider", async () => {
         const result = await execute({ newLine: 11 });
 
-        expect(result).toMatchObject({ id: 1 });
+        expect(result).toMatchObject({ id: -1 });
         expect(capturedAgainst).toEqual(["start"]);
         expect(captured).toEqual([
             {

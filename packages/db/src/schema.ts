@@ -178,3 +178,18 @@ export const activityTable = sqliteTable(
         index("activity_model_provider_id_created_at_idx").on(table.modelProviderId, table.createdAt),
     ],
 );
+
+export const commentTable = sqliteTable(
+    "comment",
+    {
+        id: integer().primaryKey({ autoIncrement: true }),
+        activityId: integer()
+            .references(() => activityTable.id, { onDelete: "cascade" })
+            .notNull(),
+        body: text().notNull(),
+        type: text({ enum: ["comment", "inline_review"] }).notNull(),
+        commentId: integer().notNull(),
+        ...timeStamp,
+    },
+    (table) => [unique().on(table.activityId, table.type, table.commentId)],
+);

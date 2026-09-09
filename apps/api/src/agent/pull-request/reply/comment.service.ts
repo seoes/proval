@@ -55,7 +55,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
             getFileContentTool(workspace),
         ];
 
-        const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language)];
+        const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language, activityId)];
 
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
@@ -63,7 +63,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
             activityId,
         });
 
-        await postDevDebugPullRequestComment(provider, prIid, {
+        await postDevDebugPullRequestComment(provider, prIid, activityId, {
             sender: llmSender,
             workflow: "PR Reply",
             usage: result.usage,

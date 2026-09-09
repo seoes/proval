@@ -190,6 +190,7 @@ export interface GitProvider {
     /** Read file at ref (branch name or commit SHA). Omit ref only when no MR context. */
     fetchFileContent(filePath: string, ref?: string): Promise<string>;
     createPullRequestComment(prIid: number, body: string): Promise<GitComment>;
+    takeFlushedInlineCommentList(): GitComment[];
 
     fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion>;
     createCommentToSingleLine(prIid: number, body: string, position: GitDiffSingleLine): Promise<GitComment>;

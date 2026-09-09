@@ -402,6 +402,10 @@ export class GitLabProvider implements GitProvider {
         };
     }
 
+    public takeFlushedInlineCommentList(): GitComment[] {
+        return [];
+    }
+
     public async fetchPullRequestInlineReview(
         prIid: number,
         inlineReviewId: string,
