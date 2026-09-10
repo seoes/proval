@@ -16,7 +16,7 @@ import type {
     GitRepositoryListItem,
     ListPaginationOptions,
 } from "./types.js";
-import { log, logError } from "../util/log.js";
+import { log } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -855,6 +855,7 @@ export class ForgejoProvider implements GitProvider {
         }
 
         const commitId = this.reviewBufferCommitId ?? (await this.fetchPullRequestVersion(prIid)).headSha;
+        const expectedCount = this.reviewBuffer.length;
 
         const review = await this.requestJson<{ id: number }>(
             `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`,
@@ -879,25 +880,23 @@ export class ForgejoProvider implements GitProvider {
         this.reviewBufferCommitId = null;
         this.reviewBufferSeq = 0;
 
-        try {
-            const commentList = await this.requestJson<
-                Array<{
-                    id: number;
-                    body: string;
-                    user: { login: string } | null;
-                    created_at: string;
-                }>
-            >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
-            this.flushedInlineCommentList = commentList.map((comment) => ({
-                id: comment.id,
-                body: comment.body,
-                author: comment.user?.login ?? "",
-                createdAt: comment.created_at,
-            }));
-        } catch (error) {
-            log("failed to fetch flushed inline comment list", "Forgejo");
-            logError("Failed to fetch flushed Forgejo inline comments", error, "Forgejo");
+        const commentList = await this.requestJson<
+            Array<{
+                id: number;
+                body: string;
+                user: { login: string } | null;
+                created_at: string;
+            }>
+        >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
+        if (!Array.isArray(commentList) || commentList.length < expectedCount) {
+            throw new Error("Failed to save inline review comments");
         }
+        this.flushedInlineCommentList = commentList.map((comment) => ({
+            id: comment.id,
+            body: comment.body,
+            author: comment.user?.login ?? "",
+            createdAt: comment.created_at,
+        }));
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {
