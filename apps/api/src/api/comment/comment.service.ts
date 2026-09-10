@@ -7,12 +7,15 @@ export type CommentType = (typeof commentTable.$inferSelect)["type"];
 export class CommentService {
     public async create(activityId: number, type: CommentType, commentId: number, body: string) {
         if (commentId < 1) return;
-        await db.insert(commentTable).values({
-            activityId,
-            type,
-            commentId,
-            body,
-        });
+        await db
+            .insert(commentTable)
+            .values({
+                activityId,
+                type,
+                commentId,
+                body,
+            })
+            .onConflictDoNothing();
     }
 
     public async find(repositoryId: number, type: CommentType, commentId: number) {
