@@ -260,6 +260,13 @@
       "when": 1788936982048,
       "tag": "0036_regular_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1789002538735,
+      "tag": "0037_conscious_yellow_claw",
+      "breakpoints": true
     }
   ]
 }

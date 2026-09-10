@@ -1,0 +1,1 @@
+CREATE INDEX `comment_comment_id_type_idx` ON `comment` (`comment_id`,`type`);

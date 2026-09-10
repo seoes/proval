@@ -191,5 +191,8 @@ export const commentTable = sqliteTable(
         commentId: integer().notNull(),
         ...timeStamp,
     },
-    (table) => [unique().on(table.activityId, table.type, table.commentId)],
+    (table) => [
+        unique().on(table.activityId, table.type, table.commentId),
+        index("comment_comment_id_type_idx").on(table.commentId, table.type),
+    ],
 );
