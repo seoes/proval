@@ -449,6 +449,10 @@ export class GitHubProvider implements GitProvider {
         return this.createIssueComment(prNumber, body);
     }
 
+    public takeFlushedInlineCommentList(): GitComment[] {
+        return [];
+    }
+
     public async fetchPullRequestInlineReviewList(
         prNumber: number,
         options?: ListPaginationOptions,

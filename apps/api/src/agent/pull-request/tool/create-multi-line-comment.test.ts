@@ -34,7 +34,7 @@ describe("createMultiLineCommentTool", () => {
             createCommentToMultiLine: async (_prIid: number, body: string, position: GitDiffMultiLine) => {
                 captured.push(position);
                 return {
-                    id: 1,
+                    id: -1,
                     body,
                     author: "bot",
                     createdAt: "2026-01-01T00:00:00.000Z",
@@ -47,7 +47,7 @@ describe("createMultiLineCommentTool", () => {
                 return FILE_DIFF;
             },
         } as unknown as Workspace;
-        tool = createMultiLineCommentTool(provider, workspace, 1, "English", "base", "head", "start");
+        tool = createMultiLineCommentTool(provider, workspace, 1, "English", "base", "head", "start", 1);
     });
 
     function execute(start: GitDiffMultiLine["start"], end: GitDiffMultiLine["end"]) {
@@ -62,7 +62,7 @@ describe("createMultiLineCommentTool", () => {
     it("when start and end are context lines, keeps the requested type and fills the opposite side", async () => {
         const result = await execute({ type: "new", newLine: 10 }, { type: "new", newLine: 11 });
 
-        expect(result).toMatchObject({ id: 1 });
+        expect(result).toMatchObject({ id: -1 });
         expect(capturedAgainst).toEqual(["start"]);
         expect(captured).toEqual([
             {

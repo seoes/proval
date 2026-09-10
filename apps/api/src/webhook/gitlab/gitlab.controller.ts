@@ -18,6 +18,7 @@ import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
+import { CommentService } from "../../api/comment/comment.service.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -257,16 +258,19 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const botUserData = await gitlabProvider.fetchCurrentUser();
     const botUsername = botUserData.username;
-    const commenterUsername: string = payload.user?.username ?? "";
 
-    if (botUsername === commenterUsername) {
-        log("Skipped: bot username is the same as the commenter username, skipping");
-        return new Response(
-            JSON.stringify({
-                message: "Skipped: bot username is the same as the commenter username, skipping",
-            }),
-            { status: 200 },
-        );
+    const commentId = payload.object_attributes?.id;
+    if (commentId == null) {
+        return new Response(JSON.stringify({ message: "No comment id found" }), { status: 200 });
+    }
+    const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
+    const postedComment = await new CommentService().find(
+        repository.id,
+        isInlineReviewComment ? "inline_review" : "comment",
+        commentId,
+    );
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
     const noteBody: string = payload.object_attributes?.note;
@@ -281,7 +285,6 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     );
     if (accessSkip) return accessSkip;
 
-    const commentId = payload.object_attributes?.id;
     const prIid = payload.merge_request.iid;
 
     const llmSender = createSender({
@@ -291,7 +294,6 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         model: repository.modelName,
     });
 
-    const isInlineReviewComment = (payload.object_attributes as unknown as DiscussionNoteSchema).type === "DiffNote";
     const inlineReviewId = payload.object_attributes.discussion_id ?? null;
 
     const workspace = new Workspace(gitlabProvider);
@@ -436,15 +438,6 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
 
     const botUserData = await gitlabProvider.fetchCurrentUser();
     const botUsername = botUserData.username;
-    const commenterUsername: string = payload.user?.username ?? "";
-    if (botUsername === commenterUsername) {
-        return new Response(
-            JSON.stringify({
-                message: "Skipped: bot username is the same as the commenter username, skipping",
-            }),
-            { status: 200 },
-        );
-    }
 
     const noteBody: string = payload.object_attributes?.note ?? "";
     const commentId = payload.object_attributes?.id;
@@ -455,6 +448,11 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
 
     if (commentId == null) {
         return new Response(JSON.stringify({ message: "No comment id found" }), { status: 200 });
+    }
+
+    const postedComment = await new CommentService().find(repository.id, "comment", commentId);
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
     const mentioned = noteBody.includes(`@${botUsername}`);

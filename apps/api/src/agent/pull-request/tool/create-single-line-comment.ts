@@ -5,6 +5,7 @@ import { buildCommentToolLanguageNote } from "../../shared/prompt/index.js";
 
 import { formatReviewFindingCommentBody } from "../schema/review.schema.js";
 import { createSingleLineCommentInputSchema } from "../schema/inline-comment.schema.js";
+import { CommentService } from "../../../api/comment/comment.service.js";
 
 function isChangedFileNotFoundError(error: unknown): boolean {
     const message = error instanceof Error ? error.message : String(error);
@@ -19,7 +20,9 @@ export function createSingleLineCommentTool(
     baseSha: string,
     headSha: string,
     startSha: string,
+    activityId: number,
 ): AgentTool {
+    const commentService = new CommentService();
     return {
         name: "create_single_line_comment",
         description: [
@@ -154,6 +157,7 @@ export function createSingleLineCommentTool(
                 newLine: newLine ?? (oldLine !== undefined ? contextNewByOld.get(oldLine) : undefined),
                 oldLine: oldLine ?? (newLine !== undefined ? contextOldByNew.get(newLine) : undefined),
             });
+            await commentService.create(activityId, "inline_review", comment.id, comment.body);
             return comment;
         },
     };

@@ -11,6 +11,7 @@ import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
+import { CommentService } from "../../api/comment/comment.service.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -128,10 +129,7 @@ async function handlePullRequestWebhook(
     const reviewMode = repository.prReviewOnPush;
 
     const allowedAction =
-        action === "opened" ||
-        action === "synchronize" ||
-        action === "ready_for_review" ||
-        action === "reopened";
+        action === "opened" || action === "synchronize" || action === "ready_for_review" || action === "reopened";
     if (!allowedAction) {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
@@ -326,12 +324,19 @@ async function handleIssueCommentWebhook(
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const botUsername = (await gitHubProvider.fetchCurrentUser()).username;
 
-    if (sender?.type === "Bot" || sender?.login === botUsername) {
+    if (sender?.type === "Bot") {
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
     }
 
     const noteBody = payload.comment?.body ?? "";
     const commentId = payload.comment?.id;
+    if (commentId === undefined) {
+        return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
+    }
+    const postedComment = await new CommentService().find(repository.id, "comment", commentId);
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
+    }
 
     if (payload.issue?.pull_request) {
         if (!repository.prEnabled || !repository.prReplyEnabled) {
@@ -348,10 +353,6 @@ async function handleIssueCommentWebhook(
             "Skipped: missing user",
         );
         if (accessSkip) return accessSkip;
-
-        if (commentId === undefined) {
-            return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
-        }
 
         const llmSender = createSender({
             provider: modelProvider.provider,
@@ -370,7 +371,7 @@ async function handleIssueCommentWebhook(
                 targetIid: issueNumber,
             },
             (activityId) =>
-            runPullRequestReply({
+                runPullRequestReply({
                     provider: gitHubProvider,
                     workspace,
                     llmSender,
@@ -379,7 +380,7 @@ async function handleIssueCommentWebhook(
                     inlineReviewId: null,
                     language: repository.language,
                     activityId,
-            }),
+                }),
         ).catch((error) => {
             logError("Pull request reply failed", error);
         });
@@ -403,10 +404,6 @@ async function handleIssueCommentWebhook(
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
-
-    if (commentId === undefined) {
-        return new Response(JSON.stringify({ message: "No comment id" }), { status: 200 });
-    }
 
     const llmSender = createSender({
         provider: modelProvider.provider,
@@ -463,8 +460,13 @@ async function handlePullRequestReviewCommentWebhook(
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const botUsername = (await gitHubProvider.fetchCurrentUser()).username;
 
-    if (sender?.type === "Bot" || sender?.login === botUsername) {
+    if (sender?.type === "Bot") {
         return new Response(JSON.stringify({ message: "Skipped: bot sender" }), { status: 200 });
+    }
+
+    const postedComment = await new CommentService().find(repository.id, "inline_review", comment.id);
+    if (postedComment) {
+        return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
     if (!repository.prEnabled || !repository.prReplyEnabled) {

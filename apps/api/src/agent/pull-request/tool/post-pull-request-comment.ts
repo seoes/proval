@@ -1,8 +1,15 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider } from "../../../git-provider/types.js";
 import { buildCommentToolLanguageNote, buildCommentBodyDescription } from "../../shared/prompt/index.js";
+import { CommentService } from "../../../api/comment/comment.service.js";
 
-export function postPullRequestCommentTool(provider: GitProvider, prIid: number, language: string): AgentTool {
+export function postPullRequestCommentTool(
+    provider: GitProvider,
+    prIid: number,
+    language: string,
+    activityId: number,
+): AgentTool {
+    const commentService = new CommentService();
     return {
         name: "post_pull_request_comment",
         description: [
@@ -22,6 +29,10 @@ export function postPullRequestCommentTool(provider: GitProvider, prIid: number,
         execute: async (args) => {
             const body = String(args.body);
             const comment = await provider.createPullRequestComment(prIid, body);
+            await commentService.create(activityId, "comment", comment.id, comment.body);
+            for (const flushed of provider.takeFlushedInlineCommentList()) {
+                await commentService.create(activityId, "inline_review", flushed.id, flushed.body);
+            }
             return comment;
         },
     };

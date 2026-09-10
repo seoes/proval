@@ -62,7 +62,14 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         ];
 
         const requiredToolList = [
-            postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language),
+            postPullRequestInlineReviewReplyTool(
+                provider,
+                prIid,
+                inlineReviewId,
+                comment.author,
+                language,
+                activityId,
+            ),
         ];
 
         const result = await runAgentLoop(llmSender, system, prompt, label, {
@@ -74,6 +81,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         await postDevDebugPullRequestComment(
             provider,
             prIid,
+            activityId,
             {
                 sender: llmSender,
                 workflow: "PR Inline Review Reply",

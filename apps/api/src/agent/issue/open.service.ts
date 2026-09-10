@@ -44,7 +44,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             getFileContentTool(workspace),
         ];
 
-        const requiredToolList = [postIssueCommentTool(provider, issueIid, language)];
+        const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];
 
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
@@ -52,7 +52,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             activityId,
         });
 
-        await postDevDebugIssueComment(provider, issueIid, {
+        await postDevDebugIssueComment(provider, issueIid, activityId, {
             sender: llmSender,
             workflow: "Issue Open",
             usage: result.usage,
