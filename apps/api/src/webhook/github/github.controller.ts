@@ -194,6 +194,7 @@ async function handlePullRequestWebhook(
         apiKey: modelProvider.apiKey,
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
+        timeoutSecond: modelProvider.timeoutSecond,
     });
 
     const isInlineReview = repository.prInlineReview;
@@ -274,6 +275,7 @@ async function handleIssueWebhook(
         apiKey: modelProvider.apiKey,
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
+        timeoutSecond: modelProvider.timeoutSecond,
     });
 
     const workspace = new Workspace(gitHubProvider);
@@ -359,6 +361,7 @@ async function handleIssueCommentWebhook(
             apiKey: modelProvider.apiKey,
             baseURL: modelProvider.baseUrl,
             model: repository.modelName,
+            timeoutSecond: modelProvider.timeoutSecond,
         });
 
         const workspace = new Workspace(gitHubProvider);
@@ -410,6 +413,7 @@ async function handleIssueCommentWebhook(
         apiKey: modelProvider.apiKey,
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
+        timeoutSecond: modelProvider.timeoutSecond,
     });
 
     const workspace = new Workspace(gitHubProvider);
@@ -491,6 +495,7 @@ async function handlePullRequestReviewCommentWebhook(
         apiKey: modelProvider.apiKey,
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
+        timeoutSecond: modelProvider.timeoutSecond,
     });
 
     const workspace = new Workspace(gitHubProvider);

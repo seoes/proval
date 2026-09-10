@@ -1,14 +1,14 @@
 import OpenAI from "openai";
 import type { LlmSender, Message } from "./loop.js";
+import type { SenderSDKConfig } from "./factory.js";
 
-export interface OpenAiConfig {
-    apiKey: string;
-    baseURL: string;
-    model: string;
-}
-
-export function createOpenAiSender(config: OpenAiConfig): LlmSender {
-    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
+    const client = new OpenAI({
+        apiKey: config.apiKey,
+        baseURL: config.baseURL,
+        timeout: config.timeoutSecond * 1000,
+        fetch: config.fetch,
+    });
 
     return {
         async send(messages, tools) {

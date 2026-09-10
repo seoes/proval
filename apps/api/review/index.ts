@@ -179,7 +179,8 @@ async function buildDiffList(mergeBase: string, headSha: string, cloneDir: strin
 
         const oldPath = isRename ? tab[1]! : isDelete ? tab[1]! : isAdd ? "" : tab[1]!;
         const newPath = isRename ? tab[2]! : tab[1]!;
-        const pathList = isRename && oldPath && oldPath !== newPath ? [oldPath, newPath] : [isDelete ? oldPath : newPath];
+        const pathList =
+            isRename && oldPath && oldPath !== newPath ? [oldPath, newPath] : [isDelete ? oldPath : newPath];
 
         let diffText = "";
         try {
@@ -311,6 +312,7 @@ async function main(): Promise<void> {
             apiKey: config.llmApiKey,
             baseURL: config.llmBaseUrl,
             model: config.llmModel,
+            timeoutSecond: 600,
         });
 
         const review = await runPullRequestReview({
