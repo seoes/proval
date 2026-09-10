@@ -1,11 +1,10 @@
 import type { Context, Handler } from "hono";
 import { ModelProviderService } from "./model.service.js";
-import type {
-    ModelProviderResponse,
-    ModelProviderInsert,
-    ModelProviderUpdateInput,
-    SecretInput,
-} from "@proval/types";
+import type { ModelProviderResponse, ModelProviderInsert, ModelProviderUpdateInput, SecretInput } from "@proval/types";
+
+function invalidTimeoutSecond(value: unknown): boolean {
+    return value !== undefined && (!Number.isInteger(value) || (value as number) < 10 || (value as number) > 7200);
+}
 
 export const findAllModelProvider: Handler = async (c) => {
     const service = new ModelProviderService();
@@ -44,6 +43,9 @@ export const listModelProviderModels: Handler = async (c) => {
 export const createModelProvider: Handler = async (c) => {
     const service = new ModelProviderService();
     const body = await c.req.json<ModelProviderInsert>();
+    if (invalidTimeoutSecond(body.timeoutSecond)) {
+        return c.json({ error: "Timeout must be an integer between 10 and 7200 seconds" }, 400);
+    }
     const modelProvider = await service.create(body);
     return c.json(service.toResponse(modelProvider), 201);
 };
@@ -55,6 +57,9 @@ export const updateModelProvider: Handler = async (c) => {
         return c.json({ error: "Model provider ID is required" }, 400);
     }
     const body = await c.req.json<ModelProviderUpdateInput>();
+    if (invalidTimeoutSecond(body.timeoutSecond)) {
+        return c.json({ error: "Timeout must be an integer between 10 and 7200 seconds" }, 400);
+    }
     const modelProvider = await service.update(parseInt(id), body);
     return c.json(service.toResponse(modelProvider), 200);
 };

@@ -19,7 +19,7 @@
     interface Props {
         mode: "create" | "edit";
         modelProviderId?: number;
-        initialData?: Pick<ModelProviderResponse, "provider" | "label" | "baseUrl">;
+        initialData?: Pick<ModelProviderResponse, "provider" | "label" | "baseUrl" | "timeoutSecond">;
         border?: boolean;
     }
 
@@ -28,6 +28,7 @@
     let provider = $state<LlmApiProvider>(initialData?.provider ?? "openai");
     let label = $state(initialData?.label ?? "");
     let baseUrl = $state(initialData?.baseUrl ?? "");
+    let timeoutSecond = $state(String(initialData?.timeoutSecond ?? 600));
     let apiKey = $state("");
     let apiKeyModalOpen = $state(false);
     let testModalOpen = $state(false);
@@ -49,6 +50,11 @@
             await openAlert("API Provider is required");
             return;
         }
+        const timeout = Number(timeoutSecond);
+        if (!Number.isInteger(timeout) || timeout < 10 || timeout > 7200) {
+            await openAlert("Timeout must be between 10 and 7200 seconds");
+            return;
+        }
         if (mode === "create") {
             if (!apiKey) {
                 await openAlert("API Key is required");
@@ -63,6 +69,7 @@
                 label,
                 baseUrl,
                 apiKey,
+                timeoutSecond: timeout,
             };
 
             const res = await fetchApi("/model-provider", {
@@ -82,6 +89,7 @@
                 provider,
                 label,
                 baseUrl,
+                timeoutSecond: timeout,
             };
 
             const res = await fetchApi(`/model-provider/${modelProviderId}`, {
@@ -222,6 +230,14 @@
             {/snippet}
         </FormField>
 
+        <FormField
+            label="Request Timeout"
+            description="Maximum wait time for LLM responses in seconds. Increase for slow local models.">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="600" bind:value={timeoutSecond} />
+            {/snippet}
+        </FormField>
+
         {#if mode === "create"}
             <FormField label="API Key" description="Required when creating a model provider">
                 {#snippet children({ id })}
@@ -240,9 +256,7 @@
         <div class="flex gap-3 text-sm">
             <Button primary type="submit">{mode === "create" ? "Create" : "Save"}</Button>
             {#if mode === "create"}
-                <Button text class="whitespace-nowrap" onclick={openTestModal} type="button">
-                    Test Connection
-                </Button>
+                <Button text class="whitespace-nowrap" onclick={openTestModal} type="button">Test Connection</Button>
             {/if}
         </div>
         <div>
@@ -274,7 +288,8 @@
     <Modal bind:open={testModalOpen} class="max-w-lg">
         <div class="space-y-4">
             <FieldTitle>Test connection</FieldTitle>
-            <Description>Enter a model ID your API accepts. This is only used for the test and is not saved.</Description>
+            <Description
+                >Enter a model ID your API accepts. This is only used for the test and is not saved.</Description>
             <InputText
                 placeholder="anthropic/claude-sonnet-4.6"
                 bind:value={testModelNameDraft}

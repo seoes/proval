@@ -1,0 +1,1 @@
+ALTER TABLE `model_provider` ADD `timeout_second` integer DEFAULT 600 NOT NULL;

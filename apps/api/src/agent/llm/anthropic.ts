@@ -1,16 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmSender, Message } from "./loop.js";
+import type { SenderSDKConfig } from "./factory.js";
 
-export interface AnthropicConfig {
-    apiKey: string;
-    baseURL: string;
-    model: string;
-}
-
-export function createAnthropicSender(config: AnthropicConfig): LlmSender {
+export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
     const client = new Anthropic({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
+        timeout: config.timeoutSecond * 1000,
+        fetch: config.fetch,
     });
 
     return {
