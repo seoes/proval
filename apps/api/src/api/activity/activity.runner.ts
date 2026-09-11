@@ -5,24 +5,19 @@ import { logError } from "../../util/log";
 export async function runWithActivity(
     input: ActivityStartInput,
     run: (activityId: number) => Promise<ActivityTokenUsage>,
-): Promise<number> {
+): Promise<void> {
     const activityService = new ActivityService();
     const activityId = await activityService.start(input);
-
-    void (async () => {
+    try {
+        const tokenUsage = await run(activityId);
+        await activityService.complete(activityId, tokenUsage);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         try {
-            const tokenUsage = await run(activityId);
-            await activityService.complete(activityId, tokenUsage);
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            try {
-                await activityService.fail(activityId, errorMessage);
-            } catch (activityError) {
-                logError("Activity fail failed", activityError);
-            }
-            logError("Activity run failed", error);
+            await activityService.fail(activityId, errorMessage);
+        } catch (activityError) {
+            logError("Activity fail failed", activityError);
         }
-    })();
-
-    return activityId;
+        throw error;
+    }
 }

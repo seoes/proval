@@ -51,6 +51,12 @@ export const findActivityById: Handler = async (c) => {
     }
 };
 
+const RETRY_NOT_FOUND_ERRORS = new Set([
+    "Activity not found",
+    "Repository not found",
+    "Model provider not found",
+]);
+
 const RETRY_CLIENT_ERRORS = new Set([
     "Only failed activities can be retried",
     "This activity type cannot be retried",
@@ -69,11 +75,11 @@ export const retryActivity: Handler = async (c) => {
     }
     const activityService = new ActivityService();
     try {
-        const newId = await activityService.retry(activityId);
-        return c.json({ id: newId }, 202);
+        await activityService.retry(activityId);
+        return c.json({ message: "Retry started" }, 202);
     } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to retry activity";
-        if (message === "Activity not found") {
+        if (RETRY_NOT_FOUND_ERRORS.has(message)) {
             return c.json({ error: message }, 404);
         }
         if (RETRY_CLIENT_ERRORS.has(message)) {

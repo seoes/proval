@@ -17,6 +17,7 @@ import { runPullRequestReview } from "../../agent/pull-request/index.js";
 import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
 import { Workspace } from "../../git-provider/workspace.js";
 import { decrypt } from "../../util/encrypt.js";
+import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
 import { runWithActivity } from "./activity.runner.js";
@@ -442,7 +443,7 @@ export class ActivityService {
         }
     }
 
-    public async retry(id: number): Promise<number> {
+    public async retry(id: number): Promise<void> {
         const activity = await this.findById(id);
         if (activity === null) {
             throw new Error("Activity not found");
@@ -488,7 +489,7 @@ export class ActivityService {
                 ? await this.findLastReviewedHeadSha(activity.repositoryId, prIid)
                 : null;
 
-            return runWithActivity(startInput, (activityId) =>
+            runWithActivity(startInput, (activityId) =>
                 runPullRequestReview({
                     provider: gitProvider,
                     workspace,
@@ -500,11 +501,14 @@ export class ActivityService {
                     isFollowUpReview,
                     previousHeadSha: isFollowUpReview ? lastHeadSha : null,
                 }),
-            );
+            ).catch((error) => {
+                logError("Activity retry failed", error);
+            });
+            return;
         }
 
         const issueIid = activity.targetIid;
-        return runWithActivity(startInput, (activityId) =>
+        runWithActivity(startInput, (activityId) =>
             runIssueReplyOnOpen({
                 provider: gitProvider,
                 workspace,
@@ -513,6 +517,8 @@ export class ActivityService {
                 language: repository.language,
                 activityId,
             }),
-        );
+        ).catch((error) => {
+            logError("Activity retry failed", error);
+        });
     }
 }
