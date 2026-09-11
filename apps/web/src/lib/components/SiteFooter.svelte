@@ -32,6 +32,13 @@
                     <p class="mt-3 max-w-sm text-sm leading-6 text-neutral-500">
                         Self-hosted AI code review for GitLab, Forgejo, and GitHub. Bring your own model.
                     </p>
+                    <div class="mt-6 w-48">
+                        <a href="https://fazier.com/launches/proval.app" target="_blank"
+                            ><img
+                                src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=featured&theme=neutral"
+                                width="250"
+                                alt="Fazier badge" /></a>
+                    </div>
                 </div>
 
                 <div>
