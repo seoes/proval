@@ -5,6 +5,7 @@
     import Badge from "$lib/components/atom/Badge.svelte";
     import Button from "$lib/components/atom/Button.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
+    import Modal from "$lib/components/atom/Modal.svelte";
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
@@ -21,6 +22,13 @@
     const target = $derived(activityTargetLabel(review.type, review.targetIid));
     const typeLabel = $derived(activityTypeLabel(review.type));
     const durationLabel = $derived(review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null);
+    const showFullErrorButton = $derived.by(() => {
+        const message = review.errorMessage;
+        if (review.status !== "failed" || !message) {
+            return false;
+        }
+        return message.split("\n").length > 5 || message.length > 400;
+    });
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let isRetrying = $state(false);
@@ -55,6 +63,7 @@
             isRetrying = false;
         }
     }
+    let errorModalOpen = $state(false);
 
     function formatToken(value: number | null): string {
         return value === null ? "—" : value.toLocaleString();
@@ -185,7 +194,19 @@
         </div>
 
         {#if review.status === "failed" && review.errorMessage}
-            <p class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{review.errorMessage}</p>
+            <div class="mt-3 rounded-md bg-red-50 px-3 py-2">
+                <p class="line-clamp-5 text-sm break-words whitespace-pre-wrap text-red-700">
+                    {review.errorMessage}
+                </p>
+                {#if showFullErrorButton}
+                    <button
+                        type="button"
+                        class="mt-1.5 cursor-pointer text-xs font-medium text-red-700 underline-offset-2 hover:underline"
+                        onclick={() => (errorModalOpen = true)}>
+                        View full
+                    </button>
+                {/if}
+            </div>
         {/if}
 
         <div class="mt-4 border-t border-neutral-100 pt-3">
@@ -242,3 +263,14 @@
         </Card>
     </div>
 </DefaultLayout>
+
+{#if review.errorMessage}
+    <Modal bind:open={errorModalOpen} class="max-w-2xl">
+        <h3 class="mb-3 text-lg font-semibold tracking-tight text-neutral-900">Error</h3>
+        <pre
+            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md bg-red-50 px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap text-red-800">{review.errorMessage}</pre>
+        <div class="mt-6 flex justify-end">
+            <Button primary onclick={() => (errorModalOpen = false)}>Close</Button>
+        </div>
+    </Modal>
+{/if}
