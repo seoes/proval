@@ -12,6 +12,18 @@ import type {
 } from "@proval/types";
 import db from "../../db/index.js";
 import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { createSender } from "../../agent/llm/factory.js";
+import { runPullRequestReview } from "../../agent/pull-request/index.js";
+import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
+import { Workspace } from "../../git-provider/workspace.js";
+import { decrypt } from "../../util/encrypt.js";
+import { logError } from "../../util/log.js";
+import { ModelProviderService } from "../model/model.service.js";
+import { RepositoryService } from "../repository/repository.service.js";
+import { runWithActivity } from "./activity.runner.js";
+
+const RETRY_TYPES = ["pr_review", "issue_open"] as const;
+type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const MAX_ACTIVITY_LOGS = 200;
 
@@ -429,5 +441,84 @@ export class ActivityService {
         if (result.length === 0) {
             throw new Error("Activity not found");
         }
+    }
+
+    public async retry(id: number): Promise<void> {
+        const activity = await this.findById(id);
+        if (activity === null) {
+            throw new Error("Activity not found");
+        }
+        if (activity.status !== "failed") {
+            throw new Error("Only failed activities can be retried");
+        }
+        if (!RETRY_TYPES.includes(activity.type as RetryActivityType)) {
+            throw new Error("This activity type cannot be retried");
+        }
+        if (activity.repositoryId == null) {
+            throw new Error("Repository is no longer linked to this activity");
+        }
+        const repositoryService = new RepositoryService();
+        const repository = await repositoryService.findById(activity.repositoryId);
+        if (repository.modelProviderId == null) {
+            throw new Error("Model provider is no longer linked to this activity");
+        }
+
+        const modelProvider = await new ModelProviderService().findById(repository.modelProviderId);
+        const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
+        const workspace = new Workspace(gitProvider);
+        const llmSender = createSender({
+            provider: modelProvider.provider,
+            apiKey: decrypt(modelProvider.apiKey),
+            baseURL: modelProvider.baseUrl,
+            model: repository.modelName,
+            timeoutSecond: modelProvider.timeoutSecond,
+        });
+
+        const startInput: ActivityStartInput = {
+            repositoryId: activity.repositoryId,
+            modelProviderId: repository.modelProviderId,
+            modelName: repository.modelName,
+            type: activity.type,
+            targetIid: activity.targetIid,
+        };
+
+        if (activity.type === "pr_review") {
+            const prIid = activity.targetIid;
+            const isFollowUpReview = await this.hasCompletedPullRequestReview(activity.repositoryId, prIid);
+            const lastHeadSha = isFollowUpReview
+                ? await this.findLastReviewedHeadSha(activity.repositoryId, prIid)
+                : null;
+
+            runWithActivity(startInput, (activityId) =>
+                runPullRequestReview({
+                    provider: gitProvider,
+                    workspace,
+                    llmSender,
+                    prIid,
+                    isInlineReview: repository.prInlineReview,
+                    language: repository.language,
+                    activityId,
+                    isFollowUpReview,
+                    previousHeadSha: isFollowUpReview ? lastHeadSha : null,
+                }),
+            ).catch((error) => {
+                logError("Activity retry failed", error);
+            });
+            return;
+        }
+
+        const issueIid = activity.targetIid;
+        runWithActivity(startInput, (activityId) =>
+            runIssueReplyOnOpen({
+                provider: gitProvider,
+                workspace,
+                llmSender,
+                issueIid,
+                language: repository.language,
+                activityId,
+            }),
+        ).catch((error) => {
+            logError("Activity retry failed", error);
+        });
     }
 }
