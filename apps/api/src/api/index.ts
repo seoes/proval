@@ -25,6 +25,7 @@ import {
     findActivityById,
     findActivityLogById,
     getActivitySummary,
+    retryActivity,
 } from "./activity/activity.controller.js";
 import { authRouter, settingsRouter } from "./auth/index.js";
 import { resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
@@ -71,3 +72,4 @@ apiRouter.get("/activity/summary", getActivitySummary);
 apiRouter.get("/activity", findAllActivity);
 apiRouter.get("/activity/:id{\\d+}/log", findActivityLogById);
 apiRouter.get("/activity/:id{\\d+}", findActivityById);
+apiRouter.post("/activity/:id{\\d+}/retry", retryActivity);

@@ -1,7 +1,10 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
+    import Button from "$lib/components/atom/Button.svelte";
+    import { openAlert, openConfirm } from "$lib/store/modal";
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
@@ -20,6 +23,38 @@
     const durationLabel = $derived(review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null);
 
     let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let isRetrying = $state(false);
+
+    const canRetry = $derived(
+        review.status === "failed" &&
+            review.repositoryId != null &&
+            (review.type === "pr_review" || review.type === "issue_open"),
+    );
+
+    async function onRetry(): Promise<void> {
+        if (isRetrying || !canRetry) return;
+
+        const message =
+            review.type === "pr_review"
+                ? "Start a new activity and run the pull request review again? This may post another review or comment on the pull request."
+                : "Start a new activity and run the issue open workflow again? This may post another comment on the issue.";
+
+        const confirmed = await openConfirm(message, { title: "Retry activity", confirmText: "Retry" });
+        if (!confirmed) return;
+
+        isRetrying = true;
+        try {
+            const response = await fetchApi(`/activity/${review.id}/retry`, { method: "POST" });
+            if (!response.ok) {
+                const body = (await response.json().catch(() => null)) as { error?: string } | null;
+                await openAlert(body?.error ?? "Failed to retry activity");
+                return;
+            }
+            await goto("/review");
+        } finally {
+            isRetrying = false;
+        }
+    }
 
     function formatToken(value: number | null): string {
         return value === null ? "—" : value.toLocaleString();
@@ -153,19 +188,32 @@
             <p class="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{review.errorMessage}</p>
         {/if}
 
-        <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-neutral-100 pt-3 text-sm">
-            <div>
-                <span class="text-neutral-500">Input</span>
-                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{formatToken(review.inputToken)}</span>
-            </div>
-            <div>
-                <span class="text-neutral-500">Cached</span>
-                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
-                    >{formatToken(review.cachedInputToken)}</span>
-            </div>
-            <div>
-                <span class="text-neutral-500">Output</span>
-                <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{formatToken(review.outputToken)}</span>
+        <div class="mt-4 border-t border-neutral-100 pt-3">
+            <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-3">
+                <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                    <div>
+                        <span class="text-neutral-500">Input</span>
+                        <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
+                            >{formatToken(review.inputToken)}</span>
+                    </div>
+                    <div>
+                        <span class="text-neutral-500">Cached</span>
+                        <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
+                            >{formatToken(review.cachedInputToken)}</span>
+                    </div>
+                    <div>
+                        <span class="text-neutral-500">Output</span>
+                        <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
+                            >{formatToken(review.outputToken)}</span>
+                    </div>
+                </div>
+                {#if canRetry}
+                    <div class="shrink-0 md:ml-4">
+                        <Button primary type="button" disabled={isRetrying} onclick={() => void onRetry()}>
+                            {isRetrying ? "Retrying…" : "Retry"}
+                        </Button>
+                    </div>
+                {/if}
             </div>
         </div>
     </Card>

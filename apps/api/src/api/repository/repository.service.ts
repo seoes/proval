@@ -271,10 +271,9 @@ export class RepositoryService {
         return this.toResponse(result[0], lastUsedAt[0].lastUsedAt);
     }
 
-    public async refreshPathFromGitProvider(repositoryId: number): Promise<string> {
+    public async createGitProvider(repositoryId: number): Promise<GitProvider> {
         const repository = await this.findById(repositoryId);
 
-        let gitProvider: GitProvider;
         if (repository.provider === "gitlab") {
             if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
                 throw new Error("GitLab repository is missing access or project id");
@@ -287,15 +286,26 @@ export class RepositoryService {
                 throw new Error("GitLab repository is missing access token");
             }
             const access = await accessService.findById(repository.gitProviderAccessId);
-            gitProvider = new GitLabProvider(access.baseUrl, decrypt(accessToken), repository.gitProviderRepositoryId);
-        } else if (repository.provider === "forgejo") {
+            return new GitLabProvider(access.baseUrl, decrypt(accessToken), repository.gitProviderRepositoryId);
+        }
+
+        if (repository.provider === "forgejo") {
             if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
                 throw new Error("Forgejo repository is missing access or repository id");
             }
+            const path = repository.path.trim();
+            const slash = path.indexOf("/");
+            if (slash <= 0 || slash === path.length - 1) {
+                throw new Error("Forgejo repository path must be owner/repo");
+            }
+            const owner = path.slice(0, slash);
+            const repo = path.slice(slash + 1);
             const access = await accessService.findById(repository.gitProviderAccessId);
             const token = await accessService.getAccessToken(repository.gitProviderAccessId);
-            gitProvider = new ForgejoProvider(access.baseUrl, token, "", "", repository.gitProviderRepositoryId);
-        } else if (repository.provider === "github") {
+            return new ForgejoProvider(access.baseUrl, token, owner, repo, repository.gitProviderRepositoryId);
+        }
+
+        if (repository.provider === "github") {
             if (repository.githubInstallationId == null || repository.githubRepositoryId == null) {
                 throw new Error("GitHub repository is missing installation or repository id");
             }
@@ -329,11 +339,14 @@ export class RepositoryService {
                 repository_id: repository.githubRepositoryId,
             });
 
-            gitProvider = new GitHubProvider(octokit, repo.owner.login, repo.name, `${app.slug}[bot]`);
-        } else {
-            throw new Error(`Unsupported repository provider: ${repository.provider}`);
+            return new GitHubProvider(octokit, repo.owner.login, repo.name, `${app.slug}[bot]`);
         }
 
+        throw new Error(`Unsupported repository provider: ${repository.provider}`);
+    }
+
+    public async refreshPathFromGitProvider(repositoryId: number): Promise<string> {
+        const gitProvider = await this.createGitProvider(repositoryId);
         const path = await gitProvider.fetchRepositoryPath();
         const updated = await this.updatePath(repositoryId, path);
         return updated.path;

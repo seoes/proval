@@ -51,6 +51,38 @@ export const findActivityById: Handler = async (c) => {
     }
 };
 
+const RETRY_CLIENT_ERRORS = new Set([
+    "Only failed activities can be retried",
+    "This activity type cannot be retried",
+    "Repository is no longer linked to this activity",
+    "Model provider is no longer linked to this activity",
+]);
+
+export const retryActivity: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        const newId = await activityService.retry(activityId);
+        return c.json({ id: newId }, 202);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to retry activity";
+        if (message === "Activity not found") {
+            return c.json({ error: message }, 404);
+        }
+        if (RETRY_CLIENT_ERRORS.has(message)) {
+            return c.json({ error: message }, 400);
+        }
+        return c.json({ error: message }, 500);
+    }
+};
+
 export const findActivityLogById: Handler = async (c) => {
     const id = c.req.param("id");
     if (!id) {
