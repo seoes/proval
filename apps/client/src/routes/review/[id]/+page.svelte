@@ -13,7 +13,7 @@
     import type { PageProps } from "./$types";
     import { untrack } from "svelte";
 
-    const POLL_MS = 2000;
+    const POLL_MS = 1000;
 
     const { data }: PageProps = $props();
     let review = $state<ActivityResponse>(data.review);
@@ -37,6 +37,7 @@
             review.repositoryId != null &&
             (review.type === "pr_review" || review.type === "issue_open"),
     );
+    const isRunning = $derived(review.status === "started");
 
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
@@ -105,10 +106,10 @@
         return `${stripe} hover:bg-neutral-100/80`;
     }
 
-    async function refreshWhileRunning(): Promise<void> {
+    async function refreshWhileRunning(id: number): Promise<void> {
         const [logResponse, metaResponse] = await Promise.all([
-            fetchApi(`/activity/${review.id}/log`),
-            fetchApi(`/activity/${review.id}`),
+            fetchApi(`/activity/${id}/log`),
+            fetchApi(`/activity/${id}`),
         ]);
         if (logResponse.ok) {
             log = await logResponse.json();
@@ -128,15 +129,16 @@
     });
 
     $effect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const id = data.review.id;
-        if (review.status !== "started") {
+        if (!isRunning) {
             return;
         }
 
-        void refreshWhileRunning();
+        untrack(() => {
+            void refreshWhileRunning(id);
+        });
         const timer = setInterval(() => {
-            void refreshWhileRunning();
+            void refreshWhileRunning(id);
         }, POLL_MS);
         return () => clearInterval(timer);
     });
