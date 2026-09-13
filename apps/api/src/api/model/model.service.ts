@@ -99,8 +99,18 @@ export class ModelProviderService {
         return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined)) as Partial<T>;
     }
 
+    private fetch(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+        return fetch(url, {
+            ...options,
+            headers: {
+                ...(options?.headers ?? {}),
+                "x-opencode-session": crypto.randomUUID(),
+            },
+        });
+    }
+
     public async verifyOpenAiApi(baseUrl: string, modelName: string, apiKey: string): Promise<void> {
-        const client = new OpenAI({ apiKey, baseURL: baseUrl });
+        const client = new OpenAI({ apiKey, baseURL: baseUrl, fetch: this.fetch });
         await client.chat.completions.create({
             model: modelName,
             messages: [{ role: "user", content: "Hello" }],
@@ -110,7 +120,7 @@ export class ModelProviderService {
     }
 
     public async verifyAnthropicApi(baseUrl: string, modelName: string, apiKey: string): Promise<void> {
-        const client = new Anthropic({ apiKey, baseURL: baseUrl });
+        const client = new Anthropic({ apiKey, baseURL: baseUrl, fetch: this.fetch });
         await client.messages.create({
             model: modelName,
             max_tokens: 1,

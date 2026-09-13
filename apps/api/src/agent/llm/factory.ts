@@ -16,16 +16,23 @@ export type SenderSDKConfig = Omit<SenderConfig, "provider"> & {
 
 // Bun applies a socket idle limit that fires while a slow model is still thinking.
 // Disable it and let the SDK deadline own the timeout.
-function llmFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    return fetch(input, { ...init, timeout: false } as RequestInit);
+function createLLMFetch() {
+    const sessionId = crypto.randomUUID();
+    return (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const headers = new Headers(init?.headers ?? {});
+        headers.set("x-opencode-session", sessionId);
+        headers.set("User-Agent", "Proval");
+        return fetch(input, { ...init, timeout: false, headers } as RequestInit);
+    };
 }
 
 export function createSender(config: SenderConfig): LlmSender {
+    const fetch = createLLMFetch();
     switch (config.provider) {
         case "anthropic":
-            return createAnthropicSender({ ...config, fetch: llmFetch });
+            return createAnthropicSender({ ...config, fetch });
         case "openai":
         default:
-            return createOpenAiSender({ ...config, fetch: llmFetch });
+            return createOpenAiSender({ ...config, fetch });
     }
 }
