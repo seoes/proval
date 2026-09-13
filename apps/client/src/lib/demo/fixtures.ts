@@ -697,7 +697,7 @@ function buildTokenSeries(
     }
 
     for (const activity of activities) {
-        if (activity.status !== "completed" || !activity.completedAt) continue;
+        if ((activity.status !== "completed" && activity.status !== "failed") || !activity.completedAt) continue;
         if (activity.completedAt < rowLowerBound) continue;
         const key = bucketKey(activity.completedAt, bucket);
         if (!totals.has(key)) continue;
@@ -741,8 +741,6 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
             a.completedAt !== null &&
             a.completedAt >= since,
     );
-    const completed = finished.filter((a) => a.status === "completed");
-
     return {
         range,
         stats: {
@@ -759,8 +757,8 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
             })
             .slice(0, 5),
         tokenSeries: buildTokenSeries(activityList, since, bucket, now),
-        tokensByModel: buildTokenBreakdown(completed, (a) => a.modelName),
-        tokensByRepository: buildTokenBreakdown(completed, (a) => a.repositoryPath),
+        tokensByModel: buildTokenBreakdown(finished, (a) => a.modelName),
+        tokensByRepository: buildTokenBreakdown(finished, (a) => a.repositoryPath),
         inProgress: activityList.filter((a) => a.status === "started"),
     };
 }

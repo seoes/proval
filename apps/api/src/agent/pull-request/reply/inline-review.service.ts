@@ -15,6 +15,7 @@ import {
     postPullRequestInlineReviewReplyTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
@@ -72,10 +73,13 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             ),
         ];
 
+        const activityService = new ActivityService();
+
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
             activityId,
+            onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
         });
 
         await postDevDebugPullRequestComment(

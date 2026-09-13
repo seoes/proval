@@ -13,6 +13,7 @@ import {
 } from "./tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../shared/tool";
 import type { IssueReplyOnOpen } from "./index.js";
+import { ActivityService } from "../../api/activity/activity.service.js";
 
 export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     provider,
@@ -46,10 +47,13 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
 
         const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];
 
+        const activityService = new ActivityService();
+
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
             activityId,
+            onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
         });
 
         await postDevDebugIssueComment(provider, issueIid, activityId, {

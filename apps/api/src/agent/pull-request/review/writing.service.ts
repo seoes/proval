@@ -19,6 +19,7 @@ import {
     postPullRequestCommentTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 const PRIOR_SUMMARY_MAX_CHARS = 4000;
 
@@ -56,6 +57,8 @@ export async function runReviewWritingAgent(
             : null,
         `Review unit handoffs (plain text, one block per sub agent, each includes Findings and Good Points).\n\n${reviewResultList.join("\n\n")}`,
     ].filter(Boolean);
+
+    const activityService = new ActivityService();
 
     const result = await runAgentLoop(sender, system, promptPartList.join("\n\n"), `[PR #${prIid}] Writing`, {
         toolList: [
@@ -97,6 +100,7 @@ export async function runReviewWritingAgent(
         ],
         requiredToolList: [postPullRequestCommentTool(provider, prIid, language, activityId)],
         activityId,
+        onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
     });
 
     return result.usage;

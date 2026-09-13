@@ -5,6 +5,7 @@ import type {
     ActivityLogResponse,
     ActivityResponse,
     ActivityStats,
+    ActivityTokenUsage,
     DashboardRange,
     Pagination,
     TokenBreakdownItem,
@@ -232,7 +233,12 @@ export class ActivityService {
                 outputToken: activityTable.outputToken,
             })
             .from(activityTable)
-            .where(and(gte(activityTable.completedAt, rowLowerBound), eq(activityTable.status, "completed")));
+            .where(
+                and(
+                    gte(activityTable.completedAt, rowLowerBound),
+                    inArray(activityTable.status, [...FINISHED_STATUSES]),
+                ),
+            );
 
         for (const row of rows) {
             if (!row.completedAt) continue;
@@ -256,7 +262,7 @@ export class ActivityService {
                 tokens: tokenSum.mapWith(Number),
             })
             .from(activityTable)
-            .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "completed")))
+            .where(and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES])))
             .groupBy(activityTable.modelName)
             .orderBy(desc(tokenSum))
             .limit(limit);
@@ -272,7 +278,7 @@ export class ActivityService {
                 tokens: tokenSum.mapWith(Number),
             })
             .from(activityTable)
-            .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "completed")))
+            .where(and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES])))
             .groupBy(activityTable.repositoryPath)
             .orderBy(desc(tokenSum))
             .limit(limit);
@@ -407,6 +413,24 @@ export class ActivityService {
             .returning({ id: activityTable.id });
 
         return result[0].id;
+    }
+
+    public async addTokenUsage(id: number, delta: ActivityTokenUsage): Promise<void> {
+        if (id <= 0) {
+            return;
+        }
+        try {
+            await db
+                .update(activityTable)
+                .set({
+                    inputToken: sql`coalesce(${activityTable.inputToken}, 0) + ${delta.inputToken}`,
+                    cachedInputToken: sql`coalesce(${activityTable.cachedInputToken}, 0) + ${delta.cachedInputToken}`,
+                    outputToken: sql`coalesce(${activityTable.outputToken}, 0) + ${delta.outputToken}`,
+                })
+                .where(eq(activityTable.id, id));
+        } catch (error) {
+            logError("Failed to add token usage", { id, delta }, String(error));
+        }
     }
 
     public async complete(id: number, options: ActivityCompleteOptions): Promise<void> {

@@ -20,6 +20,7 @@ import {
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 export async function runReviewPlanAgent(
     provider: GitProvider,
@@ -60,9 +61,12 @@ export async function runReviewPlanAgent(
         skipFileTool(skippedFileList),
     ];
 
+    const activityService = new ActivityService();
+
     const result = await runAgentLoop(sender, system, pullRequestContextPrompt, `[PR #${prIid}] Plan`, {
         toolList,
         activityId,
+        onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
     });
 
     return {

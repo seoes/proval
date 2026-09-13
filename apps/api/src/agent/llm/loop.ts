@@ -57,6 +57,7 @@ export async function runAgentLoop(
         maxSteps?: number;
         requiredToolList?: (AgentTool | null)[];
         activityId: number;
+        onUsage?: (usage: ActivityTokenUsage) => Promise<void>;
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -136,6 +137,14 @@ export async function runAgentLoop(
             usage.inputToken += response.usage.inputToken;
             usage.cachedInputToken += response.usage.cachedInputToken;
             usage.outputToken += response.usage.outputToken;
+
+            if (options.onUsage) {
+                await options.onUsage({
+                    inputToken: response.usage.inputToken,
+                    cachedInputToken: response.usage.cachedInputToken,
+                    outputToken: response.usage.outputToken,
+                });
+            }
 
             if (!response.message.toolCalls || response.message.toolCalls.length === 0) {
                 if (
