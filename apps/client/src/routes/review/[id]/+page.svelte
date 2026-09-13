@@ -31,6 +31,7 @@
     });
 
     let isRetrying = $state(false);
+    let selectedLabel = $state<string | null>(null);
 
     const canRetry = $derived(
         review.status === "failed" &&
@@ -105,6 +106,9 @@
         const stripe = index % 2 === 1 ? "bg-neutral-100/80 md:bg-transparent" : "";
         return `${stripe} hover:bg-neutral-100/80`;
     }
+
+    const labelList = $derived([...new Set(log.logs.map((entry) => entry.label))]);
+    const visibleLogList = $derived(log.logs.filter((entry) => !selectedLabel || entry.label === selectedLabel));
 
     async function refreshWhileRunning(id: number): Promise<void> {
         const [logResponse, metaResponse] = await Promise.all([
@@ -240,13 +244,28 @@
 
     <div class="mt-4">
         <Card>
-            <h2 class="mb-3 text-sm font-medium text-neutral-800">Log</h2>
+            <h2 class="mb-2 text-sm font-medium text-neutral-800">Log</h2>
+            {#if labelList.length > 0}
+                <div class="mb-3 flex gap-1.5 overflow-x-auto">
+                    {#each [null, ...labelList] as label (label ?? "all")}
+                        <button
+                            type="button"
+                            class="shrink-0 cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium {selectedLabel ===
+                            label
+                                ? 'border-primary bg-primary text-white'
+                                : 'border-neutral-200 text-neutral-600'}"
+                            onclick={() => (selectedLabel = label)}>
+                            {label?.split("] ").at(-1) ?? "All"}
+                        </button>
+                    {/each}
+                </div>
+            {/if}
             <div class="overflow-hidden rounded-md border border-neutral-200 bg-neutral-50">
-                {#if log.logs.length === 0}
+                {#if visibleLogList.length === 0}
                     <p class="px-3 py-8 text-center font-mono text-xs text-neutral-400">No log entries yet.</p>
                 {:else}
                     <ul class="max-h-[32rem] overflow-y-auto py-1 font-mono text-[11px] leading-5 tracking-tight">
-                        {#each log.logs as entry, index (index)}
+                        {#each visibleLogList as entry, index (index)}
                             <li class="group flex gap-2.5 px-3 py-1.5 md:py-1 {logRowClass(entry.level, index)}">
                                 <span class="hidden shrink-0 text-neutral-400 md:inline">{entry.label}</span>
                                 <span class="min-w-0 flex-1 break-words {logLevelTextColor(entry.level)}"
