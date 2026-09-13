@@ -93,37 +93,16 @@
     let isLoadingModels = $state(false);
     let selectedRepositoryId = $state<string>(String(config.repositoryId ?? ""));
 
-    let previousModelProviderId = $state(selectedModelProviderId);
+    let previousModelProviderId = selectedModelProviderId;
 
     $effect(() => {
-        if (selectedModelProviderId !== previousModelProviderId) {
-            if (previousModelProviderId !== "") {
-                modelName = "";
-            }
-            previousModelProviderId = selectedModelProviderId;
-        }
-
-        if (!selectedModelProviderId) {
+        const id = selectedModelProviderId;
+        if (id !== previousModelProviderId) {
+            if (previousModelProviderId !== "") modelName = "";
+            previousModelProviderId = id;
             availableModels = [];
-            return;
         }
-
-        void (async () => {
-            isLoadingModels = true;
-            try {
-                const res = await fetchApi(`/model-provider/${selectedModelProviderId}/model`);
-                if (res.ok) {
-                    const body = (await res.json()) as ModelProviderModelListResponse;
-                    availableModels = body.models;
-                } else {
-                    availableModels = [];
-                }
-            } catch {
-                availableModels = [];
-            } finally {
-                isLoadingModels = false;
-            }
-        })();
+        void loadModelList();
     });
 
     const path = $derived(
@@ -157,6 +136,21 @@
     let webhookSecretModalOpen = $state(false);
     let modelListModalOpen = $state(false);
     let modelNameDraft = $state("");
+
+    async function loadModelList() {
+        const id = selectedModelProviderId;
+        if (!id) return;
+        isLoadingModels = true;
+        try {
+            const res = await fetchApi(`/model-provider/${id}/model`);
+            if (id !== selectedModelProviderId) return;
+            availableModels = res.ok ? ((await res.json()) as ModelProviderModelListResponse).models : [];
+        } catch {
+            if (id === selectedModelProviderId) availableModels = [];
+        } finally {
+            if (id === selectedModelProviderId) isLoadingModels = false;
+        }
+    }
 
     function openModelModal() {
         if (!selectedModelProviderId) return;
