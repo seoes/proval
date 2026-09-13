@@ -12,6 +12,7 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
+import { isBotMentioned } from "../../util/mention.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -275,7 +276,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
     }
 
     const noteBody: string = payload.object_attributes?.note;
-    const mentioned = noteBody.includes(`@${botUsername}`);
+    const mentioned = isBotMentioned(noteBody, [botUsername]);
     const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
@@ -458,7 +459,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
-    const mentioned = noteBody.includes(`@${botUsername}`);
+    const mentioned = isBotMentioned(noteBody, [botUsername]);
     const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,

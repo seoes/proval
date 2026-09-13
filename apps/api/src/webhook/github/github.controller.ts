@@ -12,6 +12,7 @@ import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-requ
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import { isBotMentioned } from "../../util/mention.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -345,7 +346,7 @@ async function handleIssueCommentWebhook(
             return new Response(JSON.stringify({ message: "Reply mode is off" }), { status: 200 });
         }
 
-        const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+        const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
         const senderLogin = sender?.login;
         const accessSkip = await skipIfInsufficientAccess(
             gitHubProvider,
@@ -397,7 +398,7 @@ async function handleIssueCommentWebhook(
         });
     }
 
-    const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
     const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
@@ -478,7 +479,7 @@ async function handlePullRequestReviewCommentWebhook(
     }
 
     const noteBody = comment.body ?? "";
-    const mentioned = isBotMentioned(noteBody, botUsername, githubApp.slug);
+    const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
     const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
@@ -523,10 +524,6 @@ async function handlePullRequestReviewCommentWebhook(
     });
 
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
-}
-
-function isBotMentioned(noteBody: string, botUsername: string, appSlug: string): boolean {
-    return noteBody.includes(`@${botUsername}`) || noteBody.includes(`@${appSlug}`);
 }
 
 async function skipIfInsufficientAccess(

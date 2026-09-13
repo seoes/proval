@@ -3,6 +3,7 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
+import { isBotMentioned } from "../../util/mention.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -402,12 +403,13 @@ const handleForgejoCommentWebhook = async (
     const [owner, repo] = payload.repository.full_name.split("/");
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
     const botUsername = (await forgejoProvider.fetchCurrentUser()).username;
+    const mentioned = isBotMentioned(comment.body, [botUsername]);
 
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
         commenterUsername ? { login: commenterUsername } : null,
         repository.issueMinAccessLevel,
-        repository.issueMentionOnly && comment.body.includes(`@${botUsername}`),
+        repository.issueMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -535,11 +537,12 @@ async function startForgejoPrReply(
         return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
+    const mentioned = isBotMentioned(noteBody, [botUsername]);
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
         commenterUsername ? { login: commenterUsername } : null,
         repository.prMinAccessLevel,
-        repository.prMentionOnly && noteBody.includes(`@${botUsername}`),
+        repository.prMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
