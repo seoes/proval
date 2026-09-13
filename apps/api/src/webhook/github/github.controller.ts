@@ -12,7 +12,7 @@ import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-requ
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 import { CommentService } from "../../api/comment/comment.service.js";
-import { isBotMentioned } from "../../util/mention.js";
+import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -153,7 +153,6 @@ async function handlePullRequestWebhook(
         gitHubProvider,
         authorLogin ? { login: authorLogin } : null,
         repository.prMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -266,7 +265,6 @@ async function handleIssueWebhook(
         gitHubProvider,
         authorLogin ? { login: authorLogin } : null,
         repository.issueMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -347,12 +345,14 @@ async function handleIssueCommentWebhook(
         }
 
         const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
+        if (shouldSkipReplyWithoutMention(repository.prMentionOnly, mentioned)) {
+            return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+        }
         const senderLogin = sender?.login;
         const accessSkip = await skipIfInsufficientAccess(
             gitHubProvider,
             senderLogin ? { login: senderLogin } : null,
             repository.prMinAccessLevel,
-            repository.prMentionOnly && mentioned,
             "Skipped: missing user",
         );
         if (accessSkip) return accessSkip;
@@ -399,12 +399,14 @@ async function handleIssueCommentWebhook(
     }
 
     const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
+    if (shouldSkipReplyWithoutMention(repository.issueMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
     const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
         senderLogin ? { login: senderLogin } : null,
         repository.issueMinAccessLevel,
-        repository.issueMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -480,12 +482,14 @@ async function handlePullRequestReviewCommentWebhook(
 
     const noteBody = comment.body ?? "";
     const mentioned = isBotMentioned(noteBody, [botUsername, githubApp.slug]);
+    if (shouldSkipReplyWithoutMention(repository.prMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
     const senderLogin = sender?.login;
     const accessSkip = await skipIfInsufficientAccess(
         gitHubProvider,
         senderLogin ? { login: senderLogin } : null,
         repository.prMinAccessLevel,
-        repository.prMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -530,10 +534,9 @@ async function skipIfInsufficientAccess(
     provider: GitProvider,
     identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
-    mentionBypass: boolean,
     missingMessage: string,
 ): Promise<Response | null> {
-    if (mentionBypass || minAccessLevel <= 0) return null;
+    if (minAccessLevel <= 0) return null;
     if (identity == null) {
         return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
     }

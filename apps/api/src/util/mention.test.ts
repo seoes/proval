@@ -1,7 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import { isBotMentioned } from "./mention.js";
+import { isBotMentioned, shouldSkipReplyWithoutMention } from "./mention.js";
 
 const provalAliasList = ["proval"];
+
+describe("shouldSkipReplyWithoutMention", () => {
+    it("skips when mention only is on and bot was not mentioned", () => {
+        expect(shouldSkipReplyWithoutMention(true, false)).toBe(true);
+    });
+
+    it("does not skip when mention only is off", () => {
+        expect(shouldSkipReplyWithoutMention(false, false)).toBe(false);
+    });
+
+    it("does not skip when bot was mentioned", () => {
+        expect(shouldSkipReplyWithoutMention(true, true)).toBe(false);
+    });
+});
 
 describe("isBotMentioned", () => {
     it("matches case insensitive mention", () => {

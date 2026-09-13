@@ -12,7 +12,7 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
-import { isBotMentioned } from "../../util/mention.js";
+import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -142,7 +142,6 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         gitlabProvider,
         authorId == null ? null : { userId: authorId },
         repository.prMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -277,12 +276,14 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const noteBody: string = payload.object_attributes?.note;
     const mentioned = isBotMentioned(noteBody, [botUsername]);
+    if (shouldSkipReplyWithoutMention(repository.prMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
     const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
         commenterId == null ? null : { userId: commenterId },
         repository.prMinAccessLevel,
-        repository.prMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -366,7 +367,6 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         gitlabProvider,
         authorId == null ? null : { userId: authorId },
         repository.issueMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -460,12 +460,14 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     }
 
     const mentioned = isBotMentioned(noteBody, [botUsername]);
+    if (shouldSkipReplyWithoutMention(repository.issueMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
     const commenterId = payload.user?.id;
     const accessSkip = await skipIfInsufficientAccess(
         gitlabProvider,
         commenterId == null ? null : { userId: commenterId },
         repository.issueMinAccessLevel,
-        repository.issueMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -508,10 +510,9 @@ async function skipIfInsufficientAccess(
     provider: GitProvider,
     identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
-    mentionBypass: boolean,
     missingMessage: string,
 ): Promise<Response | null> {
-    if (mentionBypass || minAccessLevel <= 0) return null;
+    if (minAccessLevel <= 0) return null;
     if (identity == null) {
         return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
     }

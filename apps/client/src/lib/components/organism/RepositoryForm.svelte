@@ -476,7 +476,7 @@
                         <div>
                             <FieldTitle class="ml-1">Mentioned only</FieldTitle>
                             <Description class="ml-1"
-                                >Non-members can trigger the bot by mentioning @Proval.</Description>
+                                >Reply only when someone at or above minimum access @mentions the bot.</Description>
                         </div>
                         <ToggleSwitch bind:checked={prMentionOnly} disabled={!prEnabled || !prReplyEnabled} />
                     </div>
@@ -511,7 +511,7 @@
                         <div>
                             <FieldTitle class="ml-1">Mentioned only</FieldTitle>
                             <Description class="ml-1"
-                                >Non-members can trigger the bot by mentioning @Proval.</Description>
+                                >Reply only when someone at or above minimum access @mentions the bot.</Description>
                         </div>
                         <ToggleSwitch bind:checked={issueMentionOnly} disabled={!issueEnabled || !issueReplyEnabled} />
                     </div>

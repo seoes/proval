@@ -1,3 +1,7 @@
+export function shouldSkipReplyWithoutMention(mentionOnly: boolean, mentioned: boolean): boolean {
+    return mentionOnly && !mentioned;
+}
+
 export function isBotMentioned(body: string, aliasList: string[]): boolean {
     const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

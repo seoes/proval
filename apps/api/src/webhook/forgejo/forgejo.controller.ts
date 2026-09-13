@@ -3,7 +3,7 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
-import { isBotMentioned } from "../../util/mention.js";
+import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -176,7 +176,6 @@ const handleForgejoPullRequestWebhook = async (
         forgejoProvider,
         pr.user?.login ? { login: pr.user.login } : null,
         repository.prMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -293,7 +292,6 @@ const handleForgejoIssuesWebhook = async (
         forgejoProvider,
         issue.user?.login ? { login: issue.user.login } : null,
         repository.issueMinAccessLevel,
-        false,
         "Skipped: missing author",
     );
     if (accessSkip) return accessSkip;
@@ -404,12 +402,14 @@ const handleForgejoCommentWebhook = async (
     const forgejoProvider = new ForgejoProvider(access.baseUrl, token, owner, repo);
     const botUsername = (await forgejoProvider.fetchCurrentUser()).username;
     const mentioned = isBotMentioned(comment.body, [botUsername]);
+    if (shouldSkipReplyWithoutMention(repository.issueMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
 
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
         commenterUsername ? { login: commenterUsername } : null,
         repository.issueMinAccessLevel,
-        repository.issueMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -538,11 +538,13 @@ async function startForgejoPrReply(
     }
 
     const mentioned = isBotMentioned(noteBody, [botUsername]);
+    if (shouldSkipReplyWithoutMention(repository.prMentionOnly, mentioned)) {
+        return new Response(JSON.stringify({ message: "Skipped: bot not mentioned" }), { status: 200 });
+    }
     const accessSkip = await skipIfInsufficientAccess(
         forgejoProvider,
         commenterUsername ? { login: commenterUsername } : null,
         repository.prMinAccessLevel,
-        repository.prMentionOnly && mentioned,
         "Skipped: missing user",
     );
     if (accessSkip) return accessSkip;
@@ -587,10 +589,9 @@ async function skipIfInsufficientAccess(
     provider: GitProvider,
     identity: GitUserPermissionIdentity | null,
     minAccessLevel: number,
-    mentionBypass: boolean,
     missingMessage: string,
 ): Promise<Response | null> {
-    if (mentionBypass || minAccessLevel <= 0) return null;
+    if (minAccessLevel <= 0) return null;
     if (identity == null) {
         log(missingMessage, "Forgejo");
         return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
