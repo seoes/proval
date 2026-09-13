@@ -30,7 +30,6 @@
         return message.split("\n").length > 5 || message.length > 400;
     });
 
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
     let isRetrying = $state(false);
 
     const canRetry = $derived(
@@ -106,20 +105,16 @@
         return `${stripe} hover:bg-neutral-100/80`;
     }
 
-    async function refreshLog(): Promise<void> {
-        const response = await fetchApi(`/activity/${review.id}/log`);
-        if (!response.ok) return;
-        const next: ActivityLogResponse = await response.json();
-        log = next;
-        if (next.status !== "started" && pollTimer) {
-            clearInterval(pollTimer);
-            pollTimer = null;
-            if (review.status === "started") {
-                const meta = await fetchApi(`/activity/${review.id}`);
-                if (meta.ok) {
-                    review = await meta.json();
-                }
-            }
+    async function refreshWhileRunning(): Promise<void> {
+        const [logResponse, metaResponse] = await Promise.all([
+            fetchApi(`/activity/${review.id}/log`),
+            fetchApi(`/activity/${review.id}`),
+        ]);
+        if (logResponse.ok) {
+            log = await logResponse.json();
+        }
+        if (metaResponse.ok) {
+            review = await metaResponse.json();
         }
     }
 
@@ -135,11 +130,13 @@
     $effect(() => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const id = data.review.id;
-        const shouldPoll = log.status !== "started" && review.status !== "started";
-        if (!shouldPoll) return;
+        if (review.status !== "started") {
+            return;
+        }
 
+        void refreshWhileRunning();
         const timer = setInterval(() => {
-            void refreshLog();
+            void refreshWhileRunning();
         }, POLL_MS);
         return () => clearInterval(timer);
     });

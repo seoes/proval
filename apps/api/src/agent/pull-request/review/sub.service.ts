@@ -9,6 +9,7 @@ import { REVIEW_CHECKLIST } from "../prompt";
 import { getFileDiffTool, getPushFileDiffTool } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 export async function runReviewSubAgent(
     provider: GitProvider,
@@ -39,9 +40,13 @@ export async function runReviewSubAgent(
         listDirectoryTool(workspace),
         getFileContentTool(workspace),
     ];
+
+    const activityService = new ActivityService();
+
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Sub ${index}/${totalIndex}`, {
         toolList,
         activityId,
+        onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
     });
 
     if (!result.finalMessage) {
