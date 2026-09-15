@@ -2,6 +2,7 @@ import type { LlmSender } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import type { Workspace } from "../../git-provider/workspace.js";
 import type { ActivityTokenUsage } from "@proval/types";
+import type { ReviewHandoff } from "./review/handoff.schema.js";
 import type { ReviewUnit } from "./review/plan.schema.js";
 
 type PullRequestReviewParams = {
@@ -31,7 +32,7 @@ export type PullRequestReviewSubAgentResult = {
     index: number;
     total: number;
     reviewUnit: ReviewUnit;
-    finalMessage: string;
+    handoff: ReviewHandoff;
     inputToken: number;
     outputToken: number;
     cachedInputToken: number;

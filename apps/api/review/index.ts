@@ -262,7 +262,7 @@ function printResult(provider: MockProvider, review: PullRequestReviewResult): v
         for (const sub of review.subAgentList) {
             logBlock(
                 `Sub ${sub.index}/${sub.total}: ${sub.reviewUnit.name} · in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`,
-                sub.finalMessage,
+                JSON.stringify(sub.handoff, null, 2),
             );
         }
     }

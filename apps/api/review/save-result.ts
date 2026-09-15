@@ -145,7 +145,9 @@ function renderMarkdown(doc: ResultDocument): string {
         for (const sub of doc.review.subAgentList) {
             lines.push(`### Sub ${sub.index}/${sub.total}: ${sub.reviewUnit.name}`, "");
             lines.push(`tokens in=${sub.inputToken} out=${sub.outputToken} cached=${sub.cachedInputToken}`, "");
-            lines.push(sub.finalMessage.trimEnd() || "(empty)", "");
+            lines.push("```json");
+            lines.push(JSON.stringify(sub.handoff, null, 2));
+            lines.push("```", "");
         }
     }
 
