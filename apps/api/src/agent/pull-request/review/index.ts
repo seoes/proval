@@ -3,6 +3,7 @@ import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { generatePullRequestPrompt } from "../prompt/context.js";
 import { runReviewPlanAgent } from "./plan.service.js";
 import { runReviewSubAgent } from "./sub.service.js";
+import type { ReviewHandoff } from "./handoff.schema.js";
 import { runReviewWritingAgent, truncatePriorSummary } from "./writing.service.js";
 import { buildFollowUpThreadContext, buildPushScopeContext } from "./follow-up.context.js";
 import { logAgent, logAgentError } from "../../../util/log.js";
@@ -120,6 +121,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             usePushScope,
         );
         const total = planResult.reviewUnitList.length;
+        const reviewHandoffList: ReviewHandoff[] = [];
 
         const subAgentResultList = await Promise.all(
             planResult.reviewUnitList.map((reviewUnit, index) =>
@@ -130,6 +132,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                     prompt,
                     prIid,
                     reviewUnit,
+                    reviewHandoffList,
                     index + 1,
                     total,
                     activityId,
@@ -137,6 +140,8 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 ),
             ),
         );
+
+        const sortedHandoffList = [...reviewHandoffList].sort((a, b) => a.unitId - b.unitId);
 
         const writingResult = await runReviewWritingAgent(
             provider,
@@ -147,7 +152,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             baseSha,
             headSha,
             startSha,
-            subAgentResultList.map((result) => result.finalMessage),
+            sortedHandoffList,
             isInlineReview,
             language,
             activityId,
@@ -190,7 +195,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 index: index + 1,
                 total,
                 reviewUnit: planResult.reviewUnitList[index]!,
-                finalMessage: result.finalMessage,
+                handoff: result.handoff,
                 inputToken: result.inputToken,
                 outputToken: result.outputToken,
                 cachedInputToken: result.cachedInputToken,

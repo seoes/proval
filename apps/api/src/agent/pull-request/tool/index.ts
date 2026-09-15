@@ -16,3 +16,4 @@ export { approvePullRequestTool } from "./approve-pull-request.js";
 export { unapprovePullRequestTool } from "./unapprove-pull-request.js";
 export { appendReviewUnitTool } from "./append-review-unit.js";
 export { skipFileTool } from "./skip-file.js";
+export { submitReviewHandoffTool } from "./submit-review-handoff.js";

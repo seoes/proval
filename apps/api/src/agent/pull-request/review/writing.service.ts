@@ -20,6 +20,7 @@ import {
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { ActivityService } from "../../../api/activity/activity.service.js";
+import type { ReviewHandoff } from "./handoff.schema.js";
 
 const PRIOR_SUMMARY_MAX_CHARS = 4000;
 
@@ -32,7 +33,7 @@ export async function runReviewWritingAgent(
     baseSha: string,
     headSha: string,
     startSha: string,
-    reviewResultList: string[],
+    reviewHandoffList: ReviewHandoff[],
     isInlineReview: boolean,
     language: string,
     activityId: number,
@@ -55,7 +56,12 @@ export async function runReviewWritingAgent(
         isFollowUpReview && priorBotSummary
             ? `Prior Proval review summary (already posted, do not repeat the same findings):\n\n${priorBotSummary}`
             : null,
-        `Review unit handoffs (plain text, one block per sub agent, each includes Findings and Good Points).\n\n${reviewResultList.join("\n\n")}`,
+        [
+            "Review unit handoffs as JSON (one object per sub agent; fields unitId, unitName, findingList, goodPointList, optional ruledOut).",
+            "See system instructions for severity mapping and how to turn problem/impact/fix/suggestedCode into published comments.",
+            "",
+            JSON.stringify(reviewHandoffList, null, 2),
+        ].join("\n"),
     ].filter(Boolean);
 
     const activityService = new ActivityService();
