@@ -122,7 +122,8 @@ export class GitLabProvider implements GitProvider {
     }
 
     public async fetchGitRepositoryAuthHeader(): Promise<string> {
-        return `Authorization: Bearer ${this.token}`;
+        const basic = Buffer.from(`oauth2:${this.token}`, "utf8").toString("base64");
+        return `Authorization: Basic ${basic}`;
     }
 
     public getPullRequestHeadFetchRef(prIid: number): string {
