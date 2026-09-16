@@ -12,13 +12,13 @@ This page is a **reference example**. Docker Compose remains the recommended ins
 
 ## Contract
 
-| Item | Value |
-| ---- | ----- |
-| **Image** | `ghcr.io/seoes/proval:<tag>` |
-| **Ports** | **7900** dashboard, **7901** webhooks |
-| **Volume** | `/data` |
-| **Env** | `ENCRYPTION_KEY`, `DB_FILE_NAME=/data/app.db`. Optional `COOKIE_SECURE=true` when the dashboard is served over HTTPS |
-| **Health** | `GET /api/health` on port **7900** |
+| Item       | Value                                                                                                                |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Image**  | `ghcr.io/seoes/proval:<tag>`                                                                                         |
+| **Ports**  | **7900** dashboard, **7901** webhooks                                                                                |
+| **Volume** | `/data`                                                                                                              |
+| **Env**    | `ENCRYPTION_KEY`, `DB_FILE_NAME=/data/app.db`. Optional `COOKIE_SECURE=true` when the dashboard is served over HTTPS |
+| **Health** | `GET /api/health` on port **7900**                                                                                   |
 
 Generate `ENCRYPTION_KEY` with `openssl rand -base64 32`.
 
@@ -30,84 +30,84 @@ Replace the encryption key and pin an image tag before you apply this in a real 
 apiVersion: v1
 kind: Secret
 metadata:
-  name: proval
+    name: proval
 type: Opaque
 stringData:
-  encryption-key: "[Encryption Key]"
+    encryption-key: "[Encryption Key]"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: proval-data
+    name: proval-data
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 10Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: proval
+    name: proval
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: proval
-  template:
-    metadata:
-      labels:
-        app: proval
-    spec:
-      containers:
-        - name: proval
-          image: ghcr.io/seoes/proval:latest
-          ports:
-            - name: dashboard
-              containerPort: 7900
-            - name: webhook
-              containerPort: 7901
-          env:
-            - name: ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: proval
-                  key: encryption-key
-            - name: DB_FILE_NAME
-              value: /data/app.db
-          volumeMounts:
-            - name: data
-              mountPath: /data
-          readinessProbe:
-            httpGet:
-              path: /api/health
-              port: 7900
-          livenessProbe:
-            httpGet:
-              path: /api/health
-              port: 7900
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: proval-data
+    replicas: 1
+    strategy:
+        type: Recreate
+    selector:
+        matchLabels:
+            app: proval
+    template:
+        metadata:
+            labels:
+                app: proval
+        spec:
+            containers:
+                - name: proval
+                  image: ghcr.io/seoes/proval:latest
+                  ports:
+                      - name: dashboard
+                        containerPort: 7900
+                      - name: webhook
+                        containerPort: 7901
+                  env:
+                      - name: ENCRYPTION_KEY
+                        valueFrom:
+                            secretKeyRef:
+                                name: proval
+                                key: encryption-key
+                      - name: DB_FILE_NAME
+                        value: /data/app.db
+                  volumeMounts:
+                      - name: data
+                        mountPath: /data
+                  readinessProbe:
+                      httpGet:
+                          path: /api/health
+                          port: 7900
+                  livenessProbe:
+                      httpGet:
+                          path: /api/health
+                          port: 7900
+            volumes:
+                - name: data
+                  persistentVolumeClaim:
+                      claimName: proval-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: proval
+    name: proval
 spec:
-  selector:
-    app: proval
-  ports:
-    - name: dashboard
-      port: 7900
-      targetPort: dashboard
-    - name: webhook
-      port: 7901
-      targetPort: webhook
+    selector:
+        app: proval
+    ports:
+        - name: dashboard
+          port: 7900
+          targetPort: dashboard
+        - name: webhook
+          port: 7901
+          targetPort: webhook
 ```
 
 ## HTTPS

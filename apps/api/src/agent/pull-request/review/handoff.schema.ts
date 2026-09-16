@@ -50,9 +50,7 @@ export const reviewHandoffGoodPointSchema = z.object({
     whatWentWell: z
         .string()
         .describe("2 to 3 sentences: what the author did well, with evidence from the cited file and line."),
-    whyItMatters: z
-        .string()
-        .describe("1 to 2 sentences: benefit for correctness, maintainability, or team workflow."),
+    whyItMatters: z.string().describe("1 to 2 sentences: benefit for correctness, maintainability, or team workflow."),
 });
 
 export type ReviewHandoffGoodPoint = z.infer<typeof reviewHandoffGoodPointSchema>;

@@ -226,9 +226,7 @@
                 {:else}
                     <div class="flex flex-col items-center py-2 text-center">
                         <p class="text-neutral-600">No GitLab access configurations</p>
-                        <p class="mt-1 text-sm text-neutral-400">
-                            Add a GitLab access token to connect repositories
-                        </p>
+                        <p class="mt-1 text-sm text-neutral-400">Add a GitLab access token to connect repositories</p>
                         <Button primary onclick={() => openAddModal("gitlab")} class="mt-4">
                             Add GitLab connection
                         </Button>
@@ -262,9 +260,7 @@
                 {:else}
                     <div class="flex flex-col items-center py-2 text-center">
                         <p class="text-neutral-600">No Forgejo access configurations</p>
-                        <p class="mt-1 text-sm text-neutral-400">
-                            Add a Forgejo access token to connect repositories
-                        </p>
+                        <p class="mt-1 text-sm text-neutral-400">Add a Forgejo access token to connect repositories</p>
                         <Button primary onclick={() => openAddModal("forgejo")} class="mt-4">
                             Add Forgejo connection
                         </Button>

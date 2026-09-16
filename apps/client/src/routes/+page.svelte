@@ -10,11 +10,7 @@
     import DashboardRangeToggle from "$lib/components/molecule/DashboardRangeToggle.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
-    import {
-        activityStatusBadge,
-        activityTargetLabel,
-        activityTypeLabel,
-    } from "$lib/utils/label";
+    import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import fetchApi, { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
     import type { ActivityResponse, ActivitySummaryResponse, DashboardRange } from "@proval/types";
@@ -209,7 +205,8 @@
                         </a>
                     {/if}
                 </div>
-                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+                <div
+                    class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
                     {#each inProgressList as activity (activity.id)}
                         {@render activityRow(activity)}
                     {/each}
@@ -228,10 +225,7 @@
             </div>
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <SummaryPannel label="Total activity" value={stats.totalActivity} />
-                <SummaryPannel
-                    label="Errors"
-                    value={stats.errors}
-                    status={stats.errors > 0 ? "error" : "neutral"} />
+                <SummaryPannel label="Errors" value={stats.errors} status={stats.errors > 0 ? "error" : "neutral"} />
                 <SummaryPannel label="Reviews" value={stats.reviews} />
                 <SummaryPannel label="Replies" value={stats.replies} />
             </div>

@@ -20,8 +20,7 @@
     const isLoggedIn = $derived(!!data.auth.user);
     const canEditSettings = $derived(data.auth.user?.role === "admin");
     const isDirty = $derived(
-        isAuthEnabled !== data.setting.isAuthEnabled ||
-            isRegistrationEnabled !== data.setting.isRegistrationEnabled,
+        isAuthEnabled !== data.setting.isAuthEnabled || isRegistrationEnabled !== data.setting.isRegistrationEnabled,
     );
 
     $effect(() => {
@@ -108,9 +107,7 @@
         <Card border title="Authentication">
             {#if !isLoggedIn}
                 <div class="space-y-4">
-                    <Description placement="below">
-                        Sign in as an admin to change authentication settings.
-                    </Description>
+                    <Description placement="below">Sign in as an admin to change authentication settings.</Description>
                     <Button primary onclick={() => goto(`/login?next=${encodeURIComponent("/settings")}`)}>
                         Sign in
                     </Button>
@@ -119,7 +116,7 @@
                 <div class="space-y-6">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <FieldTitle class="ml-1 mb-1">Require authentication</FieldTitle>
+                            <FieldTitle class="mb-1 ml-1">Require authentication</FieldTitle>
                             <Description placement="below">
                                 When enabled, users must sign in to use the dashboard.
                             </Description>
@@ -133,7 +130,7 @@
                     {#if isAuthEnabled}
                         <div class="flex items-start justify-between gap-4 border-t border-neutral-200 pt-6">
                             <div>
-                                <FieldTitle class="ml-1 mb-1">Allow new user registration</FieldTitle>
+                                <FieldTitle class="mb-1 ml-1">Allow new user registration</FieldTitle>
                                 <Description placement="below">
                                     When enabled, anyone can create an account from the register page.
                                 </Description>

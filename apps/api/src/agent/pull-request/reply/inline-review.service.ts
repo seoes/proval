@@ -63,14 +63,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         ];
 
         const requiredToolList = [
-            postPullRequestInlineReviewReplyTool(
-                provider,
-                prIid,
-                inlineReviewId,
-                comment.author,
-                language,
-                activityId,
-            ),
+            postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language, activityId),
         ];
 
         const activityService = new ActivityService();

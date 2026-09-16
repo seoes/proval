@@ -187,7 +187,7 @@
             {#if open}
                 <ul
                     id={listboxId}
-                    class="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+                    class="absolute top-full z-50 mt-1 max-h-60 w-full overflow-x-hidden overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
                     role="listbox">
                     {#each options as option, index (option.value)}
                         <li>

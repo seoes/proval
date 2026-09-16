@@ -114,18 +114,14 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
 
     const isDraft = Boolean(
         (pullRequest as { draft?: boolean; work_in_progress?: boolean }).draft ||
-            (pullRequest as { draft?: boolean; work_in_progress?: boolean }).work_in_progress,
+        (pullRequest as { draft?: boolean; work_in_progress?: boolean }).work_in_progress,
     );
     const oldrev = (pullRequest as { oldrev?: string | null }).oldrev;
     const hasPush = typeof oldrev === "string" && oldrev.length > 0;
     const changes = (payload as { changes?: { draft?: { previous?: boolean; current?: boolean } } }).changes;
-    const becameReady =
-        changes?.draft?.previous === true && changes?.draft?.current === false;
+    const becameReady = changes?.draft?.previous === true && changes?.draft?.current === false;
 
-    const allowedAction =
-        action === "open" ||
-        action === "reopen" ||
-        (action === "update" && (hasPush || becameReady));
+    const allowedAction = action === "open" || action === "reopen" || (action === "update" && (hasPush || becameReady));
     if (!allowedAction) {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
@@ -160,8 +156,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     }
 
     const version = await gitlabProvider.fetchPullRequestVersion(prIid);
-    const headSha =
-        (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
+    const headSha = (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
 
     let lastHeadSha: string | null = null;
     if (reviewMode === "on_every_push") {

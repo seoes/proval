@@ -82,12 +82,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 logAgent(activityId, `push scope ready (${pushFileList.length} files)`, label);
             } catch (error) {
                 previousShaForPrompt = null;
-                logAgentError(
-                    activityId,
-                    "push scope failed, falling back to full pull request diffs",
-                    error,
-                    label,
-                );
+                logAgentError(activityId, "push scope failed, falling back to full pull request diffs", error, label);
             }
         }
 

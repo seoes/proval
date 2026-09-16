@@ -39,13 +39,7 @@
         { value: "manual" as const, label: "Existing app", description: "Paste credentials from GitHub App settings" },
     ];
 
-    const title = $derived(
-        step === "mode"
-            ? "Connect GitHub App"
-            : step === "quick"
-              ? "Quick setup"
-              : "Existing app",
-    );
+    const title = $derived(step === "mode" ? "Connect GitHub App" : step === "quick" ? "Quick setup" : "Existing app");
 
     const normalizedManualBaseUrl = $derived.by(() => {
         const raw = manualBaseUrl.trim().replace(/\/$/, "");
@@ -69,9 +63,7 @@
         }
     });
 
-    const manualWebhookHint = $derived(
-        normalizedManualBaseUrl ? `${normalizedManualBaseUrl}/webhook/github` : "",
-    );
+    const manualWebhookHint = $derived(normalizedManualBaseUrl ? `${normalizedManualBaseUrl}/webhook/github` : "");
 
     function continueFromMode() {
         step = regMode;
@@ -186,9 +178,7 @@
     </div>
 {:else if step === "quick"}
     <div class="space-y-4">
-        <FormField
-            label="Public base URL"
-            description="Must be reachable by GitHub from the internet">
+        <FormField label="Public base URL" description="Must be reachable by GitHub from the internet">
             {#snippet children({ id })}
                 <InputText {id} placeholder="https://proval.example.com" bind:value={webhookUrl} />
             {/snippet}
@@ -239,7 +229,8 @@
             {/snippet}
         </FormField>
         {#if manualWebhookHint}
-            <div class="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-600 dark:bg-neutral-900">
+            <div
+                class="flex items-center gap-2 rounded-lg bg-neutral-50 px-3 py-2 text-sm text-neutral-600 dark:bg-neutral-900">
                 <span class="min-w-0 flex-1 truncate font-mono text-xs">{manualWebhookHint}</span>
                 <Button text onclick={copyWebhookHint} class="shrink-0 text-xs">Copy</Button>
             </div>

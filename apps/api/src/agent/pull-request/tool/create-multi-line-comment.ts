@@ -133,9 +133,11 @@ export function createMultiLineCommentTool(
                 }
             }
 
-            const resolveEndpoint = (
-                endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number },
-            ): { error: string } | { line: GitDiffLine } => {
+            const resolveEndpoint = (endpoint: {
+                type: "old" | "new";
+                newLine?: number;
+                oldLine?: number;
+            }): { error: string } | { line: GitDiffLine } => {
                 if (endpoint.type === "new") {
                     const newLine = endpoint.newLine!;
                     if (!newLines.has(newLine)) {

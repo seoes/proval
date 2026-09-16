@@ -14,8 +14,7 @@ function formatCommentLine(comment: GitComment): string {
 
 function formatInlineReview(review: GitPullRequestInlineReview): string {
     const commentLineList = review.commentList.map(
-        (comment) =>
-            `  - [#${comment.id}] @${comment.author}: ${previewBody(comment.body)}`,
+        (comment) => `  - [#${comment.id}] @${comment.author}: ${previewBody(comment.body)}`,
     );
     return [
         `- thread ${review.id} path=${review.path}${review.isResolved ? " (resolved)" : ""}`,
@@ -41,14 +40,9 @@ export async function buildFollowUpThreadContext(provider: GitProvider, prIid: n
     const recentInlineList = [...inlineReviewList].sort(byCreatedAtAsc).slice(-FOLLOW_UP_THREAD_LIMIT);
 
     const commentBlock =
-        recentCommentList.length === 0
-            ? "(none)"
-            : recentCommentList.map(formatCommentLine).join("\n");
+        recentCommentList.length === 0 ? "(none)" : recentCommentList.map(formatCommentLine).join("\n");
 
-    const inlineBlock =
-        recentInlineList.length === 0
-            ? "(none)"
-            : recentInlineList.map(formatInlineReview).join("\n");
+    const inlineBlock = recentInlineList.length === 0 ? "(none)" : recentInlineList.map(formatInlineReview).join("\n");
 
     return [
         "# Existing PR discussion (previews)",
@@ -69,8 +63,7 @@ export function buildPushScopeContext(params: {
     pushPathList: string[];
 }): string {
     const { previousHeadSha, headSha, pushPathList } = params;
-    const pathBlock =
-        pushPathList.length === 0 ? "(none)" : pushPathList.map((path) => `- ${path}`).join("\n");
+    const pathBlock = pushPathList.length === 0 ? "(none)" : pushPathList.map((path) => `- ${path}`).join("\n");
 
     return [
         "# Follow-up push scope",

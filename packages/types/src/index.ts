@@ -58,9 +58,4 @@ export type {
     TokenBreakdownItem,
     ActivitySummaryResponse,
 } from "./activity-summary.js";
-export type {
-    ActivityLogLevel,
-    ActivityLogEntry,
-    ActivityLogResponse,
-    ActivityResponse,
-} from "./activity-log.js";
+export type { ActivityLogLevel, ActivityLogEntry, ActivityLogResponse, ActivityResponse } from "./activity-log.js";

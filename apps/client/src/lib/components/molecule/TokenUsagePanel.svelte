@@ -240,7 +240,7 @@
                         <span class="min-w-0 truncate text-neutral-600 dark:text-neutral-300" title={item.label}>
                             {shortLabel(item.label)}
                         </span>
-                        <span class="shrink-0 tabular-nums text-neutral-800 dark:text-neutral-100">
+                        <span class="shrink-0 text-neutral-800 tabular-nums dark:text-neutral-100">
                             {formatTokens(item.tokens)}
                         </span>
                     </li>
@@ -255,7 +255,8 @@
         <div class="flex min-w-0 flex-wrap items-end gap-x-6 gap-y-3">
             <div>
                 <div class="flex items-baseline gap-2">
-                    <p class="text-2xl font-semibold tracking-tight text-neutral-800 tabular-nums dark:text-neutral-100">
+                    <p
+                        class="text-2xl font-semibold tracking-tight text-neutral-800 tabular-nums dark:text-neutral-100">
                         {formatTokens(totalTokens)}
                     </p>
                     <span class="text-sm text-neutral-400">{RANGE_SUBTITLE[range]}</span>
@@ -275,7 +276,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-neutral-400">{AVG_LABEL[range]}</p>
-                    <p class="mt-0.5 text-sm font-medium tabular-nums text-neutral-700 dark:text-neutral-200">
+                    <p class="mt-0.5 text-sm font-medium text-neutral-700 tabular-nums dark:text-neutral-200">
                         {labeledSeries.length === 0
                             ? "—"
                             : formatTokens(Math.round(totalTokens / labeledSeries.length))}
@@ -284,7 +285,7 @@
             </div>
         </div>
 
-        <div class="grid w-full min-w-0 grid-cols-2 gap-4 sm:w-auto sm:min-w-[16rem] sm:max-w-sm sm:shrink-0">
+        <div class="grid w-full min-w-0 grid-cols-2 gap-4 sm:w-auto sm:max-w-sm sm:min-w-[16rem] sm:shrink-0">
             {@render breakdownList("By Model", byModel)}
             {@render breakdownList("By Project", byRepository)}
         </div>
@@ -313,7 +314,7 @@
                             class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
                             style="left: clamp(3.5rem, {leftPct}%, calc(100% - 3.5rem))">
                             <p class="text-[11px] leading-none text-neutral-400">{hovered.label}</p>
-                            <p class="mt-1 text-sm font-semibold tabular-nums text-neutral-800 dark:text-neutral-100">
+                            <p class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
                                 {hovered.tokens.toLocaleString()}
                                 <span class="text-xs font-normal text-neutral-400">tokens</span>
                             </p>
@@ -323,7 +324,7 @@
                             class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
                             style="left: clamp(4rem, {dragArea.centerPct}%, calc(100% - 4rem))">
                             <p class="text-[11px] leading-none text-neutral-400">{rangeLabel}</p>
-                            <p class="mt-1 text-sm font-semibold tabular-nums text-neutral-800 dark:text-neutral-100">
+                            <p class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
                                 {rangeSum.toLocaleString()}
                                 <span class="text-xs font-normal text-neutral-400">tokens</span>
                             </p>
@@ -402,7 +403,8 @@
                             {@const topPct = (hovered.y / HEIGHT) * 100}
                             <div
                                 class="pointer-events-none absolute z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-white dark:bg-neutral-800"
-                                style="left: {leftPct}%; top: {topPct}%"></div>
+                                style="left: {leftPct}%; top: {topPct}%">
+                            </div>
                         {/if}
                     </div>
                 </div>

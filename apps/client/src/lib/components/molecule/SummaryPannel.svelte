@@ -37,7 +37,7 @@
 
     {#if href && actionLabel}
         <a
-            href={href}
+            {href}
             class="mt-3 inline-block text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
             {actionLabel}
         </a>

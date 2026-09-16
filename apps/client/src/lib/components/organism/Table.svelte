@@ -12,8 +12,7 @@
 
 <div class="rounded-lg border border-neutral-200 bg-white">
     <table
-        class="w-full min-w-full border-separate border-spacing-0 [&_tbody_tr:last-child_td:first-child]:rounded-bl-lg [&_tbody_tr:last-child_td:last-child]:rounded-br-lg [&_thead_th:first-child]:rounded-tl-lg [&_thead_th:last-child]:rounded-tr-lg"
-    >
+        class="w-full min-w-full border-separate border-spacing-0 [&_tbody_tr:last-child_td:first-child]:rounded-bl-lg [&_tbody_tr:last-child_td:last-child]:rounded-br-lg [&_thead_th:first-child]:rounded-tl-lg [&_thead_th:last-child]:rounded-tr-lg">
         <thead>
             <tr class="bg-neutral-100">
                 {@render renderHeader()}

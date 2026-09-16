@@ -606,8 +606,7 @@ export class GitLabProvider implements GitProvider {
         const fileHash = createHash("sha1")
             .update(position.newPath || position.oldPath)
             .digest("hex");
-        const lineCode = (line: GitDiffLine) =>
-            `${fileHash}_${line.oldLine ?? 0}_${line.newLine ?? 0}`;
+        const lineCode = (line: GitDiffLine) => `${fileHash}_${line.oldLine ?? 0}_${line.newLine ?? 0}`;
 
         const discussion = await this.gitlab.MergeRequestDiscussions.create(this.projectId, prIid, body, {
             position: {

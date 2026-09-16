@@ -47,12 +47,7 @@ export function faqPageLd(faqs: readonly { question: string; answer: string }[])
     };
 }
 
-export function articleLd(input: {
-    title: string;
-    description: string;
-    path: string;
-    datePublished: string;
-}) {
+export function articleLd(input: { title: string; description: string; path: string; datePublished: string }) {
     const url = `${SITE_URL}${input.path}`;
     return {
         "@context": "https://schema.org",

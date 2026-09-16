@@ -72,7 +72,7 @@ export const REVIEW_PLAN = [
     "- A direct import is sufficient but NOT required. If runtime flow, error propagation, data handoff, or a shared contract connects the files, add a reference.",
     "- When logic looks removed, thinned, or moved out of a changed file, reference the file(s) that likely now own that responsibility so the sub-agent can check the full path.",
     "- Smaller units need more boundary references, not fewer.",
-    "- reason must tell the sub-agent what to verify there (e.g. \"caller that catches thrown errors\", \"provider that maps not-found into a soft error\", \"shared request validation contract\").",
+    '- reason must tell the sub-agent what to verify there (e.g. "caller that catches thrown errors", "provider that maps not-found into a soft error", "shared request validation contract").',
     "- Do not duplicate a path already in this unit's files[]; keep primary scope paths in files.",
     "- path must be the full repo-root-relative file path (e.g. apps/web/modules/foo.tsx). Not an import alias, not a package name, not a path relative to another file.",
     "- Before append_review_unit, resolve each reference path with glob (by filename pattern) or list_directory (by directory), then confirm with get_file_content if needed (why: wrong paths make sub-agents miss boundary context).",

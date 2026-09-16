@@ -45,18 +45,18 @@
             <div class="h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
                 <div
                     class="h-full rounded-full bg-primary transition-all duration-300"
-                    style="width: {progressPercent}%"></div>
+                    style="width: {progressPercent}%">
+                </div>
             </div>
         </div>
 
         <div class="divide-y divide-neutral-200 dark:divide-neutral-700">
             {#each steps as step (step.id)}
-                <div class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                    class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex min-w-0 items-start gap-3">
                         {#if step.status === "complete"}
-                            <CheckCircleIcon
-                                weight="fill"
-                                class="mt-0.5 size-5 shrink-0 text-primary" />
+                            <CheckCircleIcon weight="fill" class="mt-0.5 size-5 shrink-0 text-primary" />
                         {:else if step.status === "blocked"}
                             <LockIcon class="mt-0.5 size-5 shrink-0 text-neutral-400" />
                         {:else}

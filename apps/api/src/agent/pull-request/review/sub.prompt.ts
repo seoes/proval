@@ -26,7 +26,7 @@ export const REVIEW_SUB_AGENT_BODY = [
     "",
     "Phase A — Understand architecture, workflow, data flow, and dependencies around files[] and references[] (why: so Phase B judgments use the real call path).",
     "  Read the planner's references with get_file_diff or get_file_content as above, then follow one or two more hops via grep / get_file_content for any symbol, call, or control-flow path that looks incomplete in the diff.",
-    "  Suspicions of the form \"this looks missing\", \"this looks weaker\", or \"this was deleted\" must be checked against surrounding flow before Phase B.",
+    '  Suspicions of the form "this looks missing", "this looks weaker", or "this was deleted" must be checked against surrounding flow before Phase B.',
     "Phase B — Review every relevant diff hunk against the checklist below, using what you learned in Phase A (why: checklist hits without path evidence are noise).",
     "  Re-open get_file_diff when you need exact line numbers for the handoff.",
     "Phase C — Call submit_review_handoff once with your findings and good points (why: the writing agent only sees this tool payload).",

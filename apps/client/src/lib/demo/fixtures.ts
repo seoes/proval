@@ -254,8 +254,7 @@ function tokenProfile(
         else inputToken = randInt(rng, 900000, 1900000); // rare heavy reviews
         const cacheRatio = 0.55 + rng() * 0.3; // ~55–85%, matching real cache hit rates
         const cachedInputToken = Math.floor(inputToken * cacheRatio);
-        const outputToken =
-            roll < 0.95 ? randInt(rng, 16000, 52000) : randInt(rng, 80000, 180000);
+        const outputToken = roll < 0.95 ? randInt(rng, 16000, 52000) : randInt(rng, 80000, 180000);
         return { inputToken, cachedInputToken, outputToken };
     }
 
@@ -269,8 +268,7 @@ function tokenProfile(
     const roll = rng();
     let inputToken: number;
     if (type === "issue_reply") {
-        inputToken =
-            roll < 0.7 ? randInt(rng, 20000, 70000) : randInt(rng, 70000, 120000);
+        inputToken = roll < 0.7 ? randInt(rng, 20000, 70000) : randInt(rng, 70000, 120000);
     } else if (roll < 0.55) {
         inputToken = randInt(rng, 35000, 110000);
     } else if (roll < 0.9) {
@@ -279,8 +277,7 @@ function tokenProfile(
         inputToken = randInt(rng, 250000, 450000); // long thread / large context
     }
     const cachedInputToken = Math.floor(inputToken * (0.55 + rng() * 0.3));
-    const outputToken =
-        roll < 0.75 ? randInt(rng, 4500, 10000) : randInt(rng, 1500, 4500);
+    const outputToken = roll < 0.75 ? randInt(rng, 4500, 10000) : randInt(rng, 1500, 4500);
     return { inputToken, cachedInputToken, outputToken };
 }
 
@@ -562,13 +559,7 @@ function buildHistoricalActivities(): ActivityResponse[] {
             const failed = rng() < 0.04;
             const hour = isWeekend ? randInt(rng, 10, 20) : randInt(rng, 8, 22);
             const minute = randInt(rng, 0, 59);
-            const completedAt = new Date(
-                cursor.getFullYear(),
-                cursor.getMonth(),
-                cursor.getDate(),
-                hour,
-                minute,
-            );
+            const completedAt = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), hour, minute);
             const durationMin = type === "pr_review" ? randInt(rng, 4, 18) : randInt(rng, 1, 6);
             const createdAt = new Date(completedAt.getTime() - durationMin * 60 * 1000);
             const tokens = failed
@@ -736,10 +727,7 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
     const replyTypes = new Set(["pr_reply", "issue_reply"]);
 
     const finished = activityList.filter(
-        (a) =>
-            (a.status === "completed" || a.status === "failed") &&
-            a.completedAt !== null &&
-            a.completedAt >= since,
+        (a) => (a.status === "completed" || a.status === "failed") && a.completedAt !== null && a.completedAt >= since,
     );
     return {
         range,
@@ -965,9 +953,7 @@ export function getModelListByProviderId(providerId: number): ModelProviderModel
 }
 
 export function paginateActivities(page: number, limit: number): Pagination<ActivityResponse> {
-    const sorted = [...activityList].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    const sorted = [...activityList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const total = sorted.length;
     const start = (page - 1) * limit;
     const itemList = sorted.slice(start, start + limit);

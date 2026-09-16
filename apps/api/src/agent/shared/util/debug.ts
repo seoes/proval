@@ -52,12 +52,7 @@ export async function postDevDebugPullRequestComment(
         const comment = inlineReviewId
             ? await provider.replyToPullRequestInlineReview(prIid, inlineReviewId, body)
             : await provider.createPullRequestComment(prIid, body);
-        await commentService.create(
-            activityId,
-            inlineReviewId ? "inline_review" : "comment",
-            comment.id,
-            comment.body,
-        );
+        await commentService.create(activityId, inlineReviewId ? "inline_review" : "comment", comment.id, comment.body);
         for (const flushed of provider.takeFlushedInlineCommentList()) {
             await commentService.create(activityId, "inline_review", flushed.id, flushed.body);
         }

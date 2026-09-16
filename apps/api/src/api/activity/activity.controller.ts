@@ -51,11 +51,7 @@ export const findActivityById: Handler = async (c) => {
     }
 };
 
-const RETRY_NOT_FOUND_ERRORS = new Set([
-    "Activity not found",
-    "Repository not found",
-    "Model provider not found",
-]);
+const RETRY_NOT_FOUND_ERRORS = new Set(["Activity not found", "Repository not found", "Model provider not found"]);
 
 const RETRY_CLIENT_ERRORS = new Set([
     "Only failed activities can be retried",
