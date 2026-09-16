@@ -1,9 +1,9 @@
 import type { Context } from "hono";
 import { ForgejoProvider } from "../../git-provider/forgejo.js";
-import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -177,6 +177,7 @@ const handleForgejoPullRequestWebhook = async (
         pr.user?.login ? { login: pr.user.login } : null,
         repository.prMinAccessLevel,
         "Skipped: missing author",
+        "Forgejo",
     );
     if (accessSkip) return accessSkip;
 
@@ -293,6 +294,7 @@ const handleForgejoIssuesWebhook = async (
         issue.user?.login ? { login: issue.user.login } : null,
         repository.issueMinAccessLevel,
         "Skipped: missing author",
+        "Forgejo",
     );
     if (accessSkip) return accessSkip;
 
@@ -411,6 +413,7 @@ const handleForgejoCommentWebhook = async (
         commenterUsername ? { login: commenterUsername } : null,
         repository.issueMinAccessLevel,
         "Skipped: missing user",
+        "Forgejo",
     );
     if (accessSkip) return accessSkip;
 
@@ -546,6 +549,7 @@ async function startForgejoPrReply(
         commenterUsername ? { login: commenterUsername } : null,
         repository.prMinAccessLevel,
         "Skipped: missing user",
+        "Forgejo",
     );
     if (accessSkip) return accessSkip;
 
@@ -583,32 +587,4 @@ async function startForgejoPrReply(
         "Forgejo",
     );
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
-}
-
-async function skipIfInsufficientAccess(
-    provider: GitProvider,
-    identity: GitUserPermissionIdentity | null,
-    minAccessLevel: number,
-    missingMessage: string,
-): Promise<Response | null> {
-    if (minAccessLevel <= 0) return null;
-    if (identity == null) {
-        log(missingMessage, "Forgejo");
-        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
-    }
-    let level = 0;
-    try {
-        level = await provider.fetchUserPermission(identity);
-    } catch (error) {
-        logError("permission lookup failed", error, "Forgejo");
-        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
-    }
-    if (level < minAccessLevel) {
-        log(
-            `Skipped: insufficient permission (${"login" in identity ? identity.login : String(identity.userId)})`,
-            "Forgejo",
-        );
-        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
-    }
-    return null;
 }

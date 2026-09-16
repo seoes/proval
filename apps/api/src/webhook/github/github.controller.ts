@@ -2,9 +2,9 @@ import type { Context } from "hono";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { GitHubProvider } from "../../git-provider/github.js";
-import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { logError } from "../../util/log.js";
+import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -528,27 +528,4 @@ async function handlePullRequestReviewCommentWebhook(
     });
 
     return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
-}
-
-async function skipIfInsufficientAccess(
-    provider: GitProvider,
-    identity: GitUserPermissionIdentity | null,
-    minAccessLevel: number,
-    missingMessage: string,
-): Promise<Response | null> {
-    if (minAccessLevel <= 0) return null;
-    if (identity == null) {
-        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
-    }
-    let level = 0;
-    try {
-        level = await provider.fetchUserPermission(identity);
-    } catch (error) {
-        logError("permission lookup failed", error);
-        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
-    }
-    if (level < minAccessLevel) {
-        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
-    }
-    return null;
 }

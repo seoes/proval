@@ -9,10 +9,10 @@ import type {
 } from "@gitbeaker/rest";
 import type { Context } from "hono";
 import { GitLabProvider } from "../../git-provider/gitlab.js";
-import type { GitProvider, GitUserPermissionIdentity } from "../../git-provider/types.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -505,26 +505,3 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
 
     return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
 };
-
-async function skipIfInsufficientAccess(
-    provider: GitProvider,
-    identity: GitUserPermissionIdentity | null,
-    minAccessLevel: number,
-    missingMessage: string,
-): Promise<Response | null> {
-    if (minAccessLevel <= 0) return null;
-    if (identity == null) {
-        return new Response(JSON.stringify({ message: missingMessage }), { status: 200 });
-    }
-    let level = 0;
-    try {
-        level = await provider.fetchUserPermission(identity);
-    } catch (error) {
-        logError("permission lookup failed", error);
-        return new Response(JSON.stringify({ message: "Skipped: permission lookup failed" }), { status: 200 });
-    }
-    if (level < minAccessLevel) {
-        return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
-    }
-    return null;
-}
