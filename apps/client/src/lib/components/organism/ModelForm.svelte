@@ -230,6 +230,14 @@
             {/snippet}
         </FormField>
 
+        {#if mode === "create"}
+            <FormField label="API Key" description="Required when creating a model provider">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
+                {/snippet}
+            </FormField>
+        {/if}
+
         <FormField
             label="Request Timeout"
             description="Maximum wait time for LLM responses in seconds. Increase for slow local models.">
@@ -238,13 +246,7 @@
             {/snippet}
         </FormField>
 
-        {#if mode === "create"}
-            <FormField label="API Key" description="Required when creating a model provider">
-                {#snippet children({ id })}
-                    <InputText {id} placeholder="sk-..." bind:value={apiKey} password />
-                {/snippet}
-            </FormField>
-        {:else if modelProviderId}
+        {#if mode === "edit" && modelProviderId}
             <div class="flex justify-end pt-2">
                 <Button text onclick={() => (apiKeyModalOpen = true)} type="button" class="w-auto text-xs">
                     Update API Key
