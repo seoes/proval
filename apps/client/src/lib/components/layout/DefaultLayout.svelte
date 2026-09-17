@@ -11,7 +11,7 @@
 </script>
 
 <svelte:head>
-    <title>{title} — Proval</title>
+    <title>{title} — Proval{import.meta.env.DEV ? " [DEV]" : ""}</title>
 </svelte:head>
 
 <div class="mx-auto {narrow ? 'max-w-lg' : 'max-w-6xl'}">
