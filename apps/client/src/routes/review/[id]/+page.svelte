@@ -70,6 +70,15 @@
         return value === null ? "—" : value.toLocaleString();
     }
 
+    function formatCacheRate(cached: number | null, input: number | null): string {
+        if (cached === null || input === null || input <= 0) {
+            return "—";
+        }
+        return `${((cached / input) * 100).toFixed(1)}%`;
+    }
+
+    const cacheRateLabel = $derived(formatCacheRate(review.cachedInputToken, review.inputToken));
+
     function formatLogTime(timestamp: string): string {
         const date = new Date(timestamp);
         if (Number.isNaN(date.getTime())) {
@@ -229,6 +238,10 @@
                         <span class="text-neutral-500">Output</span>
                         <span class="ml-1.5 font-medium text-neutral-800 tabular-nums"
                             >{formatToken(review.outputToken)}</span>
+                    </div>
+                    <div>
+                        <span class="text-neutral-500">Cache Rate</span>
+                        <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{cacheRateLabel}</span>
                     </div>
                 </div>
                 {#if canRetry}
