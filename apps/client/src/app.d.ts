@@ -8,6 +8,8 @@ declare global {
         // interface PageState {}
         // interface Platform {}
     }
+
+    const __PROVAL_DEMO_BUILD__: boolean;
 }
 
 export {};
