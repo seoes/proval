@@ -45,6 +45,7 @@ export function activityTypeLabel(type: ActivityResponse["type"]): string {
 export function activityStatusBadge(status: ActivityResponse["status"]): OptionBadge {
     if (status === "completed") return { variant: "success", label: "Completed" };
     if (status === "failed") return { variant: "danger", label: "Failed" };
+    if (status === "canceled") return { variant: "neutral", label: "Canceled" };
     return { variant: "primary", label: "Started" };
 }
 

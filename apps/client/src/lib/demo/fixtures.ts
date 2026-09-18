@@ -688,7 +688,11 @@ function buildTokenSeries(
     }
 
     for (const activity of activities) {
-        if ((activity.status !== "completed" && activity.status !== "failed") || !activity.completedAt) continue;
+        if (
+            (activity.status !== "completed" && activity.status !== "failed" && activity.status !== "canceled") ||
+            !activity.completedAt
+        )
+            continue;
         if (activity.completedAt < rowLowerBound) continue;
         const key = bucketKey(activity.completedAt, bucket);
         if (!totals.has(key)) continue;
@@ -727,7 +731,10 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
     const replyTypes = new Set(["pr_reply", "issue_reply"]);
 
     const finished = activityList.filter(
-        (a) => (a.status === "completed" || a.status === "failed") && a.completedAt !== null && a.completedAt >= since,
+        (a) =>
+            (a.status === "completed" || a.status === "failed" || a.status === "canceled") &&
+            a.completedAt !== null &&
+            a.completedAt >= since,
     );
     return {
         range,

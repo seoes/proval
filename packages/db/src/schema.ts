@@ -163,7 +163,7 @@ export const activityTable = sqliteTable(
         modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
-        status: text({ enum: ["started", "completed", "failed"] }).notNull(),
+        status: text({ enum: ["started", "completed", "failed", "canceled"] }).notNull(),
         targetIid: integer().notNull(),
         headSha: text(),
         inputToken: integer(),

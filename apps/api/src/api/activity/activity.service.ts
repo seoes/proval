@@ -28,7 +28,7 @@ type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const MAX_ACTIVITY_LOGS = 200;
 
-const FINISHED_STATUSES = ["completed", "failed"] as const;
+const FINISHED_STATUSES = ["completed", "failed", "canceled"] as const;
 
 const { logs: _, ...activityWithoutLogs } = getTableColumns(activityTable);
 
@@ -305,6 +305,11 @@ export class ActivityService {
         return rows[0];
     }
 
+    public async isCanceled(id: number): Promise<boolean> {
+        const activity = await this.findById(id);
+        return activity?.status === "canceled";
+    }
+
     public async findLastReviewedHeadSha(repositoryId: number, targetIid: number): Promise<string | null> {
         const rows = await db
             .select({ headSha: activityTable.headSha })
@@ -443,7 +448,7 @@ export class ActivityService {
                 outputToken: options.outputToken,
                 completedAt: new Date(),
             })
-            .where(eq(activityTable.id, id))
+            .where(and(eq(activityTable.id, id), eq(activityTable.status, "started")))
             .returning({ id: activityTable.id });
 
         if (result.length === 0) {
@@ -459,11 +464,30 @@ export class ActivityService {
                 errorMessage,
                 completedAt: new Date(),
             })
-            .where(eq(activityTable.id, id))
+            .where(and(eq(activityTable.id, id), eq(activityTable.status, "started")))
             .returning({ id: activityTable.id });
 
         if (result.length === 0) {
             throw new Error("Activity not found");
+        }
+    }
+
+    public async cancel(id: number): Promise<void> {
+        const result = await db
+            .update(activityTable)
+            .set({
+                status: "canceled",
+                completedAt: new Date(),
+            })
+            .where(and(eq(activityTable.id, id), eq(activityTable.status, "started")))
+            .returning({ id: activityTable.id });
+
+        if (result.length === 0) {
+            const activity = await this.findById(id);
+            if (activity === null) {
+                throw new Error("Activity not found");
+            }
+            throw new Error("Only started activities can be canceled");
         }
     }
 
@@ -472,8 +496,8 @@ export class ActivityService {
         if (activity === null) {
             throw new Error("Activity not found");
         }
-        if (activity.status !== "failed") {
-            throw new Error("Only failed activities can be retried");
+        if (activity.status !== "failed" && activity.status !== "canceled") {
+            throw new Error("Only failed or canceled activities can be retried");
         }
         if (!RETRY_TYPES.includes(activity.type as RetryActivityType)) {
             throw new Error("This activity type cannot be retried");

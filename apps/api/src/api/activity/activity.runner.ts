@@ -1,4 +1,5 @@
 import type { ActivityTokenUsage } from "@proval/types";
+import { JobCanceledError } from "../../agent/llm/loop.js";
 import { ActivityService, type ActivityStartInput } from "./activity.service";
 import { logError } from "../../util/log";
 
@@ -12,6 +13,9 @@ export async function runWithActivity(
         const tokenUsage = await run(activityId);
         await activityService.complete(activityId, tokenUsage);
     } catch (error) {
+        if (error instanceof JobCanceledError) {
+            return;
+        }
         const errorMessage = error instanceof Error ? error.message : String(error);
         try {
             await activityService.fail(activityId, errorMessage);
