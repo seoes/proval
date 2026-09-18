@@ -1,3 +1,4 @@
+import { ActivityService } from "../../api/activity/activity.service.js";
 import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
 import type { ActivityTokenUsage } from "@proval/types";
 import {
@@ -39,6 +40,13 @@ export interface LlmSender {
     getModel(): { model: string; provider: string; baseUrl: string };
 }
 
+export class JobCanceledError extends Error {
+    constructor() {
+        super("Job canceled by user");
+        this.name = "JobCanceledError";
+    }
+}
+
 export interface AgentRunResult {
     finalMessage: string | null;
     messages: Message[];
@@ -62,6 +70,14 @@ export async function runAgentLoop(
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
     const activityId = options.activityId;
+    const activityService = new ActivityService();
+
+    async function stopIfCanceled(): Promise<void> {
+        if (await activityService.isCanceled(activityId)) {
+            logAgent(activityId, "Job canceled by user. Stopping agent loop.", label);
+            throw new JobCanceledError();
+        }
+    }
 
     try {
         const usage: ActivityTokenUsage = {
@@ -99,6 +115,8 @@ export async function runAgentLoop(
             stepCount++;
             const remainingSteps = maxSteps - step;
 
+            await stopIfCanceled();
+
             const messagesWithStepInfo: Message[] = [
                 ...messages,
                 {
@@ -110,6 +128,7 @@ export async function runAgentLoop(
             let response: LlmResponse | null = null;
             let lastError: unknown;
             for (let i = 0; i < 3; i++) {
+                await stopIfCanceled();
                 try {
                     response = await sender.send(messagesWithStepInfo, toolList);
                     break;
@@ -198,6 +217,8 @@ export async function runAgentLoop(
 
             logAgent(activityId, `step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`, label);
 
+            await stopIfCanceled();
+
             const results = await Promise.all(
                 response.message.toolCalls.map(async (tc) => {
                     const tool = toolList.find((t) => t.name === tc.name);
@@ -238,6 +259,9 @@ export async function runAgentLoop(
             }
         }
     } catch (error: unknown) {
+        if (error instanceof JobCanceledError) {
+            throw error;
+        }
         logAgentError(activityId, "agent loop failed", error, label);
         throw error;
     }

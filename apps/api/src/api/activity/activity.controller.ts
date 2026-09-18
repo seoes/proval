@@ -54,11 +54,15 @@ export const findActivityById: Handler = async (c) => {
 const RETRY_NOT_FOUND_ERRORS = new Set(["Activity not found", "Repository not found", "Model provider not found"]);
 
 const RETRY_CLIENT_ERRORS = new Set([
-    "Only failed activities can be retried",
+    "Only failed or canceled activities can be retried",
     "This activity type cannot be retried",
     "Repository is no longer linked to this activity",
     "Model provider is no longer linked to this activity",
 ]);
+
+const CANCEL_NOT_FOUND_ERRORS = new Set(["Activity not found"]);
+
+const CANCEL_CLIENT_ERRORS = new Set(["Only started activities can be canceled"]);
 
 export const retryActivity: Handler = async (c) => {
     const id = c.req.param("id");
@@ -79,6 +83,31 @@ export const retryActivity: Handler = async (c) => {
             return c.json({ error: message }, 404);
         }
         if (RETRY_CLIENT_ERRORS.has(message)) {
+            return c.json({ error: message }, 400);
+        }
+        return c.json({ error: message }, 500);
+    }
+};
+
+export const cancelActivity: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        await activityService.cancel(activityId);
+        return c.json({ message: "Cancel requested" }, 202);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to cancel activity";
+        if (CANCEL_NOT_FOUND_ERRORS.has(message)) {
+            return c.json({ error: message }, 404);
+        }
+        if (CANCEL_CLIENT_ERRORS.has(message)) {
             return c.json({ error: message }, 400);
         }
         return c.json({ error: message }, 500);

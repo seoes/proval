@@ -34,11 +34,14 @@
     let selectedLabel = $state<string | null>(null);
 
     const canRetry = $derived(
-        review.status === "failed" &&
+        (review.status === "failed" || review.status === "canceled") &&
             review.repositoryId != null &&
             (review.type === "pr_review" || review.type === "issue_open"),
     );
+    const canCancel = $derived(review.status === "started");
     const isRunning = $derived(review.status === "started");
+
+    let isCanceling = $state(false);
 
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
@@ -64,6 +67,30 @@
             isRetrying = false;
         }
     }
+
+    async function onCancel(): Promise<void> {
+        if (isCanceling || !canCancel) return;
+
+        const confirmed = await openConfirm(
+            "Stop this running job? The agent will stop after the current step finishes.",
+            { title: "Cancel job", confirmText: "Cancel job" },
+        );
+        if (!confirmed) return;
+
+        isCanceling = true;
+        try {
+            const response = await fetchApi(`/activity/${review.id}/cancel`, { method: "POST" });
+            if (!response.ok) {
+                const body = (await response.json().catch(() => null)) as { error?: string } | null;
+                await openAlert(body?.error ?? "Failed to cancel activity");
+                return;
+            }
+            await refreshWhileRunning(review.id);
+        } finally {
+            isCanceling = false;
+        }
+    }
+
     let errorModalOpen = $state(false);
 
     function formatToken(value: number | null): string {
@@ -244,11 +271,21 @@
                         <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{cacheRateLabel}</span>
                     </div>
                 </div>
-                {#if canRetry}
+                {#if canCancel || canRetry}
                     <div class="shrink-0 md:ml-4">
-                        <Button primary type="button" disabled={isRetrying} onclick={() => void onRetry()}>
-                            {isRetrying ? "Retrying…" : "Retry"}
-                        </Button>
+                        {#if canCancel}
+                            <Button
+                                secondary
+                                type="button"
+                                disabled={isCanceling}
+                                onclick={() => void onCancel()}>
+                                {isCanceling ? "Canceling…" : "Cancel job"}
+                            </Button>
+                        {:else if canRetry}
+                            <Button primary type="button" disabled={isRetrying} onclick={() => void onRetry()}>
+                                {isRetrying ? "Retrying…" : "Retry"}
+                            </Button>
+                        {/if}
                     </div>
                 {/if}
             </div>
