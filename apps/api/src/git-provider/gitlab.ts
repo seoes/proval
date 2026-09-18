@@ -547,7 +547,38 @@ export class GitLabProvider implements GitProvider {
         });
         if (response.status === 404) return 0;
         if (!response.ok) {
-            throw new Error(`GitLab permission lookup failed: ${response.status} ${response.statusText}`);
+            const raw = (await response.text()).trim();
+            const base = `${response.status} ${response.statusText}`.trim();
+            let detail = base;
+            if (raw) {
+                try {
+                    const body = JSON.parse(raw) as { message?: unknown; error_description?: string; error?: string };
+                    if (typeof body.message === "string" && body.message.trim() && body.message.trim() !== base) {
+                        detail = `${base} (${body.message.trim()})`;
+                    } else if (Array.isArray(body.message) && body.message.length > 0) {
+                        const joined = body.message.map(String).join(", ");
+                        if (joined !== base) {
+                            detail = `${base} (${joined})`;
+                        }
+                    } else {
+                        const desc = body.error_description?.trim();
+                        if (desc && desc !== base) {
+                            detail = `${base} (${desc})`;
+                        } else {
+                            const err = body.error?.trim();
+                            if (err && err !== base) {
+                                detail = `${base} (${err})`;
+                            }
+                        }
+                    }
+                } catch {
+                    if (raw !== base && raw !== String(response.status)) {
+                        const snippet = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
+                        detail = `${base} (${snippet})`;
+                    }
+                }
+            }
+            throw new Error(`GitLab permission lookup failed: ${detail}`);
         }
         const member = (await response.json()) as { access_level?: number };
         return gitlabAccessToLevel(member.access_level ?? 0);
@@ -708,7 +739,38 @@ export class GitLabProvider implements GitProvider {
         });
 
         if (!response.ok) {
-            throw new Error(`GitLab request failed: ${response.status} ${response.statusText}`);
+            const raw = (await response.text()).trim();
+            const base = `${response.status} ${response.statusText}`.trim();
+            let detail = base;
+            if (raw) {
+                try {
+                    const body = JSON.parse(raw) as { message?: unknown; error_description?: string; error?: string };
+                    if (typeof body.message === "string" && body.message.trim() && body.message.trim() !== base) {
+                        detail = `${base} (${body.message.trim()})`;
+                    } else if (Array.isArray(body.message) && body.message.length > 0) {
+                        const joined = body.message.map(String).join(", ");
+                        if (joined !== base) {
+                            detail = `${base} (${joined})`;
+                        }
+                    } else {
+                        const desc = body.error_description?.trim();
+                        if (desc && desc !== base) {
+                            detail = `${base} (${desc})`;
+                        } else {
+                            const err = body.error?.trim();
+                            if (err && err !== base) {
+                                detail = `${base} (${err})`;
+                            }
+                        }
+                    }
+                } catch {
+                    if (raw !== base && raw !== String(response.status)) {
+                        const snippet = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
+                        detail = `${base} (${snippet})`;
+                    }
+                }
+            }
+            throw new Error(`GitLab request failed: ${detail}`);
         }
 
         return (await response.json()) as T;

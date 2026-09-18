@@ -911,9 +911,24 @@ export class ForgejoProvider implements GitProvider {
         });
 
         if (!response.ok) {
-            await response.text();
+            const raw = (await response.text()).trim();
+            const base = `${response.status} ${response.statusText}`.trim();
+            let suffix = base;
+            if (raw) {
+                try {
+                    const body = JSON.parse(raw) as { message?: string };
+                    if (typeof body.message === "string" && body.message.trim() && body.message.trim() !== base) {
+                        suffix = `${base} (${body.message.trim()})`;
+                    }
+                } catch {
+                    if (raw !== base && raw !== String(response.status)) {
+                        const snippet = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
+                        suffix = `${base} (${snippet})`;
+                    }
+                }
+            }
             log(`request failed ${response.status} ${path}`, "Forgejo");
-            const error = new Error(`Forgejo request failed ${response.status} ${path}`);
+            const error = new Error(`Forgejo request failed ${path}: ${suffix}`);
             (error as Error & { status: number }).status = response.status;
             throw error;
         }

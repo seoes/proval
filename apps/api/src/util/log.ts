@@ -88,8 +88,15 @@ export function logAgentTool(activityId: number, label: string, heading: string,
 }
 
 export function logAgentError(activityId: number, message: string, error?: unknown, label?: string): void {
+    let storedMessage = message;
+    if (error instanceof Error) {
+        const errorMessage = error.message.trim();
+        if (errorMessage && !message.includes(errorMessage)) {
+            storedMessage = `${message}: ${errorMessage}`;
+        }
+    }
     logError(shortenLogMessage(message, TERMINAL_ERROR_LOG_MAX), error, label);
-    persistAgentLog(activityId, "error", label ?? "log", message);
+    persistAgentLog(activityId, "error", label ?? "log", storedMessage);
 }
 
 function formatAgentResultMessage(

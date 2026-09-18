@@ -434,7 +434,7 @@ export class ActivityService {
                 })
                 .where(eq(activityTable.id, id));
         } catch (error) {
-            logError("Failed to add token usage", { id, delta }, String(error));
+            logError(`Failed to add token usage for activity ${id}`, error);
         }
     }
 

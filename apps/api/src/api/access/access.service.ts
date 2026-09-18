@@ -148,10 +148,23 @@ export class GitLabAccessService {
             },
             keepalive: false,
         });
-        if (response.status === 401) {
-            return { success: false, message: "Unauthorized" };
+        if (response.ok) {
+            return { success: true, message: "Authorized" };
         }
-        return { success: true, message: "Authorized" };
+        const raw = (await response.text()).trim();
+        const base = `${response.status} ${response.statusText}`.trim();
+        let message = base;
+        if (raw) {
+            try {
+                const body = JSON.parse(raw) as { message?: string };
+                if (typeof body.message === "string" && body.message.trim()) {
+                    message = `${base} (${body.message.trim()})`;
+                }
+            } catch {
+                // ignore
+            }
+        }
+        return { success: false, message };
     }
 
     public async testForgejo(baseUrl: string, accessToken: string) {
@@ -164,9 +177,22 @@ export class GitLabAccessService {
                 Authorization: `token ${accessToken}`,
             },
         });
-        if (response.status === 401) {
-            return { success: false, message: "Unauthorized" };
+        if (response.ok) {
+            return { success: true, message: "Authorized" };
         }
-        return { success: true, message: "Authorized" };
+        const raw = (await response.text()).trim();
+        const base = `${response.status} ${response.statusText}`.trim();
+        let message = base;
+        if (raw) {
+            try {
+                const body = JSON.parse(raw) as { message?: string };
+                if (typeof body.message === "string" && body.message.trim()) {
+                    message = `${base} (${body.message.trim()})`;
+                }
+            } catch {
+                // ignore
+            }
+        }
+        return { success: false, message };
     }
 }
