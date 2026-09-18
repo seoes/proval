@@ -41,6 +41,6 @@ export function resolveForgejoWebhookEvent(c: Context): string {
         c.req.header("X-Forgejo-Event-Type") ||
         c.req.header("X-Gitea-Event-Type") ||
         c.req.header("X-GitHub-Event-Type") ||
-        "";
+        "unknown";
     return event;
 }
