@@ -3,7 +3,7 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
-import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
+import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createSender } from "../../agent/llm/factory.js";
@@ -85,14 +85,7 @@ interface ForgejoCommentPayload {
 }
 
 export const handleForgejoWebhook = async (c: Context) => {
-    const event =
-        c.req.header("X-Forgejo-Event") ||
-        c.req.header("X-Gitea-Event") ||
-        c.req.header("X-GitHub-Event") ||
-        c.req.header("X-Forgejo-Event-Type") ||
-        c.req.header("X-Gitea-Event-Type") ||
-        c.req.header("X-GitHub-Event-Type") ||
-        "";
+    const event = resolveForgejoWebhookEvent(c);
 
     const repository = c.get("repository") as Repository;
     const modelProvider = c.get("modelProvider") as ModelProvider;
