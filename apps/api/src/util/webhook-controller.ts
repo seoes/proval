@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import type { GitProvider, GitUserPermissionIdentity } from "../git-provider/types.js";
 import { log, logError } from "./log.js";
 
@@ -30,4 +31,16 @@ export async function skipIfInsufficientAccess(
         return new Response(JSON.stringify({ message: "Skipped: insufficient permission" }), { status: 200 });
     }
     return null;
+}
+
+export function resolveForgejoWebhookEvent(c: Context): string {
+    const event =
+        c.req.header("X-Forgejo-Event") ||
+        c.req.header("X-Gitea-Event") ||
+        c.req.header("X-GitHub-Event") ||
+        c.req.header("X-Forgejo-Event-Type") ||
+        c.req.header("X-Gitea-Event-Type") ||
+        c.req.header("X-GitHub-Event-Type") ||
+        "unknown";
+    return event;
 }

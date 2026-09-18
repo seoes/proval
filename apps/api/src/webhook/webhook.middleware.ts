@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
 import { log } from "../util/log.js";
+import { resolveForgejoWebhookEvent } from "../util/webhook-controller.js";
 
 export type WebhookIngress = {
     webhookEvent: string;
@@ -43,15 +44,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const pr = p?.pull_request;
     const issue = p?.issue;
-    const webhookEvent = isForgejo
-        ? c.req.header("X-Forgejo-Event-Type") ||
-          c.req.header("X-Gitea-Event-Type") ||
-          c.req.header("X-GitHub-Event-Type") ||
-          c.req.header("X-Forgejo-Event") ||
-          c.req.header("X-Gitea-Event") ||
-          c.req.header("X-GitHub-Event") ||
-          "unknown"
-        : (c.req.header("X-GitHub-Event") ?? "unknown");
+    const webhookEvent = isForgejo ? resolveForgejoWebhookEvent(c) : (c.req.header("X-GitHub-Event") ?? "unknown");
 
     let eventType = "UNKNOWN";
     let action: string | undefined;
@@ -60,7 +53,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
 
     if (!isForgejo && webhookEvent === "ping") {
         eventType = "CONNECTIVITY CHECK";
-    } else if (webhookEvent === "pull_request") {
+    } else if (webhookEvent === "pull_request" || webhookEvent === "pull_request_sync") {
         eventType = "PULL REQUEST";
         action = p?.action;
         number = pr?.number ?? p?.number;
