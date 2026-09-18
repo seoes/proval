@@ -44,12 +44,12 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     const pr = p?.pull_request;
     const issue = p?.issue;
     const webhookEvent = isForgejo
-        ? c.req.header("X-Forgejo-Event-Type") ||
-          c.req.header("X-Gitea-Event-Type") ||
-          c.req.header("X-GitHub-Event-Type") ||
-          c.req.header("X-Forgejo-Event") ||
+        ? c.req.header("X-Forgejo-Event") ||
           c.req.header("X-Gitea-Event") ||
           c.req.header("X-GitHub-Event") ||
+          c.req.header("X-Forgejo-Event-Type") ||
+          c.req.header("X-Gitea-Event-Type") ||
+          c.req.header("X-GitHub-Event-Type") ||
           "unknown"
         : (c.req.header("X-GitHub-Event") ?? "unknown");
 
@@ -60,7 +60,7 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
 
     if (!isForgejo && webhookEvent === "ping") {
         eventType = "CONNECTIVITY CHECK";
-    } else if (webhookEvent === "pull_request") {
+    } else if (webhookEvent === "pull_request" || webhookEvent === "pull_request_sync") {
         eventType = "PULL REQUEST";
         action = p?.action;
         number = pr?.number ?? p?.number;

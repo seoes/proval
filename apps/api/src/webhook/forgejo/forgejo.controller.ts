@@ -86,12 +86,12 @@ interface ForgejoCommentPayload {
 
 export const handleForgejoWebhook = async (c: Context) => {
     const event =
-        c.req.header("X-Forgejo-Event-Type") ||
-        c.req.header("X-Gitea-Event-Type") ||
-        c.req.header("X-GitHub-Event-Type") ||
         c.req.header("X-Forgejo-Event") ||
         c.req.header("X-Gitea-Event") ||
         c.req.header("X-GitHub-Event") ||
+        c.req.header("X-Forgejo-Event-Type") ||
+        c.req.header("X-Gitea-Event-Type") ||
+        c.req.header("X-GitHub-Event-Type") ||
         "";
 
     const repository = c.get("repository") as Repository;
@@ -100,7 +100,7 @@ export const handleForgejoWebhook = async (c: Context) => {
 
     const payload = c.get("forgejoPayload") as ForgejoPullRequestPayload | ForgejoIssuesPayload | ForgejoCommentPayload;
     try {
-        if (event === "pull_request") {
+        if (event === "pull_request" || event === "pull_request_sync") {
             return await handleForgejoPullRequestWebhook(
                 payload as ForgejoPullRequestPayload,
                 repository,
