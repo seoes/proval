@@ -6,6 +6,7 @@ import type {
     GitDiffSingleLine,
     GitIssue,
     GitIssueState,
+    GitRepositoryLabel,
     GitPullRequest,
     GitPullRequestInlineReview,
     GitPullRequestState,
@@ -228,6 +229,35 @@ export class GitHubProvider implements GitProvider {
             state: this.mapIssueState(issue.state, issue.locked ?? false),
             labels: issue.labels.map((label) => (typeof label === "string" ? label : (label.name ?? ""))),
         };
+    }
+
+    public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+        const labelList: GitRepositoryLabel[] = [];
+        for (let page = 1; ; page++) {
+            const response = await this.octokit.issues.listLabelsForRepo({
+                owner: this.owner,
+                repo: this.repo,
+                page,
+                per_page: 100,
+            });
+            labelList.push(
+                ...response.data.map((label) => ({
+                    name: label.name ?? "",
+                    description: label.description?.trim() ? label.description : null,
+                })),
+            );
+            if (response.data.length < 100) break;
+        }
+        return labelList;
+    }
+
+    public async addIssueLabel(issueNumber: number, label: string): Promise<void> {
+        await this.octokit.issues.addLabels({
+            owner: this.owner,
+            repo: this.repo,
+            issue_number: issueNumber,
+            labels: [label],
+        });
     }
 
     public async fetchIssueCommentList(issueNumber: number, options?: ListPaginationOptions): Promise<GitComment[]> {

@@ -124,6 +124,7 @@
             issueEnabled: data.repository.issueEnabled,
             issueMinAccessLevel: data.repository.issueMinAccessLevel,
             issueCommentOnOpenEnabled: data.repository.issueCommentOnOpenEnabled,
+            issueLabelOnOpenEnabled: data.repository.issueLabelOnOpenEnabled,
             issueReplyEnabled: data.repository.issueReplyEnabled,
             issueMentionOnly: data.repository.issueMentionOnly,
         }}

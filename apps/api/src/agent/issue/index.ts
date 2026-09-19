@@ -12,6 +12,7 @@ type IssueReplyOnOpenParams = {
     llmSender: LlmSender;
     issueIid: number;
     language: string;
+    issueLabelOnOpenEnabled: boolean;
     activityId: number;
 };
 

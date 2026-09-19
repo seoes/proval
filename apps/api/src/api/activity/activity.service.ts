@@ -599,6 +599,7 @@ export class ActivityService {
                 llmSender,
                 issueIid,
                 language: repository.language,
+                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
                 activityId,
             }),
         ).catch((error) => {

@@ -312,6 +312,7 @@ const handleForgejoIssuesWebhook = async (
                 }),
                 issueIid: issue.number,
                 language: repository.language,
+                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
                 activityId,
             }),
     ).catch((error) => {

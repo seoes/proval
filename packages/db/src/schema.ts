@@ -133,6 +133,7 @@ export const repositoryTable = sqliteTable(
 
         // Issue Comment on Open
         issueCommentOnOpenEnabled: integer({ mode: "boolean" }).notNull().default(true),
+        issueLabelOnOpenEnabled: integer({ mode: "boolean" }).notNull().default(true),
 
         // Issue Reply
         issueReplyEnabled: integer({ mode: "boolean" }).notNull().default(true),

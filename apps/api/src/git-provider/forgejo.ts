@@ -4,6 +4,7 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
+    GitRepositoryLabel,
     GitPullRequest,
     GitPullRequestInlineReview,
     GitPullRequestVersion,
@@ -239,6 +240,40 @@ export class ForgejoProvider implements GitProvider {
             state: issue.is_locked ? "locked" : issue.state === "closed" ? "closed" : "opened",
             labels: (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name)),
         };
+    }
+
+    private async fetchRepositoryLabelRecordList(): Promise<
+        Array<{ id: number; name: string; description?: string }>
+    > {
+        const labelList: Array<{ id: number; name: string; description?: string }> = [];
+        for (let page = 1; ; page++) {
+            const pageList = await this.requestJson<Array<{ id: number; name: string; description?: string }>>(
+                `/repos/${this.owner}/${this.repo}/labels?limit=50&page=${page}`,
+            );
+            labelList.push(...pageList);
+            if (pageList.length < 50) break;
+        }
+        return labelList;
+    }
+
+    public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+        const labelList = await this.fetchRepositoryLabelRecordList();
+        return labelList.map((label) => ({
+            name: label.name,
+            description: label.description?.trim() ? label.description : null,
+        }));
+    }
+
+    public async addIssueLabel(issueIid: number, label: string): Promise<void> {
+        const labelList = await this.fetchRepositoryLabelRecordList();
+        const match = labelList.find((item) => item.name === label);
+        if (!match) {
+            throw new Error(`Unknown label: ${label}`);
+        }
+        await this.requestJson(`/repos/${this.owner}/${this.repo}/issues/${issueIid}/labels`, {
+            method: "POST",
+            body: JSON.stringify({ labels: [match.id] }),
+        });
     }
 
     public async fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment> {

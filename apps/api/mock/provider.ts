@@ -5,6 +5,7 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
+    GitRepositoryLabel,
     GitPullRequest,
     GitPullRequestVersion,
     GitProvider,
@@ -118,6 +119,15 @@ export class MockProvider implements GitProvider {
             labels: [],
         };
     }
+
+    async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+        return [
+            { name: "bug", description: "Something is not working" },
+            { name: "enhancement", description: "New feature or request" },
+        ];
+    }
+
+    async addIssueLabel(_issueIid: number, _label: string): Promise<void> {}
 
     async fetchIssueComment(_issueIid: number, commentId: number): Promise<GitComment> {
         const comment = (this.input.commentList ?? []).find((item) => item.id === commentId);

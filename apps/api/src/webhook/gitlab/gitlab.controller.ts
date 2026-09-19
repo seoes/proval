@@ -390,6 +390,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
                 llmSender,
                 issueIid,
                 language: repository.language,
+                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
                 activityId,
             }),
     ).catch((error) => {

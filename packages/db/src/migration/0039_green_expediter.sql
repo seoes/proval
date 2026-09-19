@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `issue_label_on_open_enabled` integer DEFAULT true NOT NULL;
