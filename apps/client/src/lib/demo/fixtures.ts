@@ -686,9 +686,10 @@ function buildTokenSeries(
 ): TokenSeriesPoint[] {
     const bucketStarts = buildBucketStarts(since, bucket, now);
     const rowLowerBound = bucketStarts[0] ?? since;
-    const totals = new Map<number, number>();
+    type BucketTotals = { inputToken: number; outputToken: number; cachedInputToken: number };
+    const totals = new Map<number, BucketTotals>();
     for (const start of bucketStarts) {
-        totals.set(start.getTime(), 0);
+        totals.set(start.getTime(), { inputToken: 0, outputToken: 0, cachedInputToken: 0 });
     }
 
     for (const activity of activities) {
@@ -699,15 +700,24 @@ function buildTokenSeries(
             continue;
         if (activity.completedAt < rowLowerBound) continue;
         const key = bucketKey(activity.completedAt, bucket);
-        if (!totals.has(key)) continue;
-        const tokens = (activity.inputToken ?? 0) + (activity.outputToken ?? 0);
-        totals.set(key, (totals.get(key) ?? 0) + tokens);
+        const bucketTotals = totals.get(key);
+        if (!bucketTotals) continue;
+        bucketTotals.inputToken += activity.inputToken ?? 0;
+        bucketTotals.outputToken += activity.outputToken ?? 0;
+        bucketTotals.cachedInputToken += activity.cachedInputToken ?? 0;
     }
 
-    return bucketStarts.map((start) => ({
-        bucketStart: start.toISOString(),
-        tokens: totals.get(start.getTime()) ?? 0,
-    }));
+    return bucketStarts.map((start) => {
+        const bucketTotals = totals.get(start.getTime()) ?? { inputToken: 0, outputToken: 0, cachedInputToken: 0 };
+        const tokens = bucketTotals.inputToken + bucketTotals.outputToken;
+        return {
+            bucketStart: start.toISOString(),
+            tokens,
+            inputToken: bucketTotals.inputToken,
+            outputToken: bucketTotals.outputToken,
+            cachedInputToken: bucketTotals.cachedInputToken,
+        };
+    });
 }
 
 function buildTokenBreakdown(
@@ -727,7 +737,10 @@ function buildTokenBreakdown(
         .slice(0, limit);
 }
 
-export function buildActivitySummary(rangeInput: string | null | undefined): ActivitySummaryResponse {
+export function buildActivitySummary(
+    rangeInput: string | null | undefined,
+    repositoryId?: number,
+): ActivitySummaryResponse {
     const range = parseDashboardRange(rangeInput);
     const now = new Date();
     const { since, bucket } = resolveSince(range, now);
@@ -738,8 +751,11 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
         (a) =>
             (a.status === "completed" || a.status === "failed" || a.status === "canceled") &&
             a.completedAt !== null &&
-            a.completedAt >= since,
+            a.completedAt >= since &&
+            (repositoryId == null || a.repositoryId === repositoryId),
     );
+    const scopedActivityList =
+        repositoryId == null ? activityList : activityList.filter((a) => a.repositoryId === repositoryId);
     return {
         range,
         stats: {
@@ -755,9 +771,9 @@ export function buildActivitySummary(rangeInput: string | null | undefined): Act
                 return bTime - aTime;
             })
             .slice(0, 5),
-        tokenSeries: buildTokenSeries(activityList, since, bucket, now),
+        tokenSeries: buildTokenSeries(scopedActivityList, since, bucket, now),
         tokensByModel: buildTokenBreakdown(finished, (a) => a.modelName),
-        tokensByRepository: buildTokenBreakdown(finished, (a) => a.repositoryPath),
+        tokensByRepository: repositoryId != null ? [] : buildTokenBreakdown(finished, (a) => a.repositoryPath),
         inProgress: activityList.filter((a) => a.status === "started"),
     };
 }

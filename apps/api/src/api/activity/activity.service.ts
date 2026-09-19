@@ -91,6 +91,25 @@ function finishedSince(since: Date) {
     return and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES]));
 }
 
+function withRepositoryFilter(condition: SQL | undefined, repositoryId?: number): SQL | undefined {
+    if (repositoryId == null) {
+        return condition;
+    }
+    const repoCondition = eq(activityTable.repositoryId, repositoryId);
+    return condition ? and(condition, repoCondition) : repoCondition;
+}
+
+function finishedSinceForRepository(since: Date, repositoryId?: number) {
+    return withRepositoryFilter(finishedSince(since), repositoryId);
+}
+
+function finishedActivityWhere(since: Date, repositoryId?: number) {
+    return withRepositoryFilter(
+        and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES])),
+        repositoryId,
+    );
+}
+
 function startOfHour(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours());
 }
@@ -222,16 +241,17 @@ export class ActivityService {
         return { itemList, page, limit, total };
     }
 
-    public async getStats(since: Date): Promise<ActivityStats> {
-        const finished = finishedSince(since);
+    public async getStats(since: Date, repositoryId?: number): Promise<ActivityStats> {
+        const finished = finishedSinceForRepository(since, repositoryId);
+        const failedSince = withRepositoryFilter(
+            and(gte(activityTable.completedAt, since), eq(activityTable.status, "failed")),
+            repositoryId,
+        );
 
         const [[{ total: totalActivity }], [{ total: errors }], [{ total: reviews }], [{ total: replies }]] =
             await Promise.all([
                 db.select({ total: count() }).from(activityTable).where(finished),
-                db
-                    .select({ total: count() })
-                    .from(activityTable)
-                    .where(and(gte(activityTable.completedAt, since), eq(activityTable.status, "failed"))),
+                db.select({ total: count() }).from(activityTable).where(failedSince),
                 db
                     .select({ total: count() })
                     .from(activityTable)
@@ -245,52 +265,65 @@ export class ActivityService {
         return { totalActivity, errors, reviews, replies };
     }
 
-    public async findRecent(since: Date, limit = 5): Promise<ActivityResponse[]> {
+    public async findRecent(since: Date, limit = 5, repositoryId?: number): Promise<ActivityResponse[]> {
         return db
             .select(activityWithoutLogs)
             .from(activityTable)
-            .where(finishedSince(since))
+            .where(finishedSinceForRepository(since, repositoryId))
             .orderBy(desc(activityTable.completedAt), desc(activityTable.id))
             .limit(limit);
     }
 
-    public async getTokenSeries(since: Date, bucket: TokenBucket, now = new Date()): Promise<TokenSeriesPoint[]> {
+    public async getTokenSeries(
+        since: Date,
+        bucket: TokenBucket,
+        now = new Date(),
+        repositoryId?: number,
+    ): Promise<TokenSeriesPoint[]> {
         const bucketStarts = buildBucketStarts(since, bucket, now);
         const rowLowerBound = bucketStarts[0] ?? since;
-        const totals = new Map<number, number>();
+        type BucketTotals = { inputToken: number; outputToken: number; cachedInputToken: number };
+        const totals = new Map<number, BucketTotals>();
         for (const start of bucketStarts) {
-            totals.set(start.getTime(), 0);
+            totals.set(start.getTime(), { inputToken: 0, outputToken: 0, cachedInputToken: 0 });
         }
 
         const rows = await db
             .select({
                 completedAt: activityTable.completedAt,
                 inputToken: activityTable.inputToken,
+                cachedInputToken: activityTable.cachedInputToken,
                 outputToken: activityTable.outputToken,
             })
             .from(activityTable)
             .where(
-                and(
-                    gte(activityTable.completedAt, rowLowerBound),
-                    inArray(activityTable.status, [...FINISHED_STATUSES]),
-                ),
+                finishedActivityWhere(rowLowerBound, repositoryId),
             );
 
         for (const row of rows) {
             if (!row.completedAt) continue;
             const key = bucketKey(row.completedAt, bucket);
-            if (!totals.has(key)) continue;
-            const tokens = (row.inputToken ?? 0) + (row.outputToken ?? 0);
-            totals.set(key, (totals.get(key) ?? 0) + tokens);
+            const bucketTotals = totals.get(key);
+            if (!bucketTotals) continue;
+            bucketTotals.inputToken += row.inputToken ?? 0;
+            bucketTotals.outputToken += row.outputToken ?? 0;
+            bucketTotals.cachedInputToken += row.cachedInputToken ?? 0;
         }
 
-        return bucketStarts.map((start) => ({
-            bucketStart: start.toISOString(),
-            tokens: totals.get(start.getTime()) ?? 0,
-        }));
+        return bucketStarts.map((start) => {
+            const bucketTotals = totals.get(start.getTime()) ?? { inputToken: 0, outputToken: 0, cachedInputToken: 0 };
+            const tokens = bucketTotals.inputToken + bucketTotals.outputToken;
+            return {
+                bucketStart: start.toISOString(),
+                tokens,
+                inputToken: bucketTotals.inputToken,
+                outputToken: bucketTotals.outputToken,
+                cachedInputToken: bucketTotals.cachedInputToken,
+            };
+        });
     }
 
-    public async getTokenBreakdownByModel(since: Date, limit = 5): Promise<TokenBreakdownItem[]> {
+    public async getTokenBreakdownByModel(since: Date, limit = 5, repositoryId?: number): Promise<TokenBreakdownItem[]> {
         const tokenSum = sql<number>`sum(coalesce(${activityTable.inputToken}, 0) + coalesce(${activityTable.outputToken}, 0))`;
         const rows = await db
             .select({
@@ -298,7 +331,7 @@ export class ActivityService {
                 tokens: tokenSum.mapWith(Number),
             })
             .from(activityTable)
-            .where(and(gte(activityTable.completedAt, since), inArray(activityTable.status, [...FINISHED_STATUSES])))
+            .where(finishedActivityWhere(since, repositoryId))
             .groupBy(activityTable.modelName)
             .orderBy(desc(tokenSum))
             .limit(limit);
