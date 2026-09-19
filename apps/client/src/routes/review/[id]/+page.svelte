@@ -9,6 +9,10 @@
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
+    import {
+        activityTargetWebUrl,
+        viewInProviderLabel,
+    } from "../../repository/[id]/load.js";
     import type { ActivityLogEntry, ActivityLogResponse, ActivityResponse } from "@proval/types";
     import type { PageProps } from "./$types";
     import { readReviewListBackHref } from "../filterQuery.js";
@@ -45,6 +49,9 @@
     let isCanceling = $state(false);
 
     const backToListHref = $derived(readReviewListBackHref());
+
+    const targetWebUrl = $derived(activityTargetWebUrl(review, data.provider));
+    const viewInGitLabel = $derived(viewInProviderLabel(review.provider));
 
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
@@ -274,8 +281,17 @@
                         <span class="ml-1.5 font-medium text-neutral-800 tabular-nums">{cacheRateLabel}</span>
                     </div>
                 </div>
-                {#if canCancel || canRetry}
-                    <div class="shrink-0 md:ml-4">
+                {#if targetWebUrl || canCancel || canRetry}
+                    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2 md:ml-4">
+                        {#if targetWebUrl}
+                            <Button
+                                href={targetWebUrl}
+                                secondary
+                                target="_blank"
+                                rel="noopener noreferrer">
+                                {viewInGitLabel}
+                            </Button>
+                        {/if}
                         {#if canCancel}
                             <Button
                                 secondary

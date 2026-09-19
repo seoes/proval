@@ -162,7 +162,9 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
     }
 
     if (pathname === "/activity/summary") {
-        return jsonResponse(buildActivitySummary(searchParams.get("range")));
+        const repositoryIdList = parseCommaSeparatedPositiveIntList(searchParams.get("repository"));
+        const repositoryId = repositoryIdList.length === 1 ? repositoryIdList[0] : undefined;
+        return jsonResponse(buildActivitySummary(searchParams.get("range"), repositoryId));
     }
 
     if (pathname === "/activity") {

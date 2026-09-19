@@ -13,6 +13,8 @@
         text?: boolean;
         disabled?: boolean;
         size?: "sm" | "md";
+        target?: string;
+        rel?: string;
     }
 
     let {
@@ -26,6 +28,8 @@
         text = false,
         disabled = false,
         size = "md",
+        target,
+        rel,
     }: Props = $props();
 
     let buttonClass = $derived(
@@ -45,7 +49,7 @@
 </script>
 
 {#if href}
-    <a {href} class={twMerge(buttonClass, className)} aria-disabled={disabled}>{@render children()}</a>
+    <a {href} {target} {rel} class={twMerge(buttonClass, className)} aria-disabled={disabled}>{@render children()}</a>
 {:else}
     <button {type} class={twMerge(buttonClass, className)} {onclick} {disabled}>{@render children()}</button>
 {/if}

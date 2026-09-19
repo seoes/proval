@@ -215,34 +215,11 @@
         {/if}
 
         <div>
-            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
-                <a
-                    href="/review"
-                    class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
-                    View all →
-                </a>
-            </div>
             <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <SummaryPannel label="Total activity" value={stats.totalActivity} />
                 <SummaryPannel label="Errors" value={stats.errors} status={stats.errors > 0 ? "error" : "neutral"} />
                 <SummaryPannel label="Reviews" value={stats.reviews} />
                 <SummaryPannel label="Replies" value={stats.replies} />
-            </div>
-            <div class="mt-3">
-                {#if recentList.length === 0}
-                    <div
-                        class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
-                        <p class="text-sm text-neutral-500">No activity in this period.</p>
-                    </div>
-                {:else}
-                    <div
-                        class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
-                        {#each recentList as activity (activity.id)}
-                            {@render activityRow(activity)}
-                        {/each}
-                    </div>
-                {/if}
             </div>
         </div>
 
@@ -255,6 +232,30 @@
                 range={selectedRange}
                 byModel={tokensByModel}
                 byRepository={tokensByRepository} />
+        </div>
+
+        <div>
+            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
+                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
+                <a
+                    href="/review"
+                    class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                    View all →
+                </a>
+            </div>
+            {#if recentList.length === 0}
+                <div
+                    class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
+                    <p class="text-sm text-neutral-500">No activity in this period.</p>
+                </div>
+            {:else}
+                <div
+                    class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+                    {#each recentList as activity (activity.id)}
+                        {@render activityRow(activity)}
+                    {/each}
+                </div>
+            {/if}
         </div>
 
         <div class="hidden sm:block">

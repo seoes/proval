@@ -15,6 +15,9 @@ export type ActivityLast24HoursStats = ActivityStats;
 export type TokenSeriesPoint = {
     bucketStart: string;
     tokens: number;
+    inputToken: number;
+    outputToken: number;
+    cachedInputToken: number;
 };
 
 export type TokenBreakdownItem = {

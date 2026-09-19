@@ -47,13 +47,17 @@ function parseCommaSeparatedPositiveIntList(value: string | undefined): number[]
 export const getActivitySummary: Handler = async (c) => {
     const range = parseDashboardRange(c.req.query("range"));
     const { since, bucket } = resolveRange(range);
+    const repositoryIdList = parseCommaSeparatedPositiveIntList(c.req.query("repository"));
+    const repositoryId = repositoryIdList.length === 1 ? repositoryIdList[0] : undefined;
     const activityService = new ActivityService();
     const [stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress] = await Promise.all([
-        activityService.getStats(since),
-        activityService.findRecent(since, 5),
-        activityService.getTokenSeries(since, bucket),
-        activityService.getTokenBreakdownByModel(since, 5),
-        activityService.getTokenBreakdownByRepository(since, 5),
+        activityService.getStats(since, repositoryId),
+        activityService.findRecent(since, 5, repositoryId),
+        activityService.getTokenSeries(since, bucket, new Date(), repositoryId),
+        activityService.getTokenBreakdownByModel(since, 5, repositoryId),
+        repositoryId != null
+            ? Promise.resolve([])
+            : activityService.getTokenBreakdownByRepository(since, 5),
         activityService.findInProgress(10),
     ]);
     return c.json({ range, stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress }, 200);
