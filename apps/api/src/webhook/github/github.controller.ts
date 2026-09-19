@@ -293,6 +293,7 @@ async function handleIssueWebhook(
                 llmSender,
                 issueIid: issueNumber,
                 language: repository.language,
+                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
                 activityId,
             }),
     ).catch((error) => {

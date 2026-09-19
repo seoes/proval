@@ -1,3 +1,4 @@
+export { addIssueLabelTool } from "./add-issue-label.js";
 export { getIssueDetailTool } from "./get-issue-detail.js";
 export { getIssueCommentTool } from "./get-issue-comment.js";
 export { getIssueCommentListTool } from "./get-issue-comment-list.js";

@@ -42,6 +42,7 @@
         issueEnabled: boolean;
         issueMinAccessLevel: number;
         issueCommentOnOpenEnabled: boolean;
+        issueLabelOnOpenEnabled: boolean;
         issueReplyEnabled: boolean;
         issueMentionOnly: boolean;
     }
@@ -129,6 +130,7 @@
     let issueEnabled = $state<boolean>(config.issueEnabled);
     let issueMinAccessLevel = $state<string>(String(config.issueMinAccessLevel));
     let issueCommentOnOpenEnabled = $state<boolean>(config.issueCommentOnOpenEnabled);
+    let issueLabelOnOpenEnabled = $state<boolean>(config.issueLabelOnOpenEnabled);
     let issueReplyEnabled = $state<boolean>(config.issueReplyEnabled);
     let issueMentionOnly = $state<boolean>(config.issueMentionOnly);
 
@@ -288,6 +290,7 @@
             issueEnabled,
             issueMinAccessLevel: Number(issueMinAccessLevel),
             issueCommentOnOpenEnabled,
+            issueLabelOnOpenEnabled,
             issueReplyEnabled,
             issueMentionOnly,
         };
@@ -494,6 +497,14 @@
             <div class="flex items-center justify-between gap-2">
                 <FieldTitle class="ml-1">Comment when issue opens</FieldTitle>
                 <ToggleSwitch bind:checked={issueCommentOnOpenEnabled} disabled={!issueEnabled} />
+            </div>
+            <div class="flex items-center justify-between gap-2">
+                <div>
+                    <FieldTitle class="ml-1">Set labels when issue opens</FieldTitle>
+                    <Description class="ml-1"
+                        >When on, the agent sets labels automatically when an issue opens.</Description>
+                </div>
+                <ToggleSwitch bind:checked={issueLabelOnOpenEnabled} disabled={!issueEnabled} />
             </div>
             <div class="space-y-4">
                 <div class="flex items-center justify-between gap-2">

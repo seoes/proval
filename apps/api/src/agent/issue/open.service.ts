@@ -3,8 +3,9 @@ import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT } from "./prompt/issue.prompt.js";
-import { ISSUE_REPLY_ON_OPEN_WORKFLOW } from "./open.prompt.js";
+import { buildIssueReplyOnOpenWorkflow, buildRepositoryLabelCatalog } from "./open.prompt.js";
 import {
+    addIssueLabelTool,
     getIssueCommentListTool,
     getIssueDetailTool,
     postIssueCommentTool,
@@ -21,6 +22,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     llmSender,
     issueIid,
     language,
+    issueLabelOnOpenEnabled,
     activityId,
 }) => {
     const label = `[Issue #${issueIid}] Open`;
@@ -29,7 +31,16 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
         const repository = await provider.fetchRepositoryDetail();
         await workspace.loadFromBranch(repository.defaultBranch);
 
-        const system = [ISSUE_BASE_PROMPT, ISSUE_REPLY_ON_OPEN_WORKFLOW, COMMENT_LANGUAGE_RULE].join("\n");
+        const repositoryLabelList =
+            issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
+        const hasRepositoryLabelList = repositoryLabelList.length > 0;
+
+        const system = [
+            ISSUE_BASE_PROMPT,
+            buildIssueReplyOnOpenWorkflow(hasRepositoryLabelList),
+            COMMENT_LANGUAGE_RULE,
+            ...(hasRepositoryLabelList ? [buildRepositoryLabelCatalog(repositoryLabelList)] : []),
+        ].join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;
 
         debug(prompt, "prompt");
@@ -43,6 +54,9 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             globTool(workspace),
             listDirectoryTool(workspace),
             getFileContentTool(workspace),
+            ...(hasRepositoryLabelList
+                ? [addIssueLabelTool(provider, issueIid, repositoryLabelList)]
+                : []),
         ];
 
         const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];

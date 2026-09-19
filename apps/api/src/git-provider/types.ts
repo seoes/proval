@@ -21,6 +21,11 @@ export interface GitIssue {
 
 export type GitIssueState = "opened" | "closed" | "locked";
 
+export interface GitRepositoryLabel {
+    name: string;
+    description: string | null;
+}
+
 export interface GitRepository {
     id: number;
     name: string;
@@ -175,6 +180,8 @@ export interface GitProvider {
 
     fetchPullRequestReviewerList(prIid: number): Promise<string[]>;
     fetchIssueDetail(issueIid: number): Promise<GitIssue>;
+    fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]>;
+    addIssueLabel(issueIid: number, label: string): Promise<void>;
 
     // Issue Comment
     fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment>;

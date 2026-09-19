@@ -112,6 +112,7 @@ function makeRepositoryRow(overrides: Partial<Repository> = {}): Repository {
         issueEnabled: true,
         issueMinAccessLevel: 0,
         issueCommentOnOpenEnabled: true,
+        issueLabelOnOpenEnabled: true,
         issueReplyEnabled: true,
         issueMentionOnly: false,
         modelProviderId: null,

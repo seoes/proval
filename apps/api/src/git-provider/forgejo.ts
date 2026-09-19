@@ -4,6 +4,7 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
+    GitRepositoryLabel,
     GitPullRequest,
     GitPullRequestInlineReview,
     GitPullRequestVersion,
@@ -239,6 +240,30 @@ export class ForgejoProvider implements GitProvider {
             state: issue.is_locked ? "locked" : issue.state === "closed" ? "closed" : "opened",
             labels: (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name)),
         };
+    }
+
+    public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+        const labelList = await this.requestJson<Array<{ name: string; description?: string }>>(
+            `/repos/${this.owner}/${this.repo}/labels`,
+        );
+        return labelList.map((label) => ({
+            name: label.name,
+            description: label.description?.trim() ? label.description : null,
+        }));
+    }
+
+    public async addIssueLabel(issueIid: number, label: string): Promise<void> {
+        const labelList = await this.requestJson<Array<{ id: number; name: string }>>(
+            `/repos/${this.owner}/${this.repo}/labels`,
+        );
+        const match = labelList.find((item) => item.name === label);
+        if (!match) {
+            throw new Error(`Unknown label: ${label}`);
+        }
+        await this.requestJson(`/repos/${this.owner}/${this.repo}/issues/${issueIid}/labels`, {
+            method: "POST",
+            body: JSON.stringify({ labels: [match.id] }),
+        });
     }
 
     public async fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment> {

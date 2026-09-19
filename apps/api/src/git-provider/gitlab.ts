@@ -6,6 +6,7 @@ import type {
     GitDiffMultiLine,
     GitDiffSingleLine,
     GitIssue,
+    GitRepositoryLabel,
     GitIssueState,
     GitPullRequest,
     GitPullRequestState,
@@ -207,6 +208,32 @@ export class GitLabProvider implements GitProvider {
             state: this.mapIssueState(issue.state),
             labels: issue.labels ?? [],
         };
+    }
+
+    public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+        const labelList: GitRepositoryLabel[] = [];
+        const projectPath = encodeURIComponent(String(this.projectId));
+        for (let page = 1; ; page++) {
+            const pageList = await this.requestJson<Array<{ name: string; description?: string | null }>>(
+                `/projects/${projectPath}/labels?per_page=100&page=${page}`,
+            );
+            labelList.push(
+                ...pageList.map((label) => ({
+                    name: label.name,
+                    description: label.description?.trim() ? label.description : null,
+                })),
+            );
+            if (pageList.length < 100) break;
+        }
+        return labelList;
+    }
+
+    public async addIssueLabel(issueIid: number, label: string): Promise<void> {
+        const projectPath = encodeURIComponent(String(this.projectId));
+        await this.requestJson(`/projects/${projectPath}/issues/${issueIid}`, {
+            method: "PUT",
+            body: JSON.stringify({ add_labels: label }),
+        });
     }
 
     public async fetchIssueComment(issueIid: number, commentId: number): Promise<GitComment> {
