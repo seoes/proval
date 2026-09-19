@@ -24,7 +24,11 @@ export function addIssueLabelTool(
         execute: async (args) => {
             const label = String(args.label);
             if (!nameSet.has(label)) {
-                return { error: "Unknown label. Use a name from labelList.", labelList };
+                return {
+                    error: "Unknown label. Use a name from the repository label list.",
+                    label,
+                    labelNameList: labelList.map((item) => item.name),
+                };
             }
             await provider.addIssueLabel(issueIid, label);
             return { label };
