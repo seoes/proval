@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { browser } from "$app/environment";
+    import { goto } from "$app/navigation";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
@@ -6,21 +8,76 @@
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
+    import ReviewFilterBar from "./ReviewFilterBar.svelte";
+    import { buildReviewSearch, hasReviewFilter, persistReviewListSearch, type ReviewFilter } from "./filterQuery.js";
 
     const { data }: PageProps = $props();
 
     const hasNext = $derived(data.page * data.limit < data.total);
     const hasPrev = $derived(data.page > 1);
     const showPagination = $derived(data.total > data.limit);
+    const filterActive = $derived(
+        hasReviewFilter({
+            page: data.page,
+            statusList: data.statusList,
+            typeList: data.typeList,
+            repositoryIdList: data.repositoryIdList,
+            from: data.from,
+            to: data.to,
+        }),
+    );
+
+    const currentFilter = $derived.by(
+        (): ReviewFilter => ({
+            page: data.page,
+            statusList: data.statusList,
+            typeList: data.typeList,
+            repositoryIdList: data.repositoryIdList,
+            from: data.from,
+            to: data.to,
+        }),
+    );
+
+    function navigateFilter(filter: ReviewFilter) {
+        const search = buildReviewSearch(filter);
+        void goto(search ? `/review${search}` : "/review", { keepFocus: true, noScroll: true });
+    }
+
+    function clearFilter() {
+        void goto("/review", { keepFocus: true, noScroll: true });
+    }
+
+    function paginationHref(page: number): string {
+        return buildReviewSearch({ ...currentFilter, page });
+    }
+
+    $effect(() => {
+        if (!browser) return;
+        persistReviewListSearch(currentFilter);
+    });
 </script>
 
 <DefaultLayout title="Review">
+    <ReviewFilterBar
+        filter={currentFilter}
+        repositoryList={data.repositoryList}
+        showClear={filterActive}
+        onFilterChange={navigateFilter}
+        onClear={clearFilter} />
+
     {#if data.reviewList.length === 0}
-        <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center">
-            <p class="text-sm text-neutral-500">No reviews yet.</p>
+        <div class="rounded-lg border border-neutral-200 bg-white px-6 py-14 text-center dark:border-neutral-700 dark:bg-neutral-900">
+            {#if filterActive}
+                <p class="text-sm text-neutral-500">No reviews match these filters.</p>
+                <div class="mt-4">
+                    <Button text size="sm" onclick={clearFilter}>Clear filters</Button>
+                </div>
+            {:else}
+                <p class="text-sm text-neutral-500">No reviews yet.</p>
+            {/if}
         </div>
     {:else}
-        <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+        <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
             {#each data.reviewList as review (review.id)}
                 {@const status = activityStatusBadge(review.status)}
                 {@const target = activityTargetLabel(review.type, review.targetIid)}
@@ -65,12 +122,12 @@
                 <span>Page {data.page}</span>
                 <div class="flex gap-2">
                     {#if hasPrev}
-                        <Button secondary href="?page={data.page - 1}" size="sm">Previous</Button>
+                        <Button secondary href={paginationHref(data.page - 1)} size="sm">Previous</Button>
                     {:else}
                         <Button secondary disabled size="sm">Previous</Button>
                     {/if}
                     {#if hasNext}
-                        <Button secondary href="?page={data.page + 1}" size="sm">Next</Button>
+                        <Button secondary href={paginationHref(data.page + 1)} size="sm">Next</Button>
                     {:else}
                         <Button secondary disabled size="sm">Next</Button>
                     {/if}

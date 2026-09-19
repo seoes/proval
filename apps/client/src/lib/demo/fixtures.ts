@@ -15,6 +15,7 @@ import type {
     TokenBreakdownItem,
     TokenSeriesPoint,
 } from "@proval/types";
+import { dateOnlyToLocalDate, parseDateOnlyEndExclusiveLocal } from "$lib/utils/date.js";
 
 function minutesAgo(minutes: number): Date {
     return new Date(Date.now() - minutes * 60 * 1000);
@@ -959,8 +960,55 @@ export function getModelListByProviderId(providerId: number): ModelProviderModel
     return modelListByProviderId[providerId] ?? { models: [], source: "unavailable" };
 }
 
-export function paginateActivities(page: number, limit: number): Pagination<ActivityResponse> {
-    const sorted = [...activityList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+export function paginateActivityList(
+    page: number,
+    limit: number,
+    filter: {
+        statusList?: ActivityResponse["status"][];
+        typeList?: ActivityResponse["type"][];
+        repositoryIdList?: number[];
+        from?: string;
+        to?: string;
+    } = {},
+): Pagination<ActivityResponse> {
+    const { statusList = [], typeList = [], repositoryIdList = [], from = "", to = "" } = filter;
+
+    let filtered = activityList;
+
+    if (statusList.length) {
+        const allowed = new Set(statusList);
+        filtered = filtered.filter((item) => allowed.has(item.status));
+    }
+    if (typeList.length) {
+        const allowed = new Set(typeList);
+        filtered = filtered.filter((item) => allowed.has(item.type));
+    }
+    if (repositoryIdList.length) {
+        const allowed = new Set(repositoryIdList);
+        filtered = filtered.filter((item) => item.repositoryId != null && allowed.has(item.repositoryId));
+    }
+    if (from) {
+        const fromDate = dateOnlyToLocalDate(from);
+        if (fromDate) {
+            filtered = filtered.filter((item) => new Date(item.createdAt).getTime() >= fromDate.getTime());
+        }
+    }
+    if (to) {
+        const toExclusive = parseDateOnlyEndExclusiveLocal(to);
+        if (toExclusive) {
+            filtered = filtered.filter((item) => new Date(item.createdAt).getTime() < toExclusive.getTime());
+        }
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+        const aStarted = a.status === "started" ? 0 : 1;
+        const bStarted = b.status === "started" ? 0 : 1;
+        if (aStarted !== bStarted) return aStarted - bStarted;
+        const createdDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        if (createdDiff !== 0) return createdDiff;
+        return b.id - a.id;
+    });
+
     const total = sorted.length;
     const start = (page - 1) * limit;
     const itemList = sorted.slice(start, start + limit);

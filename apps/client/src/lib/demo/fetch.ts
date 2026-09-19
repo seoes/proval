@@ -13,9 +13,10 @@ import {
     githubAppList,
     githubInstallationList,
     modelProviderList,
-    paginateActivities,
+    paginateActivityList,
     repositoryList,
 } from "./fixtures.js";
+import { parseDateOnlyQuery } from "$lib/utils/date.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -46,6 +47,57 @@ function parsePositiveInt(value: string | null, fallback: number): number {
     const parsed = Number(value ?? String(fallback));
     if (!Number.isFinite(parsed) || parsed < 1) return fallback;
     return Math.floor(parsed);
+}
+
+const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
+
+function parseCommaSeparatedActivityStatus(value: string | null): (typeof ACTIVITY_STATUS_LIST)[number][] {
+    if (!value?.trim()) return [];
+    const allowed = new Set<string>(ACTIVITY_STATUS_LIST);
+    const seen = new Set<(typeof ACTIVITY_STATUS_LIST)[number]>();
+    const result: (typeof ACTIVITY_STATUS_LIST)[number][] = [];
+    for (const part of value.split(",")) {
+        const trimmed = part.trim();
+        if (!trimmed || !allowed.has(trimmed)) continue;
+        const item = trimmed as (typeof ACTIVITY_STATUS_LIST)[number];
+        if (seen.has(item)) continue;
+        seen.add(item);
+        result.push(item);
+    }
+    return result;
+}
+
+function parseCommaSeparatedActivityType(value: string | null): (typeof ACTIVITY_TYPE_LIST)[number][] {
+    if (!value?.trim()) return [];
+    const allowed = new Set<string>(ACTIVITY_TYPE_LIST);
+    const seen = new Set<(typeof ACTIVITY_TYPE_LIST)[number]>();
+    const result: (typeof ACTIVITY_TYPE_LIST)[number][] = [];
+    for (const part of value.split(",")) {
+        const trimmed = part.trim();
+        if (!trimmed || !allowed.has(trimmed)) continue;
+        const item = trimmed as (typeof ACTIVITY_TYPE_LIST)[number];
+        if (seen.has(item)) continue;
+        seen.add(item);
+        result.push(item);
+    }
+    return result;
+}
+
+function parseCommaSeparatedPositiveIntList(value: string | null): number[] {
+    if (!value?.trim()) return [];
+    const seen = new Set<number>();
+    const result: number[] = [];
+    for (const part of value.split(",")) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        const parsed = parseInt(trimmed, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) continue;
+        if (seen.has(parsed)) continue;
+        seen.add(parsed);
+        result.push(parsed);
+    }
+    return result;
 }
 
 function routeGet(pathname: string, searchParams: URLSearchParams): Response {
@@ -116,7 +168,20 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
     if (pathname === "/activity") {
         const page = parsePositiveInt(searchParams.get("page"), 1);
         const limit = parsePositiveInt(searchParams.get("limit"), 10);
-        return jsonResponse(paginateActivities(page, limit));
+        const statusList = parseCommaSeparatedActivityStatus(searchParams.get("status"));
+        const typeList = parseCommaSeparatedActivityType(searchParams.get("type"));
+        const repositoryIdList = parseCommaSeparatedPositiveIntList(searchParams.get("repository"));
+        const from = parseDateOnlyQuery(searchParams.get("from"));
+        const to = parseDateOnlyQuery(searchParams.get("to"));
+        return jsonResponse(
+            paginateActivityList(page, limit, {
+                statusList: statusList.length ? statusList : undefined,
+                typeList: typeList.length ? typeList : undefined,
+                repositoryIdList: repositoryIdList.length ? repositoryIdList : undefined,
+                from: from || undefined,
+                to: to || undefined,
+            }),
+        );
     }
 
     const activityLogMatch = pathname.match(/^\/activity\/(\d+)\/log$/);

@@ -1,5 +1,6 @@
 import { demoFetch } from "./demo/fetch.js";
 import { isDemoMode } from "./demo/enabled.js";
+import { formatLocalDateOnly } from "./utils/date.js";
 
 const fetchApi = async (path: string, options: RequestInit = {}) => {
     if (isDemoMode()) {
@@ -31,11 +32,7 @@ export const formatTimeAgo = (date: Date): string => {
     } else if (diffDays <= 7) {
         return `${diffDays} days ago`;
     } else {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
+        return formatLocalDateOnly(new Date(date));
     }
 };
 
