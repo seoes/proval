@@ -242,10 +242,22 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
+    private async fetchRepositoryLabelRecordList(): Promise<
+        Array<{ id: number; name: string; description?: string }>
+    > {
+        const labelList: Array<{ id: number; name: string; description?: string }> = [];
+        for (let page = 1; ; page++) {
+            const pageList = await this.requestJson<Array<{ id: number; name: string; description?: string }>>(
+                `/repos/${this.owner}/${this.repo}/labels?limit=50&page=${page}`,
+            );
+            labelList.push(...pageList);
+            if (pageList.length < 50) break;
+        }
+        return labelList;
+    }
+
     public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
-        const labelList = await this.requestJson<Array<{ name: string; description?: string }>>(
-            `/repos/${this.owner}/${this.repo}/labels`,
-        );
+        const labelList = await this.fetchRepositoryLabelRecordList();
         return labelList.map((label) => ({
             name: label.name,
             description: label.description?.trim() ? label.description : null,
@@ -253,9 +265,7 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async addIssueLabel(issueIid: number, label: string): Promise<void> {
-        const labelList = await this.requestJson<Array<{ id: number; name: string }>>(
-            `/repos/${this.owner}/${this.repo}/labels`,
-        );
+        const labelList = await this.fetchRepositoryLabelRecordList();
         const match = labelList.find((item) => item.name === label);
         if (!match) {
             throw new Error(`Unknown label: ${label}`);
