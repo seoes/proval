@@ -11,6 +11,7 @@
     import fetchApi from "$lib/utils";
     import type { ActivityLogEntry, ActivityLogResponse, ActivityResponse } from "@proval/types";
     import type { PageProps } from "./$types";
+    import { readReviewListBackHref } from "../filterQuery.js";
     import { untrack } from "svelte";
 
     const POLL_MS = 1000;
@@ -43,6 +44,8 @@
 
     let isCanceling = $state(false);
 
+    const backToListHref = $derived(readReviewListBackHref());
+
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
 
@@ -62,7 +65,7 @@
                 await openAlert(body?.error ?? "Failed to retry activity");
                 return;
             }
-            await goto("/review");
+            await goto(backToListHref);
         } finally {
             isRetrying = false;
         }
@@ -186,7 +189,7 @@
 
 <DefaultLayout title="Review">
     <a
-        href="/review"
+        href={backToListHref}
         class="mb-4 inline-block text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900">
         ← Back to list
     </a>

@@ -15,6 +15,8 @@
         placeholder?: string;
         disabled?: boolean;
         class?: string;
+        menuClass?: string;
+        onValueChange?: (value: Value) => void;
     };
 
     let {
@@ -28,6 +30,8 @@
         placeholder = "Select",
         disabled = false,
         class: className,
+        menuClass,
+        onValueChange,
     }: Props = $props();
 
     let open = $state(false);
@@ -59,6 +63,7 @@
 
     function selectOption(option: SelectOption) {
         value = option.value;
+        onValueChange?.(option.value);
         close();
     }
 
@@ -187,7 +192,10 @@
             {#if open}
                 <ul
                     id={listboxId}
-                    class="absolute top-full z-50 mt-1 max-h-60 w-full overflow-x-hidden overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+                    class={twMerge(
+                        "absolute top-full z-50 mt-1 max-h-60 w-full overflow-x-hidden overflow-y-auto rounded-lg border border-neutral-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-800",
+                        menuClass,
+                    )}
                     role="listbox">
                     {#each options as option, index (option.value)}
                         <li>

@@ -12,7 +12,7 @@ import type {
     TokenSeriesPoint,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
 import { createSender } from "../../agent/llm/factory.js";
 import { runPullRequestReview } from "../../agent/pull-request/index.js";
 import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
@@ -163,6 +163,38 @@ export type ActivityStartInput = {
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
 
+type ActivityListFilter = {
+    statusList?: Activity["status"][];
+    typeList?: Activity["type"][];
+    repositoryIdList?: number[];
+    from?: Date;
+    to?: Date;
+};
+
+function buildActivityListWhere(filter: ActivityListFilter): SQL | undefined {
+    const conditionList: SQL[] = [];
+    const { statusList, typeList, repositoryIdList, from, to } = filter;
+    if (statusList?.length) {
+        conditionList.push(inArray(activityTable.status, statusList));
+    }
+    if (typeList?.length) {
+        conditionList.push(inArray(activityTable.type, typeList));
+    }
+    if (repositoryIdList?.length) {
+        conditionList.push(inArray(activityTable.repositoryId, repositoryIdList));
+    }
+    if (from) {
+        conditionList.push(gte(activityTable.createdAt, from));
+    }
+    if (to) {
+        conditionList.push(lt(activityTable.createdAt, to));
+    }
+    if (conditionList.length === 0) {
+        return undefined;
+    }
+    return and(...conditionList);
+}
+
 const listOrderBy = [
     sql`CASE WHEN ${activityTable.status} = 'started' THEN 0 ELSE 1 END`,
     desc(activityTable.createdAt),
@@ -170,15 +202,19 @@ const listOrderBy = [
 ] as const;
 
 export class ActivityService {
-    public async findAll(input: { page: number; limit: number }): Promise<Pagination<ActivityResponse>> {
-        const { page, limit } = input;
+    public async findAll(
+        input: { page: number; limit: number } & ActivityListFilter,
+    ): Promise<Pagination<ActivityResponse>> {
+        const { page, limit, statusList, typeList, repositoryIdList, from, to } = input;
         const offset = (page - 1) * limit;
+        const where = buildActivityListWhere({ statusList, typeList, repositoryIdList, from, to });
 
-        const [{ total }] = await db.select({ total: count() }).from(activityTable);
+        const [{ total }] = await db.select({ total: count() }).from(activityTable).where(where);
 
         const itemList = await db
             .select(activityWithoutLogs)
             .from(activityTable)
+            .where(where)
             .orderBy(...listOrderBy)
             .limit(limit)
             .offset(offset);
