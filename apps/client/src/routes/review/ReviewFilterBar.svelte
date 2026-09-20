@@ -50,7 +50,7 @@
 
     const repositoryLabel = $derived.by(() => {
         const count = filter.repositoryIdList.length;
-        if (count === 0) return "All repositories";
+        if (count === 0) return "All";
         if (count === 1) {
             const repo = repositoryList.find((item) => item.id === filter.repositoryIdList[0]);
             return repo?.path ?? "1 repository";

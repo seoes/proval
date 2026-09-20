@@ -8,10 +8,11 @@
         provider: RepositoryProvider;
         class?: string;
         iconClass?: string;
+        style?: string;
         boxed?: boolean;
     }
 
-    const { provider, class: className, iconClass, boxed = false }: Props = $props();
+    const { provider, class: className, iconClass, style, boxed = false }: Props = $props();
 
     const icons: Record<RepositoryProvider, SimpleIcon> = {
         gitlab: siGitlab,
@@ -30,6 +31,7 @@
         )}>
         <svg
             class={twMerge("size-5 shrink-0", iconClass)}
+            {style}
             viewBox="0 0 24 24"
             fill={`#${icon.hex}`}
             aria-label={icon.title}
@@ -40,6 +42,7 @@
 {:else}
     <svg
         class={twMerge("size-5 shrink-0", className)}
+        {style}
         viewBox="0 0 24 24"
         fill={`#${icon.hex}`}
         aria-label={icon.title}

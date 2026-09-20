@@ -12,8 +12,13 @@
 
     const WIDTH = 720;
     const HEIGHT = 168;
-    const PAD = { top: 12, right: 4, bottom: 4, left: 4 };
-    const DRAG_THRESHOLD_PX = 4;
+    const Y_AXIS_WIDTH = 44;
+    const PAD = { top: 12, right: 8, bottom: 4, left: 0 };
+    const BAR_GAP_RATIO = 0.35;
+
+    const COLOR_INPUT = "var(--primary)";
+    const COLOR_OUTPUT = "rgb(130, 99, 240)";
+    const COLOR_CACHE = "rgb(232, 237, 243)";
 
     const RANGE_SUBTITLE: Record<DashboardRange, string> = {
         "24h": "last 24 hours",
@@ -23,21 +28,13 @@
         year: "year to date",
     };
 
-    const AVG_LABEL: Record<DashboardRange, string> = {
-        "24h": "Avg / hour",
-        "7d": "Avg / day",
-        "30d": "Avg / day",
-        mtd: "Avg / day",
-        year: "Avg / month",
-    };
+    type SegmentKey = "input" | "output" | "cache";
 
-    const PEAK_LABEL: Record<DashboardRange, string> = {
-        "24h": "Peak hour",
-        "7d": "Peak day",
-        "30d": "Peak day",
-        mtd: "Peak day",
-        year: "Peak month",
-    };
+    const SEGMENT_META: { key: SegmentKey; label: string; color: string }[] = [
+        { key: "input", label: "Input Tokens", color: COLOR_INPUT },
+        { key: "output", label: "Output Tokens", color: COLOR_OUTPUT },
+        { key: "cache", label: "Cache / Other", color: COLOR_CACHE },
+    ];
 
     function formatBucketLabel(iso: string, dashboardRange: DashboardRange): string {
         const date = new Date(iso);
@@ -55,6 +52,23 @@
         return `${label.slice(0, max - 1)}…`;
     }
 
+    function uncachedInput(inputToken: number, cachedInputToken: number): number {
+        return Math.max(0, inputToken - cachedInputToken);
+    }
+
+    function segmentValue(
+        point: Pick<TokenSeriesPoint, "inputToken" | "outputToken" | "cachedInputToken">,
+        key: SegmentKey,
+    ): number {
+        if (key === "input") return uncachedInput(point.inputToken, point.cachedInputToken);
+        if (key === "output") return point.outputToken;
+        return point.cachedInputToken;
+    }
+
+    function stackHeight(point: Pick<TokenSeriesPoint, "inputToken" | "outputToken" | "cachedInputToken">): number {
+        return segmentValue(point, "input") + segmentValue(point, "output") + segmentValue(point, "cache");
+    }
+
     const labeledSeries = $derived(
         series.map((point) => ({
             ...point,
@@ -63,60 +77,133 @@
     );
 
     const totalTokens = $derived(labeledSeries.reduce((sum, point) => sum + point.tokens, 0));
-    const peak = $derived(
-        labeledSeries.length === 0
-            ? null
-            : labeledSeries.reduce((best, point) => (point.tokens > best.tokens ? point : best), labeledSeries[0]),
-    );
-    const maxTokens = $derived(Math.max(...labeledSeries.map((point) => point.tokens), 1));
 
-    const plotW = WIDTH - PAD.left - PAD.right;
+    const periodSegments = $derived.by(() => {
+        let input = 0;
+        let output = 0;
+        let cache = 0;
+        for (const point of labeledSeries) {
+            input += segmentValue(point, "input");
+            output += segmentValue(point, "output");
+            cache += segmentValue(point, "cache");
+        }
+        const segmentSum = input + output + cache;
+        return { input, output, cache, segmentSum };
+    });
+
+    function segmentPercent(value: number, segmentSum: number): string {
+        if (segmentSum <= 0) return "0%";
+        return `${Math.round((value / segmentSum) * 100)}%`;
+    }
+
+    const maxStack = $derived(Math.max(...labeledSeries.map(stackHeight), 1));
+
+    const yTicks = $derived.by(() => {
+        const max = maxStack;
+        const step = max <= 4 ? 1 : max / 4;
+        const ticks: number[] = [];
+        for (let value = 0; value <= max + step * 0.01; value += step) {
+            ticks.push(Math.round(value));
+        }
+        const last = ticks[ticks.length - 1];
+        if (last === undefined || last < max) {
+            ticks.push(Math.round(max));
+        }
+        return [...new Set(ticks)].sort((a, b) => a - b);
+    });
+
+    const plotW = WIDTH - Y_AXIS_WIDTH - PAD.right;
     const plotH = HEIGHT - PAD.top - PAD.bottom;
     const baselineY = PAD.top + plotH;
 
-    function xAt(index: number, length: number): number {
-        if (length <= 1) return PAD.left;
-        return PAD.left + (index / (length - 1)) * plotW;
+    function yAt(stackValue: number, max: number): number {
+        return PAD.top + plotH - (stackValue / max) * plotH;
     }
 
-    function yAt(tokens: number, max: number): number {
-        return PAD.top + plotH - (tokens / max) * plotH;
-    }
+    type BarSegment = {
+        key: SegmentKey;
+        y: number;
+        height: number;
+        color: string;
+        isTop: boolean;
+    };
 
-    function linePathFrom(points: { x: number; y: number }[]): string {
-        if (points.length === 0) return "";
-        return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
-    }
+    type BarLayout = {
+        index: number;
+        x: number;
+        width: number;
+        centerX: number;
+        segments: BarSegment[];
+        total: number;
+        label: string;
+        inputToken: number;
+        outputToken: number;
+        cachedInputToken: number;
+        tokens: number;
+    };
 
-    function areaPathFrom(points: { x: number; y: number }[]): string {
-        if (points.length === 0) return "";
-        const line = linePathFrom(points);
-        return `${line} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
-    }
+    const bars = $derived.by((): BarLayout[] => {
+        const length = labeledSeries.length;
+        if (length === 0) return [];
+        const slotW = plotW / length;
+        const barW = Math.max(2, slotW * (1 - BAR_GAP_RATIO));
 
-    const points = $derived(
-        labeledSeries.map((point, index) => ({
-            x: xAt(index, labeledSeries.length),
-            y: yAt(point.tokens, maxTokens),
-            ...point,
-        })),
-    );
+        return labeledSeries.map((point, index) => {
+            const x = index * slotW + (slotW - barW) / 2;
+            const centerX = x + barW / 2;
+            const segmentsRaw: { key: SegmentKey; value: number; color: string }[] = [
+                { key: "input", value: segmentValue(point, "input"), color: COLOR_INPUT },
+                { key: "output", value: segmentValue(point, "output"), color: COLOR_OUTPUT },
+                { key: "cache", value: segmentValue(point, "cache"), color: COLOR_CACHE },
+            ].filter((seg): seg is { key: SegmentKey; value: number; color: string } => seg.value > 0);
 
-    const linePath = $derived(linePathFrom(points));
-    const areaPath = $derived(areaPathFrom(points));
+            let cursorY = baselineY;
+            const segments: BarSegment[] = [];
+            for (let i = 0; i < segmentsRaw.length; i++) {
+                const seg = segmentsRaw[i];
+                const height = (seg.value / maxStack) * plotH;
+                const y = cursorY - height;
+                segments.push({
+                    key: seg.key,
+                    y,
+                    height,
+                    color: seg.color,
+                    isTop: i === segmentsRaw.length - 1,
+                });
+                cursorY = y;
+            }
+
+            return {
+                index,
+                x,
+                width: barW,
+                centerX,
+                segments,
+                total: stackHeight(point),
+                label: point.label,
+                inputToken: point.inputToken,
+                outputToken: point.outputToken,
+                cachedInputToken: point.cachedInputToken,
+                tokens: point.tokens,
+            };
+        });
+    });
 
     const xTicks = $derived.by(() => {
-        const length = points.length;
+        const length = bars.length;
         if (length === 0) return [];
         if (length === 1) {
-            return [{ index: 0, label: points[0].label, align: "start" as const }];
+            return [
+                { index: 0, label: bars[0].label, leftPct: (bars[0].centerX / plotW) * 100, align: "start" as const },
+            ];
         }
         const indexes = Array.from(
             new Set([0, Math.floor((length - 1) / 3), Math.floor(((length - 1) * 2) / 3), length - 1]),
         ).sort((a, b) => a - b);
         return indexes.map((index) => ({
             index,
-            label: points[index].label,
+            label: bars[index].label,
+            leftPct: (bars[index].centerX / plotW) * 100,
             align: (index === 0 ? "start" : index === length - 1 ? "end" : "center") as "start" | "center" | "end",
         }));
     });
@@ -124,48 +211,7 @@
     let hoveredIndex = $state<number | null>(null);
     let chartEl = $state<HTMLDivElement | null>(null);
 
-    let dragStartIndex = $state<number | null>(null);
-    let dragEndIndex = $state<number | null>(null);
-    let isDragging = $state(false);
-    let dragActivated = $state(false);
-    let dragOriginX = $state(0);
-
-    const dragRange = $derived.by(() => {
-        if (!isDragging || !dragActivated || dragStartIndex === null || dragEndIndex === null) return null;
-        return {
-            start: Math.min(dragStartIndex, dragEndIndex),
-            end: Math.max(dragStartIndex, dragEndIndex),
-        };
-    });
-
-    const hovered = $derived(hoveredIndex === null || dragRange || points.length === 0 ? null : points[hoveredIndex]);
-
-    const rangeSum = $derived(
-        dragRange
-            ? labeledSeries.slice(dragRange.start, dragRange.end + 1).reduce((sum, point) => sum + point.tokens, 0)
-            : null,
-    );
-
-    const rangeLabel = $derived(
-        dragRange
-            ? dragRange.start === dragRange.end
-                ? labeledSeries[dragRange.start].label
-                : `${labeledSeries[dragRange.start].label} – ${labeledSeries[dragRange.end].label}`
-            : null,
-    );
-
-    const dragArea = $derived.by(() => {
-        if (!dragRange) return null;
-        const slice = points.slice(dragRange.start, dragRange.end + 1);
-        if (slice.length === 0) return null;
-        const left = slice[0].x;
-        const right = slice[slice.length - 1].x;
-        return {
-            areaPath: areaPathFrom(slice),
-            linePath: linePathFrom(slice),
-            centerPct: ((left + right) / 2 / WIDTH) * 100,
-        };
-    });
+    const hoveredBar = $derived(hoveredIndex === null || bars.length === 0 ? null : bars[hoveredIndex]);
 
     function formatTokens(value: number): string {
         if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -173,58 +219,58 @@
         return String(value);
     }
 
+    function formatTokensFull(value: number): string {
+        return value.toLocaleString();
+    }
+
     function indexFromEvent(event: PointerEvent): number {
-        if (!chartEl || labeledSeries.length === 0) return 0;
+        if (!chartEl || bars.length === 0) return 0;
         const rect = chartEl.getBoundingClientRect();
         const ratio = (event.clientX - rect.left) / rect.width;
-        return Math.max(0, Math.min(labeledSeries.length - 1, Math.round(ratio * (labeledSeries.length - 1))));
-    }
-
-    function resetDrag() {
-        isDragging = false;
-        dragActivated = false;
-        dragStartIndex = null;
-        dragEndIndex = null;
-    }
-
-    function onPointerDown(event: PointerEvent) {
-        if (event.button !== 0 || !chartEl || labeledSeries.length === 0) return;
-        const index = indexFromEvent(event);
-        isDragging = true;
-        dragActivated = false;
-        dragOriginX = event.clientX;
-        dragStartIndex = index;
-        dragEndIndex = index;
-        hoveredIndex = null;
-        chartEl.setPointerCapture(event.pointerId);
+        const xSvg = ratio * plotW;
+        let best = 0;
+        let bestDist = Infinity;
+        for (const bar of bars) {
+            const dist = Math.abs(bar.centerX - xSvg);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = bar.index;
+            }
+        }
+        return best;
     }
 
     function onPointerMove(event: PointerEvent) {
-        if (!chartEl || labeledSeries.length === 0) return;
-        const index = indexFromEvent(event);
-
-        if (isDragging && dragStartIndex !== null) {
-            if (!dragActivated && Math.abs(event.clientX - dragOriginX) >= DRAG_THRESHOLD_PX) {
-                dragActivated = true;
-            }
-            dragEndIndex = index;
-            return;
-        }
-
-        hoveredIndex = index;
-    }
-
-    function onPointerUp(event: PointerEvent) {
-        if (!isDragging) return;
-        hoveredIndex = labeledSeries.length === 0 ? null : indexFromEvent(event);
-        resetDrag();
-        if (chartEl?.hasPointerCapture(event.pointerId)) {
-            chartEl.releasePointerCapture(event.pointerId);
-        }
+        if (!chartEl || bars.length === 0) return;
+        hoveredIndex = indexFromEvent(event);
     }
 
     function onPointerLeave() {
-        if (!isDragging) hoveredIndex = null;
+        hoveredIndex = null;
+    }
+
+    function onPointerUp(event: PointerEvent) {
+        if (event.pointerType !== "touch") return;
+        hoveredIndex = null;
+    }
+
+    function roundedTopRectPath(x: number, y: number, w: number, h: number, r: number): string {
+        const radius = Math.min(r, w / 2, h);
+        if (radius <= 0 || h <= 0) {
+            return `M ${x} ${y + h} L ${x} ${y} L ${x + w} ${y} L ${x + w} ${y + h} Z`;
+        }
+        return [
+            `M ${x} ${y + h}`,
+            `L ${x} ${y + radius}`,
+            `Q ${x} ${y} ${x + radius} ${y}`,
+            `L ${x + w - radius} ${y}`,
+            `Q ${x + w} ${y} ${x + w} ${y + radius}`,
+            `L ${x + w} ${y + h}`,
+            "Z",
+        ].join(" ");
+    }
+    function yTickTopPercent(tick: number, max: number): number {
+        return (yAt(tick, max) / HEIGHT) * 100;
     }
 </script>
 
@@ -250,44 +296,42 @@
     </div>
 {/snippet}
 
+{#snippet segmentRow(key: SegmentKey, value: number, segmentSum: number)}
+    {@const meta = SEGMENT_META.find((item) => item.key === key)!}
+    <li class="flex items-center gap-2 text-sm">
+        <span class="size-2 shrink-0 rounded-full" style="background-color: {meta.color}"></span>
+        <span class="min-w-0 flex-1 text-neutral-600 dark:text-neutral-300">{meta.label}</span>
+        <span class="shrink-0 text-neutral-800 tabular-nums dark:text-neutral-100">{formatTokensFull(value)}</span>
+        <span class="w-10 shrink-0 text-right text-neutral-400 tabular-nums">{segmentPercent(value, segmentSum)}</span>
+    </li>
+{/snippet}
+
 <div class="rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 pt-5 pb-1">
-        <div class="flex min-w-0 flex-wrap items-end gap-x-6 gap-y-3">
-            <div>
-                <div class="flex items-baseline gap-2">
-                    <p
-                        class="text-2xl font-semibold tracking-tight text-neutral-800 tabular-nums dark:text-neutral-100">
-                        {formatTokens(totalTokens)}
-                    </p>
-                    <span class="text-sm text-neutral-400">{RANGE_SUBTITLE[range]}</span>
-                </div>
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-baseline gap-2">
+                <p class="text-2xl font-semibold tracking-tight text-neutral-800 tabular-nums dark:text-neutral-100">
+                    {formatTokensFull(totalTokens)}
+                </p>
+                <span class="text-sm text-neutral-400">{RANGE_SUBTITLE[range]}</span>
             </div>
-            <div class="flex gap-5">
-                <div>
-                    <p class="text-xs text-neutral-400">{PEAK_LABEL[range]}</p>
-                    <p class="mt-0.5 text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                        {#if peak}
-                            {peak.label}
-                            <span class="font-normal text-neutral-400">· {formatTokens(peak.tokens)}</span>
-                        {:else}
-                            —
-                        {/if}
-                    </p>
-                </div>
-                <div>
-                    <p class="text-xs text-neutral-400">{AVG_LABEL[range]}</p>
-                    <p class="mt-0.5 text-sm font-medium text-neutral-700 tabular-nums dark:text-neutral-200">
-                        {labeledSeries.length === 0
-                            ? "—"
-                            : formatTokens(Math.round(totalTokens / labeledSeries.length))}
-                    </p>
-                </div>
-            </div>
+            {#if labeledSeries.length > 0}
+                <ul class="mt-3 max-w-sm space-y-1.5">
+                    {@render segmentRow("input", periodSegments.input, periodSegments.segmentSum)}
+                    {@render segmentRow("output", periodSegments.output, periodSegments.segmentSum)}
+                    {@render segmentRow("cache", periodSegments.cache, periodSegments.segmentSum)}
+                </ul>
+            {/if}
         </div>
 
-        <div class="grid w-full min-w-0 grid-cols-2 gap-4 sm:w-auto sm:max-w-sm sm:min-w-[16rem] sm:shrink-0">
+        <div
+            class="hidden min-w-0 gap-4 lg:grid lg:w-auto lg:shrink-0 {byRepository.length > 0
+                ? 'lg:max-w-sm lg:min-w-[16rem] lg:grid-cols-2'
+                : 'lg:max-w-xs lg:min-w-[8rem] lg:grid-cols-1'}">
             {@render breakdownList("By Model", byModel)}
-            {@render breakdownList("By Project", byRepository)}
+            {#if byRepository.length > 0}
+                {@render breakdownList("By Project", byRepository)}
+            {/if}
         </div>
     </div>
 
@@ -298,168 +342,130 @@
             </div>
         {:else}
             <div
-                bind:this={chartEl}
-                class="relative cursor-crosshair touch-none select-none"
+                class="relative select-none"
                 role="img"
-                aria-label="Token usage for the selected period. Drag to preview a range total."
-                onpointerdown={onPointerDown}
-                onpointermove={onPointerMove}
+                aria-label="Token usage stacked bar chart for the selected period"
+                onpointerleave={onPointerLeave}
                 onpointerup={onPointerUp}
-                onpointercancel={onPointerUp}
-                onpointerleave={onPointerLeave}>
-                <div class="relative pt-11">
-                    {#if hovered && hoveredIndex !== null}
-                        {@const leftPct = (hovered.x / WIDTH) * 100}
-                        <div
-                            class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
-                            style="left: clamp(3.5rem, {leftPct}%, calc(100% - 3.5rem))">
-                            <p class="text-[11px] leading-none text-neutral-400">{hovered.label}</p>
-                            <p class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
-                                {hovered.tokens.toLocaleString()}
-                                <span class="text-xs font-normal text-neutral-400">tokens</span>
-                            </p>
+                onpointercancel={onPointerLeave}>
+                <div class="relative pt-14">
+                    <div class="flex h-44">
+                        <div class="relative w-11 shrink-0" aria-hidden="true">
+                            {#each yTicks as tick (tick)}
+                                <span
+                                    class="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-neutral-400 tabular-nums"
+                                    style="top: {yTickTopPercent(tick, maxStack)}%">
+                                    {formatTokens(tick)}
+                                </span>
+                            {/each}
                         </div>
-                    {:else if dragArea && rangeSum !== null && rangeLabel}
-                        <div
-                            class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
-                            style="left: clamp(4rem, {dragArea.centerPct}%, calc(100% - 4rem))">
-                            <p class="text-[11px] leading-none text-neutral-400">{rangeLabel}</p>
-                            <p class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
-                                {rangeSum.toLocaleString()}
-                                <span class="text-xs font-normal text-neutral-400">tokens</span>
-                            </p>
-                        </div>
-                    {/if}
-
-                    <div class="relative">
-                        <svg
-                            viewBox="0 0 {WIDTH} {HEIGHT}"
-                            class="h-44 w-full overflow-visible"
-                            preserveAspectRatio="none">
-                            <defs>
-                                <linearGradient id="token-area-fill" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.3" />
-                                    <stop offset="50%" stop-color="var(--primary)" stop-opacity="0.1" />
-                                    <stop offset="100%" stop-color="var(--primary)" stop-opacity="0" />
-                                </linearGradient>
-                                <linearGradient id="token-drag-fill" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.55" />
-                                    <stop offset="55%" stop-color="var(--primary)" stop-opacity="0.22" />
-                                    <stop offset="100%" stop-color="var(--primary)" stop-opacity="0.04" />
-                                </linearGradient>
-                            </defs>
-
-                            <line
-                                x1={PAD.left}
-                                y1={baselineY}
-                                x2={WIDTH - PAD.right}
-                                y2={baselineY}
-                                stroke="currentColor"
-                                class="text-neutral-100 dark:text-neutral-700/80"
-                                stroke-width="1"
-                                vector-effect="non-scaling-stroke" />
-
-                            <path d={areaPath} fill="url(#token-area-fill)" class="token-area" />
-                            {#if dragArea}
-                                <path d={dragArea.areaPath} fill="url(#token-drag-fill)" />
-                            {/if}
-                            <path
-                                d={linePath}
-                                fill="none"
-                                stroke="var(--primary)"
-                                stroke-width="2.25"
-                                stroke-opacity={dragRange ? 0.35 : 1}
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="token-line"
-                                vector-effect="non-scaling-stroke" />
-                            {#if dragArea}
-                                <path
-                                    d={dragArea.linePath}
-                                    fill="none"
-                                    stroke="var(--primary)"
-                                    stroke-width="2.75"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    vector-effect="non-scaling-stroke" />
+                        <div bind:this={chartEl} class="relative min-w-0 flex-1" onpointermove={onPointerMove}>
+                            {#if hoveredBar}
+                                {@const leftPct = (hoveredBar.centerX / plotW) * 100}
+                                {@const hInput = segmentValue(hoveredBar, "input")}
+                                {@const hOutput = hoveredBar.outputToken}
+                                {@const hCache = hoveredBar.cachedInputToken}
+                                <div
+                                    class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
+                                    style="left: clamp(2rem, {leftPct}%, calc(100% - 2rem))">
+                                    <p class="text-[11px] leading-none text-neutral-400">{hoveredBar.label}</p>
+                                    <p
+                                        class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
+                                        {formatTokensFull(hoveredBar.tokens)}
+                                        <span class="text-xs font-normal text-neutral-400">total</span>
+                                    </p>
+                                    <p class="mt-1 text-[11px] text-neutral-500 tabular-nums">
+                                        In {formatTokensFull(hInput)} · Out {formatTokensFull(hOutput)} · Cache {formatTokensFull(
+                                            hCache,
+                                        )}
+                                    </p>
+                                </div>
                             {/if}
 
-                            {#if hovered}
+                            <svg
+                                viewBox="0 0 {plotW} {HEIGHT}"
+                                class="h-full w-full overflow-visible"
+                                preserveAspectRatio="none">
+                                {#each yTicks as tick (tick)}
+                                    {@const y = yAt(tick, maxStack)}
+                                    <line
+                                        x1={0}
+                                        y1={y}
+                                        x2={plotW}
+                                        y2={y}
+                                        stroke="currentColor"
+                                        class="text-neutral-100 dark:text-neutral-700/80"
+                                        stroke-width="1"
+                                        vector-effect="non-scaling-stroke" />
+                                {/each}
+
                                 <line
-                                    x1={hovered.x}
-                                    y1={PAD.top}
-                                    x2={hovered.x}
+                                    x1={0}
+                                    y1={baselineY}
+                                    x2={plotW}
                                     y2={baselineY}
-                                    stroke="var(--primary)"
-                                    stroke-opacity="0.22"
+                                    stroke="currentColor"
+                                    class="text-neutral-200 dark:text-neutral-600"
                                     stroke-width="1"
-                                    stroke-dasharray="4 3"
                                     vector-effect="non-scaling-stroke" />
-                            {/if}
-                        </svg>
 
-                        {#if hovered && hoveredIndex !== null}
-                            {@const leftPct = (hovered.x / WIDTH) * 100}
-                            {@const topPct = (hovered.y / HEIGHT) * 100}
-                            <div
-                                class="pointer-events-none absolute z-10 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-white dark:bg-neutral-800"
-                                style="left: {leftPct}%; top: {topPct}%">
-                            </div>
-                        {/if}
+                                {#each bars as bar (bar.index)}
+                                    {#each bar.segments as seg (seg.key)}
+                                        {#if seg.isTop}
+                                            <path
+                                                d={roundedTopRectPath(bar.x, seg.y, bar.width, seg.height, 3)}
+                                                fill={seg.color}
+                                                opacity={hoveredIndex === null || hoveredIndex === bar.index
+                                                    ? 1
+                                                    : 0.45} />
+                                        {:else}
+                                            <rect
+                                                x={bar.x}
+                                                y={seg.y}
+                                                width={bar.width}
+                                                height={seg.height}
+                                                fill={seg.color}
+                                                opacity={hoveredIndex === null || hoveredIndex === bar.index
+                                                    ? 1
+                                                    : 0.45} />
+                                        {/if}
+                                    {/each}
+                                {/each}
+
+                                {#if hoveredBar}
+                                    <line
+                                        x1={hoveredBar.centerX}
+                                        y1={PAD.top}
+                                        x2={hoveredBar.centerX}
+                                        y2={baselineY}
+                                        stroke="var(--primary)"
+                                        stroke-opacity="0.22"
+                                        stroke-width="1"
+                                        stroke-dasharray="4 3"
+                                        vector-effect="non-scaling-stroke" />
+                                {/if}
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="relative mt-1.5 h-4">
-                {#each xTicks as tick (tick.index)}
-                    {@const leftPct = (tick.index / Math.max(labeledSeries.length - 1, 1)) * 100}
-                    <span
-                        class="absolute text-[11px] text-neutral-400 {tick.align === 'start'
-                            ? 'translate-x-0'
-                            : tick.align === 'end'
-                              ? '-translate-x-full'
-                              : '-translate-x-1/2'}"
-                        style="left: {leftPct}%">
-                        {tick.label}
-                    </span>
-                {/each}
+            <div class="mt-1.5 flex h-4">
+                <div class="w-11 shrink-0" aria-hidden="true"></div>
+                <div class="relative min-w-0 flex-1">
+                    {#each xTicks as tick (tick.index)}
+                        <span
+                            class="absolute text-[11px] text-neutral-400 {tick.align === 'start'
+                                ? 'translate-x-0'
+                                : tick.align === 'end'
+                                  ? '-translate-x-full'
+                                  : '-translate-x-1/2'}"
+                            style="left: {tick.leftPct}%">
+                            {tick.label}
+                        </span>
+                    {/each}
+                </div>
             </div>
         {/if}
     </div>
 </div>
-
-<style>
-    .token-area {
-        animation: token-fade-in 0.65s ease-out both;
-    }
-
-    .token-line {
-        stroke-dasharray: 2000;
-        stroke-dashoffset: 2000;
-        animation: token-draw 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
-    }
-
-    @keyframes token-fade-in {
-        from {
-            opacity: 0;
-        }
-        to {
-            opacity: 1;
-        }
-    }
-
-    @keyframes token-draw {
-        to {
-            stroke-dashoffset: 0;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .token-area,
-        .token-line {
-            animation: none;
-            stroke-dasharray: none;
-            stroke-dashoffset: 0;
-        }
-    }
-</style>
