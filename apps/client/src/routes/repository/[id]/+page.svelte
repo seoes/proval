@@ -30,6 +30,7 @@
     let activitySummary = $state<ActivitySummaryResponse>(data.activitySummary);
     let selectedRange = $state<DashboardRange>(data.activitySummary.range);
     let summaryLoading = $state(false);
+    let summaryRequestId = 0;
     let headerBlockHeight = $state(0);
 
     const headerIconBoxSize = $derived(Math.max(headerBlockHeight, 56));
@@ -100,6 +101,7 @@
     }
 
     async function loadSummary(range: DashboardRange) {
+        const requestId = ++summaryRequestId;
         summaryLoading = true;
         try {
             const response = await fetchApi(
@@ -108,7 +110,9 @@
             if (!response.ok) {
                 throw new Error("Failed to load summary");
             }
-            activitySummary = await response.json();
+            const next: ActivitySummaryResponse = await response.json();
+            if (requestId !== summaryRequestId) return;
+            activitySummary = next;
             selectedRange = activitySummary.range;
             try {
                 localStorage.setItem(rangeStorageKey, activitySummary.range);
@@ -116,10 +120,13 @@
                 // ignore
             }
         } catch {
+            if (requestId !== summaryRequestId) return;
             selectedRange = activitySummary.range;
             await openAlert("Failed to load summary");
         } finally {
-            summaryLoading = false;
+            if (requestId === summaryRequestId) {
+                summaryLoading = false;
+            }
         }
     }
 
@@ -265,10 +272,7 @@
                         value={stats.errors}
                         status={stats.errors > 0 ? "error" : "neutral"}
                         navHref={`/review?status=failed&repository=${data.repositoryId}`} />
-                    <SummaryPannel
-                        label="Reviews"
-                        value={stats.reviews}
-                        navHref={`/review?type=pr_review&repository=${data.repositoryId}`} />
+                    <SummaryPannel label="Reviews" value={stats.reviews} />
                     <SummaryPannel label="Replies" value={stats.replies} />
                 </div>
 
