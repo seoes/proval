@@ -9,19 +9,24 @@
         sublabel?: string;
         href?: string;
         actionLabel?: string;
+        navHref?: string;
         status?: SummaryStatus;
     }
 
-    const { label, value, sublabel, href, actionLabel, status }: Props = $props();
+    const { label, value, sublabel, href, actionLabel, navHref, status }: Props = $props();
 
     const statusDotClass: Record<SummaryStatus, string> = {
         ok: "bg-emerald-500",
         error: "bg-red-500",
         neutral: "bg-neutral-300 dark:bg-neutral-600",
     };
+
+    const cardClass =
+        "rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800";
+    const navLinkClass = `${cardClass} block transition-colors hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-neutral-700/50`;
 </script>
 
-<div class="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+{#snippet cardBody()}
     <p class="text-sm text-neutral-500 dark:text-neutral-400">{label}</p>
 
     <div class="mt-2 flex items-center gap-2">
@@ -42,4 +47,14 @@
             {actionLabel}
         </a>
     {/if}
-</div>
+{/snippet}
+
+{#if navHref}
+    <a href={navHref} class={navLinkClass}>
+        {@render cardBody()}
+    </a>
+{:else}
+    <div class={cardClass}>
+        {@render cardBody()}
+    </div>
+{/if}

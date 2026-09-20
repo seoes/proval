@@ -2,13 +2,15 @@
     import { onMount } from "svelte";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import SummaryPannel from "$lib/components/molecule/SummaryPannel.svelte";
+    import InfoStackPanel from "$lib/components/molecule/InfoStackPanel.svelte";
+    import type { InfoStackItem } from "$lib/components/molecule/InfoStackPanel.svelte";
     import TokenUsagePanel from "$lib/components/molecule/TokenUsagePanel.svelte";
     import DashboardRangeToggle from "$lib/components/molecule/DashboardRangeToggle.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
     import Badge from "$lib/components/atom/Badge.svelte";
     import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
     import { GearIcon } from "phosphor-svelte";
-    import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
+    import { activityStatusBadge, activityTargetLabel, activityTypeLabel, replyOptionBadge } from "$lib/utils/label";
     import fetchApi, { formatTimeAgo } from "$lib/utils";
     import type { PageProps } from "./$types";
     import type { ActivityResponse, ActivitySummaryResponse, DashboardRange } from "@proval/types";
@@ -27,6 +29,10 @@
     let activitySummary = $state<ActivitySummaryResponse>(data.activitySummary);
     let selectedRange = $state<DashboardRange>(data.activitySummary.range);
     let summaryLoading = $state(false);
+    let headerBlockHeight = $state(0);
+
+    const headerIconBoxSize = $derived(Math.max(headerBlockHeight, 56));
+    const headerIconSize = $derived(Math.round(headerIconBoxSize * 0.52));
 
     const displayTitle = $derived.by(() => {
         const description = data.repository.description?.trim();
@@ -49,9 +55,42 @@
     });
 
     const openInGitText = $derived(OPEN_IN_GIT_LABEL[data.repository.provider]);
-    const reviewListHref = $derived(`/review?repository=${data.repositoryId}`);
+
+    const pullRequestReply = $derived(
+        replyOptionBadge(
+            "Pull Request Reply",
+            data.repository.prEnabled && data.repository.prReplyEnabled,
+            data.repository.prMentionOnly,
+        ),
+    );
+    const issueReply = $derived(
+        replyOptionBadge(
+            "Issue Reply",
+            data.repository.issueEnabled && data.repository.issueReplyEnabled,
+            data.repository.issueMentionOnly,
+        ),
+    );
 
     const stats = $derived(activitySummary.stats);
+    const statsItemList = $derived<InfoStackItem[]>([
+        {
+            label: "Total activity",
+            value: stats.totalActivity,
+            href: `/review?repository=${data.repositoryId}`,
+        },
+        {
+            label: "Errors",
+            value: stats.errors,
+            error: stats.errors > 0,
+            href: `/review?status=failed&repository=${data.repositoryId}`,
+        },
+        {
+            label: "Reviews",
+            value: stats.reviews,
+            href: `/review?type=pr_review&repository=${data.repositoryId}`,
+        },
+        { label: "Replies", value: stats.replies },
+    ]);
     const recentList = $derived(activitySummary.recent);
     const tokenSeries = $derived(activitySummary.tokenSeries);
     const tokensByModel = $derived(activitySummary.tokensByModel);
@@ -147,25 +186,50 @@
     <DashboardRangeToggle value={selectedRange} onchange={onRangeChange} />
 {/snippet}
 
-<DefaultLayout title="Project" actions={rangeActions}>
+<DefaultLayout title="Project" asideLayout actions={rangeActions}>
     <div class="space-y-8 {summaryLoading ? 'opacity-70 transition-opacity' : ''}">
         <div>
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="flex min-w-0 items-stretch gap-3.5">
-                    <GitProviderIcon
-                        provider={data.repository.provider}
-                        boxed
-                        class="!size-auto w-14 shrink-0 self-stretch rounded-xl"
-                        iconClass="size-9" />
-                    <div class="min-w-0">
-                        <h1 class="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white">
+                <div class="flex min-w-0 items-start gap-3.5">
+                    <div
+                        class="flex shrink-0 items-center justify-center rounded-xl bg-neutral-100 dark:bg-neutral-800"
+                        style:width="{headerIconBoxSize}px"
+                        style:height="{headerIconBoxSize}px">
+                        <GitProviderIcon
+                            provider={data.repository.provider}
+                            class="shrink-0"
+                            style="width: {headerIconSize}px; height: {headerIconSize}px;" />
+                    </div>
+                    <div class="min-w-0" bind:clientHeight={headerBlockHeight}>
+                        <h1
+                            class="pl-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white">
                             {displayTitle}
                         </h1>
                         {#if data.repository.description?.trim()}
-                            <p class="mt-1 text-sm text-neutral-500">{data.repository.path}</p>
-                        {:else}
-                            <p class="mt-1 text-sm text-neutral-500">{data.repository.language}</p>
+                            <p class="mt-1 pl-1 text-sm text-neutral-500">{data.repository.path}</p>
                         {/if}
+                        <div class="mt-2 flex flex-col gap-2">
+                            <div class="flex flex-wrap gap-1.5">
+                                {#if data.repository.prEnabled && data.repository.prReviewEnabled}
+                                    <Badge variant="success">Pull Request Review</Badge>
+                                {/if}
+                                {#if pullRequestReply}
+                                    <Badge variant={pullRequestReply.variant}>{pullRequestReply.label}</Badge>
+                                {/if}
+                                {#if data.repository.issueEnabled && data.repository.issueCommentOnOpenEnabled}
+                                    <Badge variant="success">Issue Review</Badge>
+                                {/if}
+                                {#if issueReply}
+                                    <Badge variant={issueReply.variant}>{issueReply.label}</Badge>
+                                {/if}
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                {#if data.repository.prEnabled && data.repository.prReviewEnabled && data.repository.prInlineReview}
+                                    <Badge variant="warning">Inline Review</Badge>
+                                {/if}
+                                <Badge variant="neutral">{data.repository.language}</Badge>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
@@ -188,42 +252,64 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SummaryPannel label="Total activity" value={stats.totalActivity} />
-            <SummaryPannel label="Errors" value={stats.errors} status={stats.errors > 0 ? "error" : "neutral"} />
-            <SummaryPannel label="Reviews" value={stats.reviews} />
-            <SummaryPannel label="Replies" value={stats.replies} />
-        </div>
-
-        <div>
-            <div class="mb-3 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Token Usage</h3>
-            </div>
-            <TokenUsagePanel series={tokenSeries} range={selectedRange} byModel={tokensByModel} byRepository={[]} />
-        </div>
-
-        <div>
-            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
-                <a
-                    href={reviewListHref}
-                    class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
-                    View all →
-                </a>
-            </div>
-            {#if recentList.length === 0}
-                <div
-                    class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-sm text-neutral-500">No activity in this period.</p>
+        <div class="xl:grid xl:grid-cols-[1fr_17rem] xl:items-start xl:gap-8">
+            <div class="min-w-0 space-y-8">
+                <div class="grid grid-cols-2 gap-3 xl:hidden">
+                    <SummaryPannel
+                        label="Total activity"
+                        value={stats.totalActivity}
+                        navHref={`/review?repository=${data.repositoryId}`} />
+                    <SummaryPannel
+                        label="Errors"
+                        value={stats.errors}
+                        status={stats.errors > 0 ? "error" : "neutral"}
+                        navHref={`/review?status=failed&repository=${data.repositoryId}`} />
+                    <SummaryPannel
+                        label="Reviews"
+                        value={stats.reviews}
+                        navHref={`/review?type=pr_review&repository=${data.repositoryId}`} />
+                    <SummaryPannel label="Replies" value={stats.replies} />
                 </div>
-            {:else}
-                <div
-                    class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
-                    {#each recentList as activity (activity.id)}
-                        {@render activityRow(activity)}
-                    {/each}
+
+                <div>
+                    <div class="mb-3 pl-1">
+                        <h3 class="text-base font-medium text-neutral-800 dark:text-white">Token Usage</h3>
+                    </div>
+                    <TokenUsagePanel
+                        series={tokenSeries}
+                        range={selectedRange}
+                        byModel={tokensByModel}
+                        byRepository={[]} />
                 </div>
-            {/if}
+
+                <div>
+                    <div class="mb-3 flex items-center justify-between gap-4 pl-1">
+                        <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
+                        <a
+                            href={`/review?repository=${data.repositoryId}`}
+                            class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                            View all →
+                        </a>
+                    </div>
+                    {#if recentList.length === 0}
+                        <div
+                            class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
+                            <p class="text-sm text-neutral-500">No activity in this period.</p>
+                        </div>
+                    {:else}
+                        <div
+                            class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+                            {#each recentList as activity (activity.id)}
+                                {@render activityRow(activity)}
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+            </div>
+
+            <aside class="hidden xl:block">
+                <InfoStackPanel itemList={statsItemList} />
+            </aside>
         </div>
     </div>
 </DefaultLayout>

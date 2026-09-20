@@ -6,6 +6,8 @@
         type SetupStepStatus,
     } from "$lib/components/organism/SetupCheckList.svelte";
     import SummaryPannel from "$lib/components/molecule/SummaryPannel.svelte";
+    import InfoStackPanel from "$lib/components/molecule/InfoStackPanel.svelte";
+    import type { InfoStackItem } from "$lib/components/molecule/InfoStackPanel.svelte";
     import TokenUsagePanel from "$lib/components/molecule/TokenUsagePanel.svelte";
     import DashboardRangeToggle from "$lib/components/molecule/DashboardRangeToggle.svelte";
     import ResourceCard from "$lib/components/molecule/ResourceCard.svelte";
@@ -134,6 +136,17 @@
     );
 
     const stats = $derived(activitySummary.stats);
+    const statsItemList = $derived<InfoStackItem[]>([
+        { label: "Total activity", value: stats.totalActivity, href: "/review" },
+        {
+            label: "Errors",
+            value: stats.errors,
+            error: stats.errors > 0,
+            href: "/review?status=failed",
+        },
+        { label: "Reviews", value: stats.reviews, href: "/review?type=pr_review" },
+        { label: "Replies", value: stats.replies },
+    ]);
     const recentList = $derived(activitySummary.recent);
     const tokenSeries = $derived(activitySummary.tokenSeries);
     const tokensByModel = $derived(activitySummary.tokensByModel);
@@ -187,7 +200,7 @@
     <DashboardRangeToggle value={selectedRange} onchange={onRangeChange} />
 {/snippet}
 
-<DefaultLayout title="Dashboard" actions={rangeActions}>
+<DefaultLayout title="Dashboard" asideLayout actions={rangeActions}>
     <div class="space-y-8 {summaryLoading ? 'opacity-70 transition-opacity' : ''}">
         {#if !isSetupComplete}
             <SetupCheckList steps={setupSteps} completedCount={completedSetupCount} totalCount={SETUP_TOTAL} />
@@ -214,62 +227,72 @@
             </div>
         {/if}
 
-        <div>
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <SummaryPannel label="Total activity" value={stats.totalActivity} />
-                <SummaryPannel label="Errors" value={stats.errors} status={stats.errors > 0 ? "error" : "neutral"} />
-                <SummaryPannel label="Reviews" value={stats.reviews} />
-                <SummaryPannel label="Replies" value={stats.replies} />
-            </div>
-        </div>
-
-        <div>
-            <div class="mb-3 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Token Usage</h3>
-            </div>
-            <TokenUsagePanel
-                series={tokenSeries}
-                range={selectedRange}
-                byModel={tokensByModel}
-                byRepository={tokensByRepository} />
-        </div>
-
-        <div>
-            <div class="mb-3 flex items-center justify-between gap-4 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
-                <a
-                    href="/review"
-                    class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
-                    View all →
-                </a>
-            </div>
-            {#if recentList.length === 0}
-                <div
-                    class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-sm text-neutral-500">No activity in this period.</p>
+        <div class="xl:grid xl:grid-cols-[1fr_17rem] xl:items-start xl:gap-8">
+            <div class="min-w-0 space-y-8">
+                <div class="grid grid-cols-2 gap-3 xl:hidden">
+                    <SummaryPannel label="Total activity" value={stats.totalActivity} navHref="/review" />
+                    <SummaryPannel
+                        label="Errors"
+                        value={stats.errors}
+                        status={stats.errors > 0 ? "error" : "neutral"}
+                        navHref="/review?status=failed" />
+                    <SummaryPannel label="Reviews" value={stats.reviews} navHref="/review?type=pr_review" />
+                    <SummaryPannel label="Replies" value={stats.replies} />
                 </div>
-            {:else}
-                <div
-                    class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
-                    {#each recentList as activity (activity.id)}
-                        {@render activityRow(activity)}
-                    {/each}
-                </div>
-            {/if}
-        </div>
 
-        <div class="hidden sm:block">
-            <div class="mb-3 pl-1">
-                <h3 class="text-base font-medium text-neutral-800 dark:text-white">Connection</h3>
+                <div>
+                    <div class="mb-3 pl-1">
+                        <h3 class="text-base font-medium text-neutral-800 dark:text-white">Token Usage</h3>
+                    </div>
+                    <TokenUsagePanel
+                        series={tokenSeries}
+                        range={selectedRange}
+                        byModel={tokensByModel}
+                        byRepository={tokensByRepository} />
+                </div>
+
+                <div>
+                    <div class="mb-3 flex items-center justify-between gap-4 pl-1">
+                        <h3 class="text-base font-medium text-neutral-800 dark:text-white">Recent Activity</h3>
+                        <a
+                            href="/review"
+                            class="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 dark:hover:text-neutral-200">
+                            View all →
+                        </a>
+                    </div>
+                    {#if recentList.length === 0}
+                        <div
+                            class="rounded-lg border border-neutral-200 bg-white px-6 py-10 text-center dark:border-neutral-700 dark:bg-neutral-800">
+                            <p class="text-sm text-neutral-500">No activity in this period.</p>
+                        </div>
+                    {:else}
+                        <div
+                            class="overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+                            {#each recentList as activity (activity.id)}
+                                {@render activityRow(activity)}
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
+
+                <div class="hidden sm:block">
+                    <div class="mb-3 pl-1">
+                        <h3 class="text-base font-medium text-neutral-800 dark:text-white">Connection</h3>
+                    </div>
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <SummaryPannel label="Model Providers" value={modelCount} />
+                        <SummaryPannel label="Git Providers" value={providerCount} />
+                        <SummaryPannel
+                            label="Projects"
+                            value={repositoryCount}
+                            sublabel={repositoryCount > 0 ? `${activeReviewCount} with PR review enabled` : undefined} />
+                    </div>
+                </div>
             </div>
-            <div class="grid gap-3 sm:grid-cols-3">
-                <SummaryPannel label="Model Providers" value={modelCount} />
-                <SummaryPannel label="Git Providers" value={providerCount} />
-                <SummaryPannel
-                    label="Projects"
-                    value={repositoryCount}
-                    sublabel={repositoryCount > 0 ? `${activeReviewCount} with PR review enabled` : undefined} />
-            </div>
+
+            <aside class="hidden xl:block">
+                <InfoStackPanel itemList={statsItemList} />
+            </aside>
         </div>
     </div>
 </DefaultLayout>

@@ -309,7 +309,7 @@
                 <span class="text-sm text-neutral-400">{RANGE_SUBTITLE[range]}</span>
             </div>
             {#if labeledSeries.length > 0}
-                <ul class="mt-3 max-w-md space-y-1.5">
+                <ul class="mt-3 max-w-sm space-y-1.5">
                     {@render segmentRow("input", periodSegments.input, periodSegments.segmentSum)}
                     {@render segmentRow("output", periodSegments.output, periodSegments.segmentSum)}
                     {@render segmentRow("cache", periodSegments.cache, periodSegments.segmentSum)}
@@ -318,9 +318,9 @@
         </div>
 
         <div
-            class="grid w-full min-w-0 gap-4 sm:w-auto sm:shrink-0 {byRepository.length > 0
-                ? 'grid-cols-2 sm:max-w-sm sm:min-w-[16rem]'
-                : 'grid-cols-1 sm:max-w-xs sm:min-w-[8rem]'}">
+            class="hidden min-w-0 gap-4 lg:grid lg:w-auto lg:shrink-0 {byRepository.length > 0
+                ? 'lg:grid-cols-2 lg:max-w-sm lg:min-w-[16rem]'
+                : 'lg:grid-cols-1 lg:max-w-xs lg:min-w-[8rem]'}">
             {@render breakdownList("By Model", byModel)}
             {#if byRepository.length > 0}
                 {@render breakdownList("By Project", byRepository)}
