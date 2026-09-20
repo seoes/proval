@@ -100,9 +100,9 @@ export async function loadRepositoryPage(id: string): Promise<RepositoryPageData
 }
 
 const VIEW_IN_PROVIDER_LABEL = {
-    github: "View in GitHub",
-    gitlab: "View in GitLab",
-    forgejo: "View in Forgejo",
+    github: "Open in GitHub",
+    gitlab: "Open in GitLab",
+    forgejo: "Open in Forgejo",
 } as const;
 
 export function viewInProviderLabel(provider: ActivityResponse["provider"]): string {
