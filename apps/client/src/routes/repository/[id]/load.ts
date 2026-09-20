@@ -134,9 +134,7 @@ export function activityTargetWebUrl(
     const base = providerOption.baseUrl.replace(/\/$/, "");
 
     if (activity.provider === "gitlab") {
-        return isPullRequest
-            ? `${base}/${path}/-/merge_requests/${target}`
-            : `${base}/${path}/-/issues/${target}`;
+        return isPullRequest ? `${base}/${path}/-/merge_requests/${target}` : `${base}/${path}/-/issues/${target}`;
     }
 
     return isPullRequest ? `${base}/${path}/pulls/${target}` : `${base}/${path}/issues/${target}`;
