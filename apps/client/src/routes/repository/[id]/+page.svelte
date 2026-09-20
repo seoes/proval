@@ -85,11 +85,7 @@
             error: stats.errors > 0,
             href: `/review?status=failed&repository=${data.repositoryId}`,
         },
-        {
-            label: "Reviews",
-            value: stats.reviews,
-            href: `/review?type=pr_review&repository=${data.repositoryId}`,
-        },
+        { label: "Reviews", value: stats.reviews },
         { label: "Replies", value: stats.replies },
     ]);
     const recentList = $derived(activitySummary.recent);
