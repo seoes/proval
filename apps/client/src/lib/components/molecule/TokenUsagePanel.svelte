@@ -193,7 +193,9 @@
         const length = bars.length;
         if (length === 0) return [];
         if (length === 1) {
-            return [{ index: 0, label: bars[0].label, leftPct: (bars[0].centerX / plotW) * 100, align: "start" as const }];
+            return [
+                { index: 0, label: bars[0].label, leftPct: (bars[0].centerX / plotW) * 100, align: "start" as const },
+            ];
         }
         const indexes = Array.from(
             new Set([0, Math.floor((length - 1) / 3), Math.floor(((length - 1) * 2) / 3), length - 1]),
@@ -294,8 +296,8 @@
     <li class="flex items-center gap-2 text-sm">
         <span class="size-2 shrink-0 rounded-full" style="background-color: {meta.color}"></span>
         <span class="min-w-0 flex-1 text-neutral-600 dark:text-neutral-300">{meta.label}</span>
-        <span class="shrink-0 tabular-nums text-neutral-800 dark:text-neutral-100">{formatTokensFull(value)}</span>
-        <span class="w-10 shrink-0 text-right tabular-nums text-neutral-400">{segmentPercent(value, segmentSum)}</span>
+        <span class="shrink-0 text-neutral-800 tabular-nums dark:text-neutral-100">{formatTokensFull(value)}</span>
+        <span class="w-10 shrink-0 text-right text-neutral-400 tabular-nums">{segmentPercent(value, segmentSum)}</span>
     </li>
 {/snippet}
 
@@ -319,8 +321,8 @@
 
         <div
             class="hidden min-w-0 gap-4 lg:grid lg:w-auto lg:shrink-0 {byRepository.length > 0
-                ? 'lg:grid-cols-2 lg:max-w-sm lg:min-w-[16rem]'
-                : 'lg:grid-cols-1 lg:max-w-xs lg:min-w-[8rem]'}">
+                ? 'lg:max-w-sm lg:min-w-[16rem] lg:grid-cols-2'
+                : 'lg:max-w-xs lg:min-w-[8rem] lg:grid-cols-1'}">
             {@render breakdownList("By Model", byModel)}
             {#if byRepository.length > 0}
                 {@render breakdownList("By Project", byRepository)}
@@ -341,98 +343,102 @@
                 onpointerleave={onPointerLeave}>
                 <div class="relative pt-14">
                     <div class="flex h-44">
-                    <div class="relative w-11 shrink-0" aria-hidden="true">
-                        {#each yTicks as tick (tick)}
-                            <span
-                                class="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-neutral-400 tabular-nums"
-                                style="top: {yTickTopPercent(tick, maxStack)}%">
-                                {formatTokens(tick)}
-                            </span>
-                        {/each}
-                    </div>
-                    <div
-                        bind:this={chartEl}
-                        class="relative min-w-0 flex-1"
-                        onpointermove={onPointerMove}>
-                        {#if hoveredBar}
-                            {@const leftPct = (hoveredBar.centerX / plotW) * 100}
-                            {@const hInput = segmentValue(hoveredBar, "input")}
-                            {@const hOutput = hoveredBar.outputToken}
-                            {@const hCache = hoveredBar.cachedInputToken}
-                            <div
-                                class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
-                                style="left: clamp(2rem, {leftPct}%, calc(100% - 2rem))">
-                                <p class="text-[11px] leading-none text-neutral-400">{hoveredBar.label}</p>
-                                <p class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
-                                    {formatTokensFull(hoveredBar.tokens)}
-                                    <span class="text-xs font-normal text-neutral-400">total</span>
-                                </p>
-                                <p class="mt-1 text-[11px] text-neutral-500 tabular-nums">
-                                    In {formatTokensFull(hInput)} · Out {formatTokensFull(hOutput)} · Cache {formatTokensFull(hCache)}
-                                </p>
-                            </div>
-                        {/if}
-
-                        <svg
-                            viewBox="0 0 {plotW} {HEIGHT}"
-                            class="h-full w-full overflow-visible"
-                            preserveAspectRatio="none">
+                        <div class="relative w-11 shrink-0" aria-hidden="true">
                             {#each yTicks as tick (tick)}
-                                {@const y = yAt(tick, maxStack)}
+                                <span
+                                    class="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-neutral-400 tabular-nums"
+                                    style="top: {yTickTopPercent(tick, maxStack)}%">
+                                    {formatTokens(tick)}
+                                </span>
+                            {/each}
+                        </div>
+                        <div bind:this={chartEl} class="relative min-w-0 flex-1" onpointermove={onPointerMove}>
+                            {#if hoveredBar}
+                                {@const leftPct = (hoveredBar.centerX / plotW) * 100}
+                                {@const hInput = segmentValue(hoveredBar, "input")}
+                                {@const hOutput = hoveredBar.outputToken}
+                                {@const hCache = hoveredBar.cachedInputToken}
+                                <div
+                                    class="pointer-events-none absolute top-0 z-20 -translate-x-1/2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-neutral-600 dark:bg-neutral-900"
+                                    style="left: clamp(2rem, {leftPct}%, calc(100% - 2rem))">
+                                    <p class="text-[11px] leading-none text-neutral-400">{hoveredBar.label}</p>
+                                    <p
+                                        class="mt-1 text-sm font-semibold text-neutral-800 tabular-nums dark:text-neutral-100">
+                                        {formatTokensFull(hoveredBar.tokens)}
+                                        <span class="text-xs font-normal text-neutral-400">total</span>
+                                    </p>
+                                    <p class="mt-1 text-[11px] text-neutral-500 tabular-nums">
+                                        In {formatTokensFull(hInput)} · Out {formatTokensFull(hOutput)} · Cache {formatTokensFull(
+                                            hCache,
+                                        )}
+                                    </p>
+                                </div>
+                            {/if}
+
+                            <svg
+                                viewBox="0 0 {plotW} {HEIGHT}"
+                                class="h-full w-full overflow-visible"
+                                preserveAspectRatio="none">
+                                {#each yTicks as tick (tick)}
+                                    {@const y = yAt(tick, maxStack)}
+                                    <line
+                                        x1={0}
+                                        y1={y}
+                                        x2={plotW}
+                                        y2={y}
+                                        stroke="currentColor"
+                                        class="text-neutral-100 dark:text-neutral-700/80"
+                                        stroke-width="1"
+                                        vector-effect="non-scaling-stroke" />
+                                {/each}
+
                                 <line
                                     x1={0}
-                                    y1={y}
+                                    y1={baselineY}
                                     x2={plotW}
-                                    y2={y}
-                                    stroke="currentColor"
-                                    class="text-neutral-100 dark:text-neutral-700/80"
-                                    stroke-width="1"
-                                    vector-effect="non-scaling-stroke" />
-                            {/each}
-
-                            <line
-                                x1={0}
-                                y1={baselineY}
-                                x2={plotW}
-                                y2={baselineY}
-                                stroke="currentColor"
-                                class="text-neutral-200 dark:text-neutral-600"
-                                stroke-width="1"
-                                vector-effect="non-scaling-stroke" />
-
-                            {#each bars as bar (bar.index)}
-                                {#each bar.segments as seg (seg.key)}
-                                    {#if seg.isTop}
-                                        <path
-                                            d={roundedTopRectPath(bar.x, seg.y, bar.width, seg.height, 3)}
-                                            fill={seg.color}
-                                            opacity={hoveredIndex === null || hoveredIndex === bar.index ? 1 : 0.45} />
-                                    {:else}
-                                        <rect
-                                            x={bar.x}
-                                            y={seg.y}
-                                            width={bar.width}
-                                            height={seg.height}
-                                            fill={seg.color}
-                                            opacity={hoveredIndex === null || hoveredIndex === bar.index ? 1 : 0.45} />
-                                    {/if}
-                                {/each}
-                            {/each}
-
-                            {#if hoveredBar}
-                                <line
-                                    x1={hoveredBar.centerX}
-                                    y1={PAD.top}
-                                    x2={hoveredBar.centerX}
                                     y2={baselineY}
-                                    stroke="var(--primary)"
-                                    stroke-opacity="0.22"
+                                    stroke="currentColor"
+                                    class="text-neutral-200 dark:text-neutral-600"
                                     stroke-width="1"
-                                    stroke-dasharray="4 3"
                                     vector-effect="non-scaling-stroke" />
-                            {/if}
-                        </svg>
-                    </div>
+
+                                {#each bars as bar (bar.index)}
+                                    {#each bar.segments as seg (seg.key)}
+                                        {#if seg.isTop}
+                                            <path
+                                                d={roundedTopRectPath(bar.x, seg.y, bar.width, seg.height, 3)}
+                                                fill={seg.color}
+                                                opacity={hoveredIndex === null || hoveredIndex === bar.index
+                                                    ? 1
+                                                    : 0.45} />
+                                        {:else}
+                                            <rect
+                                                x={bar.x}
+                                                y={seg.y}
+                                                width={bar.width}
+                                                height={seg.height}
+                                                fill={seg.color}
+                                                opacity={hoveredIndex === null || hoveredIndex === bar.index
+                                                    ? 1
+                                                    : 0.45} />
+                                        {/if}
+                                    {/each}
+                                {/each}
+
+                                {#if hoveredBar}
+                                    <line
+                                        x1={hoveredBar.centerX}
+                                        y1={PAD.top}
+                                        x2={hoveredBar.centerX}
+                                        y2={baselineY}
+                                        stroke="var(--primary)"
+                                        stroke-opacity="0.22"
+                                        stroke-width="1"
+                                        stroke-dasharray="4 3"
+                                        vector-effect="non-scaling-stroke" />
+                                {/if}
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
