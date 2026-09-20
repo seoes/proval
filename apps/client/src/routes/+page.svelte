@@ -14,6 +14,7 @@
     import Badge from "$lib/components/atom/Badge.svelte";
     import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import fetchApi, { formatTimeAgo } from "$lib/utils";
+    import { openAlert } from "$lib/store/modal";
     import type { PageProps } from "./$types";
     import type { ActivityResponse, ActivitySummaryResponse, DashboardRange } from "@proval/types";
 
@@ -43,10 +44,19 @@
         summaryLoading = true;
         try {
             const response = await fetchApi(`/activity/summary?range=${range}`);
-            if (response.ok) {
-                activitySummary = await response.json();
-                selectedRange = activitySummary.range;
+            if (!response.ok) {
+                throw new Error("Failed to load summary");
             }
+            activitySummary = await response.json();
+            selectedRange = activitySummary.range;
+            try {
+                localStorage.setItem(RANGE_STORAGE_KEY, activitySummary.range);
+            } catch {
+                // ignore quota / private mode
+            }
+        } catch {
+            selectedRange = activitySummary.range;
+            await openAlert("Failed to load summary");
         } finally {
             summaryLoading = false;
         }
@@ -55,11 +65,6 @@
     async function onRangeChange(range: DashboardRange) {
         if (range === selectedRange) return;
         selectedRange = range;
-        try {
-            localStorage.setItem(RANGE_STORAGE_KEY, range);
-        } catch {
-            // ignore quota / private mode
-        }
         await loadSummary(range);
     }
 

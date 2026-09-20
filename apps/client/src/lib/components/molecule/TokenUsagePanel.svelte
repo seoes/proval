@@ -249,6 +249,11 @@
         hoveredIndex = null;
     }
 
+    function onPointerUp(event: PointerEvent) {
+        if (event.pointerType !== "touch") return;
+        hoveredIndex = null;
+    }
+
     function roundedTopRectPath(x: number, y: number, w: number, h: number, r: number): string {
         const radius = Math.min(r, w / 2, h);
         if (radius <= 0 || h <= 0) {
@@ -340,7 +345,9 @@
                 class="relative select-none"
                 role="img"
                 aria-label="Token usage stacked bar chart for the selected period"
-                onpointerleave={onPointerLeave}>
+                onpointerleave={onPointerLeave}
+                onpointerup={onPointerUp}
+                onpointercancel={onPointerLeave}>
                 <div class="relative pt-14">
                     <div class="flex h-44">
                         <div class="relative w-11 shrink-0" aria-hidden="true">
