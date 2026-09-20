@@ -25,9 +25,9 @@ function daysAgo(days: number): Date {
     return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
-const MODEL_QWEN = "qwen/qwen3.6-35b-a3b";
+const MODEL_QWEN = "Qwen/Qwen3.8-27B";
 const MODEL_GEMMA = "google/gemma-4-12b";
-const MODEL_SONNET = "anthropic/claude-sonnet-5";
+const MODEL_OPUS = "anthropic/claude-opus-5.2";
 
 /** Deterministic PRNG so demo charts stay stable across reloads. */
 function mulberry32(seed: number): () => number {
@@ -102,7 +102,7 @@ export const repositoryList: RepositoryResponse[] = [
     {
         id: 1,
         path: "dowonseo/web-auth",
-        description: "Login, sessions, and token handling",
+        description: "auth app",
         provider: "gitlab",
         language: "English",
         gitProviderAccessId: 1,
@@ -132,7 +132,7 @@ export const repositoryList: RepositoryResponse[] = [
     {
         id: 2,
         path: "dowonseo/web-app",
-        description: "Main web application",
+        description: "mono web app",
         provider: "github",
         language: "English",
         gitProviderAccessId: null,
@@ -154,7 +154,7 @@ export const repositoryList: RepositoryResponse[] = [
         issueReplyEnabled: false,
         issueMentionOnly: false,
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         createdAt: daysAgo(180),
         updatedAt: minutesAgo(60 * 12),
         lastUsedAt: minutesAgo(45),
@@ -162,7 +162,7 @@ export const repositoryList: RepositoryResponse[] = [
     {
         id: 3,
         path: "somedude/expense-tracker",
-        description: "Personal side project — expense logging app",
+        description: "expense logging",
         provider: "forgejo",
         language: "English",
         gitProviderAccessId: 1,
@@ -214,7 +214,7 @@ const DEMO_REPOS: DemoRepo[] = [
         path: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         weight: 0.5,
     },
     {
@@ -246,43 +246,31 @@ function tokenProfile(
     type: ActivityResponse["type"],
     rng: () => number,
 ): { inputToken: number; cachedInputToken: number; outputToken: number } {
-    // Ranges calibrated from local.db completed activities + operator feel:
-    // pr_review input ~200k (small) / ~700k (large); output ~20k–50k
-    // reply input ~100k; output ~5k–10k (real avg lower; demo leans to felt range)
+    const cacheRatio = 0.74 + rng() * 0.12;
+
     if (type === "pr_review") {
         const roll = rng();
         let inputToken: number;
-        if (roll < 0.35) inputToken = randInt(rng, 170000, 280000);
-        else if (roll < 0.8) inputToken = randInt(rng, 280000, 520000);
-        else if (roll < 0.95) inputToken = randInt(rng, 520000, 720000);
-        else inputToken = randInt(rng, 900000, 1900000); // rare heavy reviews
-        const cacheRatio = 0.55 + rng() * 0.3; // ~55–85%, matching real cache hit rates
-        const cachedInputToken = Math.floor(inputToken * cacheRatio);
-        const outputToken = roll < 0.95 ? randInt(rng, 16000, 52000) : randInt(rng, 80000, 180000);
-        return { inputToken, cachedInputToken, outputToken };
+        if (roll < 0.15) inputToken = randInt(rng, 720000, 880000);
+        else if (roll < 0.85) inputToken = randInt(rng, 880000, 1180000);
+        else inputToken = randInt(rng, 1180000, 1550000);
+        return {
+            inputToken,
+            cachedInputToken: Math.floor(inputToken * cacheRatio),
+            outputToken: randInt(rng, 230000, 370000),
+        };
     }
 
-    if (type === "issue_open") {
-        const inputToken = randInt(rng, 75000, 220000);
-        const cachedInputToken = Math.floor(inputToken * (0.5 + rng() * 0.3));
-        return { inputToken, cachedInputToken, outputToken: randInt(rng, 2000, 4500) };
-    }
-
-    // pr_reply / issue_reply
     const roll = rng();
     let inputToken: number;
-    if (type === "issue_reply") {
-        inputToken = roll < 0.7 ? randInt(rng, 20000, 70000) : randInt(rng, 70000, 120000);
-    } else if (roll < 0.55) {
-        inputToken = randInt(rng, 35000, 110000);
-    } else if (roll < 0.9) {
-        inputToken = randInt(rng, 110000, 220000);
-    } else {
-        inputToken = randInt(rng, 250000, 450000); // long thread / large context
-    }
-    const cachedInputToken = Math.floor(inputToken * (0.55 + rng() * 0.3));
-    const outputToken = roll < 0.75 ? randInt(rng, 4500, 10000) : randInt(rng, 1500, 4500);
-    return { inputToken, cachedInputToken, outputToken };
+    if (roll < 0.3) inputToken = randInt(rng, 100000, 200000);
+    else if (roll < 0.8) inputToken = randInt(rng, 200000, 380000);
+    else inputToken = randInt(rng, 380000, 500000);
+    return {
+        inputToken,
+        cachedInputToken: Math.floor(inputToken * cacheRatio),
+        outputToken: randInt(rng, 38000, 62000),
+    };
 }
 
 function pickType(rng: () => number): ActivityResponse["type"] {
@@ -301,7 +289,7 @@ const recentActivityList: ActivityResponse[] = [
         repositoryPath: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         type: "pr_review",
         status: "started",
         targetIid: 142,
@@ -339,14 +327,14 @@ const recentActivityList: ActivityResponse[] = [
         repositoryPath: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         type: "pr_review",
         status: "completed",
         targetIid: 141,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 486200,
-        cachedInputToken: 361400,
-        outputToken: 38400,
+        inputToken: 1048200,
+        cachedInputToken: 838600,
+        outputToken: 312400,
         errorMessage: null,
         completedAt: minutesAgo(45),
         createdAt: minutesAgo(58),
@@ -363,9 +351,9 @@ const recentActivityList: ActivityResponse[] = [
         status: "completed",
         targetIid: 86,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 218500,
-        cachedInputToken: 0,
-        outputToken: 24100,
+        inputToken: 876400,
+        cachedInputToken: 701100,
+        outputToken: 268500,
         errorMessage: null,
         completedAt: minutesAgo(90),
         createdAt: minutesAgo(102),
@@ -382,7 +370,7 @@ const recentActivityList: ActivityResponse[] = [
         status: "failed",
         targetIid: 34,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 142000,
+        inputToken: 912000,
         cachedInputToken: 0,
         outputToken: 0,
         errorMessage: "LLM request timed out after 120s",
@@ -396,14 +384,14 @@ const recentActivityList: ActivityResponse[] = [
         repositoryPath: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         type: "pr_reply",
         status: "completed",
         targetIid: 140,
         headSha: null,
-        inputToken: 98400,
-        cachedInputToken: 71200,
-        outputToken: 6400,
+        inputToken: 286400,
+        cachedInputToken: 229100,
+        outputToken: 48200,
         errorMessage: null,
         completedAt: minutesAgo(200),
         createdAt: minutesAgo(205),
@@ -420,9 +408,9 @@ const recentActivityList: ActivityResponse[] = [
         status: "completed",
         targetIid: 52,
         headSha: null,
-        inputToken: 42800,
-        cachedInputToken: 28600,
-        outputToken: 5200,
+        inputToken: 164800,
+        cachedInputToken: 133500,
+        outputToken: 51400,
         errorMessage: null,
         completedAt: minutesAgo(300),
         createdAt: minutesAgo(305),
@@ -434,12 +422,12 @@ const recentActivityList: ActivityResponse[] = [
         repositoryPath: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         type: "pr_review",
         status: "failed",
         targetIid: 139,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 268000,
+        inputToken: 1156000,
         cachedInputToken: 0,
         outputToken: 0,
         errorMessage: "Git provider API rate limit exceeded",
@@ -458,9 +446,9 @@ const recentActivityList: ActivityResponse[] = [
         status: "completed",
         targetIid: 85,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 334800,
-        cachedInputToken: 248200,
-        outputToken: 31200,
+        inputToken: 1186700,
+        cachedInputToken: 961200,
+        outputToken: 294800,
         errorMessage: null,
         completedAt: minutesAgo(500),
         createdAt: minutesAgo(515),
@@ -477,9 +465,9 @@ const recentActivityList: ActivityResponse[] = [
         status: "completed",
         targetIid: 12,
         headSha: null,
-        inputToken: 128400,
-        cachedInputToken: 84200,
-        outputToken: 3100,
+        inputToken: 218500,
+        cachedInputToken: 174800,
+        outputToken: 47600,
         errorMessage: null,
         completedAt: minutesAgo(600),
         createdAt: minutesAgo(610),
@@ -491,14 +479,14 @@ const recentActivityList: ActivityResponse[] = [
         repositoryPath: "dowonseo/web-app",
         provider: "github",
         modelProviderId: 2,
-        modelName: MODEL_SONNET,
+        modelName: MODEL_OPUS,
         type: "pr_review",
         status: "completed",
         targetIid: 138,
         headSha: "a1b2c3d4e5f6789012345678abcdef0123456789",
-        inputToken: 682500,
-        cachedInputToken: 541200,
-        outputToken: 47800,
+        inputToken: 1324500,
+        cachedInputToken: 1046400,
+        outputToken: 341200,
         errorMessage: null,
         completedAt: minutesAgo(700),
         createdAt: minutesAgo(720),
@@ -515,9 +503,9 @@ const recentActivityList: ActivityResponse[] = [
         status: "completed",
         targetIid: 84,
         headSha: null,
-        inputToken: 112600,
-        cachedInputToken: 89400,
-        outputToken: 7800,
+        inputToken: 412600,
+        cachedInputToken: 330100,
+        outputToken: 54800,
         errorMessage: null,
         completedAt: minutesAgo(800),
         createdAt: minutesAgo(810),
@@ -527,7 +515,7 @@ const recentActivityList: ActivityResponse[] = [
 
 /**
  * Year-to-date history so 30d / year charts look like a real small team
- * (~2–4M tokens/month, weekday-heavy). Starts Jan 1 or 90 days ago, whichever is earlier.
+ * (weekday-heavy). Starts Jan 1 or 90 days ago, whichever is earlier.
  */
 function buildHistoricalActivities(): ActivityResponse[] {
     const rng = mulberry32(20260710);
@@ -568,7 +556,7 @@ function buildHistoricalActivities(): ActivityResponse[] {
             const createdAt = new Date(completedAt.getTime() - durationMin * 60 * 1000);
             const tokens = failed
                 ? {
-                      inputToken: randInt(rng, 80000, 320000),
+                      inputToken: type === "pr_review" ? randInt(rng, 700000, 1300000) : randInt(rng, 100000, 450000),
                       cachedInputToken: 0,
                       outputToken: 0,
                   }
@@ -875,7 +863,7 @@ const modelListByProviderId: Record<number, ModelProviderModelListResponse> = {
         source: "openai_compatible",
     },
     2: {
-        models: [{ id: MODEL_SONNET }, { id: "anthropic/claude-opus-4-7" }],
+        models: [{ id: MODEL_OPUS }, { id: "anthropic/claude-opus-4-7" }],
         source: "openai_compatible",
     },
 };
