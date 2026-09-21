@@ -330,7 +330,7 @@
                 : 'lg:max-w-xs lg:min-w-[8rem] lg:grid-cols-1'}">
             {@render breakdownList("By Model", byModel)}
             {#if byRepository.length > 0}
-                {@render breakdownList("By Project", byRepository)}
+                {@render breakdownList("By Repository", byRepository)}
             {/if}
         </div>
     </div>

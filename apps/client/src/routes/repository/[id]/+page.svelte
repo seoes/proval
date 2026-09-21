@@ -36,13 +36,6 @@
     const headerIconBoxSize = $derived(Math.max(headerBlockHeight, 56));
     const headerIconSize = $derived(Math.round(headerIconBoxSize * 0.52));
 
-    const displayTitle = $derived.by(() => {
-        const description = data.repository.description?.trim();
-        if (description) return description;
-        const segments = data.repository.path.split("/");
-        return segments[segments.length - 1] || data.repository.path;
-    });
-
     const gitWebUrl = $derived.by(() => {
         const path = data.repository.path.replace(/^\//, "");
         if (!path) return null;
@@ -57,6 +50,11 @@
     });
 
     const openInGitText = $derived(OPEN_IN_GIT_LABEL[data.repository.provider]);
+    const headerSubtitle = $derived.by(() => {
+        const modelName = data.repository.modelName.trim();
+        const description = data.repository.description?.trim();
+        return [modelName, description].filter(Boolean).join(" · ");
+    });
 
     const pullRequestReply = $derived(
         replyOptionBadge(
@@ -194,7 +192,7 @@
     <DashboardRangeToggle value={selectedRange} onchange={onRangeChange} />
 {/snippet}
 
-<DefaultLayout title="Project" asideLayout actions={rangeActions}>
+<DefaultLayout title="Repository" asideLayout actions={rangeActions}>
     <div class="space-y-8 {summaryLoading ? 'opacity-70 transition-opacity' : ''}">
         <div>
             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -211,10 +209,10 @@
                     <div class="min-w-0" bind:clientHeight={headerBlockHeight}>
                         <h1
                             class="pl-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-white">
-                            {displayTitle}
+                            {data.repository.path}
                         </h1>
-                        {#if data.repository.description?.trim()}
-                            <p class="mt-1 pl-1 text-sm text-neutral-500">{data.repository.path}</p>
+                        {#if headerSubtitle}
+                            <p class="mt-1 pl-1 text-sm text-neutral-500">{headerSubtitle}</p>
                         {/if}
                         <div class="mt-2 flex flex-col gap-2">
                             <div class="flex flex-wrap gap-1.5">

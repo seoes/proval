@@ -24,7 +24,7 @@
                 },
 
                 {
-                    label: "Project",
+                    label: "Repository",
                     href: "/repository",
                     icon: GitForkIcon,
                 },

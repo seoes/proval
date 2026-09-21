@@ -40,12 +40,14 @@
                     repository.issueEnabled && repository.issueReplyEnabled,
                     repository.issueMentionOnly,
                 )}
+                {@const description = repository.description?.trim()}
+                {@const subtitle = [repository.modelName.trim(), description].filter(Boolean).join(" · ")}
                 {#snippet header()}
                     <div class="flex items-center justify-between">
                         <div class="ml-1.5 flex min-w-0 flex-col gap-0.5">
                             <span class="truncate text-sm text-neutral-800">{repository.path}</span>
-                            {#if repository.description}
-                                <span class="truncate text-xs text-neutral-500">{repository.description}</span>
+                            {#if subtitle}
+                                <span class="truncate text-xs text-neutral-500">{subtitle}</span>
                             {/if}
                         </div>
                         {#if repository.lastUsedAt}

@@ -295,7 +295,7 @@
                         <SummaryPannel label="Model Providers" value={modelCount} />
                         <SummaryPannel label="Git Providers" value={providerCount} />
                         <SummaryPannel
-                            label="Projects"
+                            label="Repositories"
                             value={repositoryCount}
                             sublabel={repositoryCount > 0 ? `${activeReviewCount} with PR review enabled` : undefined} />
                     </div>
