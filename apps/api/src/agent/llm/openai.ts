@@ -1,6 +1,15 @@
 import OpenAI from "openai";
 import type { LlmSender, Message } from "./loop.js";
 import type { SenderSDKConfig } from "./factory.js";
+import z from "zod";
+
+const openRouterErrorSchema = z.object({
+    error: z.object({
+        code: z.number(),
+        message: z.string(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+    }),
+});
 
 export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
     const client = new OpenAI({
@@ -24,10 +33,15 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
             const completion = await client.chat.completions.create({
                 model: config.model,
                 messages: messages.map(convertToOpenAiMessage),
-                ...(openAiTools.length > 0
-                    ? { tools: openAiTools, tool_choice: "auto" as const }
-                    : {}),
+                ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
             });
+
+            if (client.baseURL?.includes("openrouter.ai")) {
+                const result = openRouterErrorSchema.safeParse(completion);
+                if (result.success) {
+                    throw new Error(result.data.error.message);
+                }
+            }
 
             const choice = completion.choices[0];
             const message = choice.message;
