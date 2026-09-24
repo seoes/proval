@@ -8,12 +8,18 @@ mock.module("../../api/activity/activity.service.js", () => ({
     },
 }));
 
-mock.module("../../util/log.js", () => ({
-    logAgent: () => {},
-    logAgentError: () => {},
-    logAgentResult: () => {},
-    logAgentTool: () => {},
-}));
+mock.module("../../util/log.js", () => {
+    const noop = () => {};
+    return {
+        log: noop,
+        logError: noop,
+        debug: noop,
+        logAgent: noop,
+        logAgentTool: noop,
+        logAgentError: noop,
+        logAgentResult: noop,
+    };
+});
 
 import type { AgentTool, LlmResponse, LlmSender } from "./loop.js";
 
