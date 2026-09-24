@@ -5,6 +5,7 @@ import {
     UNTRUSTED_WARNING_SYSTEM_PROMPT,
     wrapUntrustedToolContent,
 } from "../shared/prompt/untrusted-warning.prompt.js";
+import { compressMessages, isContextLengthExceeded } from "./compress.js";
 
 export interface AgentTool {
     name: string;
@@ -72,6 +73,9 @@ export async function runAgentLoop(
     const activityId = options.activityId;
     const activityService = new ActivityService();
 
+    let maximumContextLength = 1_000_000;
+    const compressRatio = 0.5;
+
     async function stopIfCanceled(): Promise<void> {
         if (await activityService.isCanceled(activityId)) {
             logAgent(activityId, "Job canceled by user. Stopping agent loop.", label);
@@ -92,6 +96,8 @@ export async function runAgentLoop(
             { role: "system", content: fullSystem },
             { role: "user", content: prompt },
         ];
+
+        let currentContextLength = 0;
 
         const maxSteps = options.maxSteps ?? 100;
 
@@ -117,7 +123,25 @@ export async function runAgentLoop(
 
             await stopIfCanceled();
 
-            const messagesWithStepInfo: Message[] = [
+            const compressThreshold = maximumContextLength * compressRatio;
+
+            if (currentContextLength > compressThreshold && messages.length > 2) {
+                logAgent(activityId, "compressing context (proactive)", label);
+                const summary = await compressMessages(sender, messages, options.onUsage);
+                messages.splice(2);
+                messages.push({
+                    role: "user",
+                    content: [
+                        "Context was compressed because it exceeded the model limit. Prior tool results were dropped. Re-read files if you need the full content.",
+                        "",
+                        "Compressed working memory:",
+                        summary,
+                    ].join("\n"),
+                });
+                currentContextLength = 0;
+            }
+
+            let messagesWithStepInfo: Message[] = [
                 ...messages,
                 {
                     role: "user",
@@ -136,6 +160,39 @@ export async function runAgentLoop(
                     lastError = error;
 
                     const status = (error as { status: unknown }).status;
+
+                    if (isContextLengthExceeded(error)) {
+                        if (messages.length <= 2) {
+                            throw error;
+                        }
+
+                        if (currentContextLength > 0) {
+                            maximumContextLength = currentContextLength;
+                        }
+
+                        logAgent(activityId, "compressing context (overflow)", label);
+                        const summary = await compressMessages(sender, messages, options.onUsage);
+                        messages.splice(2);
+                        messages.push({
+                            role: "user",
+                            content: [
+                                "Context was compressed because it exceeded the model limit. Prior tool results were dropped. Re-read files if you need the full content.",
+                                "",
+                                "Compressed working memory:",
+                                summary,
+                            ].join("\n"),
+                        });
+                        currentContextLength = 0;
+                        messagesWithStepInfo = [
+                            ...messages,
+                            {
+                                role: "user",
+                                content: `[Step Budget: ${stepCount}/${maxSteps} steps used, ${remainingSteps} remaining]`,
+                            },
+                        ];
+                        continue;
+                    }
+
                     const isRetryable = typeof status === "number" && (status === 429 || status === 400);
 
                     if (!isRetryable || i > 3) {
@@ -156,6 +213,8 @@ export async function runAgentLoop(
             usage.inputToken += response.usage.inputToken;
             usage.cachedInputToken += response.usage.cachedInputToken;
             usage.outputToken += response.usage.outputToken;
+
+            currentContextLength = response.usage.inputToken;
 
             if (options.onUsage) {
                 await options.onUsage({

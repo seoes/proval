@@ -24,8 +24,9 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
             const completion = await client.chat.completions.create({
                 model: config.model,
                 messages: messages.map(convertToOpenAiMessage),
-                tools: openAiTools,
-                tool_choice: "auto",
+                ...(openAiTools.length > 0
+                    ? { tools: openAiTools, tool_choice: "auto" as const }
+                    : {}),
             });
 
             const choice = completion.choices[0];
