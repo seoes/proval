@@ -51,3 +51,25 @@ export class Limiter {
         }
     }
 }
+
+const DEFAULT_LLM_CONCURRENCY = 4;
+
+function readLlmConcurrency(): number {
+    const raw = process.env.PROVAL_LLM_CONCURRENCY;
+    if (!raw) {
+        return DEFAULT_LLM_CONCURRENCY;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+        return DEFAULT_LLM_CONCURRENCY;
+    }
+    return parsed;
+}
+
+/**
+ * Bounds how many model call may be in flight across the whole process.
+ * Shared by every agent and every review, so a burst of concurrent review
+ * cannot exceed the provider concurrency allowance and trigger rate limit
+ * failure.
+ */
+export const llmCallLimiter = new Limiter(readLlmConcurrency());

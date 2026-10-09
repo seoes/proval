@@ -2,6 +2,7 @@ import type { ReasoningEffort } from "@proval/types";
 import type { LlmSender } from "./loop.js";
 import { createOpenAiSender } from "./openai.js";
 import { createAnthropicSender } from "./anthropic.js";
+import { llmCallLimiter } from "./concurrency.js";
 
 export interface SenderConfig {
     provider: string;
@@ -28,13 +29,26 @@ function createLLMFetch() {
     };
 }
 
+/**
+ * Bounds every model call in the process, not just one agent kind.
+ * A plan agent, a review sub agent, a writing agent and a reply agent all send
+ * through a sender from here, so wrapping it here is the only place that holds
+ * when several review run at once.
+ */
+function withConcurrencyLimit(sender: LlmSender): LlmSender {
+    return {
+        send: (messages, tools) => llmCallLimiter.run(() => sender.send(messages, tools)),
+        getModel: () => sender.getModel(),
+    };
+}
+
 export function createSender(config: SenderConfig): LlmSender {
     const fetch = createLLMFetch();
     switch (config.provider) {
         case "anthropic":
-            return createAnthropicSender({ ...config, fetch });
+            return withConcurrencyLimit(createAnthropicSender({ ...config, fetch }));
         case "openai":
         default:
-            return createOpenAiSender({ ...config, fetch });
+            return withConcurrencyLimit(createOpenAiSender({ ...config, fetch }));
     }
 }
