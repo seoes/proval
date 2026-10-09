@@ -15,7 +15,7 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import { logError } from "../../util/log.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
-import { reasoningEffortValueList, USER_PROMPT_MAX_LENGTH } from "@proval/types";
+import { reasoningEffortValueList, resolveUserPromptMaxLength } from "@proval/types";
 import type {
     ReasoningEffort,
     Repository,
@@ -458,8 +458,9 @@ export class RepositoryService {
         if (!trimmed) {
             return null;
         }
-        if (trimmed.length > USER_PROMPT_MAX_LENGTH) {
-            throw new Error(`Custom instructions must be at most ${USER_PROMPT_MAX_LENGTH} characters`);
+        const maxLength = resolveUserPromptMaxLength(process.env.PROVAL_USER_PROMPT_MAX_LENGTH);
+        if (trimmed.length > maxLength) {
+            throw new Error(`Custom instructions must be at most ${maxLength} characters`);
         }
         return trimmed;
     }

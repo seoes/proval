@@ -50,7 +50,7 @@ export type {
     InstanceSettingUpdateInput,
     AuthCredentialInput,
 } from "./database.js";
-export { USER_PROMPT_MAX_LENGTH } from "./user-prompt.js";
+export { USER_PROMPT_MAX_LENGTH, resolveUserPromptMaxLength } from "./user-prompt.js";
 export { reasoningEffortValueList } from "./database.js";
 export type { Pagination } from "./pagination.js";
 export type {
