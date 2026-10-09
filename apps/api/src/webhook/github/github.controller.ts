@@ -7,7 +7,7 @@ import { logError } from "../../util/log.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createSender } from "../../agent/llm/factory.js";
+import { createModelProviderSender } from "../../api/model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
@@ -189,15 +189,6 @@ async function handlePullRequestWebhook(
     }
     const isFollowUpReview = hasCompleted;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
-    });
-
     const isInlineReview = repository.prInlineReview;
 
     const workspace = new Workspace(gitHubProvider);
@@ -214,7 +205,7 @@ async function handlePullRequestWebhook(
             runPullRequestReview({
                 provider: gitHubProvider,
                 workspace,
-                llmSender,
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 prIid: prNumber,
                 isInlineReview,
                 language: repository.language,
@@ -271,15 +262,6 @@ async function handleIssueWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
-    });
-
     const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
@@ -293,7 +275,7 @@ async function handleIssueWebhook(
             runIssueReplyOnOpen({
                 provider: gitHubProvider,
                 workspace,
-                llmSender,
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 issueIid: issueNumber,
                 language: repository.language,
                 issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
@@ -361,15 +343,6 @@ async function handleIssueCommentWebhook(
         );
         if (accessSkip) return accessSkip;
 
-        const llmSender = createSender({
-            provider: modelProvider.provider,
-            apiKey: modelProvider.apiKey,
-            baseURL: modelProvider.baseUrl,
-            model: repository.modelName,
-            timeoutSecond: modelProvider.timeoutSecond,
-            reasoningEffort: repository.reasoningEffort,
-        });
-
         const workspace = new Workspace(gitHubProvider);
         runWithActivity(
             {
@@ -383,7 +356,11 @@ async function handleIssueCommentWebhook(
                 runPullRequestReply({
                     provider: gitHubProvider,
                     workspace,
-                    llmSender,
+                    llmSender: createModelProviderSender(
+                        modelProvider,
+                        repository.modelName,
+                        repository.reasoningEffort,
+                    ),
                     prIid: issueNumber,
                     commentId,
                     inlineReviewId: null,
@@ -417,15 +394,6 @@ async function handleIssueCommentWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
-    });
-
     const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
@@ -439,7 +407,7 @@ async function handleIssueCommentWebhook(
             runIssueReply({
                 provider: gitHubProvider,
                 workspace,
-                llmSender,
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 issueIid: issueNumber,
                 commentId,
                 language: repository.language,
@@ -503,15 +471,6 @@ async function handlePullRequestReviewCommentWebhook(
     if (accessSkip) return accessSkip;
 
     const inlineReviewId = String(comment.in_reply_to_id ?? comment.id);
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
-    });
-
     const workspace = new Workspace(gitHubProvider);
     runWithActivity(
         {
@@ -525,7 +484,7 @@ async function handlePullRequestReviewCommentWebhook(
             runPullRequestReply({
                 provider: gitHubProvider,
                 workspace,
-                llmSender,
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 prIid: prNumber,
                 commentId: comment.id,
                 inlineReviewId,

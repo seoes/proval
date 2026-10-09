@@ -43,10 +43,15 @@ export const sessionTable = sqliteTable(
 
 export const modelProviderTable = sqliteTable("model_provider", {
     id: integer().primaryKey({ autoIncrement: true }),
-    provider: text({ enum: ["openai", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp
+    provider: text({ enum: ["openai", "openai_responses", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp
     label: text().notNull(),
     baseUrl: text().notNull(),
-    apiKey: text().notNull(),
+    apiKey: text(),
+    authMethod: text({ enum: ["api_key", "xai_oauth"] })
+        .notNull()
+        .default("api_key"),
+    oauthCredential: text(),
+    oauthStatus: text({ enum: ["authorized", "reauthorization_required"] }),
     timeoutSecond: integer().notNull().default(600),
     ...timeStamp,
 });

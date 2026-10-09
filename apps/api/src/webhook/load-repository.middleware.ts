@@ -139,7 +139,7 @@ export const loadRepository = createMiddleware(async (c, next) => {
     } else {
         c.set("repository", repository);
     }
-    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
+    c.set("modelProvider", modelProvider);
     c.set("access", { ...access, accessToken: decrypt(access.accessToken) });
 
     await next();

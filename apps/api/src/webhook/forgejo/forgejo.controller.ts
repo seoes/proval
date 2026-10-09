@@ -6,7 +6,7 @@ import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mentio
 import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createSender } from "../../agent/llm/factory.js";
+import { createModelProviderSender } from "../../api/model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
@@ -224,14 +224,7 @@ const handleForgejoPullRequestWebhook = async (
             runPullRequestReview({
                 provider: forgejoProvider,
                 workspace: new Workspace(forgejoProvider),
-                llmSender: createSender({
-                    provider: modelProvider.provider,
-                    apiKey: modelProvider.apiKey,
-                    baseURL: modelProvider.baseUrl,
-                    model: repository.modelName,
-                    timeoutSecond: modelProvider.timeoutSecond,
-                    reasoningEffort: repository.reasoningEffort,
-                }),
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 prIid: prNumber,
                 isInlineReview: repository.prInlineReview,
                 language: repository.language,
@@ -305,14 +298,7 @@ const handleForgejoIssuesWebhook = async (
             runIssueReplyOnOpen({
                 provider: forgejoProvider,
                 workspace: new Workspace(forgejoProvider),
-                llmSender: createSender({
-                    provider: modelProvider.provider,
-                    apiKey: modelProvider.apiKey,
-                    baseURL: modelProvider.baseUrl,
-                    model: repository.modelName,
-                    timeoutSecond: modelProvider.timeoutSecond,
-                    reasoningEffort: repository.reasoningEffort,
-                }),
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 issueIid: issue.number,
                 language: repository.language,
                 issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
@@ -431,14 +417,7 @@ const handleForgejoCommentWebhook = async (
             runIssueReply({
                 provider: forgejoProvider,
                 workspace: new Workspace(forgejoProvider),
-                llmSender: createSender({
-                    provider: modelProvider.provider,
-                    apiKey: modelProvider.apiKey,
-                    baseURL: modelProvider.baseUrl,
-                    model: repository.modelName,
-                    timeoutSecond: modelProvider.timeoutSecond,
-                    reasoningEffort: repository.reasoningEffort,
-                }),
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 issueIid: targetIid,
                 commentId: comment.id,
                 language: repository.language,
@@ -564,14 +543,7 @@ async function startForgejoPrReply(
             runPullRequestReply({
                 provider: forgejoProvider,
                 workspace: new Workspace(forgejoProvider),
-                llmSender: createSender({
-                    provider: modelProvider.provider,
-                    apiKey: modelProvider.apiKey,
-                    baseURL: modelProvider.baseUrl,
-                    model: repository.modelName,
-                    timeoutSecond: modelProvider.timeoutSecond,
-                    reasoningEffort: repository.reasoningEffort,
-                }),
+                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 prIid: prNumber,
                 commentId,
                 inlineReviewId,

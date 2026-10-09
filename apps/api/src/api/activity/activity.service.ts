@@ -14,11 +14,10 @@ import type {
 } from "@proval/types";
 import db from "../../db/index.js";
 import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
-import { createSender } from "../../agent/llm/factory.js";
+import { createModelProviderSender } from "../model/model.service.js";
 import { runPullRequestReview } from "../../agent/pull-request/index.js";
 import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
 import { Workspace } from "../../git-provider/workspace.js";
-import { decrypt } from "../../util/encrypt.js";
 import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
@@ -616,14 +615,7 @@ export class ActivityService {
         const modelProvider = await new ModelProviderService().findById(repository.modelProviderId);
         const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
         const workspace = new Workspace(gitProvider);
-        const llmSender = createSender({
-            provider: modelProvider.provider,
-            apiKey: decrypt(modelProvider.apiKey),
-            baseURL: modelProvider.baseUrl,
-            model: repository.modelName,
-            timeoutSecond: modelProvider.timeoutSecond,
-            reasoningEffort: repository.reasoningEffort,
-        });
+        const llmSender = createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort);
 
         const startInput: ActivityStartInput = {
             repositoryId: activity.repositoryId,

@@ -33,12 +33,12 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
             const completion = await client.chat.completions.create({
                 model: config.model,
                 messages: messages.map(convertToOpenAiMessage),
+                ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
                 ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
                 ...(config.reasoningEffort
-                    ? {
-                          reasoning_effort: config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"],
-                      }
-                    : {}),
+                    ? { reasoning_effort: config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"], }
+                    : {}
+                ),
             });
 
             if (client.baseURL?.includes("openrouter.ai")) {

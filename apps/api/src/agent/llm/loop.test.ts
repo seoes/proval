@@ -54,6 +54,42 @@ const noopTool: AgentTool = {
     execute: async () => "ok",
 };
 
+it("retains Responses output when continuing after text and tool calls", async () => {
+    const textResponse = assistantDone("Still reviewing");
+    textResponse.message.responseOutputList = [
+        { type: "reasoning", id: "rs_text", summary: [], encrypted_content: "encrypted-text" },
+    ];
+    const toolResponse = assistantWithTool();
+    toolResponse.message.responseOutputList = [
+        { type: "reasoning", id: "rs_tool", summary: [], encrypted_content: "encrypted-tool" },
+        { type: "function_call", id: "fc1", call_id: "tc1", name: "noop", arguments: "{}" },
+    ];
+    let sendCount = 0;
+    const sender: LlmSender = {
+        getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
+        async send(messageList) {
+            sendCount++;
+            if (sendCount === 1) return textResponse;
+            expect(messageList.find((message) => message.content === "Still reviewing")?.responseOutputList).toEqual(
+                textResponse.message.responseOutputList,
+            );
+            if (sendCount === 2) return toolResponse;
+            expect(messageList.find((message) => message.toolCalls)?.responseOutputList).toEqual(
+                toolResponse.message.responseOutputList,
+            );
+            return assistantDone("Finished");
+        },
+    };
+
+    const result = await runAgentLoop(sender, "sys", "task", "test", {
+        activityId: -1,
+        requiredToolList: [noopTool],
+        maxSteps: 4,
+    });
+    expect(result.finalMessage).toBe("Finished");
+    expect(result.toolCallCount.noop).toBe(1);
+});
+
 describe("runAgentLoop context compression", () => {
     it("recovers from overflow by compacting and keeps system plus original user", async () => {
         let agentSendCount = 0;

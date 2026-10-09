@@ -37,7 +37,7 @@ export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
                 system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
                 messages: chatMessages,
                 tools: anthropicTools.length > 0 ? anthropicTools : undefined,
-                max_tokens: 8192,
+                max_tokens: config.maxOutputToken ?? 8192,
                 cache_control: {
                     type: "ephemeral",
                 },

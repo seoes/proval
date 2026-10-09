@@ -24,6 +24,7 @@ export function providerLabel(provider: RepositoryProvider): string {
 
 const modelProviderLabelList: Record<LlmApiProvider, string> = {
     openai: "OpenAI",
+    openai_responses: "OpenAI Responses",
     anthropic: "Anthropic",
 };
 

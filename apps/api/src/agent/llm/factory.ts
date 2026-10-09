@@ -1,20 +1,27 @@
 import type { ReasoningEffort } from "@proval/types";
 import type { LlmSender } from "./loop.js";
 import { createOpenAiSender } from "./openai.js";
+import { createOpenAiResponsesSender } from "./openai-responses.js";
 import { createAnthropicSender } from "./anthropic.js";
+import { createXaiSender, type XaiSenderConfig } from "./xai.js";
 
-export interface SenderConfig {
-    provider: string;
+export interface SenderSDKConfig {
     apiKey: string;
     baseURL: string;
     model: string;
     timeoutSecond: number;
+    maxOutputToken?: number;
     reasoningEffort?: ReasoningEffort;
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+    maxRetries?: number;
 }
 
-export type SenderSDKConfig = Omit<SenderConfig, "provider"> & {
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-};
+export type SenderConfig =
+    | (Omit<SenderSDKConfig, "fetch"> & {
+          provider: "openai" | "openai_responses" | "anthropic";
+          fetch?: SenderSDKConfig["fetch"];
+      })
+    | (XaiSenderConfig & { provider: "xai" });
 
 // Bun applies a socket idle limit that fires while a slow model is still thinking.
 // Disable it and let the SDK deadline own the timeout.
@@ -29,8 +36,12 @@ function createLLMFetch() {
 }
 
 export function createSender(config: SenderConfig): LlmSender {
-    const fetch = createLLMFetch();
+    if (config.provider === "xai") return createXaiSender(config);
+
+    const fetch = config.fetch ?? createLLMFetch();
     switch (config.provider) {
+        case "openai_responses":
+            return createOpenAiResponsesSender({ ...config, fetch });
         case "anthropic":
             return createAnthropicSender({ ...config, fetch });
         case "openai":
