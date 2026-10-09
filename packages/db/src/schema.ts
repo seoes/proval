@@ -41,6 +41,28 @@ export const sessionTable = sqliteTable(
     (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
+export const apiTokenTable = sqliteTable(
+    "api_token",
+    {
+        id: integer().primaryKey({ autoIncrement: true }),
+        name: text().notNull(),
+        // SHA-256 of the secret. The secret itself is shown once and never stored.
+        tokenHash: text().notNull().unique(),
+        // Leading characters of the secret, kept so the dashboard can identify a
+        // token without holding anything usable.
+        tokenPrefix: text().notNull(),
+        // Comma separated scope list. Empty means the token can reach nothing.
+        scopeList: text().notNull().default(""),
+        userId: text()
+            .notNull()
+            .references(() => userTable.id, { onDelete: "cascade" }),
+        expiresAt: integer({ mode: "timestamp" }),
+        lastUsedAt: integer({ mode: "timestamp" }),
+        ...timeStamp,
+    },
+    (table) => [index("api_token_user_id_idx").on(table.userId)],
+);
+
 export const modelProviderTable = sqliteTable("model_provider", {
     id: integer().primaryKey({ autoIncrement: true }),
     provider: text({ enum: ["openai", "anthropic"] }).notNull(), // TODO: add ollama, llama.cpp

@@ -9,6 +9,7 @@ import type {
     instanceSettingTable,
     userTable,
     sessionTable,
+    apiTokenTable,
 } from "@proval/db";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
@@ -161,4 +162,38 @@ export type InstanceSettingUpdateInput = {
 export type AuthCredentialInput = {
     email: string;
     password: string;
+};
+
+export type ApiToken = InferSelectModel<typeof apiTokenTable>;
+
+export const apiScopeValueList = [
+    "repository:read",
+    "repository:write",
+    "activity:read",
+    "activity:write",
+    "model:read",
+    "model:write",
+    "access:read",
+    "access:write",
+    "settings:read",
+    "settings:write",
+] as const;
+
+export type ApiScope = (typeof apiScopeValueList)[number];
+
+/** An api token without the hash, which never leaves the server. */
+export type ApiTokenResponse = Omit<ApiToken, "tokenHash" | "scopeList"> & {
+    scopeList: ApiScope[];
+};
+
+/** Returned once, by the create call only. */
+export type ApiTokenCreateResponse = {
+    token: ApiTokenResponse;
+    secret: string;
+};
+
+export type ApiTokenCreateInput = {
+    name: string;
+    scopeList: ApiScope[];
+    expiresInDay?: number | null;
 };

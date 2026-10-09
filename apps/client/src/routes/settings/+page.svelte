@@ -8,6 +8,7 @@
     import Button from "$lib/components/atom/Button.svelte";
     import fetchApi from "$lib/utils";
     import { openAlert, openConfirm } from "$lib/store/modal";
+    import ApiTokenCard from "./ApiTokenCard.svelte";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
@@ -151,6 +152,10 @@
                 </div>
             {/if}
         </Card>
+
+        {#if data.auth.user}
+            <ApiTokenCard tokenList={data.tokenList} />
+        {/if}
 
         {#if data.auth.user}
             <Card border title="Session">

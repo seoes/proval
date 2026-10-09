@@ -30,6 +30,7 @@ import {
     cancelActivity,
 } from "./activity/activity.controller.js";
 import { authRouter, settingsRouter } from "./auth/index.js";
+import { apiTokenRouter } from "./api-token/index.js";
 import { resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
 
 export const apiRouter = new Hono<{ Variables: AuthVariables }>();
@@ -43,6 +44,7 @@ apiRouter.get("/health", (c) => {
 
 apiRouter.route("/auth", authRouter);
 apiRouter.route("/settings", settingsRouter);
+apiRouter.route("/api-token", apiTokenRouter);
 
 // Model provider routes
 apiRouter.get("/model-provider", findAllModelProvider);
