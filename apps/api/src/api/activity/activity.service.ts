@@ -622,6 +622,7 @@ export class ActivityService {
             baseURL: modelProvider.baseUrl,
             model: repository.modelName,
             timeoutSecond: modelProvider.timeoutSecond,
+            stream: modelProvider.stream,
             reasoningEffort: repository.reasoningEffort,
         });
 

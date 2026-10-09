@@ -313,6 +313,7 @@ async function main(): Promise<void> {
             baseURL: config.llmBaseUrl,
             model: config.llmModel,
             timeoutSecond: 600,
+            stream: true,
         });
 
         const review = await runPullRequestReview({

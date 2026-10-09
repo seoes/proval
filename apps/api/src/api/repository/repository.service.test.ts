@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Repository } from "@proval/types";
+import { USER_PROMPT_MAX_LENGTH } from "@proval/types";
 
 process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
 
@@ -306,9 +307,33 @@ describe("Update GitLab Repository", () => {
     });
 
     it("rejects userPrompt longer than the max length", async () => {
-        await expect(repositoryService.update(1, { userPrompt: "a".repeat(2001) })).rejects.toThrow(
-            "Custom instructions must be at most 2000 characters",
-        );
+        await expect(
+            repositoryService.update(1, { userPrompt: "a".repeat(USER_PROMPT_MAX_LENGTH + 1) }),
+        ).rejects.toThrow(`Custom instructions must be at most ${USER_PROMPT_MAX_LENGTH} characters`);
+    });
+
+    it("uses PROVAL_USER_PROMPT_MAX_LENGTH when the deployment sets it", async () => {
+        process.env.PROVAL_USER_PROMPT_MAX_LENGTH = "50";
+        try {
+            await expect(repositoryService.update(1, { userPrompt: "a".repeat(51) })).rejects.toThrow(
+                "Custom instructions must be at most 50 characters",
+            );
+        } finally {
+            delete process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        }
+    });
+
+    it("ignores a PROVAL_USER_PROMPT_MAX_LENGTH that is not a positive integer", async () => {
+        for (const invalid of ["abc", "0", "-5", "1.5", ""]) {
+            process.env.PROVAL_USER_PROMPT_MAX_LENGTH = invalid;
+            try {
+                await expect(
+                    repositoryService.update(1, { userPrompt: "a".repeat(USER_PROMPT_MAX_LENGTH + 1) }),
+                ).rejects.toThrow(`Custom instructions must be at most ${USER_PROMPT_MAX_LENGTH} characters`);
+            } finally {
+                delete process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+            }
+        }
     });
 
     it("rejects userPrompt when it is not a string", async () => {
@@ -318,9 +343,7 @@ describe("Update GitLab Repository", () => {
     });
 
     it("rejects invalid reasoning effort", async () => {
-        await expect(
-            repositoryService.update(1, { reasoningEffort: "bogus" as "medium" }),
-        ).rejects.toThrow(
+        await expect(repositoryService.update(1, { reasoningEffort: "bogus" as "medium" })).rejects.toThrow(
             "Invalid reasoning effort",
         );
     });

@@ -182,6 +182,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
+        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -293,6 +294,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
+        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -376,6 +378,7 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
+        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -479,6 +482,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
+        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 

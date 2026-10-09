@@ -48,6 +48,7 @@ export const modelProviderTable = sqliteTable("model_provider", {
     baseUrl: text().notNull(),
     apiKey: text().notNull(),
     timeoutSecond: integer().notNull().default(600),
+    stream: integer({ mode: "boolean" }).notNull().default(true),
     ...timeStamp,
 });
 
