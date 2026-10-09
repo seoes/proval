@@ -162,3 +162,144 @@ describe("runAgentLoop context compression", () => {
         expect(result.finalMessage).toBe("done");
     });
 });
+
+function assistantWithNamedTool(toolName: string, callId: string, inputToken = 100): LlmResponse {
+    return {
+        message: {
+            role: "assistant",
+            content: null,
+            toolCalls: [{ id: callId, name: toolName, arguments: "{}" }],
+        },
+        finishReason: "tool_calls",
+        requestId: null,
+        usage: { inputToken, cachedInputToken: 0, outputToken: 10 },
+    };
+}
+
+function recordingTool(name: string, calls: string[]): AgentTool {
+    return {
+        name,
+        description: name,
+        parameters: { type: "object", properties: {} },
+        execute: async () => {
+            calls.push(name);
+            return "ok";
+        },
+    };
+}
+
+describe("runAgentLoop ending once the required tools have been called", () => {
+    it("stops after the required tool runs instead of spending another request", async () => {
+        const sent: number[] = [];
+        const calls: string[] = [];
+        const sender: LlmSender = {
+            async send() {
+                sent.push(sent.length);
+                if (sent.length === 1) {
+                    return assistantWithNamedTool("submit", "tc1");
+                }
+                return assistantDone("this turn should never be requested");
+            },
+        } as unknown as LlmSender;
+
+        const result = await runAgentLoop(sender, "sys", "prompt", "label", {
+            requiredToolList: [recordingTool("submit", calls)],
+            endWhenRequiredToolsCalled: true,
+            activityId: 1,
+        });
+
+        // One request, not two: the confirming turn is what this option removes.
+        expect(sent).toHaveLength(1);
+        expect(calls).toEqual(["submit"]);
+        expect(result.toolCallCount.submit).toBe(1);
+        expect(result.stepCount).toBe(1);
+    });
+
+    it("still asks for another turn when the option is off", async () => {
+        const sent: number[] = [];
+        const calls: string[] = [];
+        const sender: LlmSender = {
+            async send() {
+                sent.push(sent.length);
+                if (sent.length === 1) {
+                    return assistantWithNamedTool("submit", "tc1");
+                }
+                return assistantDone("done");
+            },
+        } as unknown as LlmSender;
+
+        const result = await runAgentLoop(sender, "sys", "prompt", "label", {
+            requiredToolList: [recordingTool("submit", calls)],
+            activityId: 1,
+        });
+
+        expect(sent).toHaveLength(2);
+        expect(result.finalMessage).toBe("done");
+    });
+
+    it("waits for every required tool, not just the first", async () => {
+        const sent: number[] = [];
+        const calls: string[] = [];
+        const sender: LlmSender = {
+            async send() {
+                sent.push(sent.length);
+                if (sent.length === 1) return assistantWithNamedTool("first", "tc1");
+                if (sent.length === 2) return assistantWithNamedTool("second", "tc2");
+                return assistantDone("this turn should never be requested");
+            },
+        } as unknown as LlmSender;
+
+        const result = await runAgentLoop(sender, "sys", "prompt", "label", {
+            requiredToolList: [recordingTool("first", calls), recordingTool("second", calls)],
+            endWhenRequiredToolsCalled: true,
+            activityId: 1,
+        });
+
+        expect(sent).toHaveLength(2);
+        expect(calls).toEqual(["first", "second"]);
+        expect(result.stepCount).toBe(2);
+    });
+
+    it("does not end early when only an optional tool was called", async () => {
+        const sent: number[] = [];
+        const calls: string[] = [];
+        const sender: LlmSender = {
+            async send() {
+                sent.push(sent.length);
+                if (sent.length === 1) return assistantWithNamedTool("noop", "tc1");
+                if (sent.length === 2) return assistantWithNamedTool("submit", "tc2");
+                return assistantDone("this turn should never be requested");
+            },
+        } as unknown as LlmSender;
+
+        await runAgentLoop(sender, "sys", "prompt", "label", {
+            toolList: [recordingTool("noop", calls)],
+            requiredToolList: [recordingTool("submit", calls)],
+            endWhenRequiredToolsCalled: true,
+            activityId: 1,
+        });
+
+        expect(sent).toHaveLength(2);
+        expect(calls).toEqual(["noop", "submit"]);
+    });
+
+    it("leaves an agent with no required tool unaffected", async () => {
+        const sent: number[] = [];
+        const sender: LlmSender = {
+            async send() {
+                sent.push(sent.length);
+                if (sent.length === 1) return assistantWithTool();
+                return assistantDone("finished");
+            },
+        } as unknown as LlmSender;
+
+        const result = await runAgentLoop(sender, "sys", "prompt", "label", {
+            toolList: [noopTool],
+            endWhenRequiredToolsCalled: true,
+            activityId: 1,
+        });
+
+        expect(sent).toHaveLength(2);
+        expect(result.finalMessage).toBe("finished");
+    });
+});

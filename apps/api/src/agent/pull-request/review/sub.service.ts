@@ -55,6 +55,7 @@ export async function runReviewSubAgent(
     const result = await runAgentLoop(sender, system, prompt, `[PR #${prIid}] Sub ${index}/${totalIndex}`, {
         toolList,
         requiredToolList: [submitReviewHandoffTool(reviewHandoffList, reviewUnit)],
+        endWhenRequiredToolsCalled: true,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
     });
