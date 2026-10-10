@@ -8,6 +8,7 @@ import { activityTable } from "@proval/db";
 import { eq } from "drizzle-orm";
 import { loadEncryptionKey } from "./util/encrypt.js";
 import { clearWorkspaceRoot } from "./git-provider/workspace.js";
+import { recoverLegacyReplyTargetComment } from "./api/activity/activity.service.js";
 
 loadEncryptionKey();
 
@@ -47,6 +48,11 @@ if (process.env.NODE_ENV === "production") {
 }
 
 await db.update(activityTable).set({ status: "failed" }).where(eq(activityTable.status, "started"));
+
+const recoveredReplyTargetCount = recoverLegacyReplyTargetComment();
+if (recoveredReplyTargetCount > 0) {
+    log(pc.bgGreen(pc.bold(` Recovered ${recoveredReplyTargetCount} legacy reply comment link(s) `)));
+}
 
 Bun.serve({
     fetch: apiApp.fetch,

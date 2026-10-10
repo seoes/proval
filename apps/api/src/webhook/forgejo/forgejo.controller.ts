@@ -426,6 +426,7 @@ const handleForgejoCommentWebhook = async (
             modelName: repository.modelName,
             type: "issue_reply",
             targetIid,
+            targetCommentId: comment.id,
         },
         (activityId) =>
             runIssueReply({
@@ -559,6 +560,8 @@ async function startForgejoPrReply(
             modelName: repository.modelName,
             type: "pr_reply",
             targetIid: prNumber,
+            targetCommentId: commentId,
+            targetInlineReviewId: inlineReviewId,
         },
         (activityId) =>
             runPullRequestReply({

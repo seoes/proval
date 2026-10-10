@@ -195,6 +195,8 @@ export const activityTable = sqliteTable(
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["started", "completed", "failed", "canceled"] }).notNull(),
         targetIid: integer().notNull(),
+        targetCommentId: integer(),
+        targetInlineReviewId: text(),
         headSha: text(),
         inputToken: integer(),
         cachedInputToken: integer(),

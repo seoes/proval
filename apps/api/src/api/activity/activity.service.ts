@@ -15,8 +15,8 @@ import type {
 import db from "../../db/index.js";
 import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
 import { createSender } from "../../agent/llm/factory.js";
-import { runPullRequestReview } from "../../agent/pull-request/index.js";
-import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
+import { runIssueReply, runIssueReplyOnOpen } from "../../agent/issue/index.js";
 import { Workspace } from "../../git-provider/workspace.js";
 import { decrypt } from "../../util/encrypt.js";
 import { logError } from "../../util/log.js";
@@ -24,7 +24,7 @@ import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
 import { runWithActivity } from "./activity.runner.js";
 
-const RETRY_TYPES = ["pr_review", "issue_open"] as const;
+const RETRY_TYPES = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const FINISHED_STATUSES = ["completed", "failed", "canceled"] as const;
@@ -176,6 +176,8 @@ export type ActivityStartInput = {
     modelName: string;
     type: Activity["type"];
     targetIid: number;
+    targetCommentId?: number | null;
+    targetInlineReviewId?: string | null;
     headSha?: string | null;
 };
 
@@ -242,6 +244,54 @@ const listOrderBy = [
     desc(activityTable.createdAt),
     desc(activityTable.id),
 ] as const;
+
+function requireReplyTargetComment(activity: ActivityResponse): number {
+    if (activity.targetCommentId == null) {
+        throw new Error("This activity has no comment to reply to");
+    }
+    return activity.targetCommentId;
+}
+
+/**
+ * A reply created before the retry support does not carry the comment it answered.
+ * Recover it from the stored agent log so an old failed reply can still be replayed.
+ * Only the conversation fetch tools are read, an inline review needs a discussion id
+ * that the log does not keep.
+ */
+export function recoverLegacyReplyTargetComment(): number {
+    const result = db.$client.run(`
+        UPDATE activity
+        SET target_comment_id = (
+            SELECT CASE
+                    WHEN json_valid(json_extract(entry.value, '$.message'))
+                    THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                END
+            FROM json_each(activity.logs) AS entry
+            WHERE json_extract(entry.value, '$.type') = 'tool-call'
+              AND json_extract(entry.value, '$.toolName') IN ('get_pull_request_comment', 'get_issue_comment')
+              AND CASE
+                      WHEN json_valid(json_extract(entry.value, '$.message'))
+                      THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                  END IS NOT NULL
+            ORDER BY entry.key
+            LIMIT 1
+        )
+        WHERE type IN ('pr_reply', 'issue_reply')
+          AND target_comment_id IS NULL
+          AND json_valid(logs)
+          AND EXISTS (
+              SELECT 1
+              FROM json_each(activity.logs) AS entry
+              WHERE json_extract(entry.value, '$.type') = 'tool-call'
+                AND json_extract(entry.value, '$.toolName') IN ('get_pull_request_comment', 'get_issue_comment')
+                AND CASE
+                        WHEN json_valid(json_extract(entry.value, '$.message'))
+                        THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                    END IS NOT NULL
+          )
+    `);
+    return result.changes;
+}
 
 export class ActivityService {
     public async findAll(
@@ -604,6 +654,12 @@ export class ActivityService {
         if (!RETRY_TYPES.includes(activity.type as RetryActivityType)) {
             throw new Error("This activity type cannot be retried");
         }
+        // A reply without its comment has nothing to replay. Resolve it here, before the
+        // provider setup below, which reaches the Git provider API for a GitHub repository.
+        const replyTargetCommentId =
+            activity.type === "pr_reply" || activity.type === "issue_reply"
+                ? requireReplyTargetComment(activity)
+                : null;
         if (activity.repositoryId == null) {
             throw new Error("Repository is no longer linked to this activity");
         }
@@ -631,6 +687,8 @@ export class ActivityService {
             modelName: repository.modelName,
             type: activity.type,
             targetIid: activity.targetIid,
+            targetCommentId: activity.targetCommentId,
+            targetInlineReviewId: activity.targetInlineReviewId,
         };
 
         if (activity.type === "pr_review") {
@@ -652,6 +710,45 @@ export class ActivityService {
                     activityId,
                     isFollowUpReview,
                     previousHeadSha: isFollowUpReview ? lastHeadSha : null,
+                }),
+            ).catch((error) => {
+                logError("Activity retry failed", error);
+            });
+            return;
+        }
+
+        if (replyTargetCommentId != null) {
+            const targetIid = activity.targetIid;
+
+            if (activity.type === "pr_reply") {
+                runWithActivity(startInput, (activityId) =>
+                    runPullRequestReply({
+                        provider: gitProvider,
+                        workspace,
+                        llmSender,
+                        prIid: targetIid,
+                        commentId: replyTargetCommentId,
+                        inlineReviewId: activity.targetInlineReviewId,
+                        language: repository.language,
+                        userPrompt: repository.userPrompt,
+                        activityId,
+                    }),
+                ).catch((error) => {
+                    logError("Activity retry failed", error);
+                });
+                return;
+            }
+
+            runWithActivity(startInput, (activityId) =>
+                runIssueReply({
+                    provider: gitProvider,
+                    workspace,
+                    llmSender,
+                    issueIid: targetIid,
+                    commentId: replyTargetCommentId,
+                    language: repository.language,
+                    userPrompt: repository.userPrompt,
+                    activityId,
                 }),
             ).catch((error) => {
                 logError("Activity retry failed", error);

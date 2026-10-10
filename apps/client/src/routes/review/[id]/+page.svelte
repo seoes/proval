@@ -41,7 +41,9 @@
     const canRetry = $derived(
         (review.status === "failed" || review.status === "canceled") &&
             review.repositoryId != null &&
-            (review.type === "pr_review" || review.type === "issue_open"),
+            (review.type === "pr_review" ||
+                review.type === "issue_open" ||
+                ((review.type === "pr_reply" || review.type === "issue_reply") && review.targetCommentId != null)),
     );
     const canCancel = $derived(review.status === "started");
     const isRunning = $derived(review.status === "started");
@@ -56,10 +58,18 @@
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
 
-        const message =
-            review.type === "pr_review"
-                ? "Start a new activity and run the pull request review again? This may post another review or comment on the pull request."
-                : "Start a new activity and run the issue open workflow again? This may post another comment on the issue.";
+        const retryMessageRecord: Record<ActivityResponse["type"], string> = {
+            pr_review:
+                "Start a new activity and run the pull request review again? This may post another review or comment on the pull request.",
+            pr_reply:
+                "Start a new activity and reply to the same pull request comment again? This may post another comment on the pull request.",
+            issue_open:
+                "Start a new activity and run the issue open workflow again? This may post another comment on the issue.",
+            issue_reply:
+                "Start a new activity and reply to the same issue comment again? This may post another comment on the issue.",
+        };
+
+        const message = retryMessageRecord[review.type];
 
         const confirmed = await openConfirm(message, { title: "Retry activity", confirmText: "Retry" });
         if (!confirmed) return;

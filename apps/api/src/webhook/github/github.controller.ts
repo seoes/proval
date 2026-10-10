@@ -378,6 +378,7 @@ async function handleIssueCommentWebhook(
                 modelName: repository.modelName,
                 type: "pr_reply",
                 targetIid: issueNumber,
+                targetCommentId: commentId,
             },
             (activityId) =>
                 runPullRequestReply({
@@ -434,6 +435,7 @@ async function handleIssueCommentWebhook(
             modelName: repository.modelName,
             type: "issue_reply",
             targetIid: issueNumber,
+            targetCommentId: commentId,
         },
         (activityId) =>
             runIssueReply({
@@ -520,6 +522,8 @@ async function handlePullRequestReviewCommentWebhook(
             modelName: repository.modelName,
             type: "pr_reply",
             targetIid: prNumber,
+            targetCommentId: comment.id,
+            targetInlineReviewId: inlineReviewId,
         },
         (activityId) =>
             runPullRequestReply({

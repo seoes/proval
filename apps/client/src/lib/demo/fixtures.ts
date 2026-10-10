@@ -307,8 +307,20 @@ function pickType(rng: () => number): ActivityResponse["type"] {
     return "issue_open";
 }
 
+type DemoActivity = Omit<ActivityResponse, "targetCommentId" | "targetInlineReviewId">;
+
+function withReplyTarget(activity: DemoActivity): ActivityResponse {
+    const isReply = activity.type === "pr_reply" || activity.type === "issue_reply";
+    return {
+        ...activity,
+        targetCommentId: isReply ? 700000000 + activity.id : null,
+        targetInlineReviewId:
+            activity.type === "pr_reply" && activity.id % 3 === 0 ? `discussion-${activity.id}` : null,
+    };
+}
+
 /** Recent showcase rows for the activity feed (last ~14h). */
-const recentActivityList: ActivityResponse[] = [
+const recentActivitySeedList: DemoActivity[] = [
     {
         id: 1,
         repositoryId: 2,
@@ -551,6 +563,8 @@ const recentActivityList: ActivityResponse[] = [
     },
 ];
 
+const recentActivityList: ActivityResponse[] = recentActivitySeedList.map(withReplyTarget);
+
 /**
  * Year-to-date history so 30d / year charts look like a real small team
  * (weekday-heavy). Starts Jan 1 or 90 days ago, whichever is earlier.
@@ -602,28 +616,30 @@ function buildHistoricalActivities(): ActivityResponse[] {
             const nextIid = (targetIidByRepo.get(repo.id) ?? 1) + 1;
             targetIidByRepo.set(repo.id, nextIid);
 
-            activities.push({
-                id: nextId++,
-                repositoryId: repo.id,
-                repositoryPath: repo.path,
-                provider: repo.provider,
-                modelProviderId: repo.modelProviderId,
-                modelName: pickModelName(repo, rng),
-                type,
-                status: failed ? "failed" : "completed",
-                targetIid: nextIid,
-                headSha: type === "pr_review" ? `deadbeef${String(nextId).padStart(32, "0")}`.slice(0, 40) : null,
-                logVersion: "1",
-                ...tokens,
-                errorMessage: failed
-                    ? rng() < 0.5
-                        ? "LLM request timed out after 120s"
-                        : "Git provider API rate limit exceeded"
-                    : null,
-                completedAt,
-                createdAt,
-                updatedAt: completedAt,
-            });
+            activities.push(
+                withReplyTarget({
+                    id: nextId++,
+                    repositoryId: repo.id,
+                    repositoryPath: repo.path,
+                    provider: repo.provider,
+                    modelProviderId: repo.modelProviderId,
+                    modelName: pickModelName(repo, rng),
+                    type,
+                    status: failed ? "failed" : "completed",
+                    targetIid: nextIid,
+                    headSha: type === "pr_review" ? `deadbeef${String(nextId).padStart(32, "0")}`.slice(0, 40) : null,
+                    logVersion: "1",
+                    ...tokens,
+                    errorMessage: failed
+                        ? rng() < 0.5
+                            ? "LLM request timed out after 120s"
+                            : "Git provider API rate limit exceeded"
+                        : null,
+                    completedAt,
+                    createdAt,
+                    updatedAt: completedAt,
+                }),
+            );
         }
 
         cursor.setDate(cursor.getDate() + 1);

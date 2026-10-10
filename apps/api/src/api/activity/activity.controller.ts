@@ -55,9 +55,7 @@ export const getActivitySummary: Handler = async (c) => {
         activityService.findRecent(since, 5, repositoryId),
         activityService.getTokenSeries(since, bucket, new Date(), repositoryId),
         activityService.getTokenBreakdownByModel(since, 5, repositoryId),
-        repositoryId != null
-            ? Promise.resolve([])
-            : activityService.getTokenBreakdownByRepository(since, 5),
+        repositoryId != null ? Promise.resolve([]) : activityService.getTokenBreakdownByRepository(since, 5),
         activityService.findInProgress(10),
     ]);
     return c.json({ range, stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress }, 200);
@@ -110,6 +108,7 @@ const RETRY_NOT_FOUND_ERRORS = new Set(["Activity not found", "Repository not fo
 const RETRY_CLIENT_ERRORS = new Set([
     "Only failed or canceled activities can be retried",
     "This activity type cannot be retried",
+    "This activity has no comment to reply to",
     "Repository is no longer linked to this activity",
     "Model provider is no longer linked to this activity",
 ]);
