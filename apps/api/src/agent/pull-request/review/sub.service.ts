@@ -10,7 +10,7 @@ import {
     REVIEW_SUB_AGENT_HANDOFF_FIELDS,
 } from "./sub.prompt.js";
 import { FOLLOW_UP_PUSH_SUB_HINT } from "./follow-up.prompt.js";
-import { REVIEW_CHECKLIST } from "../prompt";
+import { REVIEW_CHECKLIST, REPOSITORY_GUIDANCE_RULE } from "../prompt";
 import { getFileDiffTool, getPushFileDiffTool, submitReviewHandoffTool } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { runAgentLoop } from "../../llm/loop";
@@ -33,6 +33,7 @@ export async function runReviewSubAgent(
 ): Promise<ActivityTokenUsage & { handoff: ReviewHandoff }> {
     const system = [
         REVIEW_SUB_AGENT_BODY,
+        REPOSITORY_GUIDANCE_RULE,
         REVIEW_SUB_AGENT_HANDOFF_FIELDS,
         usePushScope ? FOLLOW_UP_PUSH_SUB_HINT : null,
         REVIEW_CHECKLIST,

@@ -6,7 +6,7 @@ import type { ReviewUnit, SkippedFile } from "./plan.schema.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
 import { PR_REVIEW_PLAN_USER_PROMPT_HEADER, REVIEW_PLAN } from "./plan.prompt.js";
 import { FOLLOW_UP_PLAN_HINT, FOLLOW_UP_PUSH_PLAN_HINT } from "./follow-up.prompt.js";
-import { FILE_COVERAGE_RULE } from "../prompt";
+import { FILE_COVERAGE_RULE, REPOSITORY_GUIDANCE_RULE } from "../prompt";
 import {
     appendReviewUnitTool,
     getChangedFileListTool,
@@ -39,6 +39,7 @@ export async function runReviewPlanAgent(
 
     const system = [
         REVIEW_PLAN,
+        REPOSITORY_GUIDANCE_RULE,
         isFollowUpReview ? FOLLOW_UP_PLAN_HINT : null,
         usePushScope ? FOLLOW_UP_PUSH_PLAN_HINT : null,
         FILE_COVERAGE_RULE,

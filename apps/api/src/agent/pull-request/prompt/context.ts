@@ -1,5 +1,6 @@
 import type { GitPullRequestVersion } from "../../../git-provider/types.js";
 import type { Workspace } from "../../../git-provider/workspace.js";
+import { loadAgentInstructionContext } from "./agents-md.js";
 
 const CHANGED_FILES_PROMPT_CAP = 80;
 
@@ -8,9 +9,11 @@ export async function generatePullRequestPrompt(
     prIid: number,
     version: GitPullRequestVersion,
     previousHeadSha?: string | null,
+    activityId = 0,
 ): Promise<string> {
     const changedFileList = await workspace.changedFiles();
     const rootDirectoryTree = await workspace.list("");
+    const agentInstructionContext = await loadAgentInstructionContext(workspace, changedFileList, activityId);
 
     const paths = changedFileList.map((d) => d.newPath || d.oldPath).filter((path) => path !== "");
     const listedPaths =
@@ -42,5 +45,6 @@ export async function generatePullRequestPrompt(
         `Changed files (${paths.length}): ${listedPaths || "(none)"}`,
         `Root directory listing (non-recursive): ${rootDirectoryTree.map((d) => d.name).join(", ")}`,
         "",
+        agentInstructionContext,
     ].join("\n");
 }

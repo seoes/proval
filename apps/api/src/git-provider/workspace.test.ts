@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
+import * as fs from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -130,6 +131,53 @@ if (process.env.PROVAL_WORKSPACE_TEST_CHILD !== "1") {
                 expect(await git(dir, ["rev-parse", "--abbrev-ref", "HEAD"])).toBe("HEAD");
                 await workspace.clean();
                 expect((await readFile(join(dir, "sample.txt"), "utf8")).trim()).toBe("start");
+            });
+        });
+    });
+
+    describe("Workspace bounded read", () => {
+        it("stops reading a large file after the prefix and closes the stream", async () => {
+            await withFixture("master", "refs/pull/21/head", async ({ dir, workspace }) => {
+                await workspace.adopt(dir);
+                await workspace.loadFromBranch("master");
+                const content = "\uFEFF" + "a".repeat(4094) + "中😀".repeat(20_000);
+                await writeFile(join(dir, "guidance.md"), content);
+                const streamSpy = spyOn(fs, "createReadStream");
+                try {
+                    expect(
+                        await workspace.read("guidance.md", { regularFileOnly: true, maxCharacterCount: 8001 }),
+                    ).toBe(content.slice(0, 8001));
+                    const stream = streamSpy.mock.results[0]?.value as fs.ReadStream;
+                    expect(stream.bytesRead).toBeGreaterThan(0);
+                    expect(stream.bytesRead).toBeLessThan(32_768);
+                    expect(stream.destroyed).toBe(true);
+                    expect(await workspace.read("guidance.md", { maxCharacterCount: 0 })).toBe("");
+                    expect(await workspace.read("guidance.md")).toBe(content);
+                    expect(streamSpy).toHaveBeenCalledTimes(1);
+                } finally {
+                    streamSpy.mockRestore();
+                }
+            });
+        });
+
+        it("decodes multibyte text across small chunks and handles empty or missing files", async () => {
+            await withFixture("master", "refs/pull/21/head", async ({ dir, workspace }) => {
+                await workspace.adopt(dir);
+                await workspace.loadFromBranch("master");
+                await writeFile(join(dir, "guidance.md"), "中😀end");
+                expect(await workspace.read("guidance.md", { maxCharacterCount: 1 })).toBe("中");
+                expect(await workspace.read("guidance.md", { maxCharacterCount: 3 })).toBe("中😀");
+                expect(await workspace.read("guidance.md", { maxCharacterCount: 100 })).toBe("中😀end");
+                await writeFile(join(dir, "guidance.md"), "");
+                expect(await workspace.read("guidance.md", { maxCharacterCount: 8001 })).toBe("");
+                await expect(workspace.read("missing.md", { maxCharacterCount: 8001 })).rejects.toThrow(
+                    "File not found",
+                );
+                for (const maxCharacterCount of [-1, 1.5, Infinity, NaN]) {
+                    await expect(workspace.read("guidance.md", { maxCharacterCount })).rejects.toBeInstanceOf(
+                        RangeError,
+                    );
+                }
             });
         });
     });

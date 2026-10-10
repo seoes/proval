@@ -95,7 +95,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         }
 
         logAgent(activityId, "building pull request prompt", label);
-        let prompt = await generatePullRequestPrompt(workspace, prIid, version, previousShaForPrompt);
+        let prompt = await generatePullRequestPrompt(workspace, prIid, version, previousShaForPrompt, activityId);
 
         let priorBotSummary: string | null = null;
         let threadContext: string | null = null;
