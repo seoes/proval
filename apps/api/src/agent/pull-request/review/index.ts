@@ -127,7 +127,12 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         const total = planResult.reviewUnitList.length;
         const reviewHandoffList: ReviewHandoff[] = [];
 
-        const subAgentResultList = await Promise.all(
+        // Every sub agent shares this workspace and the cleanup in the finally
+        // block below destroys it. Waiting for all of them to settle keeps a
+        // single failure from leaving the rest running against a workspace that
+        // no longer exists, which otherwise burns model token until the step
+        // budget runs out.
+        const subAgentSettledList = await Promise.allSettled(
             planResult.reviewUnitList.map((reviewUnit, index) =>
                 runReviewSubAgent(
                     provider,
@@ -145,6 +150,14 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                 ),
             ),
         );
+
+        const subAgentResultList: Awaited<ReturnType<typeof runReviewSubAgent>>[] = [];
+        for (const settled of subAgentSettledList) {
+            if (settled.status === "rejected") {
+                throw settled.reason;
+            }
+            subAgentResultList.push(settled.value);
+        }
 
         const sortedHandoffList = [...reviewHandoffList].sort((a, b) => a.unitId - b.unitId);
 

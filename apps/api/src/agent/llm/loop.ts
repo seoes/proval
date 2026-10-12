@@ -65,6 +65,16 @@ export async function runAgentLoop(
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
         requiredToolList?: (AgentTool | null)[];
+        /**
+         * Ends the loop as soon as every required tool has been called, instead of
+         * asking the model for one further turn that only confirms it is finished.
+         *
+         * An agent whose output is delivered by a required tool has nothing left to
+         * say once that tool has run, so that extra turn re-sends the whole
+         * transcript to be told so. Off by default, because an agent that is meant
+         * to keep working after calling a required tool would be cut short.
+         */
+        endWhenRequiredToolsCalled?: boolean;
         activityId: number;
         onUsage?: (usage: ActivityTokenUsage) => Promise<void>;
     },
@@ -343,6 +353,27 @@ export async function runAgentLoop(
                     content: r.content,
                     toolCallId: r.toolCallId,
                 });
+            }
+
+            if (
+                options.endWhenRequiredToolsCalled &&
+                requiredToolNameList.length > 0 &&
+                requiredToolNameList.every((toolName) => (toolCallCount[toolName] ?? 0) > 0)
+            ) {
+                // The agent delivered its output through the required tool, so the
+                // turn that would follow can only confirm it is done, at the cost of
+                // re-sending the entire transcript. This is each agent's largest
+                // request, because the transcript is never longer than it is here.
+                const result: AgentRunResult = {
+                    finalMessage: response.message.content,
+                    messages,
+                    stepCount,
+                    toolCallCount,
+                    usage,
+                };
+                logAgent(activityId, "every required tool has been called, ending the loop", label);
+                logAgentResult(activityId, label, result, performance.now() - startedAt, "completed");
+                return result;
             }
         }
     } catch (error: unknown) {

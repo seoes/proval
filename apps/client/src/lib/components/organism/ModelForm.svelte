@@ -19,7 +19,7 @@
     interface Props {
         mode: "create" | "edit";
         modelProviderId?: number;
-        initialData?: Pick<ModelProviderResponse, "provider" | "label" | "baseUrl" | "timeoutSecond">;
+        initialData?: Pick<ModelProviderResponse, "provider" | "label" | "baseUrl" | "timeoutSecond" | "concurrency">;
         border?: boolean;
     }
 
@@ -29,6 +29,7 @@
     let label = $state(initialData?.label ?? "");
     let baseUrl = $state(initialData?.baseUrl ?? "");
     let timeoutSecond = $state(String(initialData?.timeoutSecond ?? 600));
+    let concurrency = $state(initialData?.concurrency == null ? "" : String(initialData.concurrency));
     let apiKey = $state("");
     let apiKeyModalOpen = $state(false);
     let testModalOpen = $state(false);
@@ -55,6 +56,12 @@
             await openAlert("Timeout must be between 10 and 7200 seconds");
             return;
         }
+        const concurrencyText = concurrency.trim();
+        const concurrencyValue = concurrencyText === "" ? null : Number(concurrencyText);
+        if (concurrencyValue !== null && (!Number.isInteger(concurrencyValue) || concurrencyValue < 1)) {
+            await openAlert("Concurrency must be an integer of at least 1, or null for no limit");
+            return;
+        }
         if (mode === "create") {
             if (!apiKey) {
                 await openAlert("API Key is required");
@@ -70,6 +77,7 @@
                 baseUrl,
                 apiKey,
                 timeoutSecond: timeout,
+                concurrency: concurrencyValue,
             };
 
             const res = await fetchApi("/model-provider", {
@@ -90,6 +98,7 @@
                 label,
                 baseUrl,
                 timeoutSecond: timeout,
+                concurrency: concurrencyValue,
             };
 
             const res = await fetchApi(`/model-provider/${modelProviderId}`, {
@@ -237,6 +246,12 @@
                 {/snippet}
             </FormField>
         {/if}
+
+        <FormField label="Concurrency" description="Applies to every activity that uses this provider.">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="Leave empty for unlimited" bind:value={concurrency} numeric />
+            {/snippet}
+        </FormField>
 
         <FormField
             label="Request Timeout"

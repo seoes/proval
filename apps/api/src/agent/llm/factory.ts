@@ -2,6 +2,7 @@ import type { ReasoningEffort } from "@proval/types";
 import type { LlmSender } from "./loop.js";
 import { createOpenAiSender } from "./openai.js";
 import { createAnthropicSender } from "./anthropic.js";
+import { loadLimiter, type Limiter } from "./concurrency.js";
 
 export interface SenderConfig {
     provider: string;
@@ -10,9 +11,11 @@ export interface SenderConfig {
     model: string;
     timeoutSecond: number;
     reasoningEffort?: ReasoningEffort;
+    modelProviderId?: number;
+    concurrency?: number | null;
 }
 
-export type SenderSDKConfig = Omit<SenderConfig, "provider"> & {
+export type SenderSDKConfig = Omit<SenderConfig, "provider" | "modelProviderId" | "concurrency"> & {
     fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 };
 
@@ -28,13 +31,22 @@ function createLLMFetch() {
     };
 }
 
+function withConcurrencyLimit(sender: LlmSender, limiter: Limiter): LlmSender {
+    return {
+        send: (messages, tools) => limiter.run(() => sender.send(messages, tools)),
+        getModel: () => sender.getModel(),
+    };
+}
+
 export function createSender(config: SenderConfig): LlmSender {
+    const { modelProviderId, concurrency, ...sdkConfig } = config;
+    const limiter = loadLimiter(modelProviderId, concurrency);
     const fetch = createLLMFetch();
     switch (config.provider) {
         case "anthropic":
-            return createAnthropicSender({ ...config, fetch });
+            return withConcurrencyLimit(createAnthropicSender({ ...sdkConfig, fetch }), limiter);
         case "openai":
         default:
-            return createOpenAiSender({ ...config, fetch });
+            return withConcurrencyLimit(createOpenAiSender({ ...sdkConfig, fetch }), limiter);
     }
 }

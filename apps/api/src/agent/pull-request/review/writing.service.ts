@@ -116,6 +116,7 @@ export async function runReviewWritingAgent(
             postPullRequestCommentTool(provider, prIid, language, activityId),
             isFollowUpReview ? null : evaluatePullRequestTool(provider, prIid),
         ],
+        endWhenRequiredToolsCalled: true,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
     });

@@ -183,6 +183,8 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
         reasoningEffort: repository.reasoningEffort,
+        modelProviderId: modelProvider.id,
+        concurrency: modelProvider.concurrency,
     });
 
     const isInlineReview = repository.prInlineReview;
@@ -294,6 +296,8 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
         reasoningEffort: repository.reasoningEffort,
+        modelProviderId: modelProvider.id,
+        concurrency: modelProvider.concurrency,
     });
 
     const inlineReviewId = isInlineReviewComment ? (payload.object_attributes.discussion_id ?? null) : null;
@@ -379,6 +383,8 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
         reasoningEffort: repository.reasoningEffort,
+        modelProviderId: modelProvider.id,
+        concurrency: modelProvider.concurrency,
     });
 
     const workspace = new Workspace(gitlabProvider);
@@ -482,6 +488,8 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
         reasoningEffort: repository.reasoningEffort,
+        modelProviderId: modelProvider.id,
+        concurrency: modelProvider.concurrency,
     });
 
     const workspace = new Workspace(gitlabProvider);

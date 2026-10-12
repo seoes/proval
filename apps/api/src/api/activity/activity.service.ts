@@ -667,6 +667,8 @@ export class ActivityService {
             model: repository.modelName,
             timeoutSecond: modelProvider.timeoutSecond,
             reasoningEffort: repository.reasoningEffort,
+            modelProviderId: modelProvider.id,
+            concurrency: modelProvider.concurrency,
         });
 
         const startInput: ActivityStartInput = {

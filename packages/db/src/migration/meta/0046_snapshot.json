@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e7b49a03-4dee-4b6e-a742-b331a248dc7a",
+  "id": "6841976b-0d9f-4b91-a7cf-1a7b98a21b5a",
   "prevId": "d54cf2e8-40e0-4bb1-a75f-a8efbc571842",
   "tables": {
     "activity": {
@@ -68,20 +68,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "target_comment_id": {
-          "name": "target_comment_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "target_inline_review_id": {
-          "name": "target_inline_review_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "head_sha": {
@@ -766,6 +752,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": 600
+        },
+        "concurrency": {
+          "name": "concurrency",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",

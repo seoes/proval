@@ -12,6 +12,7 @@
         onkeydown?: (event: KeyboardEvent) => void;
         id?: string;
         required?: boolean;
+        numeric?: boolean;
     }
 
     let {
@@ -25,11 +26,21 @@
         onkeydown,
         id,
         required,
+        numeric = false,
     }: Props = $props();
+
+    function handleInput(event: Event) {
+        const target = event.currentTarget as HTMLInputElement;
+        const next = numeric ? target.value.replace(/\D/g, "") : target.value;
+        if (target.value !== next) {
+            target.value = next;
+        }
+        value = next;
+    }
 </script>
 
 <input
-    bind:value
+    value={value ?? ""}
     {placeholder}
     {id}
     {required}
@@ -40,6 +51,8 @@
         className,
     )}
     type={password ? "password" : "text"}
+    inputmode={numeric ? "numeric" : undefined}
     {onchange}
     {name}
-    {onkeydown} />
+    {onkeydown}
+    oninput={handleInput} />

@@ -6,6 +6,13 @@ function invalidTimeoutSecond(value: unknown): boolean {
     return value !== undefined && (!Number.isInteger(value) || (value as number) < 10 || (value as number) > 7200);
 }
 
+function invalidConcurrency(value: unknown): boolean {
+    if (value === undefined || value === null) {
+        return false;
+    }
+    return !Number.isInteger(value) || (value as number) < 1;
+}
+
 export const findAllModelProvider: Handler = async (c) => {
     const service = new ModelProviderService();
     const list = await service.findAll();
@@ -46,6 +53,9 @@ export const createModelProvider: Handler = async (c) => {
     if (invalidTimeoutSecond(body.timeoutSecond)) {
         return c.json({ error: "Timeout must be an integer between 10 and 7200 seconds" }, 400);
     }
+    if (invalidConcurrency(body.concurrency)) {
+        return c.json({ error: "Concurrency must be an integer of at least 1, or null for no limit" }, 400);
+    }
     const modelProvider = await service.create(body);
     return c.json(service.toResponse(modelProvider), 201);
 };
@@ -59,6 +69,9 @@ export const updateModelProvider: Handler = async (c) => {
     const body = await c.req.json<ModelProviderUpdateInput>();
     if (invalidTimeoutSecond(body.timeoutSecond)) {
         return c.json({ error: "Timeout must be an integer between 10 and 7200 seconds" }, 400);
+    }
+    if (invalidConcurrency(body.concurrency)) {
+        return c.json({ error: "Concurrency must be an integer of at least 1, or null for no limit" }, 400);
     }
     const modelProvider = await service.update(parseInt(id), body);
     return c.json(service.toResponse(modelProvider), 200);

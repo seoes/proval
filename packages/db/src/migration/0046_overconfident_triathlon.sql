@@ -1,0 +1,1 @@
+ALTER TABLE `model_provider` ADD `concurrency` integer;
