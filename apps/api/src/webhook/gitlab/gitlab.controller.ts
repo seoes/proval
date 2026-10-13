@@ -144,13 +144,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
 
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
-    if (await activityService.hasRunningPullRequestReview(repository.id, prIid)) {
-        return new Response(JSON.stringify({ message: "Skipped: review already running" }), { status: 200 });
-    }
-
     let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prIid);
         if (hasCompleted) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -175,7 +171,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     }
 
     if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prIid);
     }
     const isFollowUpReview = hasCompleted;
 

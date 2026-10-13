@@ -177,14 +177,9 @@ const handleForgejoPullRequestWebhook = async (
     const activityService = new ActivityService();
     const prNumber = pr.number;
     const reviewMode = repository.prReviewOnPush;
-    if (await activityService.hasRunningPullRequestReview(repository.id, prNumber)) {
-        log(`Skipped: review already running (${prInfo})`, "Forgejo");
-        return new Response(JSON.stringify({ message: "Skipped: review already running" }), { status: 200 });
-    }
-
     let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
             log(`Skipped: already reviewed (on_first_push) (${prInfo})`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
@@ -211,7 +206,7 @@ const handleForgejoPullRequestWebhook = async (
     }
 
     if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prNumber);
     }
     const isFollowUpReview = hasCompleted;
 

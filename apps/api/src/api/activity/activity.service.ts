@@ -28,6 +28,7 @@ const RETRY_TYPES = ["pr_review", "issue_open"] as const;
 type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const FINISHED_STATUSES = ["completed", "failed", "canceled"] as const;
+const REVIEWED_STATUSES = ["started", "completed"] as const;
 
 const { logs: _, ...activityWithoutLogs } = getTableColumns(activityTable);
 
@@ -413,23 +414,22 @@ export class ActivityService {
                     eq(activityTable.repositoryId, repositoryId),
                     eq(activityTable.targetIid, targetIid),
                     eq(activityTable.type, "pr_review"),
-                    eq(activityTable.status, "completed"),
+                    inArray(activityTable.status, [...REVIEWED_STATUSES]),
                     isNotNull(activityTable.headSha),
                 ),
             )
-            .orderBy(desc(activityTable.completedAt), desc(activityTable.id))
+            .orderBy(desc(activityTable.createdAt), desc(activityTable.id))
             .limit(1);
         return rows[0]?.headSha ?? null;
     }
 
     /**
-     * True while a pull request review of this repository and pull request is
-     * still running. The completed check alone lets a second event started
-     * before the first review ends launch a duplicate review: GitHub sends
-     * "opened" and a following "synchronize" seconds apart, and both would pass.
-     * A run left in "started" by a crash is reset to "failed" at boot.
+     * Counts a review still running as reviewed, so an event arriving mid review
+     * becomes a follow-up from that head instead of a second full review.
+     * ponytail: the follow-up may publish before the running review, a failed running
+     * review leaves its range unreviewed, and check and insert are not atomic.
      */
-    public async hasRunningPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
+    public async hasRunningOrCompletedPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
         const [{ total }] = await db
             .select({ total: count() })
             .from(activityTable)
@@ -438,22 +438,7 @@ export class ActivityService {
                     eq(activityTable.repositoryId, repositoryId),
                     eq(activityTable.targetIid, targetIid),
                     eq(activityTable.type, "pr_review"),
-                    eq(activityTable.status, "started"),
-                ),
-            );
-        return total > 0;
-    }
-
-    public async hasCompletedPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
-        const [{ total }] = await db
-            .select({ total: count() })
-            .from(activityTable)
-            .where(
-                and(
-                    eq(activityTable.repositoryId, repositoryId),
-                    eq(activityTable.targetIid, targetIid),
-                    eq(activityTable.type, "pr_review"),
-                    eq(activityTable.status, "completed"),
+                    inArray(activityTable.status, [...REVIEWED_STATUSES]),
                 ),
             );
         return total > 0;
@@ -657,7 +642,7 @@ export class ActivityService {
 
         if (activity.type === "pr_review") {
             const prIid = activity.targetIid;
-            const isFollowUpReview = await this.hasCompletedPullRequestReview(activity.repositoryId, prIid);
+            const isFollowUpReview = await this.hasRunningOrCompletedPullRequestReview(activity.repositoryId, prIid);
             const lastHeadSha = isFollowUpReview
                 ? await this.findLastReviewedHeadSha(activity.repositoryId, prIid)
                 : null;

@@ -158,13 +158,9 @@ async function handlePullRequestWebhook(
     if (accessSkip) return accessSkip;
 
     const activityService = new ActivityService();
-    if (await activityService.hasRunningPullRequestReview(repository.id, prNumber)) {
-        return new Response(JSON.stringify({ message: "Skipped: review already running" }), { status: 200 });
-    }
-
     let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -189,7 +185,7 @@ async function handlePullRequestWebhook(
     }
 
     if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
+        hasCompleted = await activityService.hasRunningOrCompletedPullRequestReview(repository.id, prNumber);
     }
     const isFollowUpReview = hasCompleted;
 

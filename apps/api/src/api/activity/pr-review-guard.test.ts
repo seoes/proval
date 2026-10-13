@@ -37,6 +37,7 @@ if (process.env.PROVAL_PR_REVIEW_GUARD_TEST_CHILD !== "1") {
             status?: ActivityStatus;
             targetIid?: number;
             repositoryId?: number;
+            headSha?: string | null;
         } = {},
     ) {
         await db.insert(activityTable).values({
@@ -47,6 +48,7 @@ if (process.env.PROVAL_PR_REVIEW_GUARD_TEST_CHILD !== "1") {
             type: options.type ?? "pr_review",
             status: options.status ?? "started",
             targetIid: options.targetIid ?? 8,
+            headSha: options.headSha === undefined ? undefined : options.headSha,
             logVersion: "1",
         });
     }
@@ -61,20 +63,29 @@ if (process.env.PROVAL_PR_REVIEW_GUARD_TEST_CHILD !== "1") {
         repositoryId = repository.id;
     });
 
-    describe("hasRunningPullRequestReview", () => {
-        it("reports a review that is still in flight", async () => {
-            await addActivity({ status: "started" });
-
-            expect(await service.hasRunningPullRequestReview(repositoryId, 8)).toBe(true);
-        });
-
-        it("ignores a review that already ended, whatever its outcome", async () => {
-            for (const status of ["completed", "failed", "canceled"] as const) {
+    describe("hasRunningOrCompletedPullRequestReview", () => {
+        it("is true for started and completed reviews", async () => {
+            for (const status of ["started", "completed"] as const) {
                 await db.delete(activityTable);
                 await addActivity({ status });
 
-                expect(await service.hasRunningPullRequestReview(repositoryId, 8)).toBe(false);
+                expect(await service.hasRunningOrCompletedPullRequestReview(repositoryId, 8)).toBe(true);
             }
+        });
+
+        it("is false for failed and canceled reviews", async () => {
+            for (const status of ["failed", "canceled"] as const) {
+                await db.delete(activityTable);
+                await addActivity({ status });
+
+                expect(await service.hasRunningOrCompletedPullRequestReview(repositoryId, 8)).toBe(false);
+            }
+        });
+
+        it("is true when the only completed review has no headSha", async () => {
+            await addActivity({ status: "completed", headSha: null });
+
+            expect(await service.hasRunningOrCompletedPullRequestReview(repositoryId, 8)).toBe(true);
         });
 
         it("ignores another activity type, another pull request and another repository", async () => {
@@ -88,26 +99,33 @@ if (process.env.PROVAL_PR_REVIEW_GUARD_TEST_CHILD !== "1") {
                 .returning({ id: repositoryTable.id });
             await addActivity({ repositoryId: otherRepository.id, status: "started" });
 
-            expect(await service.hasRunningPullRequestReview(repositoryId, 8)).toBe(false);
+            expect(await service.hasRunningOrCompletedPullRequestReview(repositoryId, 8)).toBe(false);
+        });
+
+        it("is true while the only review of that pull request is still running", async () => {
+            await addActivity({ status: "started" });
+
+            expect(await service.hasRunningOrCompletedPullRequestReview(repositoryId, 8)).toBe(true);
         });
     });
 
-    describe("hasCompletedPullRequestReview", () => {
-        it("stays false while the only review of that pull request is still running", async () => {
-            await addActivity({ status: "started" });
+    describe("findLastReviewedHeadSha", () => {
+        it("returns the headSha of a newer started review over an older completed one", async () => {
+            const h0 = "a".repeat(40);
+            const h1 = "b".repeat(40);
+            await addActivity({ status: "completed", headSha: h0 });
+            await addActivity({ status: "started", headSha: h1 });
 
-            // This is the gap the running guard closes: two events seconds apart
-            // (opened, then a push) both see no completed review.
-            expect(await service.hasCompletedPullRequestReview(repositoryId, 8)).toBe(false);
-            expect(await service.hasRunningPullRequestReview(repositoryId, 8)).toBe(true);
+            expect(await service.findLastReviewedHeadSha(repositoryId, 8)).toBe(h1);
         });
 
-        it("becomes true once a review completed", async () => {
-            await addActivity({ status: "started" });
-            await addActivity({ status: "completed" });
+        it("ignores failed reviews when picking the last head", async () => {
+            const failedHead = "c".repeat(40);
+            const h0 = "a".repeat(40);
+            await addActivity({ status: "failed", headSha: failedHead });
+            await addActivity({ status: "completed", headSha: h0 });
 
-            expect(await service.hasCompletedPullRequestReview(repositoryId, 8)).toBe(true);
-            expect(await service.hasRunningPullRequestReview(repositoryId, 8)).toBe(true);
+            expect(await service.findLastReviewedHeadSha(repositoryId, 8)).toBe(h0);
         });
     });
 }
