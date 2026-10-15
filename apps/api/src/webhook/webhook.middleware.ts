@@ -128,6 +128,7 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
         row("Git Provider Repository ID:", String(repository.gitProviderRepositoryId ?? "-")),
         row("Model Provider:", modelProvider.label),
         row("Model Name:", repository.modelName),
+        row("Reasoning Effort:", repository.reasoningEffort ?? "default"),
         row("Model Provider ID:", String(modelProvider.id)),
         "",
         divider,
