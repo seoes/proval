@@ -1,6 +1,6 @@
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
-import type { ActivityTokenUsage } from "@proval/types";
+import type { ActivityTokenUsage, ReasoningEffort } from "@proval/types";
 import {
     UNTRUSTED_WARNING_SYSTEM_PROMPT,
     wrapUntrustedToolContent,
@@ -39,7 +39,7 @@ export interface LlmResponse {
 
 export interface LlmSender {
     send(messages: Message[], tools: AgentTool[]): Promise<LlmResponse>;
-    getModel(): { model: string; provider: string; baseUrl: string };
+    getModel(): { model: string; provider: string; baseUrl: string; reasoningEffort?: ReasoningEffort };
 }
 
 export class JobCanceledError extends Error {

@@ -168,6 +168,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
             expect(response.message.content).toBe("OK");
             expect(response.usage).toEqual({ inputToken: 10, outputToken: 2, cachedInputToken: 5 });
             expect(sender.getModel().provider).toBe("openai_responses");
+            expect(sender.getModel().reasoningEffort).toBe("high");
             expect(requestList[0]).toMatchObject({
                 url: `${config.baseUrl}/responses`,
                 body: { model: "test-model", store: false, stream: true, reasoning: { effort: "high" } },

@@ -85,6 +85,9 @@ export function createXaiSender(config: XaiSenderConfig): LlmSender {
 
     return {
         ...sender,
+        getModel() {
+            return { ...sender.getModel(), reasoningEffort: config.reasoningEffort };
+        },
         async send(...argumentList: Parameters<LlmSender["send"]>) {
             try {
                 return await sender.send(...argumentList);
