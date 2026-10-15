@@ -144,6 +144,9 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
 
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
+    if (await activityService.hasRunningPullRequestReview(repository.id, prIid)) {
+        return new Response(JSON.stringify({ message: "Skipped: review already running" }), { status: 200 });
+    }
 
     let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {

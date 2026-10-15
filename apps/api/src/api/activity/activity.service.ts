@@ -439,6 +439,28 @@ export class ActivityService {
         return rows[0]?.headSha ?? null;
     }
 
+    /**
+     * True while a pull request review of this repository and pull request is
+     * still running. The completed check alone lets a second event started
+     * before the first review ends launch a duplicate review: GitHub sends
+     * "opened" and a following "synchronize" seconds apart, and both would pass.
+     * A run left in "started" by a crash is reset to "failed" at boot.
+     */
+    public async hasRunningPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
+        const [{ total }] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    eq(activityTable.status, "started"),
+                ),
+            );
+        return total > 0;
+    }
+
     public async hasCompletedPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
         const [{ total }] = await db
             .select({ total: count() })
