@@ -9,6 +9,7 @@
         "start": "NODE_ENV=production bun dist/index.js",
         "test": "bun test",
         "agent:review": "FORCE_COLOR=1 bun --no-clear-screen --env-file=../../.env.review review/index.ts",
+        "benchmark": "bun benchmark/index.ts",
         "generate": "drizzle-kit generate",
         "migrate": "drizzle-kit migrate",
         "studio": "drizzle-kit studio",

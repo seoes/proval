@@ -1,0 +1,32 @@
+{
+    "schemaVersion": 1,
+    "setting": {
+        "language": "English",
+        "inlineReview": true,
+        "userPrompt": "",
+        "reasoningEffort": null,
+        "llmConcurrency": 4,
+        "timeoutSecond": 600
+    },
+    "quick": {
+        "repeatCount": 1,
+        "seed": 42,
+        "caseIdList": [
+            "cal_dot_com__14943",
+            "cal_dot_com__10967",
+            "discourse__5",
+            "discourse__8",
+            "grafana__90939",
+            "grafana__106778",
+            "keycloak__40940",
+            "keycloak__37634",
+            "sentry__2",
+            "sentry__5"
+        ]
+    },
+    "full": {
+        "repeatCount": 3,
+        "seed": 42,
+        "caseIdList": null
+    }
+}

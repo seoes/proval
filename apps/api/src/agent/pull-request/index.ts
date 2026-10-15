@@ -1,9 +1,16 @@
-import type { LlmSender } from "../llm/loop.js";
+import type { AgentLoopEvent, LlmSender } from "../llm/loop.js";
 import type { GitProvider } from "../../git-provider/types.js";
 import type { Workspace } from "../../git-provider/workspace.js";
 import type { ActivityTokenUsage } from "@proval/types";
 import type { ReviewHandoff } from "./review/handoff.schema.js";
-import type { ReviewUnit } from "./review/plan.schema.js";
+import type { ReviewUnit, SkippedFile } from "./review/plan.schema.js";
+
+export type ReviewMeasureEvent =
+    | { type: "phase-start"; phase: "setup" | "plan" | "sub" | "writing" | "finalize" }
+    | { type: "phase-end"; phase: "setup" | "plan" | "sub" | "writing" | "finalize" }
+    | { type: "sub-start"; index: number; total: number }
+    | { type: "sub-end"; index: number; ok: boolean }
+    | { type: "agent"; agent: string; event: AgentLoopEvent };
 
 type PullRequestReviewParams = {
     provider: GitProvider;
@@ -17,6 +24,8 @@ type PullRequestReviewParams = {
     isFollowUpReview?: boolean;
     /** Head SHA of the last completed Proval review on this PR (follow-up compare base). */
     previousHeadSha?: string | null;
+    /** Optional diagnostic event sink. Production calls omit it and keep their behavior. */
+    onEvent?: (event: ReviewMeasureEvent) => void;
 };
 
 type PullRequestReplyParams = {
@@ -42,6 +51,7 @@ export type PullRequestReviewSubAgentResult = {
 
 export type PullRequestReviewResult = ActivityTokenUsage & {
     reviewUnitList: ReviewUnit[];
+    skippedFileList: SkippedFile[];
     subAgentList: PullRequestReviewSubAgentResult[];
 };
 
