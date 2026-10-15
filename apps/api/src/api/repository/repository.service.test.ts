@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { Repository } from "@proval/types";
+import { USER_PROMPT_MAX_LENGTH } from "@proval/types";
 
 process.env.ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
+
+function restoreUserPromptMaxLengthEnv(previous: string | undefined) {
+    if (previous === undefined) {
+        delete process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+    } else {
+        process.env.PROVAL_USER_PROMPT_MAX_LENGTH = previous;
+    }
+}
 
 const insertReturningMock = mock<() => Promise<Repository[]>>(() => Promise.resolve([]));
 const insertValuesMock = mock((_value: unknown) => ({
@@ -306,9 +315,60 @@ describe("Update GitLab Repository", () => {
     });
 
     it("rejects userPrompt longer than the max length", async () => {
-        await expect(repositoryService.update(1, { userPrompt: "a".repeat(2001) })).rejects.toThrow(
-            "Custom instructions must be at most 2000 characters",
-        );
+        const previousMaxLength = process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        delete process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        try {
+            await expect(
+                repositoryService.update(1, { userPrompt: "a".repeat(USER_PROMPT_MAX_LENGTH + 1) }),
+            ).rejects.toThrow(`Custom instructions must be at most ${USER_PROMPT_MAX_LENGTH} characters`);
+        } finally {
+            restoreUserPromptMaxLengthEnv(previousMaxLength);
+        }
+    });
+
+    it("accepts a userPrompt of exactly the effective limit", async () => {
+        const previousMaxLength = process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        try {
+            delete process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+            const atDefaultLimit = "a".repeat(USER_PROMPT_MAX_LENGTH);
+            updateReturningMock.mockResolvedValueOnce([makeRepositoryRow({ userPrompt: atDefaultLimit })]);
+            const updatedAtDefault = await repositoryService.update(1, { userPrompt: atDefaultLimit });
+            expect(updatedAtDefault.userPrompt).toBe(atDefaultLimit);
+
+            process.env.PROVAL_USER_PROMPT_MAX_LENGTH = "50";
+            const atCustomLimit = "b".repeat(50);
+            updateReturningMock.mockResolvedValueOnce([makeRepositoryRow({ userPrompt: atCustomLimit })]);
+            const updatedAtCustom = await repositoryService.update(1, { userPrompt: atCustomLimit });
+            expect(updatedAtCustom.userPrompt).toBe(atCustomLimit);
+        } finally {
+            restoreUserPromptMaxLengthEnv(previousMaxLength);
+        }
+    });
+
+    it("uses PROVAL_USER_PROMPT_MAX_LENGTH when the deployment sets it", async () => {
+        const previousMaxLength = process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        process.env.PROVAL_USER_PROMPT_MAX_LENGTH = "50";
+        try {
+            await expect(repositoryService.update(1, { userPrompt: "a".repeat(51) })).rejects.toThrow(
+                "Custom instructions must be at most 50 characters",
+            );
+        } finally {
+            restoreUserPromptMaxLengthEnv(previousMaxLength);
+        }
+    });
+
+    it("ignores a PROVAL_USER_PROMPT_MAX_LENGTH that is not a positive integer", async () => {
+        const previousMaxLength = process.env.PROVAL_USER_PROMPT_MAX_LENGTH;
+        try {
+            for (const invalid of ["abc", "0", "-5", "1.5", ""]) {
+                process.env.PROVAL_USER_PROMPT_MAX_LENGTH = invalid;
+                await expect(
+                    repositoryService.update(1, { userPrompt: "a".repeat(USER_PROMPT_MAX_LENGTH + 1) }),
+                ).rejects.toThrow(`Custom instructions must be at most ${USER_PROMPT_MAX_LENGTH} characters`);
+            }
+        } finally {
+            restoreUserPromptMaxLengthEnv(previousMaxLength);
+        }
     });
 
     it("rejects userPrompt when it is not a string", async () => {
@@ -318,9 +378,7 @@ describe("Update GitLab Repository", () => {
     });
 
     it("rejects invalid reasoning effort", async () => {
-        await expect(
-            repositoryService.update(1, { reasoningEffort: "bogus" as "medium" }),
-        ).rejects.toThrow(
+        await expect(repositoryService.update(1, { reasoningEffort: "bogus" as "medium" })).rejects.toThrow(
             "Invalid reasoning effort",
         );
     });
