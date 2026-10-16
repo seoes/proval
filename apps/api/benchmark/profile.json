@@ -12,16 +12,11 @@
         "repeatCount": 1,
         "seed": 42,
         "caseIdList": [
-            "cal_dot_com__14943",
             "cal_dot_com__10967",
-            "discourse__5",
             "discourse__8",
-            "grafana__90939",
             "grafana__106778",
-            "keycloak__40940",
             "keycloak__37634",
-            "sentry__2",
-            "sentry__5"
+            "sentry__2"
         ]
     },
     "full": {

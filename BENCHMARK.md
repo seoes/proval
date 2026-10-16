@@ -36,7 +36,7 @@ bun run benchmark list
   the manifest against the local git cache. It never refreshes commit
   identifiers. A missing object fails preparation.
 - `warm` sends one tiny request so model warm up stays outside measurement.
-- `run` executes a batch. `quick` is ten PRs once each, `full` is all 50 PRs
+- `run` executes a batch. `quick` is five PRs once each (one per project), `full` is all 50 PRs
   three times each (150 planned attempts).
 - `report` generates a readable `report.md` from existing batch output.
 - `compare` generates `compare-<baseline>.md` in the candidate batch directory.
