@@ -108,6 +108,7 @@ function makeRepositoryRow(overrides: Partial<Repository> = {}): Repository {
         prInlineReview: true,
         prReviewOnPush: "on_every_push",
         prIgnoreDraft: true,
+        prTriageEnabled: false,
         userPrompt: null,
         prReplyEnabled: true,
         prMentionOnly: false,
@@ -318,9 +319,7 @@ describe("Update GitLab Repository", () => {
     });
 
     it("rejects invalid reasoning effort", async () => {
-        await expect(
-            repositoryService.update(1, { reasoningEffort: "bogus" as "medium" }),
-        ).rejects.toThrow(
+        await expect(repositoryService.update(1, { reasoningEffort: "bogus" as "medium" })).rejects.toThrow(
             "Invalid reasoning effort",
         );
     });

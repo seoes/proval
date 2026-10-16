@@ -183,6 +183,7 @@
                     prInlineReview: true,
                     prReviewOnPush: "on_every_push",
                     prIgnoreDraft: true,
+                    prTriageEnabled: false,
                     userPrompt: null,
                     prReplyEnabled: true,
                     prMentionOnly: false,

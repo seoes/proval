@@ -1,3 +1,4 @@
+import type { ActivityTriageJson } from "@proval/db";
 import { activityTable, repositoryTable, type ActivityLogEntryJson } from "@proval/db";
 import type {
     Activity,
@@ -23,6 +24,7 @@ import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
 import { runWithActivity } from "./activity.runner.js";
+import { reviewBudgetForDepth } from "../../triage/triage.service.js";
 
 const RETRY_TYPES = ["pr_review", "issue_open"] as const;
 type RetryActivityType = (typeof RETRY_TYPES)[number];
@@ -177,6 +179,7 @@ export type ActivityStartInput = {
     type: Activity["type"];
     targetIid: number;
     headSha?: string | null;
+    triage?: ActivityTriageJson | null;
 };
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
@@ -641,12 +644,16 @@ export class ActivityService {
         const workspace = new Workspace(gitProvider);
         const llmSender = createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort);
 
+        // A retry keeps the triage record and the depth it implied, so a light review
+        // that failed does not come back as a full one.
+        const triage = (activity.triage as ActivityTriageJson | null) ?? null;
         const startInput: ActivityStartInput = {
             repositoryId: activity.repositoryId,
             modelProviderId: repository.modelProviderId,
             modelName: repository.modelName,
             type: activity.type,
             targetIid: activity.targetIid,
+            triage,
         };
 
         if (activity.type === "pr_review") {
@@ -668,6 +675,7 @@ export class ActivityService {
                     activityId,
                     isFollowUpReview,
                     previousHeadSha: isFollowUpReview ? lastHeadSha : null,
+                    ...reviewBudgetForDepth(triage?.applied ? triage.depth : "normal"),
                 }),
             ).catch((error) => {
                 logError("Activity retry failed", error);

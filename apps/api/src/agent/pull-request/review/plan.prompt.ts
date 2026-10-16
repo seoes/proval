@@ -98,3 +98,17 @@ export const PR_REVIEW_PLAN_USER_PROMPT_HEADER = [
     "Keep full changed-file coverage.",
     "When the owner excludes file kinds, record them with skip_file rather than silent omission.",
 ].join("\n\n");
+
+/**
+ * Tells the planner how much width this review may use. Triage decided the depth before
+ * any token was spent; this turns it into an instruction rather than a cap enforced by
+ * truncation, so the planner still chooses which files belong together.
+ */
+export function unitBudgetHint(unitBudget: number): string {
+    return [
+        "# Unit budget",
+        "",
+        `Triage set this review's depth: group the changed files into at most ${unitBudget} review unit${unitBudget === 1 ? "" : "s"}.`,
+        "Merge related files into one unit rather than dropping any; every changed path must still be covered or explicitly skipped.",
+    ].join("\n");
+}

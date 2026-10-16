@@ -17,6 +17,10 @@ type PullRequestReviewParams = {
     isFollowUpReview?: boolean;
     /** Head SHA of the last completed Proval review on this PR (follow-up compare base). */
     previousHeadSha?: string | null;
+    /** Review units the planner may create, decided by triage. Null leaves it to the planner. */
+    unitBudget?: number | null;
+    /** Steps each sub agent may spend; null is the loop default. Set by triage. */
+    unitStepBudget?: number | null;
 };
 
 type PullRequestReplyParams = {

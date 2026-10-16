@@ -9,6 +9,7 @@ import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createModelProviderSender } from "../../api/model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { reviewBudgetForDepth, triageForReview } from "../../triage/triage.service.js";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 import { CommentService } from "../../api/comment/comment.service.js";
@@ -189,6 +190,22 @@ async function handlePullRequestWebhook(
     }
     const isFollowUpReview = hasCompleted;
 
+    // Triage runs on every provider so the record exists; without a versions API it
+    // has no delta and classifies the whole pull request from what it can see.
+    const triage = await triageForReview({
+        provider: gitHubProvider,
+        activityService,
+        repositoryId: repository.id,
+        prIid: prNumber,
+        title: (payload.pull_request as { title?: string } | undefined)?.title ?? "",
+        author: payload.pull_request?.user?.login ?? "",
+        enabled: repository.prTriageEnabled,
+        logError,
+    });
+    if (triage.effectiveDepth === "skip") {
+        return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
+    }
+
     const isInlineReview = repository.prInlineReview;
 
     const workspace = new Workspace(gitHubProvider);
@@ -200,6 +217,7 @@ async function handlePullRequestWebhook(
             type: "pr_review",
             targetIid: prNumber,
             headSha,
+            triage: triage.record,
         },
         (activityId) =>
             runPullRequestReview({
@@ -213,6 +231,7 @@ async function handlePullRequestWebhook(
                 activityId,
                 isFollowUpReview,
                 previousHeadSha: isFollowUpReview ? lastHeadSha : null,
+                ...reviewBudgetForDepth(triage.effectiveDepth),
             }),
     ).catch((error) => {
         logError("Pull request review failed", error);

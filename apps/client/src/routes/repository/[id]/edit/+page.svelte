@@ -120,6 +120,7 @@
             prInlineReview: data.repository.prInlineReview,
             prReviewOnPush: data.repository.prReviewOnPush,
             prIgnoreDraft: data.repository.prIgnoreDraft,
+            prTriageEnabled: data.repository.prTriageEnabled,
             userPrompt: data.repository.userPrompt,
             prReplyEnabled: data.repository.prReplyEnabled,
             prMentionOnly: data.repository.prMentionOnly,

@@ -8,6 +8,7 @@ import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { createModelProviderSender } from "../../api/model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
+import { reviewBudgetForDepth, triageForReview } from "../../triage/triage.service.js";
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 import { CommentService } from "../../api/comment/comment.service.js";
@@ -211,6 +212,22 @@ const handleForgejoPullRequestWebhook = async (
     }
     const isFollowUpReview = hasCompleted;
 
+    // Triage runs on every provider so the record exists; without a versions API it
+    // has no delta and classifies the whole pull request from what it can see.
+    const triage = await triageForReview({
+        provider: forgejoProvider,
+        activityService,
+        repositoryId: repository.id,
+        prIid: prNumber,
+        title: pr.title ?? "",
+        author: pr.user?.login ?? "",
+        enabled: repository.prTriageEnabled,
+        logError,
+    });
+    if (triage.effectiveDepth === "skip") {
+        return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
+    }
+
     runWithActivity(
         {
             repositoryId: repository.id,
@@ -219,6 +236,7 @@ const handleForgejoPullRequestWebhook = async (
             type: "pr_review",
             targetIid: prNumber,
             headSha,
+            triage: triage.record,
         },
         (activityId) =>
             runPullRequestReview({
@@ -232,6 +250,7 @@ const handleForgejoPullRequestWebhook = async (
                 activityId,
                 isFollowUpReview,
                 previousHeadSha: isFollowUpReview ? lastHeadSha : null,
+                ...reviewBudgetForDepth(triage.effectiveDepth),
             }),
     ).catch((error) => {
         logError("Pull request review failed", error, "Forgejo");

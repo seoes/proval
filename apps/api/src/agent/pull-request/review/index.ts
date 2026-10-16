@@ -42,6 +42,8 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         activityId,
         isFollowUpReview = false,
         previousHeadSha = null,
+        unitBudget = null,
+        unitStepBudget = null,
     } = params;
     const label = `[PR #${prIid}] Setup`;
     const emojiTarget = { type: "pull_request" as const, prIid };
@@ -126,6 +128,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             usePushScope,
             userPrompt,
             agentInstructionPrompt,
+            unitBudget,
         );
         const total = planResult.reviewUnitList.length;
         const reviewHandoffList: ReviewHandoff[] = [];
@@ -151,6 +154,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                     usePushScope,
                     userPrompt,
                     agentInstructionPrompt,
+                    unitStepBudget,
                 ),
             ),
         );

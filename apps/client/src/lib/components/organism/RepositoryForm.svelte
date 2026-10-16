@@ -41,6 +41,7 @@
         prInlineReview: boolean;
         prReviewOnPush: PrReviewOnPush;
         prIgnoreDraft: boolean;
+        prTriageEnabled: boolean;
         userPrompt: string | null;
         prReplyEnabled: boolean;
         prMentionOnly: boolean;
@@ -150,6 +151,7 @@
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
+    let prTriageEnabled = $state<boolean>(config.prTriageEnabled);
     let userPrompt = $state<string>(config.userPrompt ?? "");
     let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
 
@@ -326,6 +328,7 @@
             prInlineReview,
             prReviewOnPush,
             prIgnoreDraft,
+            prTriageEnabled,
             userPrompt: userPrompt.trim() || null,
             prReplyEnabled,
             prMentionOnly,
@@ -568,6 +571,17 @@
                     <div class="flex items-center justify-between gap-2">
                         <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
                         <ToggleSwitch bind:checked={prIgnoreDraft} disabled={!prEnabled || !prReviewEnabled} />
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <FieldTitle class="ml-1">Act on triage</FieldTitle>
+                            <Description placement="below">
+                                Triage always records why a review ran at its depth. When on, a change that is
+                                documentation only, tests only, small, or unchanged since the last review gets a
+                                lighter review instead of a full one.
+                            </Description>
+                        </div>
+                        <ToggleSwitch bind:checked={prTriageEnabled} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
                 </div>
             </div>
