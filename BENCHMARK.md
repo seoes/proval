@@ -12,6 +12,10 @@ Model credentials come from `.env.benchmark` at the repo root, see
 are never written into any artifact. Recorded config goes through an explicit
 safe field list and URLs are stripped of userinfo.
 
+The benchmark supports API key authentication only. OAuth providers,
+including xAI OAuth, are not supported. OAuth authorization configured in
+the Proval dashboard is not available to the benchmark runner.
+
 Optional `GITHUB_TOKEN` speeds up dataset import. Without it the GitHub API
 rate limit allows roughly one import pass per hour.
 

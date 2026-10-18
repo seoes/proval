@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import os from "node:os";
+import type { SenderConfig } from "../src/agent/llm/factory.js";
 import { git } from "./git.js";
 
 export const REPO_ROOT = resolve(import.meta.dir, "..", "..", "..");
@@ -30,7 +31,7 @@ export async function loadDotEnvFile(path: string): Promise<void> {
 }
 
 export type BenchmarkLlmConfig = {
-    provider: string;
+    provider: SenderConfig["provider"];
     baseUrl: string;
     apiKey: string;
     model: string;
@@ -41,8 +42,12 @@ export function loadBenchmarkLlmConfig(): BenchmarkLlmConfig {
     if (missingList.length > 0) {
         throw new Error(`Missing required env: ${missingList.join(", ")} (see .env.benchmark.example)`);
     }
+    const provider = process.env.LLM_PROVIDER?.trim() || "openai";
+    if (provider !== "openai" && provider !== "openai_responses" && provider !== "anthropic" && provider !== "xai") {
+        throw new Error("LLM_PROVIDER must be openai, openai_responses, anthropic or xai");
+    }
     return {
-        provider: process.env.LLM_PROVIDER?.trim() || "openai",
+        provider,
         baseUrl: process.env.LLM_BASE_URL!.trim(),
         apiKey: process.env.LLM_API_KEY!.trim(),
         model: process.env.LLM_MODEL!.trim(),
