@@ -98,7 +98,7 @@ export function createFakeSender(kind: string): LlmSender {
     }
     if (kind === "fail") {
         return {
-            send: () => ProΩ˝mise.reject(new Error("fake model failure")),
+            send: () => Promise.reject(new Error("fake model failure")),
             getModel: () => ({ model: "fake-fail", provider: "fake", baseUrl: "http://localhost" }),
         };
     }
