@@ -54,6 +54,19 @@ Edit the Markdown template to change the layout or short explanatory text.
 The runner fills each named placeholder with a table. Raw JSON remains the
 source for reproducibility and comparison.
 
+## Source layout
+
+The benchmark source lives in `apps/api/benchmark/`. `index.ts` is the CLI
+entry point behind `bun run benchmark`. `config.ts` loads the environment,
+profile file, and machine info, and `types.ts` holds the shared types. `load/`
+holds the Git cache helpers (`git.ts`) and manifest validation plus case
+preparation (`manifest.ts`). `run/` holds the batch scheduler and result
+bookkeeping (`run.ts`), the child process for one attempt (`attempt.ts`),
+measurement (`measure.ts`), the fake sender used by tests (`sender.ts`), and
+attempt cleanup (`clean.ts`). `report/` holds aggregation and Markdown
+rendering (`report.ts`) next to the `report.template.md` and
+`compare.template.md` templates.
+
 ## Batch execution
 
 The parent process schedules one child process per review attempt, one PR at

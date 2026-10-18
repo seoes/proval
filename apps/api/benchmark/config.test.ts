@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { git } from "./git.js";
-import { collectSourceState } from "./util.js";
+import { git } from "./load/git.js";
+import { collectSourceState } from "./config.js";
 
 describe("collectSourceState", () => {
     test("detects tracked and untracked content changes while ignoring generated output", async () => {

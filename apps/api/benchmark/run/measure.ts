@@ -1,55 +1,6 @@
-import type { AgentLoopEvent, LlmSender } from "../src/agent/llm/loop.js";
-import type { ReviewMeasureEvent } from "../src/agent/pull-request/index.js";
-
-export const ATTEMPT_STATUS_LIST = [
-    "completed",
-    "incomplete",
-    "failed",
-    "prepareFailed",
-    "canceled",
-    "interrupted",
-] as const;
-
-export type AttemptStatus = (typeof ATTEMPT_STATUS_LIST)[number];
-
-export type PhaseName = "setup" | "plan" | "sub" | "writing" | "finalize";
-
-export type PhaseTiming = {
-    prepareMs: number | null;
-    reviewMs: number | null;
-    setupMs: number | null;
-    planMs: number | null;
-    subWallMs: number | null;
-    writingMs: number | null;
-    finalizeMs: number | null;
-};
-
-export type SubAgentMeasure = {
-    index: number;
-    durationMs: number | null;
-    ok: boolean | null;
-    fileCount: number;
-    stepCount: number | null;
-    toolCallCount: number | null;
-    inputToken: number | null;
-    outputToken: number | null;
-    cachedInputToken: number | null;
-};
-
-export type SenderStat = {
-    requestCount: number;
-    retryCount: number;
-    compressionCount: number;
-    inputToken: number;
-    outputToken: number;
-    cachedInputToken: number;
-    /** Sum of per request wall time. Requests overlap, so this can exceed reviewMs. */
-    requestMsSum: number;
-    /** The wrapper sits outside the concurrency limiter, so request timing includes queue wait. */
-    includesConcurrencyWait: true;
-};
-
-export type TimedEvent = { at: number; event: ReviewMeasureEvent };
+import type { AgentLoopEvent, LlmSender } from "../../src/agent/llm/loop.js";
+import type { ReviewMeasureEvent } from "../../src/agent/pull-request/index.js";
+import type { PhaseName, PhaseTiming, SenderStat, TimedEvent } from "../types.js";
 
 /** Wrap the sender returned by createSender so usage capture includes compression requests. */
 export function measureSender(sender: LlmSender): { sender: LlmSender; stat: SenderStat } {

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import os from "node:os";
-import { git } from "./git.js";
+import { git } from "./load/git.js";
 import type { BenchmarkLlmConfig, BenchmarkProfile, SourceState } from "./types.js";
 
 export const REPO_ROOT = resolve(import.meta.dir, "..", "..", "..");

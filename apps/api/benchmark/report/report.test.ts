@@ -10,8 +10,8 @@ import {
     sizeBucket,
     summarizeBatch,
     summarizeGroupList,
-    type AttemptRecord,
 } from "./report.js";
+import type { AttemptRecord } from "../types.js";
 
 function record(partial: Partial<AttemptRecord> & Pick<AttemptRecord, "caseId" | "repeatIndex">): AttemptRecord {
     return {
@@ -50,7 +50,7 @@ const interruptedRecord: AttemptRecord = {
 };
 
 async function runCommand(dir: string, argList: string[]) {
-    const proc = Bun.spawn([process.execPath, resolve(import.meta.dir, "index.ts"), ...argList], {
+    const proc = Bun.spawn([process.execPath, resolve(import.meta.dir, "../index.ts"), ...argList], {
         stdout: "pipe",
         stderr: "pipe",
         env: {

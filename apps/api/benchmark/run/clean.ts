@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { WORK_DIR, ensureCacheRepo, removeWorktree } from "./git.js";
+import { WORK_DIR, ensureCacheRepo, removeWorktree } from "../load/git.js";
 
 export async function removeCaseWorkdir(repoUrl: string, dir: string): Promise<void> {
     const repoDir = await ensureCacheRepo(repoUrl);

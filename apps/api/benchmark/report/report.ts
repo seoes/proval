@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { OUTPUT_DIR } from "./git.js";
+import { OUTPUT_DIR } from "../load/git.js";
 import type {
     AttemptRecord,
     CaseSummary,
@@ -10,9 +10,7 @@ import type {
     GroupSummary,
     PhaseTiming,
     SizeBucket,
-} from "./types.js";
-
-export type { AttemptRecord, CaseSummary, CompareResult, CompareRow, GroupSummary, SizeBucket } from "./types.js";
+} from "../types.js";
 
 type CaseInfo = Pick<AttemptRecord, "caseId" | "project" | "addedLineCount" | "deletedLineCount" | "changedFileCount">;
 
@@ -30,8 +28,8 @@ type BatchMeta = {
     manifestHash?: string;
 };
 
-const reportTemplate = readFileSync(join(import.meta.dir, "templates", "report.template.md"), "utf-8");
-const compareTemplate = readFileSync(join(import.meta.dir, "templates", "compare.template.md"), "utf-8");
+const reportTemplate = readFileSync(join(import.meta.dir, "report.template.md"), "utf-8");
+const compareTemplate = readFileSync(join(import.meta.dir, "compare.template.md"), "utf-8");
 
 function isKnownCount(value: number | undefined): value is number {
     return typeof value === "number" && Number.isInteger(value) && value >= 0;

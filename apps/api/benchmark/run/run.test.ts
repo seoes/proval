@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { computeDiffStat, git } from "./git.js";
-import { MANIFEST_SCHEMA_VERSION } from "./load.js";
+import { computeDiffStat, git } from "../load/git.js";
+import { MANIFEST_SCHEMA_VERSION } from "../load/manifest.js";
 import { closeUnfinishedAttemptList, readResultLineList, seededShuffle } from "./run.js";
-import type { Manifest, PhaseTiming, SenderStat } from "./types.js";
+import type { Manifest, PhaseTiming, SenderStat } from "../types.js";
 
 describe("seededShuffle", () => {
     test("is deterministic for the same seed and differs across seeds", () => {
@@ -246,7 +246,7 @@ describe("batch resume with fake sender", () => {
         });
         const run = async (argList: string[], extra: Record<string, string> = {}) => {
             const proc = Bun.spawn(
-                [process.execPath, resolve(import.meta.dir, "index.ts"), "run", ...argList, "--batch", "resume-batch"],
+                [process.execPath, resolve(import.meta.dir, "../index.ts"), "run", ...argList, "--batch", "resume-batch"],
                 { stdout: "pipe", stderr: "pipe", env: { ...env, ...extra } },
             );
             const [stdout, stderr, exitCode] = await Promise.all([

@@ -9,10 +9,10 @@
  *   bun run benchmark list
  */
 import { resolve } from "node:path";
-import { loadDotEnvFile, loadBenchmarkLlmConfig, loadProfile, REPO_ROOT } from "./util.js";
-import { loadManifest } from "./load.js";
-import { runBatch } from "./run.js";
-import { compareBatchById, reportBatch } from "./report.js";
+import { loadDotEnvFile, loadBenchmarkLlmConfig, loadProfile, REPO_ROOT } from "./config.js";
+import { loadManifest } from "./load/manifest.js";
+import { runBatch } from "./run/run.js";
+import { compareBatchById, reportBatch } from "./report/report.js";
 
 const command = process.argv[2];
 const argList = process.argv.slice(3);

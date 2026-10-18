@@ -2,7 +2,7 @@ import { mkdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 
-export const DATA_DIR = resolve(process.env.BENCHMARK_DATA_DIR ?? join(import.meta.dir, "data"));
+export const DATA_DIR = resolve(process.env.BENCHMARK_DATA_DIR ?? join(import.meta.dir, "..", "data"));
 export const CACHE_DIR = join(DATA_DIR, "cache");
 export const WORK_DIR = join(DATA_DIR, "work");
 export const OUTPUT_DIR = join(DATA_DIR, "output");

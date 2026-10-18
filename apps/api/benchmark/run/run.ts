@@ -3,9 +3,9 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { OUTPUT_DIR } from "./git.js";
-import { loadManifest, MANIFEST_PATH } from "./load.js";
-import type { Manifest, BenchmarkRunProfile } from "./types.js";
+import { OUTPUT_DIR } from "../load/git.js";
+import { loadManifest, MANIFEST_PATH } from "../load/manifest.js";
+import type { Manifest, BenchmarkRunProfile, ResultLine, RunOptions } from "../types.js";
 import {
     collectSourceState,
     hashFileContent,
@@ -14,20 +14,9 @@ import {
     machineDescription,
     safeUrl,
     PROFILE_PATH,
-} from "./util.js";
-import type { AttemptStatus } from "./measure.js";
+} from "../config.js";
 import { cleanupAttempt } from "./clean.js";
-import { reportBatch } from "./report.js";
-
-export type ResultLine = {
-    type: "start" | "result";
-    runId: string;
-    caseId: string;
-    repeatIndex: number;
-    attemptIndex: number;
-    status?: AttemptStatus;
-    [key: string]: unknown;
-};
+import { reportBatch } from "../report/report.js";
 
 /** Deterministic shuffle so every batch uses the same reproducible case order. */
 export function seededShuffle<T>(itemList: T[], seed: number): T[] {
@@ -96,14 +85,6 @@ export async function closeUnfinishedAttemptList(batchDir: string): Promise<numb
 function attemptKey(caseId: string, repeatIndex: number): string {
     return `${caseId}#${repeatIndex}`;
 }
-
-export type RunOptions = {
-    profileName: "quick" | "full";
-    batchId?: string;
-    resume: boolean;
-    /** Restrict the batch to a subset of profile cases. */
-    caseIdList?: string[];
-};
 
 let activeChild: { kill: (signal?: number | NodeJS.Signals) => void } | null = null;
 

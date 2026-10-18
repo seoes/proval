@@ -25,9 +25,9 @@ const runId = requireArg("run-id");
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { OUTPUT_DIR } from "./git.js";
-import { loadManifest, MANIFEST_PATH } from "./load.js";
-import type { BenchmarkLlmConfig, BenchmarkProfile, ManifestCase } from "./types.js";
+import { OUTPUT_DIR } from "../load/git.js";
+import { loadManifest, MANIFEST_PATH } from "../load/manifest.js";
+import type { AttemptStatus, BenchmarkLlmConfig, BenchmarkProfile, ManifestCase, PhaseTiming, SubAgentMeasure } from "../types.js";
 import {
     collectSourceState,
     loadBenchmarkLlmConfig,
@@ -38,15 +38,9 @@ import {
     safeUrl,
     PROFILE_PATH,
     REPO_ROOT,
-} from "./util.js";
-import {
-    MeasureCollector,
-    measureSender,
-    type AttemptStatus,
-    type PhaseTiming,
-    type SubAgentMeasure,
-} from "./measure.js";
-import { createCaseWorkdir, prepareCase } from "./load.js";
+} from "../config.js";
+import { MeasureCollector, measureSender } from "./measure.js";
+import { createCaseWorkdir, prepareCase } from "../load/manifest.js";
 
 const attemptDir = join(OUTPUT_DIR, batchId, "attempt", runId);
 const dbFile = join(OUTPUT_DIR, batchId, "tmp", `${runId}.db`);
@@ -108,11 +102,11 @@ type RunRecord = {
 async function migrateDatabase(): Promise<void> {
     await mkdir(join(dbFile, ".."), { recursive: true });
     const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
-    const db = (await import("../src/db/index.js")).default;
+    const db = (await import("../../src/db/index.js")).default;
     db.$client.run("PRAGMA foreign_keys = OFF");
     try {
         migrate(db, {
-            migrationsFolder: resolve(import.meta.dir, "..", "..", "..", "packages", "db", "src", "migration"),
+            migrationsFolder: join(REPO_ROOT, "packages", "db", "src", "migration"),
         });
     } finally {
         db.$client.run("PRAGMA foreign_keys = ON");
@@ -125,7 +119,7 @@ async function migrateDatabase(): Promise<void> {
  * table. A real row keeps those effects intact inside the benchmark database.
  */
 async function createActivityRow(entry: ManifestCase, modelName: string): Promise<number> {
-    const db = (await import("../src/db/index.js")).default;
+    const db = (await import("../../src/db/index.js")).default;
     const { activityTable } = await import("@proval/db");
     const [row] = await db
         .insert(activityTable)
@@ -237,12 +231,12 @@ async function runAttempt(
     collector: MeasureCollector,
     record: RunRecord,
 ): Promise<void> {
-    const { MockProvider } = await import("../mock/provider.js");
-    const { Workspace } = await import("../src/git-provider/workspace.js");
-    const { createSender } = await import("../src/agent/llm/factory.js");
-    const { runPullRequestReview } = await import("../src/agent/pull-request/index.js");
-    const { JobCanceledError } = await import("../src/agent/llm/loop.js");
-    const { git } = await import("./git.js");
+    const { MockProvider } = await import("../../mock/provider.js");
+    const { Workspace } = await import("../../src/git-provider/workspace.js");
+    const { createSender } = await import("../../src/agent/llm/factory.js");
+    const { runPullRequestReview } = await import("../../src/agent/pull-request/index.js");
+    const { JobCanceledError } = await import("../../src/agent/llm/loop.js");
+    const { git } = await import("../load/git.js");
 
     let workdir: string | null = null;
     const prepareStart = performance.now();

@@ -1,4 +1,4 @@
-import type { AgentTool, LlmResponse, LlmSender, Message, ToolCall } from "../src/agent/llm/loop.js";
+import type { AgentTool, LlmResponse, LlmSender, Message, ToolCall } from "../../src/agent/llm/loop.js";
 
 /**
  * Deterministic sender used by tests and CI instead of a model endpoint.

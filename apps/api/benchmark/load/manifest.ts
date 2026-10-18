@@ -11,9 +11,11 @@ import {
     mergeBase,
     removeWorktree,
 } from "./git.js";
-import type { Manifest, ManifestCase } from "./types.js";
+import type { Manifest, ManifestCase } from "../types.js";
 
-export const MANIFEST_PATH = resolve(process.env.BENCHMARK_MANIFEST_PATH ?? join(import.meta.dir, "manifest.json"));
+export const MANIFEST_PATH = resolve(
+    process.env.BENCHMARK_MANIFEST_PATH ?? join(import.meta.dir, "..", "manifest.json"),
+);
 export const MANIFEST_SCHEMA_VERSION = 1;
 
 export function validateManifest(manifest: Manifest): void {
