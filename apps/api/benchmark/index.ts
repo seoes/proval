@@ -2,21 +2,17 @@
  * Proval agent benchmark runner.
  *
  * Usage:
- *   bun run benchmark import <martianRepoDir>
- *   bun run benchmark prepare [caseId ...]
  *   bun run benchmark run <quick|full> [--batch <id>] [--resume]
  *   bun run benchmark report <batchId>
  *   bun run benchmark compare <baselineBatchId> <candidateBatchId>
- *   bun run benchmark warm
+ *   bun run benchmark ready
  *   bun run benchmark list
  */
 import { resolve } from "node:path";
-import { loadDotEnvFile, loadBenchmarkLlmConfig, loadProfile } from "./config.js";
-import { importDataset, loadManifest } from "./dataset.js";
-import { prepareAll } from "./prepare.js";
+import { loadDotEnvFile, loadBenchmarkLlmConfig, loadProfile, REPO_ROOT } from "./util.js";
+import { loadManifest } from "./load.js";
 import { runBatch } from "./run.js";
 import { compareBatchById, reportBatch } from "./report.js";
-import { REPO_ROOT } from "./config.js";
 
 const command = process.argv[2];
 const argList = process.argv.slice(3);
@@ -32,16 +28,6 @@ async function main(): Promise<void> {
     await loadDotEnvFile(resolve(REPO_ROOT, ".env.benchmark"));
 
     switch (command) {
-        case "import": {
-            const martianDir = argList[0];
-            if (!martianDir) throw new Error("usage: benchmark import <martianRepoDir>");
-            await importDataset(resolve(martianDir), process.env.GITHUB_TOKEN?.trim() || null);
-            break;
-        }
-        case "prepare": {
-            await prepareAll(argList.filter((arg) => !arg.startsWith("--")));
-            break;
-        }
         case "run": {
             const profileName = argList[0];
             if (profileName !== "quick" && profileName !== "full") {
@@ -69,7 +55,7 @@ async function main(): Promise<void> {
             console.log(await compareBatchById(baselineId, candidateId));
             break;
         }
-        case "warm": {
+        case "ready": {
             const llm = loadBenchmarkLlmConfig();
             const profile = await loadProfile();
             const { createSender } = await import("../src/agent/llm/factory.js");
@@ -109,12 +95,10 @@ async function main(): Promise<void> {
             console.log(
                 [
                     "usage:",
-                    "  benchmark import <martianRepoDir>",
-                    "  benchmark prepare [caseId ...]",
                     "  benchmark run <quick|full> [--batch <id>] [--resume] [--case <id,id...>]",
                     "  benchmark report <batchId>",
                     "  benchmark compare <baselineBatchId> <candidateBatchId>",
-                    "  benchmark warm",
+                    "  benchmark ready",
                     "  benchmark list",
                 ].join("\n"),
             );

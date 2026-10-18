@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { validateManifest, MANIFEST_SCHEMA_VERSION, type Manifest, type ManifestCase } from "./dataset.js";
+import { validateManifest, MANIFEST_SCHEMA_VERSION } from "./load.js";
+import type { Manifest, ManifestCase } from "./types.js";
 
 function entry(partial: Partial<ManifestCase> = {}): ManifestCase {
     return {

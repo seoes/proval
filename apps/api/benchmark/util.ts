@@ -3,8 +3,8 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import os from "node:os";
-import type { SenderConfig } from "../src/agent/llm/factory.js";
 import { git } from "./git.js";
+import type { BenchmarkLlmConfig, BenchmarkProfile, SourceState } from "./types.js";
 
 export const REPO_ROOT = resolve(import.meta.dir, "..", "..", "..");
 export const PROFILE_PATH = resolve(process.env.BENCHMARK_PROFILE_PATH ?? join(import.meta.dir, "profile.json"));
@@ -30,52 +30,18 @@ export async function loadDotEnvFile(path: string): Promise<void> {
     }
 }
 
-export type BenchmarkLlmConfig = {
-    provider: SenderConfig["provider"];
-    baseUrl: string;
-    apiKey: string;
-    model: string;
-};
-
 export function loadBenchmarkLlmConfig(): BenchmarkLlmConfig {
     const missingList = ["LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"].filter((key) => !process.env[key]?.trim());
     if (missingList.length > 0) {
         throw new Error(`Missing required env: ${missingList.join(", ")} (see .env.benchmark.example)`);
     }
-    const provider = process.env.LLM_PROVIDER?.trim() || "openai";
-    if (provider !== "openai" && provider !== "openai_responses" && provider !== "anthropic" && provider !== "xai") {
-        throw new Error("LLM_PROVIDER must be openai, openai_responses, anthropic or xai");
-    }
     return {
-        provider,
+        provider: process.env.LLM_PROVIDER?.trim() || "openai",
         baseUrl: process.env.LLM_BASE_URL!.trim(),
         apiKey: process.env.LLM_API_KEY!.trim(),
         model: process.env.LLM_MODEL!.trim(),
     };
 }
-
-export type BenchmarkProfileSetting = {
-    language: string;
-    inlineReview: boolean;
-    userPrompt: string;
-    reasoningEffort: string | null;
-    llmConcurrency: number | null;
-    timeoutSecond: number;
-};
-
-export type BenchmarkRunProfile = {
-    repeatCount: number;
-    seed: number;
-    /** null means every manifest case. */
-    caseIdList: string[] | null;
-};
-
-export type BenchmarkProfile = {
-    schemaVersion: number;
-    setting: BenchmarkProfileSetting;
-    quick: BenchmarkRunProfile;
-    full: BenchmarkRunProfile;
-};
 
 export async function loadProfile(path: string = PROFILE_PATH): Promise<BenchmarkProfile> {
     const profile = JSON.parse(await readFile(path, "utf-8")) as BenchmarkProfile;
@@ -105,12 +71,6 @@ export function safeUrl(rawUrl: string): string {
         return "(unparseable url)";
     }
 }
-
-export type SourceState = {
-    provalCommit: string;
-    isDirty: boolean;
-    sourceStateHash: string;
-};
 
 export async function collectSourceState(repoRoot: string = REPO_ROOT): Promise<SourceState> {
     const provalCommit = await git(["rev-parse", "HEAD"], repoRoot);

@@ -1,10 +1,11 @@
-import { appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { OUTPUT_DIR, WORK_DIR } from "./git.js";
-import { loadManifest, MANIFEST_PATH, type Manifest } from "./dataset.js";
+import { OUTPUT_DIR } from "./git.js";
+import { loadManifest, MANIFEST_PATH } from "./load.js";
+import type { Manifest, BenchmarkRunProfile } from "./types.js";
 import {
     collectSourceState,
     hashFileContent,
@@ -13,10 +14,9 @@ import {
     machineDescription,
     safeUrl,
     PROFILE_PATH,
-    type BenchmarkRunProfile,
-} from "./config.js";
+} from "./util.js";
 import type { AttemptStatus } from "./measure.js";
-import { removeCaseWorkdir } from "./prepare.js";
+import { cleanupAttempt } from "./clean.js";
 import { reportBatch } from "./report.js";
 
 export type ResultLine = {
@@ -343,15 +343,4 @@ async function readAttemptRecord(batchDir: string, runId: string): Promise<Recor
     } catch {
         return null;
     }
-}
-
-/** The parent removes the workdir and database only after the child has exited. */
-async function cleanupAttempt(repoUrl: string, runId: string, batchDir: string): Promise<void> {
-    try {
-        await removeCaseWorkdir(repoUrl, join(WORK_DIR, runId));
-    } catch {
-        await rm(join(WORK_DIR, runId), { recursive: true, force: true }).catch(() => {});
-    }
-    await rm(join(batchDir, "tmp", `${runId}.db`), { force: true }).catch(() => {});
-    await rm(join(batchDir, "tmp", `${runId}.db-journal`), { force: true }).catch(() => {});
 }

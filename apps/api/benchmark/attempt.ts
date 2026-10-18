@@ -26,7 +26,8 @@ const runId = requireArg("run-id");
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { OUTPUT_DIR } from "./git.js";
-import { loadManifest, MANIFEST_PATH, type ManifestCase } from "./dataset.js";
+import { loadManifest, MANIFEST_PATH } from "./load.js";
+import type { BenchmarkLlmConfig, BenchmarkProfile, ManifestCase } from "./types.js";
 import {
     collectSourceState,
     loadBenchmarkLlmConfig,
@@ -37,9 +38,7 @@ import {
     safeUrl,
     PROFILE_PATH,
     REPO_ROOT,
-    type BenchmarkLlmConfig,
-    type BenchmarkProfile,
-} from "./config.js";
+} from "./util.js";
 import {
     MeasureCollector,
     measureSender,
@@ -47,7 +46,7 @@ import {
     type PhaseTiming,
     type SubAgentMeasure,
 } from "./measure.js";
-import { createCaseWorkdir, prepareCase } from "./prepare.js";
+import { createCaseWorkdir, prepareCase } from "./load.js";
 
 const attemptDir = join(OUTPUT_DIR, batchId, "attempt", runId);
 const dbFile = join(OUTPUT_DIR, batchId, "tmp", `${runId}.db`);
@@ -301,7 +300,7 @@ async function runAttempt(
 
     const fakeSenderKind = process.env.BENCHMARK_FAKE_SENDER?.trim();
     const rawSender = fakeSenderKind
-        ? (await import("./fake-sender.js")).createFakeSender(fakeSenderKind)
+        ? (await import("./sender.js")).createFakeSender(fakeSenderKind)
         : createSender({
               provider: llm.provider,
               apiKey: llm.apiKey,

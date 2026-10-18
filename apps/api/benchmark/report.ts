@@ -2,31 +2,17 @@ import { readFile, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { OUTPUT_DIR } from "./git.js";
-import type { AttemptStatus, PhaseTiming, SenderStat, SubAgentMeasure } from "./measure.js";
+import type {
+    AttemptRecord,
+    CaseSummary,
+    CompareResult,
+    CompareRow,
+    GroupSummary,
+    PhaseTiming,
+    SizeBucket,
+} from "./types.js";
 
-export type AttemptRecord = {
-    runId: string;
-    caseId: string;
-    project?: string;
-    repeatIndex: number;
-    attemptIndex: number;
-    status: AttemptStatus;
-    statusReason?: string | null;
-    timing?: PhaseTiming;
-    tokenUsage?: { inputToken: number; outputToken: number; cachedInputToken: number } | null;
-    sender?: Partial<SenderStat> | null;
-    reviewUnitCount?: number | null;
-    subAgentList?: SubAgentMeasure[];
-    changedFileCount?: number;
-    addedLineCount?: number;
-    deletedLineCount?: number;
-    postedCommentCount?: number | null;
-    postedInlineCount?: number | null;
-    coverageMissList?: string[];
-    startedAt?: string;
-    finishedAt?: string | null;
-    repro?: { manifestHash?: string };
-};
+export type { AttemptRecord, CaseSummary, CompareResult, CompareRow, GroupSummary, SizeBucket } from "./types.js";
 
 type CaseInfo = Pick<AttemptRecord, "caseId" | "project" | "addedLineCount" | "deletedLineCount" | "changedFileCount">;
 
@@ -46,8 +32,6 @@ type BatchMeta = {
 
 const reportTemplate = readFileSync(join(import.meta.dir, "templates", "report.template.md"), "utf-8");
 const compareTemplate = readFileSync(join(import.meta.dir, "templates", "compare.template.md"), "utf-8");
-
-export type SizeBucket = "S" | "M" | "L" | "XL" | "BZ" | "unknown";
 
 function isKnownCount(value: number | undefined): value is number {
     return typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -70,27 +54,6 @@ export function median(valueList: number[]): number | null {
     const mid = Math.floor(sorted.length / 2);
     return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
-
-export type CaseSummary = {
-    caseId: string;
-    project: string;
-    bucket: SizeBucket;
-    changedFileCount: number | null;
-    changedLineCount: number | null;
-    attemptCount: number;
-    statusCount: Record<string, number>;
-    completedMsList: number[];
-    medianReviewMs: number | null;
-    minReviewMs: number | null;
-    maxReviewMs: number | null;
-    medianTiming: Partial<PhaseTiming>;
-    medianInputToken: number | null;
-    medianOutputToken: number | null;
-    medianCachedInputToken: number | null;
-    medianRequestCount: number | null;
-    medianReviewUnitCount: number | null;
-    medianOutputCount: number | null;
-};
 
 function countByStatus(recordList: AttemptRecord[]): Record<string, number> {
     const statusCount: Record<string, number> = {};
@@ -178,18 +141,6 @@ export function summarizeBatch(recordList: AttemptRecord[], caseInfoList: CaseIn
         .sort((a, b) => (a.caseId < b.caseId ? -1 : a.caseId > b.caseId ? 1 : 0));
 }
 
-export type GroupSummary = {
-    project: string;
-    bucket: SizeBucket;
-    caseCount: number;
-    completedCaseCount: number;
-    statusCount: Record<string, number>;
-    medianChangedFileCount: number | null;
-    medianOfCaseMedianMs: number | null;
-    minCaseMedianMs: number | null;
-    maxCaseMedianMs: number | null;
-};
-
 export function summarizeGroupList(caseSummaryList: CaseSummary[]): GroupSummary[] {
     const byGroupMap = new Map<string, CaseSummary[]>();
     for (const summary of caseSummaryList) {
@@ -228,24 +179,6 @@ export function summarizeGroupList(caseSummaryList: CaseSummary[]): GroupSummary
         a.project === b.project ? (a.bucket < b.bucket ? -1 : 1) : a.project < b.project ? -1 : 1,
     );
 }
-
-export type CompareRow = {
-    caseId: string;
-    project: string;
-    bucket: SizeBucket;
-    pairCount: number;
-    baselineMedianMs: number;
-    candidateMedianMs: number;
-    relativeChange: number;
-};
-
-export type CompareResult = {
-    rowList: CompareRow[];
-    /** Cases without enough completed pairs, kept visible instead of dropped silently. */
-    unpairedList: { caseId: string; baselineStatus: Record<string, number>; candidateStatus: Record<string, number> }[];
-    regressionList: { caseId: string; status: Record<string, number>; side: "baseline" | "candidate" }[];
-    medianRelativeChange: number | null;
-};
 
 function assertSameManifest(hashList: unknown[]): void {
     if (hashList.some((hash) => typeof hash !== "string" || hash.trim().length === 0)) {

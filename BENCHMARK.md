@@ -24,22 +24,14 @@ rate limit allows roughly one import pass per hour.
 Run from the repo root.
 
 ```sh
-bun run benchmark import <martianRepoDir>
-bun run benchmark prepare [caseId ...]
 bun run benchmark run <quick|full> [--batch <id>] [--resume] [--case <id,id...>]
 bun run benchmark report <batchId>
 bun run benchmark compare <baselineBatchId> <candidateBatchId>
-bun run benchmark warm
+bun run benchmark ready
 bun run benchmark list
 ```
 
-- `import` reads the golden comment files of a pinned Martian dataset commit
-  and writes `manifest.json`. Golden comments never enter the workspace or
-  any agent input. Re running reuses already resolved entries.
-- `prepare` verifies every object, merge base, diff hash, and diff stat in
-  the manifest against the local git cache. It never refreshes commit
-  identifiers. A missing object fails preparation.
-- `warm` sends one tiny request so model warm up stays outside measurement.
+- `ready` sends one tiny request so model warm up stays outside measurement.
 - `run` executes a batch. `quick` is five PRs once each (one per project), `full` is all 50 PRs
   three times each (150 planned attempts).
 - `report` generates a readable `report.md` from existing batch output.
@@ -95,8 +87,7 @@ Comparison requires the same manifest hash in both batch records and every
 completed attempt. A different or missing input identity stops comparison
 before a speed change is reported. Model and agent code may differ between
 the two batches. Keep the frozen manifest unchanged when testing an agent
-change. Even importing the same dataset again can change the manifest hash
-through its import timestamp.
+change.
 
 ## Artifacts
 
@@ -139,7 +130,7 @@ local git fixture and checks phase ordering, parallel wall time, compression
 accounting, failure records, cancellation, and preparation failure. Report
 and compare logic is verified with a deterministic result fixture.
 
-Real model execution is manual. Warm the model first, then run `quick`, and
+Real model execution is manual. Run `ready` first, then run `quick`, and
 only run `full` after input identity and metric collection look right. If the
 execution environment kills a job, the next resume records it as
 `interrupted`, never as successful.
