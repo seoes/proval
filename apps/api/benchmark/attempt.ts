@@ -164,7 +164,7 @@ async function main(): Promise<void> {
         bunVersion: Bun.version,
         modelName: llm.model,
         modelProvider: llm.provider,
-        modelBaseUrl: safeUrl(llm.baseUrl),
+        modelBaseUrl: safeUrl(llm.baseURL),
         reasoningEffort: profile.setting.reasoningEffort,
         llmConcurrency: profile.setting.llmConcurrency,
         machineDescription: machineDescription(),
@@ -304,7 +304,7 @@ async function runAttempt(
         : createSender({
               provider: llm.provider,
               apiKey: llm.apiKey,
-              baseURL: llm.baseUrl,
+              baseURL: llm.baseURL,
               model: llm.model,
               timeoutSecond: profile.setting.timeoutSecond,
               reasoningEffort: (profile.setting.reasoningEffort ?? undefined) as never,

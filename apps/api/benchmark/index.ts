@@ -62,7 +62,7 @@ async function main(): Promise<void> {
             const sender = createSender({
                 provider: llm.provider,
                 apiKey: llm.apiKey,
-                baseURL: llm.baseUrl,
+                baseURL: llm.baseURL,
                 model: llm.model,
                 timeoutSecond: profile.setting.timeoutSecond,
                 concurrency: profile.setting.llmConcurrency,

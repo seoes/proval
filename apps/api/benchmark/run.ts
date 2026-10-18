@@ -149,7 +149,7 @@ export async function runBatch(option: RunOptions): Promise<void> {
         bunVersion: Bun.version,
         modelName: llm.model,
         modelProvider: llm.provider,
-        modelBaseUrl: safeUrl(llm.baseUrl),
+        modelBaseUrl: safeUrl(llm.baseURL),
         machineDescription: machineDescription(),
     };
 

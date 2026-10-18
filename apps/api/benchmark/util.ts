@@ -35,9 +35,13 @@ export function loadBenchmarkLlmConfig(): BenchmarkLlmConfig {
     if (missingList.length > 0) {
         throw new Error(`Missing required env: ${missingList.join(", ")} (see .env.benchmark.example)`);
     }
+    const provider = process.env.LLM_PROVIDER?.trim() || "openai";
+    if (provider !== "openai" && provider !== "openai_responses" && provider !== "anthropic") {
+        throw new Error("LLM_PROVIDER must be openai, openai_responses or anthropic");
+    }
     return {
-        provider: process.env.LLM_PROVIDER?.trim() || "openai",
-        baseUrl: process.env.LLM_BASE_URL!.trim(),
+        provider: provider,
+        baseURL: process.env.LLM_BASE_URL!.trim(),
         apiKey: process.env.LLM_API_KEY!.trim(),
         model: process.env.LLM_MODEL!.trim(),
     };

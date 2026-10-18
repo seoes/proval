@@ -1,3 +1,4 @@
+import type { SenderConfig } from "../src/agent/llm/factory.js";
 import type { ReviewMeasureEvent } from "../src/agent/pull-request/index.js";
 
 export type ManifestCase = {
@@ -31,12 +32,7 @@ export type Manifest = {
     unavailableList: ManifestUnavailable[];
 };
 
-export type BenchmarkLlmConfig = {
-    provider: string;
-    baseUrl: string;
-    apiKey: string;
-    model: string;
-};
+export type BenchmarkLlmConfig = Pick<SenderConfig, "provider" | "baseURL" | "apiKey" | "model">;
 
 export type BenchmarkProfileSetting = {
     language: string;
