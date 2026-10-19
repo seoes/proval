@@ -49,6 +49,7 @@ export type PostedAction = { type: "comment" | "inline" | "approve" | "unapprove
 
 export class MockProvider implements GitProvider {
     public readonly posted: PostedAction[] = [];
+    public readonly emojiList: { target: GitEmojiTarget; emoji: GitEmoji }[] = [];
 
     constructor(private readonly input: MockInput) {}
 
@@ -313,7 +314,9 @@ export class MockProvider implements GitProvider {
         // Webhook-only; no-op for demo
     }
 
-    async addEmoji(_target: GitEmojiTarget, _emoji: GitEmoji): Promise<void> {}
+    async addEmoji(target: GitEmojiTarget, emoji: GitEmoji): Promise<void> {
+        this.emojiList.push({ target, emoji });
+    }
 
     async removeEmoji(_target: GitEmojiTarget, _emoji: GitEmoji): Promise<void> {}
 }

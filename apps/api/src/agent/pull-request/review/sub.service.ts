@@ -13,7 +13,7 @@ import { FOLLOW_UP_PUSH_SUB_HINT } from "./follow-up.prompt.js";
 import { REVIEW_CHECKLIST } from "../prompt";
 import { getFileDiffTool, getPushFileDiffTool, submitReviewHandoffTool } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
-import { runAgentLoop } from "../../llm/loop";
+import { runAgentLoop, type AgentLoopEvent } from "../../llm/loop";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
 
@@ -31,6 +31,7 @@ export async function runReviewSubAgent(
     usePushScope = false,
     userPrompt: string | null = null,
     agentInstructionPrompt = "",
+    onEvent?: (event: AgentLoopEvent) => void,
 ): Promise<ActivityTokenUsage & { handoff: ReviewHandoff }> {
     const system = [
         REVIEW_SUB_AGENT_BODY,
@@ -60,6 +61,7 @@ export async function runReviewSubAgent(
         endWhenRequiredToolsCalled: true,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
+        onEvent,
     });
 
     const handoff = reviewHandoffList.find((item) => item.unitId === reviewUnit.id);

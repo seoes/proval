@@ -1,7 +1,7 @@
 import type { ActivityTokenUsage } from "@proval/types";
 import type { GitProvider } from "../../../git-provider/types";
 import type { Workspace } from "../../../git-provider/workspace.js";
-import { runAgentLoop, type LlmSender } from "../../llm/loop";
+import { runAgentLoop, type AgentLoopEvent, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REVIEW_WRITING_USER_PROMPT_HEADER, WRITING_EVALUATION_RULE, WRITING_WORKFLOW } from "./writing.prompt.js";
@@ -44,6 +44,7 @@ export async function runReviewWritingAgent(
     usePushScope = false,
     userPrompt: string | null = null,
     agentInstructionPrompt = "",
+    onEvent?: (event: AgentLoopEvent) => void,
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -117,6 +118,7 @@ export async function runReviewWritingAgent(
         endWhenRequiredToolsCalled: true,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
+        onEvent,
     });
 
     return result.usage;
