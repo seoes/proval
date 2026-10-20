@@ -62,7 +62,11 @@ if (process.env.PROVAL_WEBHOOK_TEST_CHILD !== "1") {
         "INSERT INTO git_provider_access (provider, name, base_url, access_token, default_webhook_secret) VALUES ('gitlab', 'Old access', 'https://old.example', ?, ?)",
         [encrypt("access"), legacySecret],
     );
-    const activityBefore = db.$client.query("SELECT *, NULL AS log_version FROM activity").all();
+    const activityBefore = db.$client
+        .query(
+            "SELECT *, NULL AS log_version, NULL AS target_comment_id, NULL AS target_inline_review_id FROM activity",
+        )
+        .all();
     const commentBefore = db.$client.query("SELECT * FROM comment").all();
     migrate(db, { migrationsFolder: migrationPath });
     const migrationResult = {

@@ -278,7 +278,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const prIid = payload.merge_request.iid;
 
-    const inlineReviewId = payload.object_attributes.discussion_id ?? null;
+    const inlineReviewId = isInlineReviewComment ? (payload.object_attributes.discussion_id ?? null) : null;
 
     const workspace = new Workspace(gitlabProvider);
     runWithActivity(
@@ -288,6 +288,8 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
             modelName: repository.modelName,
             type: "pr_reply",
             targetIid: prIid,
+            targetCommentId: commentId,
+            targetInlineReviewId: inlineReviewId,
         },
         (activityId) =>
             runPullRequestReply({
@@ -296,7 +298,7 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
                 llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
                 prIid,
                 commentId,
-                inlineReviewId: isInlineReviewComment ? inlineReviewId : null,
+                inlineReviewId,
                 language: repository.language,
                 userPrompt: repository.userPrompt,
                 activityId,
@@ -454,6 +456,7 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
             modelName: repository.modelName,
             type: "issue_reply",
             targetIid: issueIid,
+            targetCommentId: commentId,
         },
         (activityId) =>
             runIssueReply({
