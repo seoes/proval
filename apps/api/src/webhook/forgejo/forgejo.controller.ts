@@ -3,6 +3,7 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
@@ -22,6 +23,7 @@ interface ForgejoPullRequestPayload {
         state: string;
         merged: boolean;
         draft?: boolean;
+        base?: { ref?: string };
         head?: { sha?: string };
         user?: { login?: string };
     };
@@ -132,9 +134,9 @@ const handleForgejoPullRequestWebhook = async (
 ) => {
     const action = payload.action;
     const pr = payload.pull_request;
-    const prInfo = `#${pr.number} ${pr.title}`;
+    const prInfo = `[#${pr.number}]: ${pr.title}`;
     if (!repository.prEnabled || !repository.prReviewEnabled) {
-        log(`Skipped: review is off (${prInfo})`, "Forgejo");
+        log(`Skipped: review is off - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
@@ -145,15 +147,22 @@ const handleForgejoPullRequestWebhook = async (
         action === "synchronize" ||
         action === "ready_for_review";
     if (!allowedAction) {
-        log(`Skipped: action '${action}' (${prInfo})`, "Forgejo");
+        log(`Skipped: action '${action}' - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });
     }
 
     if (repository.prIgnoreDraft && pr.draft === true && action !== "ready_for_review") {
-        log(`Skipped: draft pull request (${prInfo})`, "Forgejo");
+        log(`Skipped: draft pull request - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
+    }
+
+    const targetBranch = pr.base?.ref ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message }), { status: 200 });
     }
 
     const token = access.accessToken;
@@ -182,7 +191,7 @@ const handleForgejoPullRequestWebhook = async (
     if (reviewMode === "on_first_push") {
         hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
         if (hasCompleted) {
-            log(`Skipped: already reviewed (on_first_push) (${prInfo})`, "Forgejo");
+            log(`Skipped: already reviewed (on_first_push) - ${prInfo}`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
             });
@@ -196,13 +205,13 @@ const handleForgejoPullRequestWebhook = async (
     if (reviewMode === "on_every_push") {
         lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
         if (lastHeadSha && lastHeadSha === headSha) {
-            log(`Skipped: head already reviewed (${prInfo})`, "Forgejo");
+            log(`Skipped: head already reviewed - ${prInfo}`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
         }
     }
 
     if ((await forgejoProvider.fetchPullRequestChangedFileCount(prNumber)) === 0) {
-        log(`Skipped: no changed files (${prInfo})`, "Forgejo");
+        log(`Skipped: no changed files - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
@@ -237,7 +246,7 @@ const handleForgejoPullRequestWebhook = async (
         logError("Pull request review failed", error, "Forgejo");
     });
 
-    log(`PR review started (${prInfo})`, "Forgejo");
+    log(`PR review started - ${prInfo}`, "Forgejo");
     return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
 };
 
@@ -440,7 +449,7 @@ const handleForgejoReviewedWebhook = async (
     access: Access,
 ) => {
     const prNumber = payload.pull_request?.number;
-    const prInfo = `#${prNumber ?? "?"}`;
+    const prInfo = `[#${prNumber ?? "?"}]:`;
     if (!prNumber) {
         log("Skipped: missing pull request number", "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: missing pull request number" }), { status: 200 });
@@ -448,7 +457,7 @@ const handleForgejoReviewedWebhook = async (
 
     const reviewType = payload.review?.type;
     if (reviewType !== "comment" && reviewType !== "pull_request_review_comment") {
-        log(`Skipped: not a comment review (${prInfo} ${reviewType ?? "missing"})`, "Forgejo");
+        log(`Skipped: not a comment review (${reviewType ?? "missing"}) - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: not a comment review" }), { status: 200 });
     }
 
@@ -465,7 +474,7 @@ const handleForgejoReviewedWebhook = async (
         payload.sender?.login,
     );
     if (!target) {
-        log(`Skipped: no reply target (${prInfo})`, "Forgejo");
+        log(`Skipped: no reply target - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: no reply target" }), { status: 200 });
     }
 

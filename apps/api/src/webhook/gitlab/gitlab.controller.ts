@@ -12,6 +12,7 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
@@ -130,6 +131,15 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
 
     if (repository.prIgnoreDraft && isDraft && !becameReady) {
         return new Response(JSON.stringify({ message: "Skipped: draft merge request" }), { status: 200 });
+    }
+
+    const prInfo = `[!${pullRequest.iid}]: ${(pullRequest as { title?: string }).title ?? ""}`;
+
+    const targetBranch = (pullRequest as { target_branch?: string }).target_branch ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "GitLab");
+        return new Response(JSON.stringify({ message }), { status: 200 });
     }
 
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);

@@ -68,7 +68,9 @@
             goto(`/repository/${data.repository.id}`);
         } catch (error) {
             console.error("Failed to update repository", error);
-            await openAlert("Failed to update repository");
+            await openAlert(
+                error instanceof Error ? error.message : "Failed to update repository",
+            );
         }
     }
 
@@ -120,6 +122,7 @@
             prInlineReview: data.repository.prInlineReview,
             prReviewOnPush: data.repository.prReviewOnPush,
             prIgnoreDraft: data.repository.prIgnoreDraft,
+            prAllowedTargetBranchList: data.repository.prAllowedTargetBranchList,
             userPrompt: data.repository.userPrompt,
             prReplyEnabled: data.repository.prReplyEnabled,
             prMentionOnly: data.repository.prMentionOnly,

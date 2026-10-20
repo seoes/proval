@@ -148,6 +148,7 @@ export const repositoryTable = sqliteTable(
             .notNull()
             .default("on_every_push"),
         prIgnoreDraft: integer({ mode: "boolean" }).notNull().default(true),
+        prAllowedTargetBranchList: text({ mode: "json" }).$type<string[]>().notNull().default([]),
         userPrompt: text(),
 
         // Pull Request Reply

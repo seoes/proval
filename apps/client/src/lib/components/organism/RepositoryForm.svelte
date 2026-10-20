@@ -41,6 +41,7 @@
         prInlineReview: boolean;
         prReviewOnPush: PrReviewOnPush;
         prIgnoreDraft: boolean;
+        prAllowedTargetBranchList: string[];
         userPrompt: string | null;
         prReplyEnabled: boolean;
         prMentionOnly: boolean;
@@ -150,6 +151,7 @@
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
+    let allowedTargetBranchText = $state(config.prAllowedTargetBranchList.join(", "));
     let userPrompt = $state<string>(config.userPrompt ?? "");
     let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
 
@@ -326,6 +328,10 @@
             prInlineReview,
             prReviewOnPush,
             prIgnoreDraft,
+            prAllowedTargetBranchList: allowedTargetBranchText
+                .split(",")
+                .map((branch) => branch.trim())
+                .filter((branch) => branch.length > 0),
             userPrompt: userPrompt.trim() || null,
             prReplyEnabled,
             prMentionOnly,
@@ -569,6 +575,14 @@
                         <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
                         <ToggleSwitch bind:checked={prIgnoreDraft} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
+                    <FormField
+                        label="Allowed target branches"
+                        description="Comma separated branch names. Leave empty to review every target branch."
+                        upper>
+                        {#snippet children({ id })}
+                            <InputText {id} bind:value={allowedTargetBranchText} placeholder="main, dev" />
+                        {/snippet}
+                    </FormField>
                 </div>
             </div>
 

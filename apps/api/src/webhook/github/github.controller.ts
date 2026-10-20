@@ -3,7 +3,7 @@ import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
-import { logError } from "../../util/log.js";
+import { log, logError } from "../../util/log.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
@@ -12,13 +12,16 @@ import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-requ
 import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
 import { Workspace } from "../../git-provider/workspace.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
     pull_request?: {
         number: number;
+        title?: string;
         draft?: boolean;
+        base?: { ref?: string };
         head?: { sha?: string };
         user?: { login?: string };
     };
@@ -145,6 +148,15 @@ async function handlePullRequestWebhook(
     const prNumber = payload.pull_request?.number;
     if (prNumber === undefined) {
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
+    }
+
+    const prInfo = `[#${prNumber}]: ${payload.pull_request?.title ?? ""}`;
+
+    const targetBranch = payload.pull_request?.base?.ref ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "Github");
+        return new Response(JSON.stringify({ message }), { status: 200 });
     }
 
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
