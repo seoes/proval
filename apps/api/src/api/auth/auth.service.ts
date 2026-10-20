@@ -19,7 +19,19 @@ function toUserResponse(user: typeof userTable.$inferSelect): UserResponse {
         role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastActiveAt: user.lastActiveAt,
     };
+}
+
+const LAST_ACTIVE_INTERVAL_MS = 5 * 60 * 1000;
+
+async function refreshLastActiveAt(userId: string, previous: Date | null): Promise<Date> {
+    const now = new Date();
+    if (previous && now.getTime() - previous.getTime() < LAST_ACTIVE_INTERVAL_MS) {
+        return previous;
+    }
+    await db.update(userTable).set({ lastActiveAt: now }).where(eq(userTable.id, userId));
+    return now;
 }
 
 function createSessionToken(): string {
@@ -90,7 +102,9 @@ export class AuthService {
         if (rowList.length === 0) {
             return null;
         }
-        return toUserResponse(rowList[0].user);
+        const user = rowList[0].user;
+        user.lastActiveAt = await refreshLastActiveAt(user.id, user.lastActiveAt);
+        return toUserResponse(user);
     }
 
     async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
@@ -101,6 +115,7 @@ export class AuthService {
             userId,
             expiresAt,
         });
+        await refreshLastActiveAt(userId, null);
         return { token, expiresAt };
     }
 

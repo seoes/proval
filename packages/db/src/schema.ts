@@ -25,6 +25,7 @@ export const userTable = sqliteTable("user", {
     role: text({ enum: ["admin", "user"] })
         .notNull()
         .default("user"),
+    lastActiveAt: integer({ mode: "timestamp" }),
     ...timeStamp,
 });
 

@@ -7,7 +7,7 @@
     import Modal from "$lib/components/atom/Modal.svelte";
     import { UserIcon } from "phosphor-svelte";
     import { openConfirm, openAlert } from "$lib/store/modal";
-    import fetchApi from "$lib/utils";
+    import fetchApi, { formatTimeAgo } from "$lib/utils";
     import { formatLocalDateOnly } from "$lib/utils/date.js";
     import type { UserResponse } from "@proval/types";
     import type { PageProps } from "./$types";
@@ -149,6 +149,11 @@
             </div>
 
             <p class="text-sm text-muted-foreground">{formatJoinedLabel(selectedUser.createdAt)}</p>
+            <p class="text-sm text-muted-foreground">
+                Last active {selectedUser.lastActiveAt
+                    ? `${formatTimeAgo(new Date(selectedUser.lastActiveAt))}`
+                    : "unknown"}
+            </p>
         </div>
 
         <div class="mt-6 flex items-center justify-between gap-3 border-t border-border pt-6">
