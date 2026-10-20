@@ -10,7 +10,12 @@
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
     import { activityTargetWebUrl, viewInProviderLabel } from "../../repository/[id]/load.js";
-    import type { ActivityLogEntry, ActivityLogResponse, ActivityResponse } from "@proval/types";
+    import type {
+        ActivityLogEntry,
+        ActivityLogResponse,
+        ActivityResponse,
+        ActivityStatusResponse,
+    } from "@proval/types";
     import type { PageProps } from "./$types";
     import { readReviewListBackHref } from "../filterQuery.js";
     import { untrack } from "svelte";
@@ -23,6 +28,9 @@
     const { data }: PageProps = $props();
     let review = $state<ActivityResponse>(data.review);
     let log = $state<ActivityLogResponse>(data.log);
+    let logCount = data.log.logs.length;
+    let pollInFlight = false;
+    let pollAgain = false;
     const status = $derived(activityStatusBadge(review.status));
     const target = $derived(activityTargetLabel(review.type, review.targetIid));
     const typeLabel = $derived(activityTypeLabel(review.type));
@@ -167,16 +175,40 @@
     const labelList = $derived([...new Set(logRowList.map((row) => row.entry.label))]);
     const visibleLogList = $derived(logRowList.filter((row) => !selectedLabel || row.entry.label === selectedLabel));
 
+    function logStageLabel(label: string): string {
+        return label.split("] ").at(-1) ?? label;
+    }
+
     async function refreshWhileRunning(id: number): Promise<void> {
-        const [logResponse, metaResponse] = await Promise.all([
-            fetchApi(`/activity/${id}/log`),
-            fetchApi(`/activity/${id}`),
-        ]);
-        if (logResponse.ok) {
-            log = await logResponse.json();
+        if (pollInFlight) {
+            pollAgain = true;
+            return;
         }
-        if (metaResponse.ok) {
-            review = await metaResponse.json();
+        pollInFlight = true;
+        try {
+            do {
+                pollAgain = false;
+                const from = logCount;
+                const [logResponse, statusResponse] = await Promise.all([
+                    fetchApi(`/activity/${id}/log?from=${from}`),
+                    fetchApi(`/activity/${id}/status`),
+                ]);
+                if (id !== review.id) return;
+                if (logResponse.ok) {
+                    const delta = (await logResponse.json()) as ActivityLogResponse;
+                    if (delta.from === logCount && delta.logs.length > 0) {
+                        log = { ...log, status: delta.status, logs: [...log.logs, ...delta.logs] };
+                        logCount += delta.logs.length;
+                    }
+                }
+                if (id !== review.id) return;
+                if (statusResponse.ok) {
+                    const nextStatus = (await statusResponse.json()) as ActivityStatusResponse;
+                    review = { ...review, ...nextStatus };
+                }
+            } while (pollAgain);
+        } finally {
+            pollInFlight = false;
         }
     }
 
@@ -186,6 +218,7 @@
         untrack(() => {
             review = nextReview;
             log = nextLog;
+            logCount = nextLog.logs.length;
         });
     });
 
@@ -327,7 +360,7 @@
                                 ? 'border-primary bg-primary text-primary-foreground'
                                 : 'border-border text-secondary-foreground'}"
                             onclick={() => (selectedLabel = label)}>
-                            {label?.split("] ").at(-1) ?? "All"}
+                            {label ? logStageLabel(label) : "All"}
                         </button>
                     {/each}
                 </div>
@@ -349,7 +382,7 @@
                                             <summary
                                                 class="group flex cursor-pointer list-none gap-2.5 px-2 py-0.5 [&::-webkit-details-marker]:hidden">
                                                 <span class="hidden shrink-0 text-muted-foreground md:inline"
-                                                    >{entry.label}</span>
+                                                    >[{logStageLabel(entry.label)}]</span>
                                                 <ToolIcon
                                                     size={16}
                                                     class="mt-0.5 shrink-0 text-muted-foreground"
@@ -393,7 +426,7 @@
                                     {:else}
                                         <div class="group flex gap-2.5 px-2 py-0.5">
                                             <span class="hidden shrink-0 text-muted-foreground md:inline"
-                                                >{entry.label}</span>
+                                                >[{logStageLabel(entry.label)}]</span>
                                             <span class="min-w-0 flex-1 break-words {logLevelTextColor(entry.level)}">
                                                 {#if entry.type === "tool-error"}
                                                     <span class="block font-semibold">Error · {entry.toolName}</span>

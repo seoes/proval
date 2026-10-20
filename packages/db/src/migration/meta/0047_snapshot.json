@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "535b31af-751a-471e-aba0-3897091fade8",
+  "id": "841dbc1d-59ee-4c1b-abdc-4c0400b7f3e7",
   "prevId": "6841976b-0d9f-4b91-a7cf-1a7b98a21b5a",
   "tables": {
     "activity": {
@@ -68,20 +68,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "target_comment_id": {
-          "name": "target_comment_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "target_inline_review_id": {
-          "name": "target_inline_review_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "head_sha": {
@@ -756,7 +742,29 @@
           "name": "api_key",
           "type": "text",
           "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "auth_method": {
+          "name": "auth_method",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true,
+          "autoincrement": false,
+          "default": "'api_key'"
+        },
+        "oauth_credential": {
+          "name": "oauth_credential",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "oauth_status": {
+          "name": "oauth_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "timeout_second": {

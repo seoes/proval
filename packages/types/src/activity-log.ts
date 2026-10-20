@@ -35,8 +35,16 @@ export type ActivityLogEntry = CommonLogEntry | ToolCallLogEntry | ToolResultLog
 export type ActivityLogResponse = {
     status: Activity["status"];
     logVersion: "1";
+    /** Present when the caller asked for a tail. Entries before this index are omitted. */
+    from?: number;
     logs: ActivityLogEntry[];
 };
+
+/** Fields that change while a review is running. The detail poll reads only these. */
+export type ActivityStatusResponse = Pick<
+    Activity,
+    "status" | "completedAt" | "errorMessage" | "inputToken" | "cachedInputToken" | "outputToken"
+>;
 
 /** Activity row as returned by list/detail APIs (logs loaded separately). */
 export type ActivityResponse = Omit<Activity, "logs">;

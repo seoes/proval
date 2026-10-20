@@ -16,6 +16,7 @@ import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../sh
 import type { IssueReply } from "./index.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { generateUserPrompt } from "../../util/user-prompt.js";
+import { buildAgentInstructionPrompt } from "../pull-request/prompt/agents-md.js";
 
 export const runIssueReply: IssueReply = async ({
     provider,
@@ -41,10 +42,12 @@ export const runIssueReply: IssueReply = async ({
         const repository = await provider.fetchRepositoryDetail();
         await workspace.loadFromBranch(repository.defaultBranch);
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             ISSUE_BASE_PROMPT,
             ISSUE_REPLY_WORKFLOW,
             COMMENT_LANGUAGE_RULE,
+            agentInstructionPrompt,
             generateUserPrompt(ISSUE_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]
             .filter(Boolean)

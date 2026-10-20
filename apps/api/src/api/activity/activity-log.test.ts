@@ -25,7 +25,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
     const { default: db } = await import("../../db/index.js");
     const { logAgent, logAgentError } = await import("../../util/log.js");
     const { ActivityService } = await import("./activity.service.js");
-    const { findActivityLogById } = await import("./activity.controller.js");
+    const { findActivityLogById, findActivityStatusById } = await import("./activity.controller.js");
     const { runAgentLoop } = await import("../../agent/llm/loop.js");
     const { wrapUntrustedToolContent } = await import("../../agent/shared/prompt/untrusted-warning.prompt.js");
 
@@ -33,6 +33,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
     const service = new ActivityService();
     const app = new Hono();
     app.get("/activity/:id/log", findActivityLogById);
+    app.get("/activity/:id/status", findActivityStatusById);
     let activityId: number;
     let consoleLog: ReturnType<typeof spyOn>;
     let consoleError: ReturnType<typeof spyOn>;
@@ -259,6 +260,60 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             const before = changeCount.get();
             expect(await service.findLogListById(id)).toEqual({ status: "started", logVersion: "1", logs: [] });
             expect(changeCount.get()).toEqual(before);
+        });
+
+        it("returns a status snapshot and a log tail for polling", async () => {
+            const entry = {
+                type: "common" as const,
+                timestamp: new Date(0).toISOString(),
+                level: "info" as const,
+                label: "Plan",
+            };
+            await db
+                .update(activityTable)
+                .set({
+                    status: "completed",
+                    errorMessage: "boom",
+                    inputToken: 3,
+                    cachedInputToken: 1,
+                    outputToken: 2,
+                    completedAt: new Date(0),
+                    logs: [
+                        { ...entry, message: "one" },
+                        { ...entry, message: "two" },
+                    ],
+                })
+                .where(eq(activityTable.id, activityId));
+
+            const missing = await app.request("/activity/0/status");
+            expect(missing.status).toBe(404);
+
+            const statusResponse = await app.request(`/activity/${activityId}/status`);
+            expect(statusResponse.status).toBe(200);
+            expect(await statusResponse.json()).toEqual({
+                status: "completed",
+                completedAt: new Date(0).toISOString(),
+                errorMessage: "boom",
+                inputToken: 3,
+                cachedInputToken: 1,
+                outputToken: 2,
+            });
+
+            const full = await app.request(`/activity/${activityId}/log`);
+            const fullBody = (await full.json()) as ActivityLogResponse;
+            expect(fullBody.from).toBeUndefined();
+            expect(fullBody.logs.map((item) => item.message)).toEqual(["one", "two"]);
+
+            const tail = await app.request(`/activity/${activityId}/log?from=1`);
+            const tailBody = (await tail.json()) as ActivityLogResponse;
+            expect(tailBody.from).toBe(1);
+            expect(tailBody.logs.map((item) => item.message)).toEqual(["two"]);
+
+            const past = await app.request(`/activity/${activityId}/log?from=9`);
+            expect(await past.json()).toEqual({ status: "completed", logVersion: "1", from: 9, logs: [] });
+
+            const invalid = await app.request(`/activity/${activityId}/log?from=nope`);
+            expect(invalid.status).toBe(400);
         });
 
         it("writes common entries and preserves them while appending tool entries", async () => {

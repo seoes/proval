@@ -18,6 +18,7 @@ import {
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
+import { buildAgentInstructionPrompt } from "../prompt/agents-md.js";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
@@ -52,11 +53,13 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             baseSha,
         });
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             PR_REPLY_BODY,
             PR_REPLY_WORKFLOW,
             PR_INLINE_REVIEW_REPLY_APPENDIX,
             COMMENT_LANGUAGE_RULE,
+            agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]
             .filter(Boolean)

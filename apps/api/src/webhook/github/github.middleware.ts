@@ -74,7 +74,7 @@ export const loadGitHubContext = createMiddleware(async (c, next) => {
     }
 
     c.set("repository", repository);
-    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
+    c.set("modelProvider", modelProvider);
     c.set("githubApp", { ...githubApp, privateKey: decrypt(githubApp.privateKey) });
     c.set("githubInstallation", githubInstallation);
     c.set("githubPayload", payload);

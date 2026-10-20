@@ -186,10 +186,31 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
         );
     }
 
+    const activityStatusMatch = pathname.match(/^\/activity\/(\d+)\/status$/);
+    if (activityStatusMatch) {
+        const activity = getActivityById(Number(activityStatusMatch[1]));
+        if (!activity) return notFoundResponse();
+        return jsonResponse({
+            status: activity.status,
+            completedAt: activity.completedAt,
+            errorMessage: activity.errorMessage,
+            inputToken: activity.inputToken,
+            cachedInputToken: activity.cachedInputToken,
+            outputToken: activity.outputToken,
+        });
+    }
+
     const activityLogMatch = pathname.match(/^\/activity\/(\d+)\/log$/);
     if (activityLogMatch) {
         const log = getActivityLogsById(Number(activityLogMatch[1]));
-        return log ? jsonResponse(log) : notFoundResponse();
+        if (!log) return notFoundResponse();
+        const fromQuery = searchParams.get("from");
+        if (fromQuery == null || fromQuery === "") return jsonResponse(log);
+        if (!/^\d+$/.test(fromQuery) || !Number.isSafeInteger(Number(fromQuery))) {
+            return jsonResponse({ error: "Invalid from" }, 400);
+        }
+        const from = Number(fromQuery);
+        return jsonResponse({ ...log, from, logs: log.logs.slice(from) });
     }
 
     const activityMatch = pathname.match(/^\/activity\/(\d+)$/);

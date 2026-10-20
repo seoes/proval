@@ -15,6 +15,7 @@ import {
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../shared/tool";
 import type { IssueReplyOnOpen } from "./index.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
+import { buildAgentInstructionPrompt } from "../pull-request/prompt/agents-md.js";
 
 export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     provider,
@@ -38,15 +39,16 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
         const repository = await provider.fetchRepositoryDetail();
         await workspace.loadFromBranch(repository.defaultBranch);
 
-        const repositoryLabelList =
-            issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
+        const repositoryLabelList = issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
         const hasRepositoryLabelList = repositoryLabelList.length > 0;
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             ISSUE_BASE_PROMPT,
             buildIssueReplyOnOpenWorkflow(hasRepositoryLabelList),
             COMMENT_LANGUAGE_RULE,
             ...(hasRepositoryLabelList ? [buildRepositoryLabelCatalog(repositoryLabelList)] : []),
+            agentInstructionPrompt,
         ].join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;
 
@@ -61,9 +63,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             globTool(workspace),
             listDirectoryTool(workspace),
             getFileContentTool(workspace),
-            ...(hasRepositoryLabelList
-                ? [addIssueLabelTool(provider, issueIid, repositoryLabelList)]
-                : []),
+            ...(hasRepositoryLabelList ? [addIssueLabelTool(provider, issueIid, repositoryLabelList)] : []),
         ];
 
         const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];

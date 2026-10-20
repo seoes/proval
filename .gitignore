@@ -13,6 +13,7 @@ node_modules
 .env.production
 .env.test
 .env.review
+.env.benchmark
 
 dist
 build
@@ -22,3 +23,6 @@ apps/api/review/data/
 apps/api/review/result/
 
 *.backup
+
+apps/api/benchmark/data/
+PLAN.md

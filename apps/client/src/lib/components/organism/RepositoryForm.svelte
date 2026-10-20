@@ -97,18 +97,28 @@
     let modelName = $state<string>(config.modelName ?? "");
     let reasoningEffort = $state<string>(config.reasoningEffort ?? "");
 
-    const reasoningEffortSelectOptionList = [
+    const isXaiOauth = $derived(
+        modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod === "xai_oauth",
+    );
+    const reasoningEffortSelectOptionList = $derived([
         {
             value: "",
             label: "Default",
         },
-        ...reasoningEffortValueList.map((value) => ({
-            value,
-            label: value,
-        })),
-    ];
+        ...reasoningEffortValueList
+            .filter((value) => !isXaiOauth || ["low", "medium", "high", "xhigh"].includes(value))
+            .map((value) => ({
+                value,
+                label: value,
+            })),
+    ]);
+    $effect(() => {
+        if (isXaiOauth && reasoningEffort && !["low", "medium", "high", "xhigh"].includes(reasoningEffort))
+            reasoningEffort = "";
+    });
     let availableModels = $state<{ id: string }[]>([]);
     let isLoadingModels = $state(false);
+    let modelListError = $state("");
     let selectedRepositoryId = $state<string>(String(config.repositoryId ?? ""));
 
     let previousModelProviderId = selectedModelProviderId;
@@ -166,10 +176,16 @@
         const id = selectedModelProviderId;
         if (!id) return;
         isLoadingModels = true;
+        modelListError = "";
         try {
             const res = await fetchApi(`/model-provider/${id}/model`);
             if (id !== selectedModelProviderId) return;
-            availableModels = res.ok ? ((await res.json()) as ModelProviderModelListResponse).models : [];
+            if (res.ok) availableModels = ((await res.json()) as ModelProviderModelListResponse).models;
+            else {
+                const body = await res.json().catch(() => ({}));
+                availableModels = [];
+                modelListError = body.error ?? "Model discovery is unavailable. You can enter a model ID manually.";
+            }
         } catch {
             if (id === selectedModelProviderId) availableModels = [];
         } finally {
@@ -704,7 +720,7 @@
                 {/if}
             </div>
         {:else}
-            <Description>No models were returned by this provider.</Description>
+            <Description>{modelListError || "No models were returned by this provider."}</Description>
         {/if}
         <div class="flex justify-end gap-3 pt-1">
             <Button text type="button" onclick={() => (modelListModalOpen = false)}>Cancel</Button>

@@ -1,14 +1,10 @@
 import type { ActivityTokenUsage } from "@proval/types";
 import type { GitProvider } from "../../../git-provider/types";
 import type { Workspace } from "../../../git-provider/workspace.js";
-import { runAgentLoop, type LlmSender } from "../../llm/loop";
+import { runAgentLoop, type AgentLoopEvent, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
-import {
-    PR_REVIEW_WRITING_USER_PROMPT_HEADER,
-    WRITING_EVALUATION_RULE,
-    WRITING_WORKFLOW,
-} from "./writing.prompt.js";
+import { PR_REVIEW_WRITING_USER_PROMPT_HEADER, WRITING_EVALUATION_RULE, WRITING_WORKFLOW } from "./writing.prompt.js";
 import { FOLLOW_UP_REVIEW_RULE } from "./follow-up.prompt.js";
 import {
     createMultiLineCommentTool,
@@ -47,6 +43,8 @@ export async function runReviewWritingAgent(
     priorBotSummary: string | null = null,
     usePushScope = false,
     userPrompt: string | null = null,
+    agentInstructionPrompt = "",
+    onEvent?: (event: AgentLoopEvent) => void,
 ): Promise<ActivityTokenUsage> {
     const system = [
         WRITING_WORKFLOW,
@@ -54,6 +52,7 @@ export async function runReviewWritingAgent(
         SEVERITY,
         isInlineReview ? INLINE_ENABLED : INLINE_DISABLED,
         COMMENT_LANGUAGE_RULE,
+        agentInstructionPrompt,
         generateUserPrompt(PR_REVIEW_WRITING_USER_PROMPT_HEADER, userPrompt),
     ]
         .filter(Boolean)
@@ -119,6 +118,7 @@ export async function runReviewWritingAgent(
         endWhenRequiredToolsCalled: true,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
+        onEvent,
     });
 
     return result.usage;

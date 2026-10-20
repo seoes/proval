@@ -18,6 +18,10 @@ import {
     updateModelProviderApiKey,
     verifyModelProviderConfig,
     removeModelProvider,
+    startXaiOAuth,
+    getXaiOAuth,
+    cancelXaiOAuth,
+    verifySavedModelProvider,
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
 import { accessRouter } from "./access/index.js";
@@ -25,6 +29,7 @@ import {
     findAllActivity,
     findActivityById,
     findActivityLogById,
+    findActivityStatusById,
     getActivitySummary,
     retryActivity,
     cancelActivity,
@@ -45,6 +50,10 @@ apiRouter.route("/auth", authRouter);
 apiRouter.route("/settings", settingsRouter);
 
 // Model provider routes
+apiRouter.post("/model-provider/oauth/xai/attempt", startXaiOAuth);
+apiRouter.get("/model-provider/oauth/xai/attempt/:attemptId", getXaiOAuth);
+apiRouter.delete("/model-provider/oauth/xai/attempt/:attemptId", cancelXaiOAuth);
+apiRouter.post("/model-provider/:id{\\d+}/verify", verifySavedModelProvider);
 apiRouter.get("/model-provider", findAllModelProvider);
 apiRouter.get("/model-provider/:id{\\d+}/model", listModelProviderModels);
 apiRouter.get("/model-provider/:id{\\d+}", findModelProviderById);
@@ -74,6 +83,7 @@ apiRouter.route("/access", accessRouter);
 apiRouter.get("/activity/summary", getActivitySummary);
 apiRouter.get("/activity", findAllActivity);
 apiRouter.get("/activity/:id{\\d+}/log", findActivityLogById);
+apiRouter.get("/activity/:id{\\d+}/status", findActivityStatusById);
 apiRouter.get("/activity/:id{\\d+}", findActivityById);
 apiRouter.post("/activity/:id{\\d+}/retry", retryActivity);
 apiRouter.post("/activity/:id{\\d+}/cancel", cancelActivity);

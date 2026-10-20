@@ -15,6 +15,7 @@ import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../..
 import type { PullRequestCommentReply } from "../index.js";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
+import { buildAgentInstructionPrompt } from "../prompt/agents-md.js";
 
 export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     provider,
@@ -48,10 +49,12 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
             baseSha,
         });
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             PR_REPLY_BODY,
             PR_REPLY_WORKFLOW,
             COMMENT_LANGUAGE_RULE,
+            agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]
             .filter(Boolean)

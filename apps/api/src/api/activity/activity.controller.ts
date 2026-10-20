@@ -28,6 +28,15 @@ function parseCommaSeparatedEnum<T extends string>(value: string | undefined, al
     return result;
 }
 
+/** Absent means the full log. Null means the query is not a safe index. */
+function parseLogFrom(value: string | undefined): number | undefined | null {
+    if (value == null || value === "") return undefined;
+    if (!/^\d+$/.test(value)) return null;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) return null;
+    return parsed;
+}
+
 function parseCommaSeparatedPositiveIntList(value: string | undefined): number[] {
     if (!value?.trim()) return [];
     const seen = new Set<number>();
@@ -167,7 +176,7 @@ export const cancelActivity: Handler = async (c) => {
     }
 };
 
-export const findActivityLogById: Handler = async (c) => {
+export const findActivityStatusById: Handler = async (c) => {
     const id = c.req.param("id");
     if (!id) {
         return c.json({ error: "Activity ID is required" }, 400);
@@ -178,7 +187,32 @@ export const findActivityLogById: Handler = async (c) => {
     }
     const activityService = new ActivityService();
     try {
-        const logList = await activityService.findLogListById(activityId);
+        const status = await activityService.findStatusById(activityId);
+        if (status === null) {
+            return c.json({ error: "Activity not found" }, 404);
+        }
+        return c.json(status, 200);
+    } catch {
+        return c.json({ error: "Failed to load activity status" }, 500);
+    }
+};
+
+export const findActivityLogById: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const from = parseLogFrom(c.req.query("from"));
+    if (from === null) {
+        return c.json({ error: "Invalid from" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        const logList = await activityService.findLogListById(activityId, from);
         if (logList === null) {
             return c.json({ error: "Activity not found" }, 404);
         }

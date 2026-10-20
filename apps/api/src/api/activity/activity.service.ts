@@ -3,6 +3,7 @@ import type {
     Activity,
     ActivityLogEntry,
     ActivityLogResponse,
+    ActivityStatusResponse,
     CommonLogEntry,
     ActivityResponse,
     ActivityStats,
@@ -14,11 +15,10 @@ import type {
 } from "@proval/types";
 import db from "../../db/index.js";
 import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
-import { createSender } from "../../agent/llm/factory.js";
+import { createModelProviderSender } from "../model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
 import { runIssueReply, runIssueReplyOnOpen } from "../../agent/issue/index.js";
 import { Workspace } from "../../git-provider/workspace.js";
-import { decrypt } from "../../util/encrypt.js";
 import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
@@ -442,6 +442,23 @@ export class ActivityService {
         return rows[0];
     }
 
+    public async findStatusById(id: number): Promise<ActivityStatusResponse | null> {
+        const rows = await db
+            .select({
+                status: activityTable.status,
+                completedAt: activityTable.completedAt,
+                errorMessage: activityTable.errorMessage,
+                inputToken: activityTable.inputToken,
+                cachedInputToken: activityTable.cachedInputToken,
+                outputToken: activityTable.outputToken,
+            })
+            .from(activityTable)
+            .where(eq(activityTable.id, id))
+            .limit(1);
+
+        return rows[0] ?? null;
+    }
+
     public async isCanceled(id: number): Promise<boolean> {
         const activity = await this.findById(id);
         return activity?.status === "canceled";
@@ -480,7 +497,13 @@ export class ActivityService {
         return total > 0;
     }
 
-    public async findLogListById(id: number): Promise<ActivityLogResponse | null> {
+    public async findLogListById(id: number, from?: number): Promise<ActivityLogResponse | null> {
+        // ponytail: logs live in one JSON column, so a tail read still loads the whole value. A log table is the upgrade if poll CPU matters.
+        const respond = (status: Activity["status"], logs: ActivityLogEntry[]): ActivityLogResponse => {
+            if (from == null) return { status, logVersion: "1", logs };
+            return { status, logVersion: "1", from, logs: logs.slice(from) };
+        };
+
         const rows = await db
             .select({ status: activityTable.status, logVersion: activityTable.logVersion, logs: activityTable.logs })
             .from(activityTable)
@@ -493,7 +516,7 @@ export class ActivityService {
 
         const logList = rows[0].logs ?? [];
         if (rows[0].logVersion === "1") {
-            return { status: rows[0].status, logVersion: "1", logs: logList as ActivityLogEntry[] };
+            return respond(rows[0].status, logList as ActivityLogEntry[]);
         }
 
         // Convert legacy log schema to newer version and save to db
@@ -513,7 +536,7 @@ export class ActivityService {
 
                 const currentLogList = activity.logs ?? [];
                 if (activity.logVersion === "1") {
-                    return { status: activity.status, logVersion: "1", logs: currentLogList as ActivityLogEntry[] };
+                    return respond(activity.status, currentLogList as ActivityLogEntry[]);
                 }
                 const convertedLogList = currentLogList.map((entry) =>
                     isActivityLogEntry(entry) ? entry : convertLegacyActivityLog(entry),
@@ -522,7 +545,7 @@ export class ActivityService {
                     .set({ logs: convertedLogList, logVersion: "1", updatedAt: sql`${activityTable.updatedAt}` })
                     .where(eq(activityTable.id, id))
                     .run();
-                return { status: activity.status, logVersion: "1", logs: convertedLogList };
+                return respond(activity.status, convertedLogList);
             },
             { behavior: "immediate" },
         );
@@ -660,16 +683,7 @@ export class ActivityService {
         const modelProvider = await new ModelProviderService().findById(repository.modelProviderId);
         const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
         const workspace = new Workspace(gitProvider);
-        const llmSender = createSender({
-            provider: modelProvider.provider,
-            apiKey: decrypt(modelProvider.apiKey),
-            baseURL: modelProvider.baseUrl,
-            model: repository.modelName,
-            timeoutSecond: modelProvider.timeoutSecond,
-            reasoningEffort: repository.reasoningEffort,
-            modelProviderId: modelProvider.id,
-            concurrency: modelProvider.concurrency,
-        });
+        const llmSender = createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort);
 
         const startInput: ActivityStartInput = {
             repositoryId: activity.repositoryId,

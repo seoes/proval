@@ -11,7 +11,8 @@
     import Button from "../atom/Button.svelte";
     import Description from "../atom/Description.svelte";
     import FieldTitle from "../atom/FieldTitle.svelte";
-    import { siAnthropic, siOpenaigym } from "simple-icons";
+    import { siAnthropic } from "simple-icons";
+    import { OpenAiLogoIcon } from "phosphor-svelte";
     import type { SimpleIcon } from "simple-icons";
 
     import type { LlmApiProvider, ModelProviderResponse } from "@proval/types";
@@ -141,7 +142,11 @@
             label: "OpenAI",
             description: "Chat Completions API",
             value: "openai",
-            icon: siOpenaigym,
+        },
+        {
+            label: "OpenAI",
+            description: "Responses API",
+            value: "openai_responses",
         },
         {
             label: "Anthropic",
@@ -171,7 +176,7 @@
         isTestingConnection = true;
         testResult = null;
         try {
-            const response = await fetchApi(`/model-provider/verify`, {
+            const response = await fetchApi("/model-provider/verify", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -179,6 +184,7 @@
                     modelName,
                     baseUrl,
                     apiKey,
+                    timeoutSecond: Number(timeoutSecond),
                 }),
             });
             const body = (await response.json().catch(() => ({}))) as {
@@ -205,6 +211,10 @@
     }
 </script>
 
+{#snippet openAiIcon()}
+    <OpenAiLogoIcon class="size-6" aria-hidden="true" />
+{/snippet}
+
 <form onsubmit={handleSubmit} class="space-y-8">
     <Card {border} spaceY>
         <FormField label="Display Name" description="A label for this LLM connection">
@@ -219,13 +229,14 @@
             linkLabelToControl={false}
             upper>
             {#snippet children({ id: _id })}
-                <div class="grid grid-cols-2 gap-2" id={_id} role="group">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-3" id={_id} role="group">
                     {#each apiProviderToggleButtonValueList as toggleButtonValue}
                         <ToggleButton
-                            class="h-full w-full"
+                            class="aspect-auto h-full min-h-32 w-full sm:aspect-square"
                             label={toggleButtonValue.label}
                             description={toggleButtonValue.description}
                             icon={toggleButtonValue.icon}
+                            children={toggleButtonValue.value === "anthropic" ? undefined : openAiIcon}
                             selected={provider === toggleButtonValue.value}
                             onclick={() => (provider = toggleButtonValue.value)} />
                     {/each}
@@ -269,8 +280,8 @@
             </div>
         {/if}
     </Card>
-    <div class="flex justify-between gap-3 pt-2">
-        <div class="flex gap-3 text-sm">
+    <div class="flex flex-wrap justify-between gap-3 pt-2">
+        <div class="flex flex-wrap gap-3 text-sm">
             <Button primary type="submit">{mode === "create" ? "Create" : "Save"}</Button>
             {#if mode === "create"}
                 <Button text class="whitespace-nowrap" onclick={openTestModal} type="button">Test Connection</Button>
