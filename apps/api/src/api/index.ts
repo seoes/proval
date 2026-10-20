@@ -35,7 +35,8 @@ import {
     cancelActivity,
 } from "./activity/activity.controller.js";
 import { authRouter, settingsRouter } from "./auth/index.js";
-import { resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
+import { findUserList, removeUser } from "./auth/auth.controller.js";
+import { checkIfAdmin, resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
 
 export const apiRouter = new Hono<{ Variables: AuthVariables }>();
 
@@ -48,6 +49,9 @@ apiRouter.get("/health", (c) => {
 
 apiRouter.route("/auth", authRouter);
 apiRouter.route("/settings", settingsRouter);
+
+apiRouter.get("/user", checkIfAdmin, findUserList);
+apiRouter.delete("/user/:id", checkIfAdmin, removeUser);
 
 // Model provider routes
 apiRouter.post("/model-provider/oauth/xai/attempt", startXaiOAuth);

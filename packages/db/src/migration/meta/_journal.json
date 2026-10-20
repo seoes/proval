@@ -351,6 +351,13 @@
       "when": 1792467408620,
       "tag": "0049_white_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792502142877,
+      "tag": "0050_spooky_gideon",
+      "breakpoints": true
     }
   ]
 }

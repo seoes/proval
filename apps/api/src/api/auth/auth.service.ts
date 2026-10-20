@@ -1,4 +1,4 @@
-import { eq, count, and, gt } from "drizzle-orm";
+import { eq, count, and, gt, asc } from "drizzle-orm";
 import { instanceSettingTable, sessionTable, userTable } from "@proval/db";
 import type {
     AuthCredentialInput,
@@ -19,7 +19,19 @@ function toUserResponse(user: typeof userTable.$inferSelect): UserResponse {
         role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastActiveAt: user.lastActiveAt,
     };
+}
+
+const LAST_ACTIVE_INTERVAL_MS = 5 * 60 * 1000;
+
+async function refreshLastActiveAt(userId: string, previous: Date | null): Promise<Date> {
+    const now = new Date();
+    if (previous && now.getTime() - previous.getTime() < LAST_ACTIVE_INTERVAL_MS) {
+        return previous;
+    }
+    await db.update(userTable).set({ lastActiveAt: now }).where(eq(userTable.id, userId));
+    return now;
 }
 
 function createSessionToken(): string {
@@ -90,7 +102,9 @@ export class AuthService {
         if (rowList.length === 0) {
             return null;
         }
-        return toUserResponse(rowList[0].user);
+        const user = rowList[0].user;
+        user.lastActiveAt = await refreshLastActiveAt(user.id, user.lastActiveAt);
+        return toUserResponse(user);
     }
 
     async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
@@ -101,6 +115,7 @@ export class AuthService {
             userId,
             expiresAt,
         });
+        await refreshLastActiveAt(userId, null);
         return { token, expiresAt };
     }
 
@@ -258,6 +273,30 @@ export class AuthService {
             token: session.token,
             expiresAt: session.expiresAt,
         };
+    }
+
+    async findUserList(): Promise<UserResponse[]> {
+        const rowList = await db.select().from(userTable).orderBy(asc(userTable.email));
+        return rowList.map(toUserResponse);
+    }
+
+    async removeUser(id: string, actorId: string): Promise<void> {
+        if (id === actorId) {
+            throw new Error("Cannot delete the signed-in user");
+        }
+        const userList = await db.select().from(userTable).where(eq(userTable.id, id)).limit(1);
+        const user = userList[0];
+        if (!user) {
+            throw new Error("User not found");
+        }
+        if (user.role === "admin") {
+            const adminCount =
+                (await db.select({ value: count() }).from(userTable).where(eq(userTable.role, "admin")))[0]?.value ?? 0;
+            if (adminCount <= 1) {
+                throw new Error("Cannot delete the last admin");
+            }
+        }
+        await db.delete(userTable).where(eq(userTable.id, id));
     }
 
     async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
