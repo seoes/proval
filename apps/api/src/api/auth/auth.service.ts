@@ -1,4 +1,4 @@
-import { eq, count, and, gt } from "drizzle-orm";
+import { eq, count, and, gt, asc } from "drizzle-orm";
 import { instanceSettingTable, sessionTable, userTable } from "@proval/db";
 import type {
     AuthCredentialInput,
@@ -258,6 +258,30 @@ export class AuthService {
             token: session.token,
             expiresAt: session.expiresAt,
         };
+    }
+
+    async findUserList(): Promise<UserResponse[]> {
+        const rowList = await db.select().from(userTable).orderBy(asc(userTable.email));
+        return rowList.map(toUserResponse);
+    }
+
+    async removeUser(id: string, actorId: string): Promise<void> {
+        if (id === actorId) {
+            throw new Error("Cannot delete the signed-in user");
+        }
+        const userList = await db.select().from(userTable).where(eq(userTable.id, id)).limit(1);
+        const user = userList[0];
+        if (!user) {
+            throw new Error("User not found");
+        }
+        if (user.role === "admin") {
+            const adminCount =
+                (await db.select({ value: count() }).from(userTable).where(eq(userTable.role, "admin")))[0]?.value ?? 0;
+            if (adminCount <= 1) {
+                throw new Error("Cannot delete the last admin");
+            }
+        }
+        await db.delete(userTable).where(eq(userTable.id, id));
     }
 
     async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
