@@ -9,6 +9,7 @@ import type { ReviewHandoff } from "./handoff.schema.js";
 import { runReviewWritingAgent, truncatePriorSummary } from "./writing.service.js";
 import { buildFollowUpThreadContext, buildPushScopeContext } from "./follow-up.context.js";
 import { logAgent, logAgentError } from "../../../util/log.js";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 async function loadPriorBotSummary(
     provider: Parameters<PullRequestReview>[0]["provider"],
@@ -49,6 +50,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
     const emitLoop = (agent: string) => (event: AgentLoopEvent) => emit({ type: "agent", agent, event });
     const label = `[PR #${prIid}] Setup`;
     const emojiTarget = { type: "pull_request" as const, prIid };
+    const activityService = new ActivityService();
     emit({ type: "phase-start", phase: "setup" });
     try {
         try {
@@ -62,6 +64,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         const version = await provider.fetchPullRequestVersion(prIid);
         const { baseSha, headSha, startSha } = version;
         logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
+        await activityService.recordPullRequestHead(activityId, headSha);
 
         await workspace.loadFromPullRequest({
             prIid,
@@ -253,7 +256,9 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         };
     } finally {
         try {
-            await provider.removeEmoji(emojiTarget, "👀");
+            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
+                await provider.removeEmoji(emojiTarget, "👀");
+            }
         } catch (error) {
             logAgentError(activityId, "remove emoji failed", error, label);
         }

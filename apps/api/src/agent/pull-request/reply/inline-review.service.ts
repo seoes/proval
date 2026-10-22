@@ -33,6 +33,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
 }) => {
     const label = `[PR #${prIid}] Inline Review Reply`;
     const emojiTarget = { type: "inline_review_comment" as const, prIid, commentId };
+    const activityService = new ActivityService();
     try {
         try {
             await provider.addEmoji(emojiTarget, "👀");
@@ -85,8 +86,6 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language, activityId),
         ];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -114,7 +113,9 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         return result.usage;
     } finally {
         try {
-            await provider.removeEmoji(emojiTarget, "👀");
+            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
+                await provider.removeEmoji(emojiTarget, "👀");
+            }
         } catch (error) {
             logAgentError(activityId, "remove emoji failed", error, label);
         }

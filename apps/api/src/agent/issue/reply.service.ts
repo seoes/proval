@@ -30,6 +30,7 @@ export const runIssueReply: IssueReply = async ({
 }) => {
     const label = `[Issue #${issueIid}] Reply`;
     const emojiTarget = { type: "issue_comment" as const, issueIid, commentId };
+    const activityService = new ActivityService();
     try {
         try {
             await provider.addEmoji(emojiTarget, "👀");
@@ -70,8 +71,6 @@ export const runIssueReply: IssueReply = async ({
 
         const requiredToolList = [postIssueReplyTool(provider, issueIid, comment.author, language, activityId)];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -92,7 +91,9 @@ export const runIssueReply: IssueReply = async ({
         return result.usage;
     } finally {
         try {
-            await provider.removeEmoji(emojiTarget, "👀");
+            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
+                await provider.removeEmoji(emojiTarget, "👀");
+            }
         } catch (error) {
             logAgentError(activityId, "remove emoji failed", error, label);
         }

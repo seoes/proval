@@ -187,6 +187,10 @@ export const removeRepository: Handler = async (c) => {
     if (!repositoryId) {
         return c.json({ error: "Repository ID is required" }, 400);
     }
-    await repositoryService.remove(parseInt(repositoryId));
-    return c.json({ message: "Repository deleted" }, 200);
+    try {
+        await repositoryService.remove(parseInt(repositoryId));
+        return c.json({ message: "Repository deleted" }, 200);
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "Failed to delete" }, 400);
+    }
 };

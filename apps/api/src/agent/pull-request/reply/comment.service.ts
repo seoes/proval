@@ -29,6 +29,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 }) => {
     const label = `[PR #${prIid}] Reply`;
     const emojiTarget = { type: "pull_request_comment" as const, prIid, commentId };
+    const activityService = new ActivityService();
     try {
         try {
             await provider.addEmoji(emojiTarget, "👀");
@@ -77,8 +78,6 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 
         const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language, activityId)];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -99,7 +98,9 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
         return result.usage;
     } finally {
         try {
-            await provider.removeEmoji(emojiTarget, "👀");
+            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
+                await provider.removeEmoji(emojiTarget, "👀");
+            }
         } catch (error) {
             logAgentError(activityId, "remove emoji failed", error, label);
         }

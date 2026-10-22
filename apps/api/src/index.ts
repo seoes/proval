@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { loadEncryptionKey } from "./util/encrypt.js";
 import { clearWorkspaceRoot } from "./git-provider/workspace.js";
 import { recoverLegacyReplyTargetComment } from "./api/activity/activity.service.js";
+import { activityQueue } from "./api/activity/activity.queue.js";
 
 loadEncryptionKey();
 
@@ -48,6 +49,8 @@ if (process.env.NODE_ENV === "production") {
 }
 
 await db.update(activityTable).set({ status: "failed" }).where(eq(activityTable.status, "started"));
+
+activityQueue.drain();
 
 const recoveredReplyTargetCount = recoverLegacyReplyTargetComment();
 if (recoveredReplyTargetCount > 0) {

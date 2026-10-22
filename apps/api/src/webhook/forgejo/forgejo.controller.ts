@@ -5,12 +5,8 @@ import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createModelProviderSender } from "../../api/model/model.service.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 
 interface ForgejoPullRequestPayload {
@@ -187,10 +183,11 @@ const handleForgejoPullRequestWebhook = async (
     const prNumber = pr.number;
     const reviewMode = repository.prReviewOnPush;
 
-    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-        if (hasCompleted) {
+        if (
+            (await activityService.hasCompletedPullRequestReview(repository.id, prNumber)) ||
+            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prNumber))
+        ) {
             log(`Skipped: already reviewed (on_first_push) - ${prInfo}`, "Forgejo");
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
@@ -215,39 +212,21 @@ const handleForgejoPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-    }
-    const isFollowUpReview = hasCompleted;
-
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prNumber,
-            headSha,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                isInlineReview: repository.prInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prNumber,
+        headSha,
+    });
+    activityQueue.drain();
+    void forgejoProvider.addEmoji({ type: "pull_request", prIid: prNumber }, "👀").catch((error) => {
+        logError("add emoji failed", error, "Forgejo");
     });
 
-    log(`PR review started - ${prInfo}`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    log(`PR review queued - ${prInfo}`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 };
 
 const handleForgejoIssuesWebhook = async (
@@ -295,30 +274,20 @@ const handleForgejoIssuesWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issue.number,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issue.number,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issue.number,
+    });
+    activityQueue.drain();
+    void forgejoProvider.addEmoji({ type: "issue", issueIid: issue.number }, "👀").catch((error) => {
+        logError("add emoji failed", error, "Forgejo");
     });
 
-    log(`Issue comment started (${issueInfo})`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    log(`Issue comment queued (${issueInfo})`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 };
 
 const handleForgejoCommentWebhook = async (
@@ -414,32 +383,23 @@ const handleForgejoCommentWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid,
-            targetCommentId: comment.id,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: targetIid,
-                commentId: comment.id,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid,
+        targetCommentId: comment.id,
     });
+    activityQueue.drain();
+    void forgejoProvider.addEmoji({ type: "issue_comment", issueIid: targetIid, commentId: comment.id }, "👀").catch(
+        (error) => {
+            logError("add emoji failed", error, "Forgejo");
+        },
+    );
 
-    log(`Issue reply started (#${targetIid} comment ${comment.id})`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    log(`Issue reply queued (#${targetIid} comment ${comment.id})`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 };
 
 const handleForgejoReviewedWebhook = async (
@@ -541,35 +501,26 @@ async function startForgejoPrReply(
     );
     if (accessSkip) return accessSkip;
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prNumber,
-            targetCommentId: commentId,
-            targetInlineReviewId: inlineReviewId,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                commentId,
-                inlineReviewId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request reply failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prNumber,
+        targetCommentId: commentId,
+        targetInlineReviewId: inlineReviewId,
+    });
+    activityQueue.drain();
+    const prReplyEmojiTarget = inlineReviewId
+        ? { type: "inline_review_comment" as const, prIid: prNumber, commentId }
+        : { type: "pull_request_comment" as const, prIid: prNumber, commentId };
+    void forgejoProvider.addEmoji(prReplyEmojiTarget, "👀").catch((error) => {
+        logError("add emoji failed", error, "Forgejo");
     });
 
     log(
-        `PR reply started (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
+        `PR reply queued (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
         "Forgejo",
     );
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

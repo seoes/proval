@@ -1,4 +1,4 @@
-import { modelProviderTable, repositoryTable } from "@proval/db";
+import { activityTable, modelProviderTable, repositoryTable } from "@proval/db";
 import type {
     ModelProvider,
     ModelProviderResponse,
@@ -8,7 +8,7 @@ import type {
     ReasoningEffort,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import OpenAI from "openai";
 import { log } from "../../util/log.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
@@ -33,7 +33,7 @@ export function createModelProviderSender(
         model,
         timeoutSecond: modelProvider.timeoutSecond,
         modelProviderId: modelProvider.id,
-        concurrency: modelProvider.concurrency,
+        concurrency: modelProvider.requestConcurrency,
         reasoningEffort,
     };
     if (modelProvider.authMethod === "xai_oauth") {
@@ -75,7 +75,8 @@ export class ModelProviderService {
                 baseUrl: baseUrlSchema,
                 apiKey: z.string().min(1),
                 timeoutSecond: timeoutSchema.optional(),
-                concurrency: concurrencySchema,
+                requestConcurrency: concurrencySchema,
+                activityConcurrency: concurrencySchema,
             })
             .strict()
             .parse(data);
@@ -91,7 +92,8 @@ export class ModelProviderService {
         const editable = {
             label: labelSchema.optional(),
             timeoutSecond: timeoutSchema.optional(),
-            concurrency: concurrencySchema,
+            requestConcurrency: concurrencySchema,
+            activityConcurrency: concurrencySchema,
         };
         const cleanData =
             current.authMethod === "xai_oauth"
@@ -129,7 +131,8 @@ export class ModelProviderService {
             label,
             baseUrl,
             timeoutSecond,
-            concurrency,
+            requestConcurrency,
+            activityConcurrency,
             authMethod,
             oauthStatus,
             createdAt,
@@ -142,7 +145,8 @@ export class ModelProviderService {
             label,
             baseUrl,
             timeoutSecond,
-            concurrency,
+            requestConcurrency,
+            activityConcurrency,
             authMethod,
             oauthStatus,
             createdAt,
@@ -158,6 +162,20 @@ export class ModelProviderService {
         if (countResult[0].count > 0) {
             throw new Error(
                 `There are ${countResult[0].count} repositories using this model provider. Please remove them first.`,
+            );
+        }
+        const [openActivityCount] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.modelProviderId, id),
+                    inArray(activityTable.status, ["queued", "started"]),
+                ),
+            );
+        if (openActivityCount.total > 0) {
+            throw new Error(
+                `There are ${openActivityCount.total} queued or running activities using this model provider. Cancel them first.`,
             );
         }
         const deleted = await db.delete(modelProviderTable).where(eq(modelProviderTable.id, id)).returning();

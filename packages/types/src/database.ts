@@ -59,7 +59,8 @@ export type ModelProviderResponse = Pick<
     | "label"
     | "baseUrl"
     | "timeoutSecond"
-    | "concurrency"
+    | "requestConcurrency"
+    | "activityConcurrency"
     | "authMethod"
     | "oauthStatus"
     | "createdAt"
@@ -68,17 +69,20 @@ export type ModelProviderResponse = Pick<
 export type ModelProviderCreateInput = Pick<ModelProvider, "provider" | "label" | "baseUrl"> & {
     apiKey: string;
     timeoutSecond?: number;
-    concurrency?: number | null;
+    requestConcurrency?: number | null;
+    activityConcurrency?: number | null;
 };
 export type XaiOAuthAttemptInput = Pick<ModelProvider, "label" | "timeoutSecond"> & {
     modelProviderId?: number;
-    concurrency?: number | null;
+    requestConcurrency?: number | null;
+    activityConcurrency?: number | null;
 };
 export type XaiOAuthAttemptResponse = {
     id: string;
     label: string;
     timeoutSecond: number;
-    concurrency: number | null;
+    requestConcurrency: number | null;
+    activityConcurrency: number | null;
     status: "pending" | "authorized" | "denied" | "expired" | "cancelled" | "failed";
     userCode: string;
     verificationUri: string;
@@ -109,7 +113,7 @@ export type RepositoryUpdateInput = Partial<
     Omit<RepositoryInsert, "webhookSecret" | "webhookSigningToken" | "createdAt" | "updatedAt">
 >;
 export type ModelProviderUpdateInput = Partial<
-    Pick<ModelProvider, "provider" | "label" | "baseUrl" | "timeoutSecond" | "concurrency">
+    Pick<ModelProvider, "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency">
 >;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;
 export type GitHubAppUpdateInput = Partial<

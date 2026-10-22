@@ -53,7 +53,8 @@ export const modelProviderList: ModelProviderResponse[] = [
         timeoutSecond: 600,
         authMethod: "api_key",
         oauthStatus: null,
-        concurrency: null,
+        requestConcurrency: null,
+        activityConcurrency: null,
         createdAt: daysAgo(210),
         updatedAt: minutesAgo(60 * 24 * 2),
     },
@@ -65,7 +66,8 @@ export const modelProviderList: ModelProviderResponse[] = [
         timeoutSecond: 600,
         authMethod: "api_key",
         oauthStatus: null,
-        concurrency: null,
+        requestConcurrency: null,
+        activityConcurrency: null,
         createdAt: daysAgo(190),
         updatedAt: minutesAgo(60 * 24),
     },
@@ -826,7 +828,7 @@ export function buildActivitySummary(
         tokenSeries: buildTokenSeries(scopedActivityList, since, bucket, now),
         tokensByModel: buildTokenBreakdown(finished, (a) => a.modelName),
         tokensByRepository: repositoryId != null ? [] : buildTokenBreakdown(finished, (a) => a.repositoryPath),
-        inProgress: activityList.filter((a) => a.status === "started"),
+        inProgress: activityList.filter((a) => a.status === "queued" || a.status === "started"),
     };
 }
 
