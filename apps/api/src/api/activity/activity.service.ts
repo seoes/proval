@@ -334,12 +334,21 @@ export class ActivityService {
     }
 
     private async removeEyesEmoji(activityId: number): Promise<void> {
-        if (await this.hasQueuedOrStartedActivity(activityId)) return;
         const activity = await this.findById(activityId);
-        if (activity?.repositoryId == null) return;
+        if (activity?.repositoryId == null) {
+            return;
+        }
+
         const emojiTarget = buildEyesEmojiTarget(activity);
-        if (emojiTarget == null) return;
+        if (emojiTarget == null) {
+            return;
+        }
+
         const gitProvider = await new RepositoryService().createGitProvider(activity.repositoryId);
+        if (await this.hasQueuedOrStartedActivity(activityId)) {
+            return;
+        }
+
         await gitProvider.removeEmoji(emojiTarget, "👀");
     }
 
