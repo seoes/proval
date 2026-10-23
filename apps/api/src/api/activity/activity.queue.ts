@@ -14,47 +14,45 @@ class ActivityQueue {
     private hasPendingDrain = false;
 
     public async push(input: ActivityStartInput): Promise<number> {
-        if (input.type === "pr_review") {
-            const queuedPullRequestReview = await this.findPullRequestReview(
-                input.repositoryId,
-                input.targetIid,
-                "queued",
-            );
-            if (queuedPullRequestReview) {
-                if (input.headSha && queuedPullRequestReview.headSha !== input.headSha) {
-                    await db
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (input.type === "pr_review") {
+                const queuedPullRequestReview = await this.findPullRequestReview(
+                    input.repositoryId,
+                    input.targetIid,
+                    "queued",
+                );
+                if (queuedPullRequestReview) {
+                    if (!input.headSha || queuedPullRequestReview.headSha === input.headSha) {
+                        return queuedPullRequestReview.id;
+                    }
+                    const updated = await db
                         .update(activityTable)
                         .set({ headSha: input.headSha })
-                        .where(eq(activityTable.id, queuedPullRequestReview.id));
+                        .where(
+                            and(
+                                eq(activityTable.id, queuedPullRequestReview.id),
+                                eq(activityTable.status, "queued"),
+                            ),
+                        )
+                        .returning({ id: activityTable.id });
+                    if (updated.length > 0) return queuedPullRequestReview.id;
                 }
-                return queuedPullRequestReview.id;
+                const startedPullRequestReview = await this.findPullRequestReview(
+                    input.repositoryId,
+                    input.targetIid,
+                    "started",
+                );
+                if (startedPullRequestReview?.headSha === input.headSha) return startedPullRequestReview.id;
             }
-            const startedPullRequestReview = await this.findPullRequestReview(
-                input.repositoryId,
-                input.targetIid,
-                "started",
-            );
-            if (startedPullRequestReview?.headSha === input.headSha) return startedPullRequestReview.id;
-        }
 
-        try {
-            return await new ActivityService().start(input, "queued");
-        } catch (error) {
-            if (input.type !== "pr_review" || !isUniqueConstraintError(error)) throw error;
-            const queuedPullRequestReview = await this.findPullRequestReview(
-                input.repositoryId,
-                input.targetIid,
-                "queued",
-            );
-            if (!queuedPullRequestReview) throw error;
-            if (input.headSha && queuedPullRequestReview.headSha !== input.headSha) {
-                await db
-                    .update(activityTable)
-                    .set({ headSha: input.headSha })
-                    .where(eq(activityTable.id, queuedPullRequestReview.id));
+            try {
+                return await new ActivityService().start(input, "queued");
+            } catch (error) {
+                if (input.type !== "pr_review" || !isUniqueConstraintError(error) || attempt === 2) throw error;
+                continue;
             }
-            return queuedPullRequestReview.id;
         }
+        throw new Error("Failed to queue pull request review");
     }
 
     public drain(): void {
