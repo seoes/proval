@@ -593,6 +593,7 @@ export class ActivityService {
     }
 
     public async recordPullRequestHead(id: number, pullRequestHeadSha: string): Promise<void> {
+        if (id <= 0) return;
         const activity = await this.findById(id);
         if (activity?.repositoryId == null) return;
         await db.update(activityTable).set({ headSha: pullRequestHeadSha }).where(eq(activityTable.id, id));
