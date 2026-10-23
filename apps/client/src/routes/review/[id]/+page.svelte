@@ -53,7 +53,8 @@
                 review.type === "issue_open" ||
                 ((review.type === "pr_reply" || review.type === "issue_reply") && review.targetCommentId != null)),
     );
-    const canCancel = $derived(review.status === "started");
+    const isQueuedOrStarted = $derived(review.status === "queued" || review.status === "started");
+    const canCancel = $derived(isQueuedOrStarted);
     const isRunning = $derived(review.status === "started");
 
     let isCanceling = $state(false);
@@ -68,13 +69,13 @@
 
         const retryMessageRecord: Record<ActivityResponse["type"], string> = {
             pr_review:
-                "Start a new activity and run the pull request review again? This may post another review or comment on the pull request.",
+                "Queue a new activity and run the pull request review again? This may post another review or comment on the pull request.",
             pr_reply:
-                "Start a new activity and reply to the same pull request comment again? This may post another comment on the pull request.",
+                "Queue a new activity and reply to the same pull request comment again? This may post another comment on the pull request.",
             issue_open:
-                "Start a new activity and run the issue open workflow again? This may post another comment on the issue.",
+                "Queue a new activity and run the issue open workflow again? This may post another comment on the issue.",
             issue_reply:
-                "Start a new activity and reply to the same issue comment again? This may post another comment on the issue.",
+                "Queue a new activity and reply to the same issue comment again? This may post another comment on the issue.",
         };
 
         const message = retryMessageRecord[review.type];
@@ -224,7 +225,7 @@
 
     $effect(() => {
         const id = data.review.id;
-        if (!isRunning) {
+        if (!isQueuedOrStarted) {
             return;
         }
 

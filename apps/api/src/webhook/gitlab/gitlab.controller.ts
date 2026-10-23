@@ -14,12 +14,8 @@ import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
 import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createModelProviderSender } from "../../api/model/model.service.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
@@ -155,10 +151,11 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
 
-    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
-        if (hasCompleted) {
+        if (
+            (await activityService.hasCompletedPullRequestReview(repository.id, prIid)) ||
+            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prIid))
+        ) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
             });
@@ -181,41 +178,17 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
-    }
-    const isFollowUpReview = hasCompleted;
-
-    const isInlineReview = repository.prInlineReview;
-
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prIid,
-            headSha,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: gitlabProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid,
-                isInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prIid,
+        headSha,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 };
 
 type HandleGitLabPullRequestNoteWebhook = (
@@ -290,34 +263,18 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const inlineReviewId = isInlineReviewComment ? (payload.object_attributes.discussion_id ?? null) : null;
 
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prIid,
-            targetCommentId: commentId,
-            targetInlineReviewId: inlineReviewId,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: gitlabProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid,
-                commentId,
-                inlineReviewId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prIid,
+        targetCommentId: commentId,
+        targetInlineReviewId: inlineReviewId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 };
 
 type HandleGitLabIssueWebhook = (
@@ -364,30 +321,16 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issueIid,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: gitlabProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issueIid,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 };
 
 type HandleGitLabIssueNoteWebhook = (
@@ -458,30 +401,15 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid: issueIid,
-            targetCommentId: commentId,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: gitlabProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid,
-                commentId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid: issueIid,
+        targetCommentId: commentId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 };

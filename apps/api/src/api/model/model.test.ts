@@ -140,17 +140,17 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
 
     describe("Responses provider integration", () => {
         it("saves and clears the provider concurrency limit", async () => {
-            const created = await writeConfig("/model-provider", { ...config, concurrency: 2 });
+            const created = await writeConfig("/model-provider", { ...config, requestConcurrency: 2 });
             expect(created.status).toBe(201);
             const provider = (await created.json()) as ModelProviderResponse;
-            expect(provider.concurrency).toBe(2);
-            const updated = await writeConfig(`/model-provider/${provider.id}`, { concurrency: 1 }, "PUT");
+            expect(provider.requestConcurrency).toBe(2);
+            const updated = await writeConfig(`/model-provider/${provider.id}`, { requestConcurrency: 1 }, "PUT");
             expect(updated.status).toBe(200);
-            expect(await updated.json()).toMatchObject({ concurrency: 1 });
-            const cleared = await writeConfig(`/model-provider/${provider.id}`, { concurrency: null }, "PUT");
+            expect(await updated.json()).toMatchObject({ requestConcurrency: 1 });
+            const cleared = await writeConfig(`/model-provider/${provider.id}`, { requestConcurrency: null }, "PUT");
             expect(cleared.status).toBe(200);
-            expect(await cleared.json()).toMatchObject({ concurrency: null });
-            expect((await new ModelProviderService().findById(provider.id)).concurrency).toBeNull();
+            expect(await cleared.json()).toMatchObject({ requestConcurrency: null });
+            expect((await new ModelProviderService().findById(provider.id)).requestConcurrency).toBeNull();
         });
 
         it("persists the selection and uses Responses for a saved provider", async () => {

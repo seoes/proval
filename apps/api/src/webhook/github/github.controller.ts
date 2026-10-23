@@ -5,12 +5,8 @@ import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createModelProviderSender } from "../../api/model/model.service.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
@@ -170,10 +166,11 @@ async function handlePullRequestWebhook(
     if (accessSkip) return accessSkip;
 
     const activityService = new ActivityService();
-    let hasCompleted: boolean | null = null;
     if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-        if (hasCompleted) {
+        if (
+            (await activityService.hasCompletedPullRequestReview(repository.id, prNumber)) ||
+            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prNumber))
+        ) {
             return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
                 status: 200,
             });
@@ -196,41 +193,17 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-    }
-    const isFollowUpReview = hasCompleted;
-
-    const isInlineReview = repository.prInlineReview;
-
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prNumber,
-            headSha,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                isInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prNumber,
+        headSha,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 }
 
 async function handleIssueWebhook(
@@ -274,30 +247,16 @@ async function handleIssueWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issueNumber,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issueNumber,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issueNumber,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 }
 
 async function handleIssueCommentWebhook(
@@ -355,37 +314,17 @@ async function handleIssueCommentWebhook(
         );
         if (accessSkip) return accessSkip;
 
-        const workspace = new Workspace(gitHubProvider);
-        runWithActivity(
-            {
-                repositoryId: repository.id,
-                modelProviderId: modelProvider.id,
-                modelName: repository.modelName,
-                type: "pr_reply",
-                targetIid: issueNumber,
-                targetCommentId: commentId,
-            },
-            (activityId) =>
-                runPullRequestReply({
-                    provider: gitHubProvider,
-                    workspace,
-                    llmSender: createModelProviderSender(
-                        modelProvider,
-                        repository.modelName,
-                        repository.reasoningEffort,
-                    ),
-                    prIid: issueNumber,
-                    commentId,
-                    inlineReviewId: null,
-                    language: repository.language,
-                    userPrompt: repository.userPrompt,
-                    activityId,
-                }),
-        ).catch((error) => {
-            logError("Pull request reply failed", error);
+        await activityQueue.push({
+            repositoryId: repository.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
+            type: "pr_reply",
+            targetIid: issueNumber,
+            targetCommentId: commentId,
         });
+        activityQueue.drain();
 
-        return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+        return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
     }
 
     if (!repository.issueEnabled || !repository.issueReplyEnabled) {
@@ -407,32 +346,17 @@ async function handleIssueCommentWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid: issueNumber,
-            targetCommentId: commentId,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issueNumber,
-                commentId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid: issueNumber,
+        targetCommentId: commentId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 }
 
 async function handlePullRequestReviewCommentWebhook(
@@ -485,32 +409,16 @@ async function handlePullRequestReviewCommentWebhook(
     if (accessSkip) return accessSkip;
 
     const inlineReviewId = String(comment.in_reply_to_id ?? comment.id);
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prNumber,
-            targetCommentId: comment.id,
-            targetInlineReviewId: inlineReviewId,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                commentId: comment.id,
-                inlineReviewId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request inline review reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prNumber,
+        targetCommentId: comment.id,
+        targetInlineReviewId: inlineReviewId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

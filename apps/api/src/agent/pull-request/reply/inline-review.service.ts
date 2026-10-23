@@ -1,6 +1,6 @@
 import type { PullRequestInlineReviewReply } from "../index.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
-import { logAgent, logAgentError, debug } from "../../../util/log";
+import { logAgent, debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REPLY_USER_PROMPT_HEADER } from "./prompt/reply.prompt.js";
@@ -32,14 +32,8 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
     userPrompt = null,
 }) => {
     const label = `[PR #${prIid}] Inline Review Reply`;
-    const emojiTarget = { type: "inline_review_comment" as const, prIid, commentId };
+    const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching inline review comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
         const detail = await provider.fetchPullRequestDetail(prIid);
@@ -85,8 +79,6 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language, activityId),
         ];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -113,11 +105,6 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
 
         return result.usage;
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

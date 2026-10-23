@@ -93,7 +93,7 @@
             goto("/repository");
         } catch (error) {
             console.error("Failed to delete repository", error);
-            await openAlert("Failed to delete repository");
+            await openAlert(error instanceof Error ? error.message : "Failed to delete repository");
         }
     }
 

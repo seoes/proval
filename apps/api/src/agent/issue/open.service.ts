@@ -1,4 +1,4 @@
-import { logAgent, logAgentError, debug } from "../../util/log";
+import { logAgent, debug } from "../../util/log";
 import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
@@ -27,14 +27,8 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     activityId,
 }) => {
     const label = `[Issue #${issueIid}] Open`;
-    const emojiTarget = { type: "issue" as const, issueIid };
+    const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching repository detail`, label);
         const repository = await provider.fetchRepositoryDetail();
         await workspace.loadFromBranch(repository.defaultBranch);
@@ -68,8 +62,6 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
 
         const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -88,11 +80,6 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
 
         return result.usage;
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

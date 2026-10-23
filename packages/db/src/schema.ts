@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const timeStamp = {
@@ -54,7 +54,8 @@ export const modelProviderTable = sqliteTable("model_provider", {
     oauthCredential: text(),
     oauthStatus: text({ enum: ["authorized", "reauthorization_required"] }),
     timeoutSecond: integer().notNull().default(600),
-    concurrency: integer(),
+    requestConcurrency: integer("request_concurrency"),
+    activityConcurrency: integer("activity_concurrency"),
     ...timeStamp,
 });
 
@@ -201,7 +202,7 @@ export const activityTable = sqliteTable(
         modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
-        status: text({ enum: ["started", "completed", "failed", "canceled"] }).notNull(),
+        status: text({ enum: ["queued", "started", "completed", "failed", "canceled"] }).notNull(),
         targetIid: integer().notNull(),
         targetCommentId: integer(),
         targetInlineReviewId: text(),
@@ -218,6 +219,12 @@ export const activityTable = sqliteTable(
     (table) => [
         index("activity_repository_id_created_at_idx").on(table.repositoryId, table.createdAt),
         index("activity_model_provider_id_created_at_idx").on(table.modelProviderId, table.createdAt),
+        uniqueIndex("activity_one_queued_pr_review")
+            .on(table.repositoryId, table.targetIid)
+            .where(sql`${table.type} = 'pr_review' AND ${table.status} = 'queued'`),
+        uniqueIndex("activity_one_started_pr_review")
+            .on(table.repositoryId, table.targetIid)
+            .where(sql`${table.type} = 'pr_review' AND ${table.status} = 'started'`),
     ],
 );
 
