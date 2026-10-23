@@ -156,7 +156,7 @@ class ActivityQueue {
         try {
             const startedActivityList = await db
                 .update(activityTable)
-                .set({ status: "started" })
+                .set({ status: "started", startedAt: new Date() })
                 .where(and(eq(activityTable.id, executableQueuedActivityId), eq(activityTable.status, "queued")))
                 .returning({ id: activityTable.id });
             if (startedActivityList.length === 0) return [];

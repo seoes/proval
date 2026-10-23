@@ -34,7 +34,34 @@
     const status = $derived(activityStatusBadge(review.status));
     const target = $derived(activityTargetLabel(review.type, review.targetIid));
     const typeLabel = $derived(activityTypeLabel(review.type));
-    const durationLabel = $derived(review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null);
+    const detailTimeLabelOption = { absoluteAfterMinutes: 60 };
+    const formatDetailTime = (date: Date) => formatTimeAgo(date, detailTimeLabelOption);
+
+    let runningClockMs = $state(Date.now());
+    $effect(() => {
+        if (review.status !== "started") {
+            return;
+        }
+        const timer = setInterval(() => {
+            runningClockMs = Date.now();
+        }, POLL_MS);
+        return () => clearInterval(timer);
+    });
+
+    const runningDurationLabel = $derived(
+        review.status === "started" && review.startedAt
+            ? formatDuration(review.startedAt, new Date(runningClockMs))
+            : null,
+    );
+
+    const showFinishedTimeline = $derived(
+        review.status === "completed" || review.status === "failed" || review.status === "canceled",
+    );
+    const finishedDurationLabel = $derived(
+        showFinishedTimeline && review.startedAt && review.completedAt
+            ? formatDuration(review.startedAt, review.completedAt)
+            : null,
+    );
     const showFullErrorButton = $derived.by(() => {
         const message = review.errorMessage;
         if (review.status !== "failed" || !message) {
@@ -274,15 +301,47 @@
                 </p>
             </div>
             <div class="shrink-0 space-y-1 text-right text-xs">
-                <div>
-                    <span class="text-muted-foreground">Started</span>
-                    <span class="ml-1.5 text-secondary-foreground">{formatTimeAgo(review.createdAt)}</span>
-                </div>
-                {#if durationLabel}
+                {#if review.status === "queued"}
                     <div>
-                        <span class="text-muted-foreground">Duration</span>
-                        <span class="ml-1.5 font-medium text-foreground tabular-nums">{durationLabel}</span>
+                        <span class="text-muted-foreground">Queued at</span>
+                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
                     </div>
+                {:else if review.status === "started"}
+                    <div>
+                        <span class="text-muted-foreground">Queued at</span>
+                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
+                    </div>
+                    {#if review.startedAt}
+                        <div>
+                            <span class="text-muted-foreground">Started at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
+                        </div>
+                    {/if}
+                    {#if runningDurationLabel}
+                        <div>
+                            <span class="text-muted-foreground">Duration</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums"
+                                >{runningDurationLabel}</span>
+                        </div>
+                    {/if}
+                {:else if showFinishedTimeline}
+                    <div>
+                        <span class="text-muted-foreground">Queued at</span>
+                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
+                    </div>
+                    {#if review.startedAt}
+                        <div>
+                            <span class="text-muted-foreground">Started at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
+                        </div>
+                    {/if}
+                    {#if finishedDurationLabel}
+                        <div>
+                            <span class="text-muted-foreground">Duration</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums"
+                                >{finishedDurationLabel}</span>
+                        </div>
+                    {/if}
                 {/if}
             </div>
         </div>

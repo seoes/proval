@@ -198,7 +198,9 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             const [startedRow] = await db.select().from(activityTable).where(eq(activityTable.id, startedId));
             const [queuedRow] = await db.select().from(activityTable).where(eq(activityTable.id, queuedId));
             expect(startedRow.status).toBe("started");
+            expect(startedRow.startedAt).not.toBeNull();
             expect(queuedRow.status).toBe("queued");
+            expect(queuedRow.startedAt).toBeNull();
         });
 
         it("does not run runner when queued row was canceled before claim", async () => {

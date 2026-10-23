@@ -511,6 +511,7 @@ export class ActivityService {
         const rows = await db
             .select({
                 status: activityTable.status,
+                startedAt: activityTable.startedAt,
                 completedAt: activityTable.completedAt,
                 errorMessage: activityTable.errorMessage,
                 inputToken: activityTable.inputToken,
@@ -709,6 +710,7 @@ export class ActivityService {
                 provider: repository.provider,
                 logVersion: "1",
                 status,
+                startedAt: status === "started" ? new Date() : null,
             })
             .returning({ id: activityTable.id });
 

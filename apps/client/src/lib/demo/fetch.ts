@@ -192,6 +192,7 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
         if (!activity) return notFoundResponse();
         return jsonResponse({
             status: activity.status,
+            startedAt: activity.startedAt,
             completedAt: activity.completedAt,
             errorMessage: activity.errorMessage,
             inputToken: activity.inputToken,

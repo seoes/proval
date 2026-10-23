@@ -213,6 +213,7 @@ export const activityTable = sqliteTable(
         errorMessage: text(),
         logVersion: text({ enum: ["1"] }),
         logs: text({ mode: "json" }).$type<ActivityLogEntryJson[]>().notNull().default([]),
+        startedAt: integer({ mode: "timestamp" }),
         completedAt: integer({ mode: "timestamp" }),
         ...timeStamp,
     },
