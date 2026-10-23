@@ -202,9 +202,6 @@ async function handlePullRequestWebhook(
         headSha,
     });
     activityQueue.drain();
-    void gitHubProvider.addEmoji({ type: "pull_request", prIid: prNumber }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 }
@@ -258,9 +255,6 @@ async function handleIssueWebhook(
         targetIid: issueNumber,
     });
     activityQueue.drain();
-    void gitHubProvider.addEmoji({ type: "issue", issueIid: issueNumber }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 }
@@ -329,11 +323,6 @@ async function handleIssueCommentWebhook(
             targetCommentId: commentId,
         });
         activityQueue.drain();
-        void gitHubProvider
-            .addEmoji({ type: "pull_request_comment", prIid: issueNumber, commentId }, "👀")
-            .catch((error) => {
-                logError("add emoji failed", error);
-            });
 
         return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
     }
@@ -366,9 +355,6 @@ async function handleIssueCommentWebhook(
         targetCommentId: commentId,
     });
     activityQueue.drain();
-    void gitHubProvider.addEmoji({ type: "issue_comment", issueIid: issueNumber, commentId }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 }
@@ -433,11 +419,6 @@ async function handlePullRequestReviewCommentWebhook(
         targetInlineReviewId: inlineReviewId,
     });
     activityQueue.drain();
-    void gitHubProvider
-        .addEmoji({ type: "inline_review_comment", prIid: prNumber, commentId: comment.id }, "👀")
-        .catch((error) => {
-            logError("add emoji failed", error);
-        });
 
     return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

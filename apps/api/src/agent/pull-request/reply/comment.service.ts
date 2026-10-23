@@ -1,4 +1,4 @@
-import { logAgent, logAgentError, debug } from "../../../util/log";
+import { logAgent, debug } from "../../../util/log";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
 import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
@@ -28,15 +28,8 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     userPrompt = null,
 }) => {
     const label = `[PR #${prIid}] Reply`;
-    const emojiTarget = { type: "pull_request_comment" as const, prIid, commentId };
     const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching PR comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestComment(prIid, commentId);
         const detail = await provider.fetchPullRequestDetail(prIid);
@@ -97,13 +90,6 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 
         return result.usage;
     } finally {
-        try {
-            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
-                await provider.removeEmoji(emojiTarget, "👀");
-            }
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

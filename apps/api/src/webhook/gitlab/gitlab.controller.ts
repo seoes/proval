@@ -187,9 +187,6 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         headSha,
     });
     activityQueue.drain();
-    void gitlabProvider.addEmoji({ type: "pull_request", prIid }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 };
@@ -276,12 +273,6 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         targetInlineReviewId: inlineReviewId,
     });
     activityQueue.drain();
-    const prReplyEmojiTarget = inlineReviewId
-        ? { type: "inline_review_comment" as const, prIid, commentId }
-        : { type: "pull_request_comment" as const, prIid, commentId };
-    void gitlabProvider.addEmoji(prReplyEmojiTarget, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 };
@@ -338,9 +329,6 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
         targetIid: issueIid,
     });
     activityQueue.drain();
-    void gitlabProvider.addEmoji({ type: "issue", issueIid }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 };
@@ -422,9 +410,6 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         targetCommentId: commentId,
     });
     activityQueue.drain();
-    void gitlabProvider.addEmoji({ type: "issue_comment", issueIid, commentId }, "👀").catch((error) => {
-        logError("add emoji failed", error);
-    });
 
     return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 };

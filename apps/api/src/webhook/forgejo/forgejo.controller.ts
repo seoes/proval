@@ -221,9 +221,6 @@ const handleForgejoPullRequestWebhook = async (
         headSha,
     });
     activityQueue.drain();
-    void forgejoProvider.addEmoji({ type: "pull_request", prIid: prNumber }, "👀").catch((error) => {
-        logError("add emoji failed", error, "Forgejo");
-    });
 
     log(`PR review queued - ${prInfo}`, "Forgejo");
     return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
@@ -282,9 +279,6 @@ const handleForgejoIssuesWebhook = async (
         targetIid: issue.number,
     });
     activityQueue.drain();
-    void forgejoProvider.addEmoji({ type: "issue", issueIid: issue.number }, "👀").catch((error) => {
-        logError("add emoji failed", error, "Forgejo");
-    });
 
     log(`Issue comment queued (${issueInfo})`, "Forgejo");
     return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
@@ -392,11 +386,6 @@ const handleForgejoCommentWebhook = async (
         targetCommentId: comment.id,
     });
     activityQueue.drain();
-    void forgejoProvider.addEmoji({ type: "issue_comment", issueIid: targetIid, commentId: comment.id }, "👀").catch(
-        (error) => {
-            logError("add emoji failed", error, "Forgejo");
-        },
-    );
 
     log(`Issue reply queued (#${targetIid} comment ${comment.id})`, "Forgejo");
     return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
@@ -511,12 +500,6 @@ async function startForgejoPrReply(
         targetInlineReviewId: inlineReviewId,
     });
     activityQueue.drain();
-    const prReplyEmojiTarget = inlineReviewId
-        ? { type: "inline_review_comment" as const, prIid: prNumber, commentId }
-        : { type: "pull_request_comment" as const, prIid: prNumber, commentId };
-    void forgejoProvider.addEmoji(prReplyEmojiTarget, "👀").catch((error) => {
-        logError("add emoji failed", error, "Forgejo");
-    });
 
     log(
         `PR reply queued (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,

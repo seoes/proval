@@ -19,6 +19,7 @@ import { JobCanceledError } from "../../agent/llm/loop.js";
 import { createModelProviderSender } from "../model/model.service.js";
 import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
 import { runIssueReply, runIssueReplyOnOpen } from "../../agent/issue/index.js";
+import type { GitEmojiTarget } from "../../git-provider/types.js";
 import { Workspace } from "../../git-provider/workspace.js";
 import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
@@ -253,6 +254,30 @@ const listOrderBy = [
  * Only the conversation fetch tools are read, an inline review needs a discussion id
  * that the log does not keep.
  */
+function buildEyesEmojiTarget(activity: ActivityResponse): GitEmojiTarget | null {
+    switch (activity.type) {
+        case "pr_review":
+            return { type: "pull_request", prIid: activity.targetIid };
+        case "issue_open":
+            return { type: "issue", issueIid: activity.targetIid };
+        case "pr_reply": {
+            const commentId = activity.targetCommentId;
+            if (commentId == null) return null;
+            if (activity.targetInlineReviewId != null) {
+                return { type: "inline_review_comment", prIid: activity.targetIid, commentId };
+            }
+            return { type: "pull_request_comment", prIid: activity.targetIid, commentId };
+        }
+        case "issue_reply": {
+            const commentId = activity.targetCommentId;
+            if (commentId == null) return null;
+            return { type: "issue_comment", issueIid: activity.targetIid, commentId };
+        }
+        default:
+            return null;
+    }
+}
+
 export function recoverLegacyReplyTargetComment(): number {
     const result = db.$client.run(`
         UPDATE activity
@@ -289,6 +314,35 @@ export function recoverLegacyReplyTargetComment(): number {
 }
 
 export class ActivityService {
+    private async addEyesEmoji(activityId: number): Promise<void> {
+        try {
+            const activity = await this.findById(activityId);
+            if (activity?.repositoryId == null) return;
+            if (activity.status !== "queued" && activity.status !== "started") return;
+
+            const emojiTarget = buildEyesEmojiTarget(activity);
+            if (emojiTarget == null) return;
+            const gitProvider = await new RepositoryService().createGitProvider(activity.repositoryId);
+            await gitProvider.addEmoji(emojiTarget, "👀");
+
+            const current = await this.findById(activityId);
+            if (current?.status === "queued" || current?.status === "started") return;
+            await this.removeEyesEmoji(activityId);
+        } catch (error) {
+            logError("add emoji failed", error);
+        }
+    }
+
+    private async removeEyesEmoji(activityId: number): Promise<void> {
+        if (await this.hasQueuedOrStartedActivity(activityId)) return;
+        const activity = await this.findById(activityId);
+        if (activity?.repositoryId == null) return;
+        const emojiTarget = buildEyesEmojiTarget(activity);
+        if (emojiTarget == null) return;
+        const gitProvider = await new RepositoryService().createGitProvider(activity.repositoryId);
+        await gitProvider.removeEmoji(emojiTarget, "👀");
+    }
+
     public async findAll(
         input: { page: number; limit: number } & ActivityListFilter,
     ): Promise<Pagination<ActivityResponse>> {
@@ -648,7 +702,9 @@ export class ActivityService {
             })
             .returning({ id: activityTable.id });
 
-        return result[0].id;
+        const id = result[0].id;
+        await this.addEyesEmoji(id);
+        return id;
     }
 
     public async addTokenUsage(id: number, delta: ActivityTokenUsage): Promise<void> {
@@ -685,6 +741,7 @@ export class ActivityService {
         if (result.length === 0) {
             throw new Error("Activity not found");
         }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
         activityQueue.drain();
     }
 
@@ -702,6 +759,7 @@ export class ActivityService {
         if (result.length === 0) {
             throw new Error("Activity not found");
         }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
         activityQueue.drain();
     }
 
@@ -722,6 +780,7 @@ export class ActivityService {
             }
             throw new Error("Only queued or started activities can be canceled");
         }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
         activityQueue.drain();
     }
 

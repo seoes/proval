@@ -49,16 +49,9 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
     const emit = (event: ReviewMeasureEvent) => onEvent?.(event);
     const emitLoop = (agent: string) => (event: AgentLoopEvent) => emit({ type: "agent", agent, event });
     const label = `[PR #${prIid}] Setup`;
-    const emojiTarget = { type: "pull_request" as const, prIid };
     const activityService = new ActivityService();
     emit({ type: "phase-start", phase: "setup" });
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, "fetching pull request version", label);
         const detail = await provider.fetchPullRequestDetail(prIid);
         const version = await provider.fetchPullRequestVersion(prIid);
@@ -255,13 +248,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             })),
         };
     } finally {
-        try {
-            if (!(await activityService.hasQueuedOrStartedActivity(activityId))) {
-                await provider.removeEmoji(emojiTarget, "👀");
-            }
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };
