@@ -21,7 +21,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
     let reviewHold: Promise<void> | null = null;
     let releaseReview: (() => void) | null = null;
 
-    const runPullRequestReviewMock = mock(async () => {
+    const runPullRequestReviewMock = mock(async (_input: { prIid?: number }) => {
         if (reviewHold) await reviewHold;
         return usage;
     });
@@ -219,7 +219,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             activityQueue.drain();
             await waitForStatus(firstId, "started", 10000);
             const newCalls = runPullRequestReviewMock.mock.calls.slice(callsBefore);
-            const callsForSecond = newCalls.filter((call) => (call[0] as { prIid?: number }).prIid === 2);
+            const callsForSecond = newCalls.filter((call) => call[0].prIid === 2);
             expect(callsForSecond.length).toBe(0);
         });
 
