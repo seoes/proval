@@ -115,7 +115,8 @@
             </div>
         {/each}
     </div>
-    <div class="mt-auto flex pt-6">
+    <div class="mt-auto flex cursor-default items-center justify-between">
         <ThemeToggle side="top" align="start" />
+        <span class="mt-px text-xs text-muted-foreground">{__PROVAL_VERSION__}</span>
     </div>
 </div>

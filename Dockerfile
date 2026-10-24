@@ -26,6 +26,7 @@ RUN bun run --filter @proval/brand generate
 
 COPY apps/client ./apps/client
 
+ARG PROVAL_VERSION
 RUN bun run --filter client build
 
 ENV NODE_ENV=production
