@@ -10,10 +10,12 @@
     import { isDemoMode } from "$lib/demo/enabled";
     import { isAuthPagePath } from "$lib/auth";
     import { initializeTheme } from "$lib/store/theme";
+    import { setUserPromptMaxLength } from "$lib/store/instance";
+    import type { LayoutProps } from "./$types";
 
     const GITHUB_URL = "https://github.com/seoes/proval";
 
-    const { children } = $props();
+    const { data, children }: LayoutProps = $props();
     const demoMode = isDemoMode();
     let sidebarOpen = $state(false);
     let sidebarAnimate = $state(false);
@@ -21,6 +23,10 @@
     const isLayoutHidden = $derived(isAuthPagePath(page.url.pathname));
 
     onMount(initializeTheme);
+
+    $effect(() => {
+        setUserPromptMaxLength(data.auth?.userPromptMaxLength);
+    });
 
     function toggleSidebar() {
         sidebarAnimate = true;
