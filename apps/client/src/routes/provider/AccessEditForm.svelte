@@ -1,6 +1,8 @@
 <script lang="ts">
     import Button from "$lib/components/atom/Button.svelte";
     import InputText from "$lib/components/atom/InputText.svelte";
+    import InputCombobox from "$lib/components/atom/InputCombobox.svelte";
+    import { repositoryLanguageList } from "$lib/repositoryLanguageList";
     import ToggleSwitch from "$lib/components/atom/ToggleSwitch.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import FormField from "$lib/components/molecule/FormField.svelte";
@@ -392,7 +394,7 @@
                 {/if}
                 <FormField label="Language" description="Default language for code review">
                     {#snippet children({ id })}
-                        <InputText {id} placeholder="English" bind:value={language} />
+                        <InputCombobox {id} placeholder="English" bind:value={language} suggestionList={repositoryLanguageList} />
                     {/snippet}
                 </FormField>
             </Card>

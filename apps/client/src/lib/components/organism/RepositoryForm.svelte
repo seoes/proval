@@ -1,5 +1,7 @@
 <script lang="ts">
     import InputText from "../atom/InputText.svelte";
+    import InputCombobox from "../atom/InputCombobox.svelte";
+    import { repositoryLanguageList } from "$lib/repositoryLanguageList";
     import fetchApi from "$lib/utils";
     import { reasoningEffortValueList, USER_PROMPT_MAX_LENGTH } from "@proval/types";
     import type {
@@ -517,7 +519,7 @@
         <div>
             <FormField label="Language" description="Default language for code review">
                 {#snippet children({ id })}
-                    <InputText {id} placeholder="English" bind:value={language} />
+                    <InputCombobox {id} placeholder="English" bind:value={language} suggestionList={repositoryLanguageList} />
                 {/snippet}
             </FormField>
         </div>
