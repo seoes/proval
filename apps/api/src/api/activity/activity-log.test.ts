@@ -292,6 +292,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             expect(statusResponse.status).toBe(200);
             expect(await statusResponse.json()).toEqual({
                 status: "completed",
+                startedAt: null,
                 completedAt: new Date(0).toISOString(),
                 errorMessage: "boom",
                 inputToken: 3,
