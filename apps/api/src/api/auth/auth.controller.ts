@@ -139,7 +139,8 @@ export const putSettings = async (c: Context<{ Variables: AuthVariables }>) => {
         const msg = e instanceof Error ? e.message : String(e);
         if (
             msg === "Registration cannot be enabled while authentication is disabled" ||
-            msg === "isAuthEnabled and isRegistrationEnabled are required"
+            msg ===
+                "isAuthEnabled, isRegistrationEnabled, isRerunInterruptedActivity and isWaitForRunningActivityOnShutdown are required"
         ) {
             return c.json({ error: msg }, 400);
         }

@@ -190,11 +190,15 @@ export type AuthMeResponse = {
 export type InstanceSettingResponse = {
     isAuthEnabled: boolean;
     isRegistrationEnabled: boolean;
+    isRerunInterruptedActivity: boolean;
+    isWaitForRunningActivityOnShutdown: boolean;
 };
 
 export type InstanceSettingUpdateInput = {
     isAuthEnabled: boolean;
     isRegistrationEnabled: boolean;
+    isRerunInterruptedActivity: boolean;
+    isWaitForRunningActivityOnShutdown: boolean;
 };
 
 export type AuthCredentialInput = {

@@ -12,6 +12,12 @@ function isUniqueConstraintError(error: unknown): boolean {
 class ActivityQueue {
     private isDraining = false;
     private hasPendingDrain = false;
+    private isMerging = false;
+    private isQueueStoppedForShutdown = false;
+
+    public stopQueueForShutdown(): void {
+        this.isQueueStoppedForShutdown = true;
+    }
 
     public async push(input: ActivityStartInput): Promise<number> {
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -29,10 +35,7 @@ class ActivityQueue {
                         .update(activityTable)
                         .set({ headSha: input.headSha })
                         .where(
-                            and(
-                                eq(activityTable.id, queuedPullRequestReview.id),
-                                eq(activityTable.status, "queued"),
-                            ),
+                            and(eq(activityTable.id, queuedPullRequestReview.id), eq(activityTable.status, "queued")),
                         )
                         .returning({ id: activityTable.id });
                     if (updated.length > 0) return queuedPullRequestReview.id;
@@ -56,6 +59,7 @@ class ActivityQueue {
     }
 
     public drain(): void {
+        if (this.isQueueStoppedForShutdown || this.isMerging) return;
         if (this.isDraining) {
             this.hasPendingDrain = true;
             return;
@@ -64,12 +68,93 @@ class ActivityQueue {
         void this.drainLoop();
     }
 
+    public async mergeDuplicated(): Promise<void> {
+        this.isMerging = true;
+        try {
+            const startedList = await db
+                .select({
+                    id: activityTable.id,
+                    type: activityTable.type,
+                    repositoryId: activityTable.repositoryId,
+                    repositoryPath: activityTable.repositoryPath,
+                    provider: activityTable.provider,
+                    modelProviderId: activityTable.modelProviderId,
+                    modelName: activityTable.modelName,
+                    targetIid: activityTable.targetIid,
+                    targetCommentId: activityTable.targetCommentId,
+                    targetInlineReviewId: activityTable.targetInlineReviewId,
+                    headSha: activityTable.headSha,
+                    createdAt: activityTable.createdAt,
+                })
+                .from(activityTable)
+                .where(eq(activityTable.status, "started"));
+
+            for (const started of startedList) {
+                try {
+                    if (started.type === "pr_review" && started.repositoryId != null) {
+                        const queued = await this.findPullRequestReview(
+                            started.repositoryId,
+                            started.targetIid,
+                            "queued",
+                        );
+                        if (queued) {
+                            await this.closeInterrupted(
+                                started.id,
+                                "canceled",
+                                "Canceled on restart because a queued review will run instead",
+                            );
+                            continue;
+                        }
+                    }
+                    if (started.repositoryId == null || started.modelProviderId == null) {
+                        await this.closeInterrupted(
+                            started.id,
+                            "failed",
+                            "Repository or model provider is no longer linked to this activity",
+                        );
+                        continue;
+                    }
+                    const isCanceled = await this.closeInterrupted(
+                        started.id,
+                        "canceled",
+                        "Canceled on restart because this activity was queued again",
+                    );
+                    if (!isCanceled) continue;
+                    await db.insert(activityTable).values({
+                        repositoryId: started.repositoryId,
+                        repositoryPath: started.repositoryPath,
+                        provider: started.provider,
+                        modelProviderId: started.modelProviderId,
+                        modelName: started.modelName,
+                        type: started.type,
+                        status: "queued",
+                        targetIid: started.targetIid,
+                        targetCommentId: started.targetCommentId,
+                        targetInlineReviewId: started.targetInlineReviewId,
+                        headSha: started.headSha,
+                        logVersion: "1",
+                        createdAt: started.createdAt,
+                    });
+                } catch (error) {
+                    logError("Failed to requeue interrupted activity", error);
+                    await this.closeInterrupted(
+                        started.id,
+                        "failed",
+                        "Server restarted while this activity was running",
+                    );
+                }
+            }
+        } finally {
+            this.isMerging = false;
+        }
+    }
+
     private async drainLoop(): Promise<void> {
         try {
-            do {
+            while (!this.isQueueStoppedForShutdown) {
                 this.hasPendingDrain = false;
                 const executableQueuedActivityList = await this.findExecutableQueuedActivity();
-                if (executableQueuedActivityList.length === 0 && !this.hasPendingDrain) return;
+                if (executableQueuedActivityList.length === 0) break;
 
                 let isActivityStarted = false;
                 for (const executableQueuedActivity of executableQueuedActivityList) {
@@ -80,8 +165,8 @@ class ActivityQueue {
                     }
                     isActivityStarted = true;
                 }
-                if (!isActivityStarted && !this.hasPendingDrain) return;
-            } while (true);
+                if (!isActivityStarted && !this.hasPendingDrain) break;
+            }
         } finally {
             this.isDraining = false;
             if (this.hasPendingDrain) this.drain();
@@ -153,6 +238,7 @@ class ActivityQueue {
     }
 
     private async startQueuedActivity(executableQueuedActivityId: number) {
+        if (this.isQueueStoppedForShutdown) return [];
         try {
             const startedActivityList = await db
                 .update(activityTable)
@@ -169,6 +255,19 @@ class ActivityQueue {
             if (isUniqueConstraintError(error)) return [];
             throw error;
         }
+    }
+
+    private async closeInterrupted(
+        id: number,
+        status: "canceled" | "failed",
+        errorMessage: string,
+    ): Promise<boolean> {
+        const updated = await db
+            .update(activityTable)
+            .set({ status, completedAt: new Date(), errorMessage })
+            .where(and(eq(activityTable.id, id), eq(activityTable.status, "started")))
+            .returning({ id: activityTable.id });
+        return updated.length > 0;
     }
 
     private async findPullRequestReview(repositoryId: number, targetIid: number, status: "queued" | "started") {
