@@ -16,17 +16,15 @@
     let isRegistrationEnabled = $state(data.setting.isRegistrationEnabled);
     let isRerunInterruptedActivity = $state(data.setting.isRerunInterruptedActivity);
     let isWaitForRunningActivityOnShutdown = $state(data.setting.isWaitForRunningActivityOnShutdown);
-    let isSavingAuth = $state(false);
-    let isSavingActivity = $state(false);
+    let isSaving = $state(false);
     let isLoggingOut = $state(false);
 
     const isLoggedIn = $derived(!!data.auth.user);
     const canEditSettings = $derived(data.auth.user?.role === "admin");
-    const isAuthDirty = $derived(
-        isAuthEnabled !== data.setting.isAuthEnabled || isRegistrationEnabled !== data.setting.isRegistrationEnabled,
-    );
-    const isActivityDirty = $derived(
-        isRerunInterruptedActivity !== data.setting.isRerunInterruptedActivity ||
+    const isDirty = $derived(
+        isAuthEnabled !== data.setting.isAuthEnabled ||
+            isRegistrationEnabled !== data.setting.isRegistrationEnabled ||
+            isRerunInterruptedActivity !== data.setting.isRerunInterruptedActivity ||
             isWaitForRunningActivityOnShutdown !== data.setting.isWaitForRunningActivityOnShutdown,
     );
 
@@ -78,60 +76,34 @@
         return await response.json();
     }
 
-    async function onSaveAuth() {
-        if (!canEditSettings || !isAuthDirty) {
+    async function onSave() {
+        if (!canEditSettings || !isDirty) {
             return;
         }
-        const confirmed = await openConfirm("Save these authentication settings?", {
+        const confirmed = await openConfirm("Save these settings?", {
             title: "Save settings",
             confirmText: "Save",
         });
         if (!confirmed) {
             return;
         }
-        isSavingAuth = true;
+        isSaving = true;
         try {
             const registrationEnabled = isAuthEnabled ? isRegistrationEnabled : false;
             const updated = await putSettings({
                 isAuthEnabled,
                 isRegistrationEnabled: registrationEnabled,
-                isRerunInterruptedActivity: data.setting.isRerunInterruptedActivity,
-                isWaitForRunningActivityOnShutdown: data.setting.isWaitForRunningActivityOnShutdown,
-            });
-            if (!updated) return;
-            isAuthEnabled = updated.isAuthEnabled;
-            isRegistrationEnabled = updated.isRegistrationEnabled;
-            await invalidateAll();
-        } finally {
-            isSavingAuth = false;
-        }
-    }
-
-    async function onSaveActivity() {
-        if (!canEditSettings || !isActivityDirty) {
-            return;
-        }
-        const confirmed = await openConfirm("Save these activity settings?", {
-            title: "Save settings",
-            confirmText: "Save",
-        });
-        if (!confirmed) {
-            return;
-        }
-        isSavingActivity = true;
-        try {
-            const updated = await putSettings({
-                isAuthEnabled: data.setting.isAuthEnabled,
-                isRegistrationEnabled: data.setting.isRegistrationEnabled,
                 isRerunInterruptedActivity,
                 isWaitForRunningActivityOnShutdown,
             });
             if (!updated) return;
+            isAuthEnabled = updated.isAuthEnabled;
+            isRegistrationEnabled = updated.isRegistrationEnabled;
             isRerunInterruptedActivity = updated.isRerunInterruptedActivity;
             isWaitForRunningActivityOnShutdown = updated.isWaitForRunningActivityOnShutdown;
             await invalidateAll();
         } finally {
-            isSavingActivity = false;
+            isSaving = false;
         }
     }
 
@@ -167,7 +139,7 @@
                         </div>
                         <ToggleSwitch
                             bind:checked={isAuthEnabled}
-                            disabled={isSavingAuth || !canEditSettings}
+                            disabled={isSaving || !canEditSettings}
                             onchange={onAuthToggle} />
                     </div>
 
@@ -181,15 +153,7 @@
                             </div>
                             <ToggleSwitch
                                 bind:checked={isRegistrationEnabled}
-                                disabled={isSavingAuth || !canEditSettings} />
-                        </div>
-                    {/if}
-
-                    {#if canEditSettings}
-                        <div class="flex justify-end border-t border-border pt-6">
-                            <Button primary disabled={!isAuthDirty || isSavingAuth} onclick={onSaveAuth}>
-                                {isSavingAuth ? "Saving…" : "Save"}
-                            </Button>
+                                disabled={isSaving || !canEditSettings} />
                         </div>
                     {/if}
                 </div>
@@ -211,7 +175,7 @@
                         </div>
                         <ToggleSwitch
                             bind:checked={isWaitForRunningActivityOnShutdown}
-                            disabled={isSavingActivity || !canEditSettings} />
+                            disabled={isSaving || !canEditSettings} />
                     </div>
 
                     <div class="flex items-start justify-between gap-4">
@@ -223,16 +187,8 @@
                         </div>
                         <ToggleSwitch
                             bind:checked={isRerunInterruptedActivity}
-                            disabled={isSavingActivity || !canEditSettings} />
+                            disabled={isSaving || !canEditSettings} />
                     </div>
-
-                    {#if canEditSettings}
-                        <div class="flex justify-end border-t border-border pt-6">
-                            <Button primary disabled={!isActivityDirty || isSavingActivity} onclick={onSaveActivity}>
-                                {isSavingActivity ? "Saving…" : "Save"}
-                            </Button>
-                        </div>
-                    {/if}
                 </div>
             </Card>
         {/if}
@@ -249,6 +205,14 @@
                     </Button>
                 </div>
             </Card>
+        {/if}
+
+        {#if canEditSettings && isLoggedIn}
+            <div class="flex justify-end">
+                <Button primary disabled={!isDirty || isSaving} onclick={onSave}>
+                    {isSaving ? "Saving…" : "Save"}
+                </Button>
+            </div>
         {/if}
     </div>
 </DefaultLayout>
