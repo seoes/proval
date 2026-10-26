@@ -255,6 +255,121 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             expect(queued.headSha).toBe("queued-head");
         });
 
+        it("mergeDuplicated cancels started pr_review when a queued review exists and drain runs that review", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            const queuedId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 7, "sha-queued"));
+            const partialLog = {
+                type: "common" as const,
+                timestamp: "2020-01-01T00:00:00.000Z",
+                level: "info" as const,
+                message: "partial",
+            };
+            const [startedRow] = await db
+                .insert(activityTable)
+                .values({
+                    repositoryId: repository.id,
+                    repositoryPath: "group/repo",
+                    provider: "gitlab",
+                    modelProviderId: modelProvider.id,
+                    modelName: "test-model",
+                    type: "pr_review",
+                    status: "started",
+                    targetIid: 7,
+                    headSha: "sha-old",
+                    logVersion: "1",
+                    logs: [partialLog],
+                    startedAt: new Date(),
+                    createdAt: new Date("2020-01-01"),
+                })
+                .returning();
+            await activityQueue.mergeDuplicated();
+            const [canceled] = await db.select().from(activityTable).where(eq(activityTable.id, startedRow.id));
+            expect(canceled.status).toBe("canceled");
+            expect(canceled.headSha).toBe("sha-old");
+            expect(canceled.logs).toEqual([partialLog]);
+            expect(canceled.errorMessage).toBe("Canceled on restart because a queued review will run instead");
+            const [queued] = await db.select().from(activityTable).where(eq(activityTable.id, queuedId));
+            expect(queued.status).toBe("queued");
+            expect(queued.headSha).toBe("sha-queued");
+            expect(queued.logs).toEqual([]);
+            activityQueue.drain();
+            await waitForStatus(queuedId, "started", 5000);
+        });
+
+        it("mergeDuplicated clones a lone started pr_review without running", async () => {
+            const callsBefore = runPullRequestReviewMock.mock.calls.length;
+            const { modelProvider, repository } = await insertProvider();
+            const partialLog = {
+                type: "common" as const,
+                timestamp: "2020-01-01T00:00:00.000Z",
+                level: "info" as const,
+                message: "partial",
+            };
+            const createdAt = new Date("2020-01-01");
+            const [startedRow] = await db
+                .insert(activityTable)
+                .values({
+                    repositoryId: repository.id,
+                    repositoryPath: "group/repo",
+                    provider: "gitlab",
+                    modelProviderId: modelProvider.id,
+                    modelName: "test-model",
+                    type: "pr_review",
+                    status: "started",
+                    targetIid: 8,
+                    headSha: "sha-lone",
+                    logVersion: "1",
+                    logs: [partialLog],
+                    startedAt: new Date(),
+                    createdAt,
+                })
+                .returning();
+            await activityQueue.mergeDuplicated();
+            const rows = await db.select().from(activityTable).where(eq(activityTable.repositoryId, repository.id));
+            const canceled = rows.find((row) => row.id === startedRow.id);
+            const queued = rows.find((row) => row.id !== startedRow.id);
+            expect(canceled?.status).toBe("canceled");
+            expect(canceled?.logs).toEqual([partialLog]);
+            expect(canceled?.errorMessage).toBe("Canceled on restart because this activity was queued again");
+            expect(queued?.status).toBe("queued");
+            expect(queued?.headSha).toBe("sha-lone");
+            expect(queued?.logs).toEqual([]);
+            expect(queued?.startedAt).toBeNull();
+            expect(queued?.createdAt?.getTime()).toBe(createdAt.getTime());
+            expect(runPullRequestReviewMock.mock.calls.length).toBe(callsBefore);
+        });
+
+        it("drain runs the cloned row after mergeDuplicated", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            await db.insert(activityTable).values({
+                repositoryId: repository.id,
+                repositoryPath: "group/repo",
+                provider: "gitlab",
+                modelProviderId: modelProvider.id,
+                modelName: "test-model",
+                type: "pr_review",
+                status: "started",
+                targetIid: 10,
+                headSha: "sha-requeue",
+                logVersion: "1",
+                startedAt: new Date(),
+            });
+            await activityQueue.mergeDuplicated();
+            const [queued] = await db
+                .select()
+                .from(activityTable)
+                .where(
+                    and(
+                        eq(activityTable.repositoryId, repository.id),
+                        eq(activityTable.targetIid, 10),
+                        eq(activityTable.status, "queued"),
+                    ),
+                );
+            expect(queued.status).toBe("queued");
+            activityQueue.drain();
+            await waitForStatus(queued.id, "started", 5000);
+        });
+
         it("drains queued rows after boot marks started as failed", async () => {
             const { modelProvider, repository } = await insertProvider();
             const queuedId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 4, "sha-q"));
@@ -277,6 +392,24 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             await waitForStatus(queuedId, "started", 5000);
             const [stillQueued] = await db.select().from(activityTable).where(eq(activityTable.id, queuedId));
             expect(stillQueued.status).toBe("started");
+        });
+
+        it("stopQueueForShutdown leaves later queued activity while running review finishes", async () => {
+            const { modelProvider, repository } = await insertProvider(1);
+            const runningId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 20, "sha-run"));
+            activityQueue.drain();
+            await waitForStatus(runningId, "started", 5000);
+            const nextQueuedId = await activityQueue.push(
+                reviewInput(repository.id, modelProvider.id, 21, "sha-next"),
+            );
+            activityQueue.stopQueueForShutdown();
+            releaseReview?.();
+            releaseReview = null;
+            reviewHold = null;
+            await waitForStatus(runningId, "completed", 5000);
+            await Bun.sleep(100);
+            const [next] = await db.select().from(activityTable).where(eq(activityTable.id, nextQueuedId));
+            expect(next.status).toBe("queued");
         });
     });
 }

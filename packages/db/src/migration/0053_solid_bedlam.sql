@@ -1,0 +1,2 @@
+ALTER TABLE `instance_setting` ADD `rerun_interrupted_activity` integer DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE `instance_setting` ADD `wait_for_running_activity_on_shutdown` integer DEFAULT false NOT NULL;

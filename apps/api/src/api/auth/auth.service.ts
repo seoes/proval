@@ -69,10 +69,12 @@ export class AuthService {
         return (await this.getUserCount()) === 0;
     }
 
-    toInstanceSettingResponse(setting: typeof instanceSettingTable.$inferSelect): InstanceSettingResponse {
+    public toInstanceSettingResponse(setting: typeof instanceSettingTable.$inferSelect): InstanceSettingResponse {
         return {
             isAuthEnabled: setting.authEnabled,
             isRegistrationEnabled: setting.registrationEnabled,
+            isRerunInterruptedActivity: setting.rerunInterruptedActivity,
+            isWaitForRunningActivityOnShutdown: setting.waitForRunningActivityOnShutdown,
         };
     }
 
@@ -300,8 +302,15 @@ export class AuthService {
     }
 
     async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
-        if (typeof input.isAuthEnabled !== "boolean" || typeof input.isRegistrationEnabled !== "boolean") {
-            throw new Error("isAuthEnabled and isRegistrationEnabled are required");
+        if (
+            typeof input.isAuthEnabled !== "boolean" ||
+            typeof input.isRegistrationEnabled !== "boolean" ||
+            typeof input.isRerunInterruptedActivity !== "boolean" ||
+            typeof input.isWaitForRunningActivityOnShutdown !== "boolean"
+        ) {
+            throw new Error(
+                "isAuthEnabled, isRegistrationEnabled, isRerunInterruptedActivity and isWaitForRunningActivityOnShutdown are required",
+            );
         }
 
         if (input.isRegistrationEnabled && !input.isAuthEnabled) {
@@ -311,8 +320,15 @@ export class AuthService {
         const current = await this.getOrCreateInstanceSetting();
         const nextAuth = input.isAuthEnabled;
         const nextRegistration = input.isAuthEnabled ? input.isRegistrationEnabled : false;
+        const nextRerunInterrupted = input.isRerunInterruptedActivity;
+        const nextWaitOnShutdown = input.isWaitForRunningActivityOnShutdown;
 
-        if (nextAuth === current.authEnabled && nextRegistration === current.registrationEnabled) {
+        if (
+            nextAuth === current.authEnabled &&
+            nextRegistration === current.registrationEnabled &&
+            nextRerunInterrupted === current.rerunInterruptedActivity &&
+            nextWaitOnShutdown === current.waitForRunningActivityOnShutdown
+        ) {
             return this.toInstanceSettingResponse(current);
         }
 
@@ -321,6 +337,8 @@ export class AuthService {
             .set({
                 authEnabled: nextAuth,
                 registrationEnabled: nextRegistration,
+                rerunInterruptedActivity: nextRerunInterrupted,
+                waitForRunningActivityOnShutdown: nextWaitOnShutdown,
             })
             .where(eq(instanceSettingTable.id, 1))
             .returning();

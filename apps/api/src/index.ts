@@ -10,6 +10,7 @@ import { loadEncryptionKey } from "./util/encrypt.js";
 import { clearWorkspaceRoot } from "./git-provider/workspace.js";
 import { ActivityService, recoverLegacyReplyTargetComment } from "./api/activity/activity.service.js";
 import { activityQueue } from "./api/activity/activity.queue.js";
+import { authService } from "./api/auth/auth.service.js";
 
 loadEncryptionKey();
 
@@ -48,16 +49,67 @@ if (process.env.NODE_ENV === "production") {
     });
 }
 
-const runningActivityList = await db
-    .select({ id: activityTable.id })
-    .from(activityTable)
-    .where(eq(activityTable.status, "started"));
-const activityService = new ActivityService();
-await Promise.all(
-    runningActivityList.map(({ id }) => activityService.fail(id, "Server restarted while this activity was running")),
-);
+const { rerunInterruptedActivity: isRerunInterruptedActivity } = await authService.getOrCreateInstanceSetting();
+
+if (isRerunInterruptedActivity) {
+    await activityQueue.mergeDuplicated();
+} else {
+    const runningActivityList = await db
+        .select({ id: activityTable.id })
+        .from(activityTable)
+        .where(eq(activityTable.status, "started"));
+    const activityService = new ActivityService();
+    await Promise.all(
+        runningActivityList.map(({ id }) =>
+            activityService.fail(id, "Server restarted while this activity was running"),
+        ),
+    );
+}
 
 activityQueue.drain();
+
+let isExiting = false;
+const shutdownWaitMs = 7_200_000;
+
+async function shutdownAndExit(signal: string) {
+    if (isExiting) process.exit(0);
+    isExiting = true;
+    log(`Received ${signal}`);
+    try {
+        let shouldWait = false;
+        try {
+            const setting = await authService.getOrCreateInstanceSetting();
+            shouldWait = setting.waitForRunningActivityOnShutdown;
+        } catch (error) {
+            logError("Failed to read instance setting on shutdown", error);
+        }
+        if (!shouldWait) return;
+        activityQueue.stopQueueForShutdown();
+        const deadline = Date.now() + shutdownWaitMs;
+        log("Waiting for running activities to finish");
+        while (Date.now() < deadline) {
+            const [started] = await db
+                .select({ id: activityTable.id })
+                .from(activityTable)
+                .where(eq(activityTable.status, "started"))
+                .limit(1);
+            if (!started) {
+                console.log("No running activities...");
+                return;
+            }
+            await Bun.sleep(1000);
+        }
+        log("Shutdown wait timed out after 7200 seconds");
+    } catch (error) {
+        logError("Failed while waiting for running activities", error);
+    } finally {
+        process.exit(0);
+    }
+}
+
+process.on("SIGTERM", () => {
+    void shutdownAndExit("SIGTERM");
+});
 
 const recoveredReplyTargetCount = recoverLegacyReplyTargetComment();
 if (recoveredReplyTargetCount > 0) {

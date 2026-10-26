@@ -15,6 +15,8 @@ export const instanceSettingTable = sqliteTable("instance_setting", {
     id: integer().primaryKey(),
     authEnabled: integer({ mode: "boolean" }).notNull().default(false),
     registrationEnabled: integer({ mode: "boolean" }).notNull().default(false),
+    rerunInterruptedActivity: integer({ mode: "boolean" }).notNull().default(false),
+    waitForRunningActivityOnShutdown: integer({ mode: "boolean" }).notNull().default(false),
     ...timeStamp,
 });
 
