@@ -3,7 +3,7 @@ import type { GitProvider } from "../../../git-provider/types";
 import type { Workspace } from "../../../git-provider/workspace.js";
 import { runAgentLoop, type AgentLoopEvent, type LlmSender } from "../../llm/loop";
 import { INLINE_DISABLED, INLINE_ENABLED, SEVERITY } from "../prompt";
-import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REVIEW_WRITING_USER_PROMPT_HEADER, WRITING_EVALUATION_RULE, WRITING_WORKFLOW } from "./writing.prompt.js";
 import { FOLLOW_UP_REVIEW_RULE } from "./follow-up.prompt.js";
 import {
@@ -31,6 +31,7 @@ export async function runReviewWritingAgent(
     workspace: Workspace,
     sender: LlmSender,
     pullRequestContextPrompt: string,
+    prAuthor: string,
     prIid: number,
     baseSha: string,
     headSha: string,
@@ -52,6 +53,7 @@ export async function runReviewWritingAgent(
         SEVERITY,
         isInlineReview ? INLINE_ENABLED : INLINE_DISABLED,
         COMMENT_LANGUAGE_RULE,
+        buildAuthorMentionPolicy(prAuthor, "review"),
         agentInstructionPrompt,
         generateUserPrompt(PR_REVIEW_WRITING_USER_PROMPT_HEADER, userPrompt),
     ]

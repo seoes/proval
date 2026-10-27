@@ -187,6 +187,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             workspace,
             llmSender,
             prompt,
+            detail.author,
             prIid,
             baseSha,
             headSha,

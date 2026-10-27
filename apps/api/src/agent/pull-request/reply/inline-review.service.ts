@@ -2,7 +2,7 @@ import type { PullRequestInlineReviewReply } from "../index.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { logAgent, debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REPLY_USER_PROMPT_HEADER } from "./prompt/reply.prompt.js";
 import { PR_INLINE_REVIEW_REPLY_APPENDIX } from "./inline-review.prompt.js";
 import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
@@ -53,6 +53,7 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             PR_REPLY_WORKFLOW,
             PR_INLINE_REVIEW_REPLY_APPENDIX,
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(comment.author, "reply"),
             agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]

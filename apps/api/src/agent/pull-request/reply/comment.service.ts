@@ -1,7 +1,7 @@
 import { logAgent, debug } from "../../../util/log";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REPLY_BODY, PR_REPLY_USER_PROMPT_HEADER, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
 import {
     getChangedFileListTool,
@@ -48,6 +48,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
             PR_REPLY_BODY,
             PR_REPLY_WORKFLOW,
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(comment.author, "reply"),
             agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]

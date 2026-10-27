@@ -1,7 +1,7 @@
 import { logAgent, debug } from "../../util/log";
 import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT } from "./prompt/issue.prompt.js";
 import { ISSUE_REPLY_USER_PROMPT_HEADER, ISSUE_REPLY_WORKFLOW } from "./reply.prompt.js";
 import {
@@ -41,6 +41,7 @@ export const runIssueReply: IssueReply = async ({
             ISSUE_BASE_PROMPT,
             ISSUE_REPLY_WORKFLOW,
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(comment.author, "reply"),
             agentInstructionPrompt,
             generateUserPrompt(ISSUE_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]

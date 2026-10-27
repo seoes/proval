@@ -1,7 +1,7 @@
 import { logAgent, debug } from "../../util/log";
 import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT } from "./prompt/issue.prompt.js";
 import { buildIssueReplyOnOpenWorkflow, buildRepositoryLabelCatalog } from "./open.prompt.js";
 import {
@@ -31,6 +31,7 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     try {
         logAgent(activityId, `fetching repository detail`, label);
         const repository = await provider.fetchRepositoryDetail();
+        const issue = await provider.fetchIssueDetail(issueIid);
         await workspace.loadFromBranch(repository.defaultBranch);
 
         const repositoryLabelList = issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
@@ -41,9 +42,12 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             ISSUE_BASE_PROMPT,
             buildIssueReplyOnOpenWorkflow(hasRepositoryLabelList),
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(issue.author, "review"),
             ...(hasRepositoryLabelList ? [buildRepositoryLabelCatalog(repositoryLabelList)] : []),
             agentInstructionPrompt,
-        ].join("\n");
+        ]
+            .filter(Boolean)
+            .join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;
 
         debug(prompt, "prompt");
