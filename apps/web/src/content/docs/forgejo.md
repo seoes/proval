@@ -74,7 +74,7 @@ Use `https://` when TLS terminates before Proval. LAN `http://` may require [all
     - Issue events → **Modification**
     - Issue events → **Comments**
 
-Pull request modification covers open, sync, reopen, and ready for review. Proval reviews on first push or every push per repository settings, and skips drafts until ready.
+Pull request modification covers open, sync, reopen, and ready for review. Proval reviews on first push or every push per repository settings, and skips drafts until ready. Close and merge use the same webhook event. Repository settings decide whether an in flight review keeps running or is canceled.
 
 <figure>
     <img src="/docs/forgejo/03-webhook.png" alt="Forgejo webhook form with URL and secret" />

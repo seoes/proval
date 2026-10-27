@@ -379,6 +379,13 @@
       "when": 1793022609610,
       "tag": "0053_solid_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1793080637569,
+      "tag": "0054_silent_lockjaw",
+      "breakpoints": true
     }
   ]
 }

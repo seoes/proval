@@ -8,6 +8,7 @@
         ModelProviderModelListResponse,
         ModelProviderResponse,
         ProviderOption,
+        PrReviewOnClose,
         PrReviewOnPush,
         ReasoningEffort,
         RepositoryInsert,
@@ -42,6 +43,7 @@
         prReviewEnabled: boolean;
         prInlineReview: boolean;
         prReviewOnPush: PrReviewOnPush;
+        prReviewOnClose: PrReviewOnClose;
         prIgnoreDraft: boolean;
         prAllowedTargetBranchList: string[];
         userPrompt: string | null;
@@ -72,6 +74,12 @@
 
     interface ReviewPushOption {
         value: PrReviewOnPush;
+        label: string;
+        description: string;
+    }
+
+    interface ReviewOnCloseOption {
+        value: PrReviewOnClose;
         label: string;
         description: string;
     }
@@ -152,6 +160,7 @@
     let prReviewEnabled = $state<boolean>(config.prReviewEnabled);
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
+    let prReviewOnClose = $state<PrReviewOnClose>(config.prReviewOnClose);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
     let allowedTargetBranchText = $state(config.prAllowedTargetBranchList.join(", "));
     let userPrompt = $state<string>(config.userPrompt ?? "");
@@ -235,6 +244,16 @@
             label: "Every push",
             description: "Review on each push",
         },
+    ];
+
+    const reviewOnCloseOptionList: ReviewOnCloseOption[] = [
+        { value: "continue", label: "Continue", description: "Finish and post the review" },
+        {
+            value: "continue_if_started",
+            label: "Continue if already started",
+            description: "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
+        },
+        { value: "cancel", label: "Cancel", description: "Cancel the review" },
     ];
 
     const accessLevelOptionList: AccessLevelOption[] = [
@@ -329,6 +348,7 @@
             prReviewEnabled,
             prInlineReview,
             prReviewOnPush,
+            prReviewOnClose,
             prIgnoreDraft,
             prAllowedTargetBranchList: allowedTargetBranchText
                 .split(",")
@@ -565,6 +585,23 @@
                                         description={o.description}
                                         selected={prReviewOnPush === o.value}
                                         onclick={() => (prReviewOnPush = o.value)} />
+                                {/each}
+                            </div>
+                        {/snippet}
+                    </FormField>
+                    <FormField
+                        label="When a pull request is merged or closed"
+                        description="What happens to a review that is still running"
+                        linkLabelToControl={false}
+                        upper>
+                        {#snippet children({ id: _id })}
+                            <div class="flex flex-col gap-2" id={_id} role="group">
+                                {#each reviewOnCloseOptionList as o}
+                                    <SimpleSelectCard
+                                        label={o.label}
+                                        description={o.description}
+                                        selected={prReviewOnClose === o.value}
+                                        onclick={() => (prReviewOnClose = o.value)} />
                                 {/each}
                             </div>
                         {/snippet}

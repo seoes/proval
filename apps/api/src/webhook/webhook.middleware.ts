@@ -1,9 +1,76 @@
-import type { ModelProvider, Repository } from "@proval/types";
+import type { ModelProvider, PrReviewOnClose, Repository } from "@proval/types";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
+import { ActivityService } from "../api/activity/activity.service.js";
 import { log } from "../util/log.js";
 import { resolveForgejoWebhookEvent } from "../util/webhook-controller.js";
+
+const CANCELED_MERGED_REASON = "Canceled because the pull request was merged";
+const CANCELED_CLOSED_REASON = "Canceled because the pull request was closed";
+
+type ClosedPullRequestResolution =
+    | { kind: "not_applicable" }
+    | { kind: "no_number" }
+    | { kind: "closed"; targetIid: number; outcome: "merged" | "closed" };
+
+function resolveClosedPullRequest(c: Context, provider: Repository["provider"]): ClosedPullRequestResolution {
+    if (provider === "gitlab") {
+        const webhookEvent = c.req.header("X-Gitlab-Event") ?? "";
+        if (webhookEvent !== "Merge Request Hook") {
+            return { kind: "not_applicable" };
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payload = c.get("gitlabPayload") as any;
+        const action = payload?.object_attributes?.action;
+        if (action !== "close" && action !== "merge") {
+            return { kind: "not_applicable" };
+        }
+        const iid = payload?.object_attributes?.iid;
+        if (typeof iid !== "number") {
+            return { kind: "no_number" };
+        }
+        return { kind: "closed", targetIid: iid, outcome: action === "merge" ? "merged" : "closed" };
+    }
+
+    const isForgejo = provider === "forgejo";
+    const webhookEvent = isForgejo ? resolveForgejoWebhookEvent(c) : (c.req.header("X-GitHub-Event") ?? "");
+    if (webhookEvent !== "pull_request" && webhookEvent !== "pull_request_sync") {
+        return { kind: "not_applicable" };
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
+    const action = payload?.action ?? "";
+    if (isForgejo && action === "merged") {
+        const number = payload?.pull_request?.number ?? payload?.number;
+        if (typeof number !== "number") {
+            return { kind: "no_number" };
+        }
+        return { kind: "closed", targetIid: number, outcome: "merged" };
+    }
+    if (action !== "closed") {
+        return { kind: "not_applicable" };
+    }
+    const number = payload?.pull_request?.number ?? payload?.number;
+    if (typeof number !== "number") {
+        return { kind: "no_number" };
+    }
+    const merged = payload?.pull_request?.merged === true;
+    return { kind: "closed", targetIid: number, outcome: merged ? "merged" : "closed" };
+}
+
+function sortInFlightPullRequestReviewList<T extends { id: number; status: string }>(activityList: T[]): T[] {
+    return [...activityList].sort((left, right) => {
+        const statusRank = (status: string) => (status === "queued" ? 0 : 1);
+        const byStatus = statusRank(left.status) - statusRank(right.status);
+        if (byStatus !== 0) {
+            return byStatus;
+        }
+        return left.id - right.id;
+    });
+}
+
+const activityService = new ActivityService();
 
 export type WebhookIngress = {
     webhookEvent: string;
@@ -138,4 +205,56 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
     for (const line of lineList) log(line);
 
     await next();
+});
+
+export const handleClosedPullRequestReview = createMiddleware(async (c, next) => {
+    const repository = c.get("repository") as Repository;
+    const resolution = resolveClosedPullRequest(c, repository.provider);
+
+    if (resolution.kind === "not_applicable") {
+        await next();
+        return;
+    }
+    if (resolution.kind === "no_number") {
+        return c.json({ message: "No pull request number" }, 200);
+    }
+
+    const policy: PrReviewOnClose = repository.prReviewOnClose;
+    if (policy === "continue") {
+        return c.json({ message: "Skipped: continue after close" }, 200);
+    }
+
+    const activityList = await activityService.findInFlightPullRequestReviewList(repository.id, resolution.targetIid);
+    const hasStartedReview = activityList.some((activity) => activity.status === "started");
+    if (policy === "continue_if_started" && hasStartedReview) {
+        return c.json({ message: "Skipped: review already started" }, 200);
+    }
+
+    const cancelTargetList = sortInFlightPullRequestReviewList(activityList);
+
+    const cancelReason = resolution.outcome === "merged" ? CANCELED_MERGED_REASON : CANCELED_CLOSED_REASON;
+    let canceledCount = 0;
+
+    for (const activity of cancelTargetList) {
+        try {
+            await activityService.cancel(activity.id, cancelReason);
+            canceledCount++;
+        } catch (error) {
+            if (!(error instanceof Error)) {
+                throw error;
+            }
+            if (
+                error.message === "Activity not found" ||
+                error.message === "Only queued or started activities can be canceled"
+            ) {
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    if (canceledCount > 0) {
+        return c.json({ message: "Canceled in-flight review" }, 200);
+    }
+    return c.json({ message: "Skipped: no review to cancel" }, 200);
 });

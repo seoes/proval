@@ -96,6 +96,7 @@ export const gitProviderAccessTable = sqliteTable(
         defaultPrReviewEnabled: integer({ mode: "boolean" }),
         defaultPrInlineReview: integer({ mode: "boolean" }),
         defaultPrReviewOnPush: text({ enum: ["on_first_push", "on_every_push"] }),
+        defaultPrReviewOnClose: text({ enum: ["continue", "continue_if_started", "cancel"] }).default("continue"),
         defaultPrIgnoreDraft: integer({ mode: "boolean" }),
         defaultPrReplyEnabled: integer({ mode: "boolean" }),
         defaultPrMentionOnly: integer({ mode: "boolean" }),
@@ -151,6 +152,9 @@ export const repositoryTable = sqliteTable(
         prReviewOnPush: text({ enum: ["on_first_push", "on_every_push"] })
             .notNull()
             .default("on_every_push"),
+        prReviewOnClose: text({ enum: ["continue", "continue_if_started", "cancel"] })
+            .notNull()
+            .default("continue"),
         prIgnoreDraft: integer({ mode: "boolean" }).notNull().default(true),
         prAllowedTargetBranchList: text({ mode: "json" }).$type<string[]>().notNull().default([]),
         userPrompt: text(),

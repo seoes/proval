@@ -38,6 +38,7 @@ export type {
     AccessProvider,
     LlmApiProvider,
     PrReviewOnPush,
+    PrReviewOnClose,
     ReasoningEffort,
     GitProviderRepositoryListResponse,
     RepositorySelectItem,

@@ -101,10 +101,16 @@ export async function runAgentLoop(
     const compressRatio = 0.5;
 
     async function stopIfCanceled(): Promise<void> {
-        if (await activityService.isCanceled(activityId)) {
-            logAgent(activityId, "Job canceled by user. Stopping agent loop.", label);
-            throw new JobCanceledError();
+        if (!(await activityService.isCanceled(activityId))) {
+            return;
         }
+        const activity = await activityService.findById(activityId);
+        const detail = activity?.errorMessage?.trim();
+        const message = detail
+            ? `Job canceled by user. Stopping agent loop. ${detail}`
+            : "Job canceled by user. Stopping agent loop.";
+        logAgent(activityId, message, label);
+        throw new JobCanceledError();
     }
 
     try {
