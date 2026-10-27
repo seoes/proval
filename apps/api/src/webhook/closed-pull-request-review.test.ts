@@ -36,7 +36,13 @@ if (process.env.PROVAL_CLOSED_PR_REVIEW_TEST_CHILD !== "1") {
     let cancelSpy: ReturnType<typeof spyOn>;
     let fixtureCounter = 0;
 
-    const app = new Hono();
+    const app = new Hono<{
+        Variables: {
+            gitlabPayload: unknown;
+            repository: RepositoryRow;
+            modelProvider: { id: number };
+        };
+    }>();
     app.post("/hook", async (c, next) => {
         const payload = await c.req.json();
         c.set("gitlabPayload", payload);
