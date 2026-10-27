@@ -36,6 +36,11 @@
     const typeLabel = $derived(activityTypeLabel(review.type));
     const detailTimeLabelOption = { absoluteAfterMinutes: 60 };
     const formatDetailTime = (date: Date) => formatTimeAgo(date, detailTimeLabelOption);
+    const isSameSecond = (a: Date | string, b: Date | string) =>
+        Math.trunc(new Date(a).getTime() / 1000) === Math.trunc(new Date(b).getTime() / 1000);
+    const showQueuedAtBeforeStarted = $derived(
+        review.startedAt != null && !isSameSecond(review.createdAt, review.startedAt),
+    );
 
     let runningClockMs = $state(Date.now());
     $effect(() => {
@@ -310,11 +315,14 @@
                         <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
                     </div>
                 {:else if review.status === "started"}
-                    <div>
-                        <span class="text-muted-foreground">Queued at</span>
-                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
-                    </div>
                     {#if review.startedAt}
+                        {#if showQueuedAtBeforeStarted}
+                            <div>
+                                <span class="text-muted-foreground">Queued at</span>
+                                <span class="ml-1.5 text-secondary-foreground"
+                                    >{formatDetailTime(review.createdAt)}</span>
+                            </div>
+                        {/if}
                         <div>
                             <span class="text-muted-foreground">Started at</span>
                             <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
@@ -328,14 +336,22 @@
                         </div>
                     {/if}
                 {:else if showFinishedTimeline}
-                    <div>
-                        <span class="text-muted-foreground">Queued at</span>
-                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
-                    </div>
                     {#if review.startedAt}
+                        {#if showQueuedAtBeforeStarted}
+                            <div>
+                                <span class="text-muted-foreground">Queued at</span>
+                                <span class="ml-1.5 text-secondary-foreground"
+                                    >{formatDetailTime(review.createdAt)}</span>
+                            </div>
+                        {/if}
                         <div>
                             <span class="text-muted-foreground">Started at</span>
                             <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
+                        </div>
+                    {:else}
+                        <div>
+                            <span class="text-muted-foreground">Queued at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
                         </div>
                     {/if}
                     {#if finishedDurationLabel}
