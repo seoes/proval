@@ -62,9 +62,12 @@
             ? formatDuration(review.startedAt, review.completedAt)
             : null,
     );
+    const showStatusMessage = $derived(
+        (review.status === "failed" || review.status === "canceled") && Boolean(review.errorMessage),
+    );
     const showFullErrorButton = $derived.by(() => {
         const message = review.errorMessage;
-        if (review.status !== "failed" || !message) {
+        if (!showStatusMessage || !message) {
             return false;
         }
         return message.split("\n").length > 5 || message.length > 400;
@@ -346,15 +349,24 @@
             </div>
         </div>
 
-        {#if review.status === "failed" && review.errorMessage}
-            <div class="mt-3 rounded-md bg-destructive-muted px-3 py-2">
-                <p class="line-clamp-5 text-sm break-words whitespace-pre-wrap text-destructive">
+        {#if showStatusMessage}
+            <div
+                class="mt-3 rounded-md px-3 py-2 {review.status === 'failed'
+                    ? 'bg-destructive-muted'
+                    : 'bg-muted'}">
+                <p
+                    class="line-clamp-5 text-sm break-words whitespace-pre-wrap {review.status === 'failed'
+                        ? 'text-destructive'
+                        : 'text-secondary-foreground'}">
                     {review.errorMessage}
                 </p>
                 {#if showFullErrorButton}
                     <button
                         type="button"
-                        class="mt-1.5 cursor-pointer text-xs font-medium text-destructive underline-offset-2 hover:underline"
+                        class="mt-1.5 cursor-pointer text-xs font-medium underline-offset-2 hover:underline {review.status ===
+                        'failed'
+                            ? 'text-destructive'
+                            : 'text-secondary-foreground'}"
                         onclick={() => (errorModalOpen = true)}>
                         View full
                     </button>
@@ -507,11 +519,16 @@
     </div>
 </DefaultLayout>
 
-{#if review.errorMessage}
+{#if review.errorMessage && showStatusMessage}
     <Modal bind:open={errorModalOpen} class="max-w-2xl">
-        <h3 class="mb-3 text-lg font-semibold tracking-tight text-foreground">Error</h3>
+        <h3 class="mb-3 text-lg font-semibold tracking-tight text-foreground">
+            {review.status === "canceled" ? "Canceled" : "Error"}
+        </h3>
         <pre
-            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md bg-destructive-muted px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap text-destructive">{review.errorMessage}</pre>
+            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap {review.status ===
+            'canceled'
+                ? 'bg-muted text-secondary-foreground'
+                : 'bg-destructive-muted text-destructive'}">{review.errorMessage}</pre>
         <div class="mt-6 flex justify-end">
             <Button primary onclick={() => (errorModalOpen = false)}>Close</Button>
         </div>

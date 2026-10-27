@@ -775,12 +775,31 @@ export class ActivityService {
         activityQueue.drain();
     }
 
-    public async cancel(id: number): Promise<void> {
+    public async findInFlightPullRequestReviewList(
+        repositoryId: number,
+        targetIid: number,
+    ): Promise<ActivityResponse[]> {
+        return db
+            .select(activityWithoutLogs)
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    inArray(activityTable.status, ["queued", "started"]),
+                ),
+            );
+    }
+
+    public async cancel(id: number, reason?: string): Promise<void> {
+        const trimmedReason = reason?.trim();
         const result = await db
             .update(activityTable)
             .set({
                 status: "canceled",
                 completedAt: new Date(),
+                ...(trimmedReason ? { errorMessage: trimmedReason } : {}),
             })
             .where(and(eq(activityTable.id, id), inArray(activityTable.status, ["queued", "started"])))
             .returning({ id: activityTable.id });

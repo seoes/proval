@@ -132,6 +132,7 @@ export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type LlmApiProvider = ModelProvider["provider"];
 export type PrReviewOnPush = Repository["prReviewOnPush"];
+export type PrReviewOnClose = Repository["prReviewOnClose"];
 export type ReasoningEffort = Repository["reasoningEffort"];
 
 // Composite / list API types

@@ -121,6 +121,7 @@
             prReviewEnabled: data.repository.prReviewEnabled,
             prInlineReview: data.repository.prInlineReview,
             prReviewOnPush: data.repository.prReviewOnPush,
+            prReviewOnClose: data.repository.prReviewOnClose,
             prIgnoreDraft: data.repository.prIgnoreDraft,
             prAllowedTargetBranchList: data.repository.prAllowedTargetBranchList,
             userPrompt: data.repository.userPrompt,

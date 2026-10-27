@@ -121,6 +121,7 @@ if (process.env.PROVAL_WEBHOOK_TEST_CHILD !== "1") {
         defaultPrReviewEnabled: true,
         defaultPrInlineReview: true,
         defaultPrReviewOnPush: "on_every_push",
+        defaultPrReviewOnClose: "continue",
         defaultPrIgnoreDraft: true,
         defaultPrReplyEnabled: true,
         defaultPrMentionOnly: false,

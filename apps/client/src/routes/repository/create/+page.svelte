@@ -182,6 +182,7 @@
                     prReviewEnabled: true,
                     prInlineReview: true,
                     prReviewOnPush: "on_every_push",
+                    prReviewOnClose: "continue",
                     prIgnoreDraft: true,
                     prAllowedTargetBranchList: [],
                     userPrompt: null,

@@ -19,6 +19,7 @@
         AccessUpdateInput,
         ModelProviderModelListResponse,
         ModelProviderResponse,
+        PrReviewOnClose,
         PrReviewOnPush,
     } from "@proval/types";
 
@@ -47,6 +48,7 @@
     let prReviewEnabled = $state(true);
     let prInlineReview = $state(true);
     let prReviewOnPush = $state<PrReviewOnPush>("on_every_push");
+    let prReviewOnClose = $state<PrReviewOnClose>("continue");
     let prIgnoreDraft = $state(true);
     let prReplyEnabled = $state(true);
     let prMentionOnly = $state(false);
@@ -93,6 +95,16 @@
             description: "Review once when the first meaningful push or ready transition arrives",
         },
         { value: "on_every_push", label: "Every push", description: "Review on each push" },
+    ];
+
+    const reviewOnCloseOptionList: { value: PrReviewOnClose; label: string; description: string }[] = [
+        { value: "continue", label: "Continue", description: "Finish and post the review" },
+        {
+            value: "continue_if_started",
+            label: "Continue if already started",
+            description: "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
+        },
+        { value: "cancel", label: "Cancel", description: "Cancel the review" },
     ];
 
     const modelProviderSelectOptionList = $derived(
@@ -147,6 +159,7 @@
         prReviewEnabled = item.defaultPrReviewEnabled ?? true;
         prInlineReview = item.defaultPrInlineReview ?? true;
         prReviewOnPush = item.defaultPrReviewOnPush ?? "on_every_push";
+        prReviewOnClose = item.defaultPrReviewOnClose ?? "continue";
         prIgnoreDraft = item.defaultPrIgnoreDraft ?? true;
         prReplyEnabled = item.defaultPrReplyEnabled ?? true;
         prMentionOnly = item.defaultPrMentionOnly ?? false;
@@ -225,6 +238,7 @@
                 body.defaultPrReviewEnabled = prReviewEnabled;
                 body.defaultPrInlineReview = prInlineReview;
                 body.defaultPrReviewOnPush = prReviewOnPush;
+                body.defaultPrReviewOnClose = prReviewOnClose;
                 body.defaultPrIgnoreDraft = prIgnoreDraft;
                 body.defaultPrReplyEnabled = prReplyEnabled;
                 body.defaultPrMentionOnly = prMentionOnly;
@@ -424,6 +438,23 @@
                                                 description={option.description}
                                                 selected={prReviewOnPush === option.value}
                                                 onclick={() => (prReviewOnPush = option.value)} />
+                                        {/each}
+                                    </div>
+                                {/snippet}
+                            </FormField>
+                            <FormField
+                                label="When a pull request is merged or closed"
+                                description="What happens to a review that is still running"
+                                linkLabelToControl={false}
+                                upper>
+                                {#snippet children({ id: groupId })}
+                                    <div class="flex flex-col gap-2" id={groupId} role="group">
+                                        {#each reviewOnCloseOptionList as option}
+                                            <SimpleSelectCard
+                                                label={option.label}
+                                                description={option.description}
+                                                selected={prReviewOnClose === option.value}
+                                                onclick={() => (prReviewOnClose = option.value)} />
                                         {/each}
                                     </div>
                                 {/snippet}
