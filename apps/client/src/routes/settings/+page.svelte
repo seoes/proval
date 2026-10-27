@@ -207,12 +207,13 @@
             </Card>
         {/if}
 
-        {#if canEditSettings && isLoggedIn}
-            <div class="flex justify-end">
+        <div class="flex items-center justify-between">
+            <span class="text-xs text-muted-foreground">{__PROVAL_VERSION__}</span>
+            {#if canEditSettings && isLoggedIn}
                 <Button primary disabled={!isDirty || isSaving} onclick={onSave}>
                     {isSaving ? "Saving…" : "Save"}
                 </Button>
-            </div>
-        {/if}
+            {/if}
+        </div>
     </div>
 </DefaultLayout>
