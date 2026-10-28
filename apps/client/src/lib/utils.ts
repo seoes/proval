@@ -1,5 +1,3 @@
-import { demoFetch } from "./demo/fetch.js";
-import { isDemoMode } from "./demo/enabled.js";
 import { formatLocalDateOnly, formatLocalDateTime } from "./utils/date.js";
 
 export type FormatTimeAgoOptions = {
@@ -8,7 +6,8 @@ export type FormatTimeAgoOptions = {
 };
 
 const fetchApi = async (path: string, options: RequestInit = {}) => {
-    if (isDemoMode()) {
+    if (__PROVAL_DEMO_BUILD__) {
+        const { demoFetch } = await import("./demo/fetch.js");
         return demoFetch(path, options);
     }
     const response = await fetch(`/api${path}`, {
