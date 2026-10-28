@@ -37,7 +37,7 @@
     const detailTimeLabelOption = { absoluteAfterMinutes: 60 };
     const formatDetailTime = (date: Date) => formatTimeAgo(date, detailTimeLabelOption);
     const isSameSecond = (a: Date | string, b: Date | string) =>
-        Math.trunc(new Date(a).getTime() / 1000) === Math.trunc(new Date(b).getTime() / 1000);
+        Math.abs(Math.trunc(new Date(a).getTime() / 1000) - Math.trunc(new Date(b).getTime() / 1000)) <= 5;
     const showQueuedAtBeforeStarted = $derived(
         review.startedAt != null && !isSameSecond(review.createdAt, review.startedAt),
     );
@@ -331,8 +331,7 @@
                     {#if runningDurationLabel}
                         <div>
                             <span class="text-muted-foreground">Duration</span>
-                            <span class="ml-1.5 font-medium text-foreground tabular-nums"
-                                >{runningDurationLabel}</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums">{runningDurationLabel}</span>
                         </div>
                     {/if}
                 {:else if showFinishedTimeline}
@@ -357,8 +356,7 @@
                     {#if finishedDurationLabel}
                         <div>
                             <span class="text-muted-foreground">Duration</span>
-                            <span class="ml-1.5 font-medium text-foreground tabular-nums"
-                                >{finishedDurationLabel}</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums">{finishedDurationLabel}</span>
                         </div>
                     {/if}
                 {/if}
@@ -366,10 +364,7 @@
         </div>
 
         {#if showStatusMessage}
-            <div
-                class="mt-3 rounded-md px-3 py-2 {review.status === 'failed'
-                    ? 'bg-destructive-muted'
-                    : 'bg-muted'}">
+            <div class="mt-3 rounded-md px-3 py-2 {review.status === 'failed' ? 'bg-destructive-muted' : 'bg-muted'}">
                 <p
                     class="line-clamp-5 text-sm break-words whitespace-pre-wrap {review.status === 'failed'
                         ? 'text-destructive'
