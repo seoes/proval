@@ -15,7 +15,7 @@ function mockActivityService(overrides: {
         findLastReviewedHeadSha: async () => overrides.lastHeadSha ?? null,
         hasCompletedPullRequestReview: async () => overrides.hasCompleted ?? false,
         hasQueuedOrStartedPullRequestReview: async () => overrides.hasQueuedOrStarted ?? false,
-    } as ActivityService;
+    } as unknown as ActivityService;
 }
 
 describe("skipPullRequestReviewBeforeQueue", () => {
