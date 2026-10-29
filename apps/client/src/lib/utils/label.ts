@@ -56,6 +56,10 @@ export function activityTargetLabel(type: ActivityResponse["type"], targetIid: n
     return `#${targetIid}`;
 }
 
+export function activityModelLabel(activity: Pick<ActivityResponse, "modelName" | "reasoningEffort">): string {
+    return `${activity.modelName} (${activity.reasoningEffort ?? "Default"})`;
+}
+
 export function truncateUrl(url: string, max = 40): string {
     if (url.length <= max) return url;
     return `${url.slice(0, max)}…`;

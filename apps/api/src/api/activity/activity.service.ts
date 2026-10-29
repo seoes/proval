@@ -694,7 +694,11 @@ export class ActivityService {
 
     public async start(input: ActivityStartInput, status: "queued" | "started" = "started"): Promise<number> {
         const [repository] = await db
-            .select({ path: repositoryTable.path, provider: repositoryTable.provider })
+            .select({
+                path: repositoryTable.path,
+                provider: repositoryTable.provider,
+                reasoningEffort: repositoryTable.reasoningEffort,
+            })
             .from(repositoryTable)
             .where(eq(repositoryTable.id, input.repositoryId));
 
@@ -708,6 +712,7 @@ export class ActivityService {
                 ...input,
                 repositoryPath: repository.path,
                 provider: repository.provider,
+                reasoningEffort: repository.reasoningEffort,
                 logVersion: "1",
                 status,
                 startedAt: status === "started" ? new Date() : null,
@@ -835,7 +840,7 @@ export class ActivityService {
             const modelProvider = await new ModelProviderService().findById(activity.modelProviderId);
             const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
             const workspace = new Workspace(gitProvider);
-            const llmSender = createModelProviderSender(modelProvider, activity.modelName, repository.reasoningEffort);
+            const llmSender = createModelProviderSender(modelProvider, activity.modelName, activity.reasoningEffort);
 
             if (activity.type === "pr_review") {
                 const previousHeadSha = await this.findLastReviewedHeadSha(activity.repositoryId, activity.targetIid);

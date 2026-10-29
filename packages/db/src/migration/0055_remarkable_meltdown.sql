@@ -1,0 +1,1 @@
+ALTER TABLE `activity` ADD `reasoning_effort` text;

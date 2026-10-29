@@ -6,7 +6,7 @@
     import Button from "$lib/components/atom/Button.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Modal from "$lib/components/atom/Modal.svelte";
-    import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
+    import { activityModelLabel, activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
     import { activityTargetWebUrl, viewInProviderLabel } from "../../repository/[id]/load.js";
@@ -301,7 +301,7 @@
                     <span class="text-border-strong">·</span>
                     {typeLabel}
                     <span class="text-border-strong">·</span>
-                    {review.modelName}
+                    {activityModelLabel(review)}
                     {#if review.headSha}
                         <span class="text-border-strong">·</span>
                         <span class="font-mono text-secondary-foreground">{review.headSha.slice(0, 7)}</span>

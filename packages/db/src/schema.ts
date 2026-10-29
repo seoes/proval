@@ -207,6 +207,7 @@ export const activityTable = sqliteTable(
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
         modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
+        reasoningEffort: text({ enum: reasoningEffortValueList }),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
         status: text({ enum: ["queued", "started", "completed", "failed", "canceled"] }).notNull(),
         targetIid: integer().notNull(),
