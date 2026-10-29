@@ -8,6 +8,11 @@ import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 interface ForgejoPullRequestPayload {
     action: string;
@@ -136,6 +141,8 @@ const handleForgejoPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
 
+    const reviewMode = repository.prReviewOnPush;
+
     const allowedAction =
         action === "opened" ||
         action === "reopened" ||
@@ -179,32 +186,34 @@ const handleForgejoPullRequestWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
+    const isReopen = isPullRequestReopenAction(action, "forgejo");
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "forgejo",
+            action,
+            pullRequestState: pr.state,
+        })
+    ) {
+        log(`Skipped: pull request is closed - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
+    }
+
     const activityService = new ActivityService();
     const prNumber = pr.number;
-    const reviewMode = repository.prReviewOnPush;
-
-    if (reviewMode === "on_first_push") {
-        if (
-            (await activityService.hasCompletedPullRequestReview(repository.id, prNumber)) ||
-            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prNumber))
-        ) {
-            log(`Skipped: already reviewed (on_first_push) - ${prInfo}`, "Forgejo");
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
-    }
 
     const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
     const headSha = pr.head?.sha ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            log(`Skipped: head already reviewed - ${prInfo}`, "Forgejo");
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prNumber,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        log(`${skipMessage} - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     if ((await forgejoProvider.fetchPullRequestChangedFileCount(prNumber)) === 0) {

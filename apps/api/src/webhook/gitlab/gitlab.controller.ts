@@ -17,6 +17,11 @@ import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -148,29 +153,33 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
+    const isReopen = isPullRequestReopenAction(action, "gitlab");
+    const pullRequestState = (pullRequest as { state?: string }).state;
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "gitlab",
+            action,
+            pullRequestState,
+        })
+    ) {
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
+    }
+
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
-
-    if (reviewMode === "on_first_push") {
-        if (
-            (await activityService.hasCompletedPullRequestReview(repository.id, prIid)) ||
-            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prIid))
-        ) {
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
-    }
 
     const version = await gitlabProvider.fetchPullRequestVersion(prIid);
     const headSha = (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prIid,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     const changedFileCount = await gitlabProvider.fetchPullRequestChangedFileCount(prIid);

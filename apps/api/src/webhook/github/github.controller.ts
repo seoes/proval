@@ -10,6 +10,11 @@ import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
@@ -19,6 +24,7 @@ type PullRequestWebhookPayload = {
         draft?: boolean;
         base?: { ref?: string };
         head?: { sha?: string };
+        state?: string;
         user?: { login?: string };
     };
 };
@@ -165,27 +171,30 @@ async function handlePullRequestWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const activityService = new ActivityService();
-    if (reviewMode === "on_first_push") {
-        if (
-            (await activityService.hasCompletedPullRequestReview(repository.id, prNumber)) ||
-            (await activityService.hasQueuedOrStartedPullRequestReview(repository.id, prNumber))
-        ) {
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
+    const isReopen = isPullRequestReopenAction(action, "github");
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "github",
+            action,
+            pullRequestState: payload.pull_request?.state,
+        })
+    ) {
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
     }
 
+    const activityService = new ActivityService();
     const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request?.head?.sha ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prNumber,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     const changedFileCount = await gitHubProvider.fetchPullRequestChangedFileCount(prNumber);
