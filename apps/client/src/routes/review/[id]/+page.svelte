@@ -20,7 +20,7 @@
     import { readReviewListBackHref } from "../filterQuery.js";
     import { untrack } from "svelte";
     import { CaretRightIcon, WrenchIcon } from "phosphor-svelte";
-    import { serializeActivityLogList } from "./activity-log.js";
+    import { CODE_HIGHLIGHT_CLASS, serializeActivityLogList } from "./activity-log.js";
     import { toolIconRecord, transformToolName } from "$lib/utils/tool.js";
 
     const POLL_MS = 1000;
@@ -478,9 +478,7 @@
                                                             >{formatLogTime(entry.timestamp)}</span>
                                                     </span>
                                                     <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes the argument text before adding markup -->
-                                                    <code
-                                                        class="whitespace-pre-wrap [&_.hljs-attr]:text-primary-text [&_.hljs-literal]:text-violet-700 dark:[&_.hljs-literal]:text-violet-300 [&_.hljs-number]:text-warning [&_.hljs-punctuation]:text-secondary-foreground [&_.hljs-string]:text-success"
-                                                        >{@html row.argumentHtml}</code>
+                                                    <code class={CODE_HIGHLIGHT_CLASS}>{@html row.argumentHtml}</code>
                                                     <!-- eslint-enable svelte/no-at-html-tags -->
                                                 </span>
                                                 <CaretRightIcon
@@ -497,8 +495,15 @@
                                                         <!-- <span class="block font-semibold">Result</span> -->
                                                         <div
                                                             class="rounded-sm border border-border bg-card px-2 py-1.5 text-secondary-foreground">
-                                                            <span class="whitespace-pre-wrap"
-                                                                >{row.result.message}</span>
+                                                            {#if row.resultHtml}
+                                                                <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes text before adding markup -->
+                                                                <code class={CODE_HIGHLIGHT_CLASS}
+                                                                    >{@html row.resultHtml}</code>
+                                                                <!-- eslint-enable svelte/no-at-html-tags -->
+                                                            {:else}
+                                                                <span class="whitespace-pre-wrap"
+                                                                    >{row.result.message}</span>
+                                                            {/if}
                                                         </div>
                                                     </div>
                                                 {:else}

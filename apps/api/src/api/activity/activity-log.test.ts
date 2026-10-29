@@ -440,7 +440,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
         });
 
         it("truncates only the stored text and keeps untrusted wrapping in the model context", async () => {
-            const content = "x".repeat(1200);
+            const content = "x".repeat(32001);
             const result = await runAgentLoop(createSender([call]), "system", "prompt", "Plan", {
                 activityId,
                 toolList: [
@@ -454,7 +454,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
                 ],
             });
             const logList = await readToolLogList();
-            expect(logList[1]).toMatchObject({ type: "tool-result", message: `${content.slice(0, 1000)}…` });
+            expect(logList[1]).toMatchObject({ type: "tool-result", message: `${content.slice(0, 32000)}…` });
             expect(logList[1]).not.toHaveProperty("truncated");
             expect(result.messages.find((message) => message.role === "tool")?.content).toBe(
                 wrapUntrustedToolContent(content),
