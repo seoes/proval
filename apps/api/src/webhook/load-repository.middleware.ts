@@ -89,7 +89,11 @@ export const loadRepository = createMiddleware(async (c, next) => {
             if (!repositoryColumnKeySet.has(repositoryKey)) {
                 continue;
             }
-            defaultConfigPolicy[repositoryKey] = access[defaultKey as keyof Access];
+            const value = access[defaultKey as keyof Access];
+            if (value === null || value === undefined) {
+                continue;
+            }
+            defaultConfigPolicy[repositoryKey] = value;
         }
         const insert: RepositoryInsert = {
             ...defaultConfigPolicy,
@@ -139,7 +143,7 @@ export const loadRepository = createMiddleware(async (c, next) => {
     } else {
         c.set("repository", repository);
     }
-    c.set("modelProvider", { ...modelProvider, apiKey: decrypt(modelProvider.apiKey) });
+    c.set("modelProvider", modelProvider);
     c.set("access", { ...access, accessToken: decrypt(access.accessToken) });
 
     await next();

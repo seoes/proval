@@ -1,18 +1,26 @@
 import type { ReasoningEffort } from "@proval/types";
 import type { LlmSender } from "./loop.js";
 import { createOpenAiSender } from "./openai.js";
+import { createOpenAiResponsesSender } from "./openai-responses.js";
 import { createAnthropicSender } from "./anthropic.js";
+import { createXaiSender } from "./xai.js";
+import { loadLimiter, type Limiter } from "./concurrency.js";
 
 export interface SenderConfig {
-    provider: string;
+    provider: "openai" | "openai_responses" | "anthropic" | "xai";
     apiKey: string;
     baseURL: string;
     model: string;
     timeoutSecond: number;
+    maxOutputToken?: number;
     reasoningEffort?: ReasoningEffort;
+    maxRetries?: number;
+    modelProviderId?: number;
+    concurrency?: number | null;
+    getAccessToken?: (rejectedAccessToken?: string) => Promise<string>;
 }
 
-export type SenderSDKConfig = Omit<SenderConfig, "provider"> & {
+export type SenderSDKConfig = Omit<SenderConfig, "provider" | "modelProviderId" | "concurrency" | "getAccessToken"> & {
     fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 };
 
@@ -28,13 +36,38 @@ function createLLMFetch() {
     };
 }
 
+function withConcurrencyLimit(sender: LlmSender, limiter: Limiter): LlmSender {
+    return {
+        send: (messages, tools) => limiter.run(() => sender.send(messages, tools)),
+        getModel: () => sender.getModel(),
+    };
+}
+
 export function createSender(config: SenderConfig): LlmSender {
+    const { modelProviderId, concurrency, provider, getAccessToken, ...sdkConfig } = config;
+    const limiter = loadLimiter(modelProviderId, concurrency);
+    if (provider === "xai") {
+        if (!getAccessToken) throw new Error("xAI access token callback is missing");
+        return withConcurrencyLimit(
+            createXaiSender({
+                getAccessToken,
+                model: config.model,
+                timeoutSecond: config.timeoutSecond,
+                reasoningEffort: config.reasoningEffort,
+            }),
+            limiter,
+        );
+    }
+
     const fetch = createLLMFetch();
-    switch (config.provider) {
+    const sdk = { ...sdkConfig, fetch };
+    switch (provider) {
+        case "openai_responses":
+            return withConcurrencyLimit(createOpenAiResponsesSender(sdk), limiter);
         case "anthropic":
-            return createAnthropicSender({ ...config, fetch });
+            return withConcurrencyLimit(createAnthropicSender(sdk), limiter);
         case "openai":
         default:
-            return createOpenAiSender({ ...config, fetch });
+            return withConcurrencyLimit(createOpenAiSender(sdk), limiter);
     }
 }

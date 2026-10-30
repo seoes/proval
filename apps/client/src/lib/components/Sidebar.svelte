@@ -2,7 +2,15 @@
     import { page } from "$app/stores";
     import ProvalMark from "$lib/components/atom/ProvalMark.svelte";
     import ThemeToggle from "$lib/components/atom/ThemeToggle.svelte";
-    import { HouseIcon, GitForkIcon, CubeIcon, GitBranchIcon, ChatCircleTextIcon, GearIcon } from "phosphor-svelte";
+    import {
+        HouseIcon,
+        GitForkIcon,
+        CubeIcon,
+        GitBranchIcon,
+        ChatCircleTextIcon,
+        GearIcon,
+        UsersIcon,
+    } from "phosphor-svelte";
     import type { Component } from "svelte";
 
     interface SidebarItem {
@@ -51,6 +59,11 @@
                     icon: CubeIcon,
                 },
                 {
+                    label: "User",
+                    href: "/user",
+                    icon: UsersIcon,
+                },
+                {
                     label: "Settings",
                     href: "/settings",
                     icon: GearIcon,
@@ -79,26 +92,30 @@
                 <!-- <h2 class="h-6 leading-6 tracking-tight cursor-default text-muted-foreground text-sm px-2">{itemGroup.label}</h2> -->
                 <ul class="space-y-1">
                     {#each itemGroup.items as item}
-                        <li>
-                            <a class="" href={item.href}>
-                                <span
-                                    class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm tracking-wide transition-colors hover:bg-sidebar-primary hover:text-sidebar-primary-foreground {isActive(
-                                        item.href,
-                                        $page.url.pathname,
-                                    )
-                                        ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                                        : 'text-muted-foreground'}">
-                                    <svelte:component this={item.icon} class="size-5" />
-                                    {item.label}
-                                </span>
-                            </a>
-                        </li>
+                        {#if item.href === "/user" && $page.data.auth?.user?.role !== "admin"}
+                            <!-- skip non-admin -->
+                        {:else}
+                            <li>
+                                <a class="" href={item.href}>
+                                    <span
+                                        class="flex h-10 items-center gap-2 rounded-md px-3.5 text-sm tracking-wide transition-colors hover:bg-sidebar-primary hover:text-sidebar-primary-foreground {isActive(
+                                            item.href,
+                                            $page.url.pathname,
+                                        )
+                                            ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                                            : 'text-muted-foreground'}">
+                                        <svelte:component this={item.icon} class="size-5" />
+                                        {item.label}
+                                    </span>
+                                </a>
+                            </li>
+                        {/if}
                     {/each}
                 </ul>
             </div>
         {/each}
     </div>
-    <div class="mt-auto flex pt-6">
+    <div class="mt-auto flex cursor-default items-center">
         <ThemeToggle side="top" align="start" />
     </div>
 </div>

@@ -20,6 +20,9 @@ export type {
     SessionInsert,
     RepositoryResponse,
     ModelProviderResponse,
+    ModelProviderCreateInput,
+    XaiOAuthAttemptInput,
+    XaiOAuthAttemptResponse,
     AccessResponse,
     GitHubAppResponse,
     GitHubInstallationResponse,
@@ -35,6 +38,7 @@ export type {
     AccessProvider,
     LlmApiProvider,
     PrReviewOnPush,
+    PrReviewOnClose,
     ReasoningEffort,
     GitProviderRepositoryListResponse,
     RepositorySelectItem,
@@ -71,4 +75,5 @@ export type {
     ActivityLogEntry,
     ActivityLogResponse,
     ActivityResponse,
+    ActivityStatusResponse,
 } from "./activity-log.js";

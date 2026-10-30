@@ -81,7 +81,7 @@ Review permissions on GitHub and click **Create GitHub App**. You return to Prov
 4. **Test Connection**, **Save**
 5. Connect account and add repositories as in Steps 3 and 4
 
-The app must subscribe to **`pull_request`** and **`issue_comment`** (quick setup sets these automatically). The `pull_request` subscription covers open, synchronize (push), reopen, and ready for review so Proval can review on first push or every push per repository settings. Draft pull requests are skipped until they are marked ready.
+The app must subscribe to **`pull_request`** and **`issue_comment`** (quick setup sets these automatically). The `pull_request` subscription covers open, synchronize (push), reopen, and ready for review. Proval reviews on first push or every push while the pull request is open, and skips draft pull requests until they are marked ready. Reopen only triggers a review if the current head was never reviewed. Pushes to a closed pull request do not start a review. Close and merge use the same webhook event. Repository settings decide whether an in flight review keeps running or is canceled.
 
 ---
 

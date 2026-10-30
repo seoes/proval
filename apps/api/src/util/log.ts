@@ -22,7 +22,7 @@ const TERMINAL_TOOL_LOG_MAX = 800;
 /** Tool errors need the provider message. Keep close to full text. */
 const TERMINAL_ERROR_LOG_MAX = 2000;
 /** Dashboard keeps more context for postmortem. */
-const DASHBOARD_LOG_MAX = 1000;
+const DASHBOARD_LOG_MAX = 32000;
 
 const activityService = new ActivityService();
 

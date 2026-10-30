@@ -52,7 +52,44 @@ export type RepositoryResponse = Omit<
 > & {
     lastUsedAt: Date | null;
 };
-export type ModelProviderResponse = Omit<ModelProvider, "apiKey">;
+export type ModelProviderResponse = Pick<
+    ModelProvider,
+    | "id"
+    | "provider"
+    | "label"
+    | "baseUrl"
+    | "timeoutSecond"
+    | "requestConcurrency"
+    | "activityConcurrency"
+    | "authMethod"
+    | "oauthStatus"
+    | "createdAt"
+    | "updatedAt"
+>;
+export type ModelProviderCreateInput = Pick<ModelProvider, "provider" | "label" | "baseUrl"> & {
+    apiKey: string;
+    timeoutSecond?: number;
+    requestConcurrency?: number | null;
+    activityConcurrency?: number | null;
+};
+export type XaiOAuthAttemptInput = Pick<ModelProvider, "label" | "timeoutSecond"> & {
+    modelProviderId?: number;
+    requestConcurrency?: number | null;
+    activityConcurrency?: number | null;
+};
+export type XaiOAuthAttemptResponse = {
+    id: string;
+    label: string;
+    timeoutSecond: number;
+    requestConcurrency: number | null;
+    activityConcurrency: number | null;
+    status: "pending" | "authorized" | "denied" | "expired" | "cancelled" | "failed";
+    userCode: string;
+    verificationUri: string;
+    expiresAt: number;
+    modelProviderId?: number;
+    error?: string;
+};
 export type AccessResponse = Omit<Access, "accessToken" | "defaultWebhookSecret" | "defaultWebhookSigningToken"> & {
     hasDefaultWebhookSecret: boolean;
     hasDefaultWebhookSigningToken: boolean;
@@ -75,7 +112,9 @@ export type GitHubRepositoryResponse = {
 export type RepositoryUpdateInput = Partial<
     Omit<RepositoryInsert, "webhookSecret" | "webhookSigningToken" | "createdAt" | "updatedAt">
 >;
-export type ModelProviderUpdateInput = Partial<Omit<ModelProviderInsert, "apiKey" | "createdAt" | "updatedAt">>;
+export type ModelProviderUpdateInput = Partial<
+    Pick<ModelProvider, "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency">
+>;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;
 export type GitHubAppUpdateInput = Partial<
     Omit<GitHubAppInsert, "privateKey" | "webhookSecret" | "createdAt" | "updatedAt">
@@ -93,6 +132,7 @@ export type RepositoryProvider = Repository["provider"];
 export type AccessProvider = Access["provider"];
 export type LlmApiProvider = ModelProvider["provider"];
 export type PrReviewOnPush = Repository["prReviewOnPush"];
+export type PrReviewOnClose = Repository["prReviewOnClose"];
 export type ReasoningEffort = Repository["reasoningEffort"];
 
 // Composite / list API types
@@ -151,11 +191,15 @@ export type AuthMeResponse = {
 export type InstanceSettingResponse = {
     isAuthEnabled: boolean;
     isRegistrationEnabled: boolean;
+    isRerunInterruptedActivity: boolean;
+    isWaitForRunningActivityOnShutdown: boolean;
 };
 
 export type InstanceSettingUpdateInput = {
     isAuthEnabled: boolean;
     isRegistrationEnabled: boolean;
+    isRerunInterruptedActivity: boolean;
+    isWaitForRunningActivityOnShutdown: boolean;
 };
 
 export type AuthCredentialInput = {

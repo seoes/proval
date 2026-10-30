@@ -41,6 +41,5 @@ export async function generatePullRequestPrompt(
         ...shaLineList,
         `Changed files (${paths.length}): ${listedPaths || "(none)"}`,
         `Root directory listing (non-recursive): ${rootDirectoryTree.map((d) => d.name).join(", ")}`,
-        "",
     ].join("\n");
 }

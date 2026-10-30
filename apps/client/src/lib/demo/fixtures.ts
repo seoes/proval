@@ -51,6 +51,10 @@ export const modelProviderList: ModelProviderResponse[] = [
         label: "Local llama.cpp",
         baseUrl: "http://localhost:11434/v1",
         timeoutSecond: 600,
+        authMethod: "api_key",
+        oauthStatus: null,
+        requestConcurrency: null,
+        activityConcurrency: null,
         createdAt: daysAgo(210),
         updatedAt: minutesAgo(60 * 24 * 2),
     },
@@ -60,6 +64,10 @@ export const modelProviderList: ModelProviderResponse[] = [
         label: "External LLM API",
         baseUrl: "https://api.openrouter.ai/api/v1",
         timeoutSecond: 600,
+        authMethod: "api_key",
+        oauthStatus: null,
+        requestConcurrency: null,
+        activityConcurrency: null,
         createdAt: daysAgo(190),
         updatedAt: minutesAgo(60 * 24),
     },
@@ -80,6 +88,7 @@ export const accessList: AccessResponse[] = [
         defaultPrReviewEnabled: null,
         defaultPrInlineReview: null,
         defaultPrReviewOnPush: null,
+        defaultPrReviewOnClose: null,
         defaultPrIgnoreDraft: null,
         defaultPrReplyEnabled: null,
         defaultPrMentionOnly: null,
@@ -134,7 +143,9 @@ export const repositoryList: RepositoryResponse[] = [
         prReviewEnabled: true,
         prInlineReview: true,
         prReviewOnPush: "on_every_push",
+        prReviewOnClose: "continue",
         prIgnoreDraft: true,
+        prAllowedTargetBranchList: [],
         userPrompt: null,
         prReplyEnabled: true,
         prMentionOnly: true,
@@ -166,7 +177,9 @@ export const repositoryList: RepositoryResponse[] = [
         prReviewEnabled: true,
         prInlineReview: true,
         prReviewOnPush: "on_every_push",
+        prReviewOnClose: "continue",
         prIgnoreDraft: true,
+        prAllowedTargetBranchList: [],
         userPrompt: null,
         prReplyEnabled: true,
         prMentionOnly: false,
@@ -198,7 +211,9 @@ export const repositoryList: RepositoryResponse[] = [
         prReviewEnabled: true,
         prInlineReview: false,
         prReviewOnPush: "on_first_push",
+        prReviewOnClose: "continue",
         prIgnoreDraft: false,
+        prAllowedTargetBranchList: [],
         userPrompt: null,
         prReplyEnabled: false,
         prMentionOnly: false,
@@ -307,8 +322,21 @@ function pickType(rng: () => number): ActivityResponse["type"] {
     return "issue_open";
 }
 
+type DemoActivity = Omit<ActivityResponse, "targetCommentId" | "targetInlineReviewId" | "reasoningEffort">;
+
+function withReplyTarget(activity: DemoActivity): ActivityResponse {
+    const isReply = activity.type === "pr_reply" || activity.type === "issue_reply";
+    return {
+        ...activity,
+        reasoningEffort: null,
+        targetCommentId: isReply ? 700000000 + activity.id : null,
+        targetInlineReviewId:
+            activity.type === "pr_reply" && activity.id % 3 === 0 ? `discussion-${activity.id}` : null,
+    };
+}
+
 /** Recent showcase rows for the activity feed (last ~14h). */
-const recentActivityList: ActivityResponse[] = [
+const recentActivitySeedList: DemoActivity[] = [
     {
         id: 1,
         repositoryId: 2,
@@ -325,6 +353,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: null,
         outputToken: null,
         errorMessage: null,
+        startedAt: minutesAgo(3),
         completedAt: null,
         createdAt: minutesAgo(3),
         updatedAt: minutesAgo(3),
@@ -345,6 +374,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: null,
         outputToken: null,
         errorMessage: null,
+        startedAt: minutesAgo(8),
         completedAt: null,
         createdAt: minutesAgo(8),
         updatedAt: minutesAgo(8),
@@ -365,6 +395,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 838600,
         outputToken: 312400,
         errorMessage: null,
+        startedAt: minutesAgo(58),
         completedAt: minutesAgo(45),
         createdAt: minutesAgo(58),
         updatedAt: minutesAgo(45),
@@ -385,6 +416,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 701100,
         outputToken: 268500,
         errorMessage: null,
+        startedAt: minutesAgo(102),
         completedAt: minutesAgo(90),
         createdAt: minutesAgo(102),
         updatedAt: minutesAgo(90),
@@ -405,6 +437,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 0,
         outputToken: 0,
         errorMessage: "LLM request timed out after 120s",
+        startedAt: minutesAgo(125),
         completedAt: minutesAgo(120),
         createdAt: minutesAgo(125),
         updatedAt: minutesAgo(120),
@@ -425,6 +458,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 229100,
         outputToken: 48200,
         errorMessage: null,
+        startedAt: minutesAgo(205),
         completedAt: minutesAgo(200),
         createdAt: minutesAgo(205),
         updatedAt: minutesAgo(200),
@@ -445,6 +479,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 133500,
         outputToken: 51400,
         errorMessage: null,
+        startedAt: minutesAgo(305),
         completedAt: minutesAgo(300),
         createdAt: minutesAgo(305),
         updatedAt: minutesAgo(300),
@@ -465,6 +500,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 0,
         outputToken: 0,
         errorMessage: "Git provider API rate limit exceeded",
+        startedAt: minutesAgo(410),
         completedAt: minutesAgo(400),
         createdAt: minutesAgo(410),
         updatedAt: minutesAgo(400),
@@ -485,6 +521,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 961200,
         outputToken: 294800,
         errorMessage: null,
+        startedAt: minutesAgo(515),
         completedAt: minutesAgo(500),
         createdAt: minutesAgo(515),
         updatedAt: minutesAgo(500),
@@ -505,6 +542,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 174800,
         outputToken: 47600,
         errorMessage: null,
+        startedAt: minutesAgo(610),
         completedAt: minutesAgo(600),
         createdAt: minutesAgo(610),
         updatedAt: minutesAgo(600),
@@ -525,6 +563,7 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 1046400,
         outputToken: 341200,
         errorMessage: null,
+        startedAt: minutesAgo(720),
         completedAt: minutesAgo(700),
         createdAt: minutesAgo(720),
         updatedAt: minutesAgo(700),
@@ -545,11 +584,14 @@ const recentActivityList: ActivityResponse[] = [
         cachedInputToken: 330100,
         outputToken: 54800,
         errorMessage: null,
+        startedAt: minutesAgo(810),
         completedAt: minutesAgo(800),
         createdAt: minutesAgo(810),
         updatedAt: minutesAgo(800),
     },
 ];
+
+const recentActivityList: ActivityResponse[] = recentActivitySeedList.map(withReplyTarget);
 
 /**
  * Year-to-date history so 30d / year charts look like a real small team
@@ -602,28 +644,31 @@ function buildHistoricalActivities(): ActivityResponse[] {
             const nextIid = (targetIidByRepo.get(repo.id) ?? 1) + 1;
             targetIidByRepo.set(repo.id, nextIid);
 
-            activities.push({
-                id: nextId++,
-                repositoryId: repo.id,
-                repositoryPath: repo.path,
-                provider: repo.provider,
-                modelProviderId: repo.modelProviderId,
-                modelName: pickModelName(repo, rng),
-                type,
-                status: failed ? "failed" : "completed",
-                targetIid: nextIid,
-                headSha: type === "pr_review" ? `deadbeef${String(nextId).padStart(32, "0")}`.slice(0, 40) : null,
-                logVersion: "1",
-                ...tokens,
-                errorMessage: failed
-                    ? rng() < 0.5
-                        ? "LLM request timed out after 120s"
-                        : "Git provider API rate limit exceeded"
-                    : null,
-                completedAt,
-                createdAt,
-                updatedAt: completedAt,
-            });
+            activities.push(
+                withReplyTarget({
+                    id: nextId++,
+                    repositoryId: repo.id,
+                    repositoryPath: repo.path,
+                    provider: repo.provider,
+                    modelProviderId: repo.modelProviderId,
+                    modelName: pickModelName(repo, rng),
+                    type,
+                    status: failed ? "failed" : "completed",
+                    targetIid: nextIid,
+                    headSha: type === "pr_review" ? `deadbeef${String(nextId).padStart(32, "0")}`.slice(0, 40) : null,
+                    logVersion: "1",
+                    ...tokens,
+                    errorMessage: failed
+                        ? rng() < 0.5
+                            ? "LLM request timed out after 120s"
+                            : "Git provider API rate limit exceeded"
+                        : null,
+                    startedAt: createdAt,
+                    completedAt,
+                    createdAt,
+                    updatedAt: completedAt,
+                }),
+            );
         }
 
         cursor.setDate(cursor.getDate() + 1);
@@ -801,7 +846,7 @@ export function buildActivitySummary(
         tokenSeries: buildTokenSeries(scopedActivityList, since, bucket, now),
         tokensByModel: buildTokenBreakdown(finished, (a) => a.modelName),
         tokensByRepository: repositoryId != null ? [] : buildTokenBreakdown(finished, (a) => a.repositoryPath),
-        inProgress: activityList.filter((a) => a.status === "started"),
+        inProgress: activityList.filter((a) => a.status === "queued" || a.status === "started"),
     };
 }
 

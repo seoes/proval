@@ -9,7 +9,7 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
     return parsed;
 }
 
-const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_STATUS_LIST = ["queued", "started", "completed", "failed", "canceled"] as const;
 const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 
 function parseCommaSeparatedEnum<T extends string>(value: string | undefined, allowedList: readonly T[]): T[] {
@@ -26,6 +26,15 @@ function parseCommaSeparatedEnum<T extends string>(value: string | undefined, al
         result.push(item);
     }
     return result;
+}
+
+/** Absent means the full log. Null means the query is not a safe index. */
+function parseLogFrom(value: string | undefined): number | undefined | null {
+    if (value == null || value === "") return undefined;
+    if (!/^\d+$/.test(value)) return null;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) return null;
+    return parsed;
 }
 
 function parseCommaSeparatedPositiveIntList(value: string | undefined): number[] {
@@ -55,9 +64,7 @@ export const getActivitySummary: Handler = async (c) => {
         activityService.findRecent(since, 5, repositoryId),
         activityService.getTokenSeries(since, bucket, new Date(), repositoryId),
         activityService.getTokenBreakdownByModel(since, 5, repositoryId),
-        repositoryId != null
-            ? Promise.resolve([])
-            : activityService.getTokenBreakdownByRepository(since, 5),
+        repositoryId != null ? Promise.resolve([]) : activityService.getTokenBreakdownByRepository(since, 5),
         activityService.findInProgress(10),
     ]);
     return c.json({ range, stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress }, 200);
@@ -110,13 +117,15 @@ const RETRY_NOT_FOUND_ERRORS = new Set(["Activity not found", "Repository not fo
 const RETRY_CLIENT_ERRORS = new Set([
     "Only failed or canceled activities can be retried",
     "This activity type cannot be retried",
+    "This activity has no comment to reply to",
     "Repository is no longer linked to this activity",
     "Model provider is no longer linked to this activity",
+    "A review for this pull request is already queued or running",
 ]);
 
 const CANCEL_NOT_FOUND_ERRORS = new Set(["Activity not found"]);
 
-const CANCEL_CLIENT_ERRORS = new Set(["Only started activities can be canceled"]);
+const CANCEL_CLIENT_ERRORS = new Set(["Only queued or started activities can be canceled"]);
 
 export const retryActivity: Handler = async (c) => {
     const id = c.req.param("id");
@@ -168,7 +177,7 @@ export const cancelActivity: Handler = async (c) => {
     }
 };
 
-export const findActivityLogById: Handler = async (c) => {
+export const findActivityStatusById: Handler = async (c) => {
     const id = c.req.param("id");
     if (!id) {
         return c.json({ error: "Activity ID is required" }, 400);
@@ -179,7 +188,32 @@ export const findActivityLogById: Handler = async (c) => {
     }
     const activityService = new ActivityService();
     try {
-        const logList = await activityService.findLogListById(activityId);
+        const status = await activityService.findStatusById(activityId);
+        if (status === null) {
+            return c.json({ error: "Activity not found" }, 404);
+        }
+        return c.json(status, 200);
+    } catch {
+        return c.json({ error: "Failed to load activity status" }, 500);
+    }
+};
+
+export const findActivityLogById: Handler = async (c) => {
+    const id = c.req.param("id");
+    if (!id) {
+        return c.json({ error: "Activity ID is required" }, 400);
+    }
+    const activityId = parseInt(id, 10);
+    if (!Number.isFinite(activityId)) {
+        return c.json({ error: "Invalid activity ID" }, 400);
+    }
+    const from = parseLogFrom(c.req.query("from"));
+    if (from === null) {
+        return c.json({ error: "Invalid from" }, 400);
+    }
+    const activityService = new ActivityService();
+    try {
+        const logList = await activityService.findLogListById(activityId, from);
         if (logList === null) {
             return c.json({ error: "Activity not found" }, 404);
         }

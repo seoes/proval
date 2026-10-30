@@ -49,7 +49,7 @@ function parsePositiveInt(value: string | null, fallback: number): number {
     return Math.floor(parsed);
 }
 
-const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_STATUS_LIST = ["queued", "started", "completed", "failed", "canceled"] as const;
 const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 
 function parseCommaSeparatedActivityStatus(value: string | null): (typeof ACTIVITY_STATUS_LIST)[number][] {
@@ -186,10 +186,32 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
         );
     }
 
+    const activityStatusMatch = pathname.match(/^\/activity\/(\d+)\/status$/);
+    if (activityStatusMatch) {
+        const activity = getActivityById(Number(activityStatusMatch[1]));
+        if (!activity) return notFoundResponse();
+        return jsonResponse({
+            status: activity.status,
+            startedAt: activity.startedAt,
+            completedAt: activity.completedAt,
+            errorMessage: activity.errorMessage,
+            inputToken: activity.inputToken,
+            cachedInputToken: activity.cachedInputToken,
+            outputToken: activity.outputToken,
+        });
+    }
+
     const activityLogMatch = pathname.match(/^\/activity\/(\d+)\/log$/);
     if (activityLogMatch) {
         const log = getActivityLogsById(Number(activityLogMatch[1]));
-        return log ? jsonResponse(log) : notFoundResponse();
+        if (!log) return notFoundResponse();
+        const fromQuery = searchParams.get("from");
+        if (fromQuery == null || fromQuery === "") return jsonResponse(log);
+        if (!/^\d+$/.test(fromQuery) || !Number.isSafeInteger(Number(fromQuery))) {
+            return jsonResponse({ error: "Invalid from" }, 400);
+        }
+        const from = Number(fromQuery);
+        return jsonResponse({ ...log, from, logs: log.logs.slice(from) });
     }
 
     const activityMatch = pathname.match(/^\/activity\/(\d+)$/);

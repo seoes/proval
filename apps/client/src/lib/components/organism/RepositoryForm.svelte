@@ -1,11 +1,14 @@
 <script lang="ts">
     import InputText from "../atom/InputText.svelte";
+    import InputCombobox from "../atom/InputCombobox.svelte";
+    import { repositoryLanguageList } from "$lib/repositoryLanguageList";
     import fetchApi from "$lib/utils";
     import { reasoningEffortValueList, USER_PROMPT_MAX_LENGTH } from "@proval/types";
     import type {
         ModelProviderModelListResponse,
         ModelProviderResponse,
         ProviderOption,
+        PrReviewOnClose,
         PrReviewOnPush,
         ReasoningEffort,
         RepositoryInsert,
@@ -40,7 +43,9 @@
         prReviewEnabled: boolean;
         prInlineReview: boolean;
         prReviewOnPush: PrReviewOnPush;
+        prReviewOnClose: PrReviewOnClose;
         prIgnoreDraft: boolean;
+        prAllowedTargetBranchList: string[];
         userPrompt: string | null;
         prReplyEnabled: boolean;
         prMentionOnly: boolean;
@@ -73,6 +78,12 @@
         description: string;
     }
 
+    interface ReviewOnCloseOption {
+        value: PrReviewOnClose;
+        label: string;
+        description: string;
+    }
+
     interface AccessLevelOption {
         value: string;
         label: string;
@@ -97,18 +108,28 @@
     let modelName = $state<string>(config.modelName ?? "");
     let reasoningEffort = $state<string>(config.reasoningEffort ?? "");
 
-    const reasoningEffortSelectOptionList = [
+    const isXaiOauth = $derived(
+        modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod === "xai_oauth",
+    );
+    const reasoningEffortSelectOptionList = $derived([
         {
             value: "",
             label: "Default",
         },
-        ...reasoningEffortValueList.map((value) => ({
-            value,
-            label: value,
-        })),
-    ];
+        ...reasoningEffortValueList
+            .filter((value) => !isXaiOauth || ["low", "medium", "high", "xhigh"].includes(value))
+            .map((value) => ({
+                value,
+                label: value,
+            })),
+    ]);
+    $effect(() => {
+        if (isXaiOauth && reasoningEffort && !["low", "medium", "high", "xhigh"].includes(reasoningEffort))
+            reasoningEffort = "";
+    });
     let availableModels = $state<{ id: string }[]>([]);
     let isLoadingModels = $state(false);
+    let modelListError = $state("");
     let selectedRepositoryId = $state<string>(String(config.repositoryId ?? ""));
 
     let previousModelProviderId = selectedModelProviderId;
@@ -139,7 +160,9 @@
     let prReviewEnabled = $state<boolean>(config.prReviewEnabled);
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
+    let prReviewOnClose = $state<PrReviewOnClose>(config.prReviewOnClose);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
+    let allowedTargetBranchText = $state(config.prAllowedTargetBranchList.join(", "));
     let userPrompt = $state<string>(config.userPrompt ?? "");
     let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
 
@@ -166,10 +189,16 @@
         const id = selectedModelProviderId;
         if (!id) return;
         isLoadingModels = true;
+        modelListError = "";
         try {
             const res = await fetchApi(`/model-provider/${id}/model`);
             if (id !== selectedModelProviderId) return;
-            availableModels = res.ok ? ((await res.json()) as ModelProviderModelListResponse).models : [];
+            if (res.ok) availableModels = ((await res.json()) as ModelProviderModelListResponse).models;
+            else {
+                const body = await res.json().catch(() => ({}));
+                availableModels = [];
+                modelListError = body.error ?? "Model discovery is unavailable. You can enter a model ID manually.";
+            }
         } catch {
             if (id === selectedModelProviderId) availableModels = [];
         } finally {
@@ -215,6 +244,16 @@
             label: "Every push",
             description: "Review on each push",
         },
+    ];
+
+    const reviewOnCloseOptionList: ReviewOnCloseOption[] = [
+        { value: "continue", label: "Continue", description: "Finish and post the review" },
+        {
+            value: "continue_if_started",
+            label: "Continue if already started",
+            description: "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
+        },
+        { value: "cancel", label: "Cancel", description: "Cancel the review" },
     ];
 
     const accessLevelOptionList: AccessLevelOption[] = [
@@ -309,7 +348,12 @@
             prReviewEnabled,
             prInlineReview,
             prReviewOnPush,
+            prReviewOnClose,
             prIgnoreDraft,
+            prAllowedTargetBranchList: allowedTargetBranchText
+                .split(",")
+                .map((branch) => branch.trim())
+                .filter((branch) => branch.length > 0),
             userPrompt: userPrompt.trim() || null,
             prReplyEnabled,
             prMentionOnly,
@@ -495,7 +539,7 @@
         <div>
             <FormField label="Language" description="Default language for code review">
                 {#snippet children({ id })}
-                    <InputText {id} placeholder="English" bind:value={language} />
+                    <InputCombobox {id} placeholder="English" bind:value={language} suggestionList={repositoryLanguageList} />
                 {/snippet}
             </FormField>
         </div>
@@ -545,6 +589,23 @@
                             </div>
                         {/snippet}
                     </FormField>
+                    <FormField
+                        label="When a pull request is merged or closed"
+                        description="What happens to a review that is still running"
+                        linkLabelToControl={false}
+                        upper>
+                        {#snippet children({ id: _id })}
+                            <div class="flex flex-col gap-2" id={_id} role="group">
+                                {#each reviewOnCloseOptionList as o}
+                                    <SimpleSelectCard
+                                        label={o.label}
+                                        description={o.description}
+                                        selected={prReviewOnClose === o.value}
+                                        onclick={() => (prReviewOnClose = o.value)} />
+                                {/each}
+                            </div>
+                        {/snippet}
+                    </FormField>
                     <div class="flex items-center justify-between gap-2">
                         <FieldTitle class="ml-1">Inline review</FieldTitle>
                         <ToggleSwitch bind:checked={prInlineReview} disabled={!prEnabled || !prReviewEnabled} />
@@ -553,6 +614,14 @@
                         <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
                         <ToggleSwitch bind:checked={prIgnoreDraft} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
+                    <FormField
+                        label="Allowed target branches"
+                        description="Comma separated branch names. Leave empty to review every target branch."
+                        upper>
+                        {#snippet children({ id })}
+                            <InputText {id} bind:value={allowedTargetBranchText} placeholder="main, dev" />
+                        {/snippet}
+                    </FormField>
                 </div>
             </div>
 
@@ -704,7 +773,7 @@
                 {/if}
             </div>
         {:else}
-            <Description>No models were returned by this provider.</Description>
+            <Description>{modelListError || "No models were returned by this provider."}</Description>
         {/if}
         <div class="flex justify-end gap-3 pt-1">
             <Button text type="button" onclick={() => (modelListModalOpen = false)}>Cancel</Button>

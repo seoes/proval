@@ -66,5 +66,5 @@ docker_build:
 build_and_push:
     extends: .docker_build
     script:
-        - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+        - docker build --build-arg PROVAL_VERSION="$CI_COMMIT_TAG" -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
         - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG

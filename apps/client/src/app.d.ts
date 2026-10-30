@@ -10,6 +10,7 @@ declare global {
     }
 
     const __PROVAL_DEMO_BUILD__: boolean;
+    const __PROVAL_VERSION__: string;
 }
 
 export {};

@@ -52,8 +52,9 @@
     const openInGitText = $derived(OPEN_IN_GIT_LABEL[data.repository.provider]);
     const headerSubtitle = $derived.by(() => {
         const modelName = data.repository.modelName.trim();
+        const modelLabel = modelName ? `${modelName} (${data.repository.reasoningEffort ?? "default"})` : "";
         const description = data.repository.description?.trim();
-        return [modelName, description].filter(Boolean).join(" · ");
+        return [modelLabel, description].filter(Boolean).join(" · ");
     });
 
     const pullRequestReply = $derived(
@@ -155,6 +156,7 @@
     {@const typeLabel = activityTypeLabel(activity.type)}
     {@const timeLabel = activityTimeLabel(activity)}
     {@const isFailed = activity.status === "failed"}
+    {@const isCanceled = activity.status === "canceled"}
     {#snippet header()}
         <div class="min-w-0">
             <p class="truncate text-sm font-medium {isFailed ? 'text-destructive' : 'text-foreground'}">
@@ -164,8 +166,11 @@
                         · <span class="font-mono">{activity.headSha.slice(0, 7)}</span>{/if}
                 </span>
             </p>
-            {#if isFailed && activity.errorMessage}
-                <p class="mt-0.5 truncate text-xs text-destructive">{activity.errorMessage}</p>
+            {#if (isFailed || isCanceled) && activity.errorMessage}
+                <p
+                    class="mt-0.5 truncate text-xs {isFailed
+                        ? 'text-destructive'
+                        : 'text-secondary-foreground'}">{activity.errorMessage}</p>
             {/if}
         </div>
     {/snippet}

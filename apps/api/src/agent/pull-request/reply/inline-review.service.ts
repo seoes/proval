@@ -1,8 +1,8 @@
 import type { PullRequestInlineReviewReply } from "../index.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
-import { logAgent, logAgentError, debug } from "../../../util/log";
+import { logAgent, debug } from "../../../util/log";
 import { runAgentLoop } from "../../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REPLY_USER_PROMPT_HEADER } from "./prompt/reply.prompt.js";
 import { PR_INLINE_REVIEW_REPLY_APPENDIX } from "./inline-review.prompt.js";
 import { PR_REPLY_BODY, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
@@ -18,6 +18,7 @@ import {
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
+import { buildAgentInstructionPrompt } from "../prompt/agents-md.js";
 
 export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = async ({
     provider,
@@ -31,14 +32,8 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
     userPrompt = null,
 }) => {
     const label = `[PR #${prIid}] Inline Review Reply`;
-    const emojiTarget = { type: "inline_review_comment" as const, prIid, commentId };
+    const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching inline review comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestInlineReviewComment(prIid, commentId);
         const detail = await provider.fetchPullRequestDetail(prIid);
@@ -52,11 +47,14 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
             baseSha,
         });
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             PR_REPLY_BODY,
             PR_REPLY_WORKFLOW,
             PR_INLINE_REVIEW_REPLY_APPENDIX,
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(comment.author, "reply"),
+            agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]
             .filter(Boolean)
@@ -81,8 +79,6 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
         const requiredToolList = [
             postPullRequestInlineReviewReplyTool(provider, prIid, inlineReviewId, comment.author, language, activityId),
         ];
-
-        const activityService = new ActivityService();
 
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
@@ -110,11 +106,6 @@ export const runPullRequestInlineReviewReply: PullRequestInlineReviewReply = asy
 
         return result.usage;
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

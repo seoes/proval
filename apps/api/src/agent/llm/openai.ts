@@ -36,6 +36,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                     {
                         model: config.model,
                         messages: messages.map(convertToOpenAiMessage),
+                        ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
                         ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
                         ...(config.reasoningEffort
                             ? {
@@ -81,7 +82,12 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
             }
         },
         getModel() {
-            return { model: config.model, provider: "openai", baseUrl: config.baseURL };
+            return {
+                model: config.model,
+                provider: "openai",
+                baseUrl: config.baseURL,
+                reasoningEffort: config.reasoningEffort,
+            };
         },
     };
 }

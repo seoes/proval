@@ -1,7 +1,7 @@
-import { logAgent, logAgentError, debug } from "../../util/log";
+import { logAgent, debug } from "../../util/log";
 import { postDevDebugIssueComment } from "../shared/util/debug.js";
 import { runAgentLoop } from "../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../shared/prompt";
 import { ISSUE_BASE_PROMPT } from "./prompt/issue.prompt.js";
 import { buildIssueReplyOnOpenWorkflow, buildRepositoryLabelCatalog } from "./open.prompt.js";
 import {
@@ -15,6 +15,7 @@ import {
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../shared/tool";
 import type { IssueReplyOnOpen } from "./index.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
+import { buildAgentInstructionPrompt } from "../pull-request/prompt/agents-md.js";
 
 export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     provider,
@@ -26,28 +27,27 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
     activityId,
 }) => {
     const label = `[Issue #${issueIid}] Open`;
-    const emojiTarget = { type: "issue" as const, issueIid };
+    const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching repository detail`, label);
         const repository = await provider.fetchRepositoryDetail();
+        const issue = await provider.fetchIssueDetail(issueIid);
         await workspace.loadFromBranch(repository.defaultBranch);
 
-        const repositoryLabelList =
-            issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
+        const repositoryLabelList = issueLabelOnOpenEnabled ? await provider.fetchRepositoryLabelList() : [];
         const hasRepositoryLabelList = repositoryLabelList.length > 0;
 
+        const agentInstructionPrompt = await buildAgentInstructionPrompt(workspace, activityId, label);
         const system = [
             ISSUE_BASE_PROMPT,
             buildIssueReplyOnOpenWorkflow(hasRepositoryLabelList),
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(issue.author, "review"),
             ...(hasRepositoryLabelList ? [buildRepositoryLabelCatalog(repositoryLabelList)] : []),
-        ].join("\n");
+            agentInstructionPrompt,
+        ]
+            .filter(Boolean)
+            .join("\n");
         const prompt = `Triage the newly opened issue #${issueIid}.`;
 
         debug(prompt, "prompt");
@@ -61,14 +61,10 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
             globTool(workspace),
             listDirectoryTool(workspace),
             getFileContentTool(workspace),
-            ...(hasRepositoryLabelList
-                ? [addIssueLabelTool(provider, issueIid, repositoryLabelList)]
-                : []),
+            ...(hasRepositoryLabelList ? [addIssueLabelTool(provider, issueIid, repositoryLabelList)] : []),
         ];
 
         const requiredToolList = [postIssueCommentTool(provider, issueIid, language, activityId)];
-
-        const activityService = new ActivityService();
 
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
@@ -88,11 +84,6 @@ export const runIssueReplyOnOpen: IssueReplyOnOpen = async ({
 
         return result.usage;
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

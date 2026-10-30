@@ -20,7 +20,7 @@ import {
     skipFileTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
-import { runAgentLoop } from "../../llm/loop";
+import { runAgentLoop, type AgentLoopEvent } from "../../llm/loop";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 
 export async function runReviewPlanAgent(
@@ -33,7 +33,9 @@ export async function runReviewPlanAgent(
     isFollowUpReview = false,
     usePushScope = false,
     userPrompt: string | null = null,
-): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
+    agentInstructionPrompt = "",
+    onEvent?: (event: AgentLoopEvent) => void,
+): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[]; skippedFileList: SkippedFile[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
 
@@ -42,6 +44,7 @@ export async function runReviewPlanAgent(
         isFollowUpReview ? FOLLOW_UP_PLAN_HINT : null,
         usePushScope ? FOLLOW_UP_PUSH_PLAN_HINT : null,
         FILE_COVERAGE_RULE,
+        agentInstructionPrompt,
         generateUserPrompt(PR_REVIEW_PLAN_USER_PROMPT_HEADER, userPrompt),
     ]
         .filter(Boolean)
@@ -70,10 +73,12 @@ export async function runReviewPlanAgent(
         toolList,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
+        onEvent,
     });
 
     return {
         reviewUnitList,
+        skippedFileList,
         ...result.usage,
     };
 }

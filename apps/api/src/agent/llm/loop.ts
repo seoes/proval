@@ -1,6 +1,6 @@
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
-import type { ActivityTokenUsage } from "@proval/types";
+import type { ActivityTokenUsage, ReasoningEffort } from "@proval/types";
 import {
     UNTRUSTED_WARNING_SYSTEM_PROMPT,
     wrapUntrustedToolContent,
@@ -27,6 +27,7 @@ export interface Message {
     content: string | null;
     toolCalls?: ToolCall[];
     toolCallId?: string;
+    responseOutputList?: unknown[];
 }
 
 export interface LlmResponse {
@@ -38,7 +39,7 @@ export interface LlmResponse {
 
 export interface LlmSender {
     send(messages: Message[], tools: AgentTool[]): Promise<LlmResponse>;
-    getModel(): { model: string; provider: string; baseUrl: string };
+    getModel(): { model: string; provider: string; baseUrl: string; reasoningEffort?: ReasoningEffort };
 }
 
 export class JobCanceledError extends Error {
@@ -56,6 +57,17 @@ export interface AgentRunResult {
     usage: ActivityTokenUsage;
 }
 
+export type AgentLoopEvent =
+    | { type: "request-retry"; attempt: number; status: number | null }
+    | { type: "compression"; reason: "proactive" | "overflow" }
+    | {
+          type: "loop-end";
+          outcome: "completed" | "max-steps";
+          stepCount: number;
+          toolCallCount: Record<string, number>;
+          elapsedMs: number;
+      };
+
 export async function runAgentLoop(
     sender: LlmSender,
     system: string,
@@ -65,8 +77,20 @@ export async function runAgentLoop(
         toolList?: (AgentTool | null)[];
         maxSteps?: number;
         requiredToolList?: (AgentTool | null)[];
+        /**
+         * Ends the loop as soon as every required tool has been called, instead of
+         * asking the model for one further turn that only confirms it is finished.
+         *
+         * An agent whose output is delivered by a required tool has nothing left to
+         * say once that tool has run, so that extra turn re-sends the whole
+         * transcript to be told so. Off by default, because an agent that is meant
+         * to keep working after calling a required tool would be cut short.
+         */
+        endWhenRequiredToolsCalled?: boolean;
         activityId: number;
         onUsage?: (usage: ActivityTokenUsage) => Promise<void>;
+        /** Optional diagnostic event sink. Production calls omit it and keep their behavior. */
+        onEvent?: (event: AgentLoopEvent) => void;
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -77,10 +101,16 @@ export async function runAgentLoop(
     const compressRatio = 0.5;
 
     async function stopIfCanceled(): Promise<void> {
-        if (await activityService.isCanceled(activityId)) {
-            logAgent(activityId, "Job canceled by user. Stopping agent loop.", label);
-            throw new JobCanceledError();
+        if (!(await activityService.isCanceled(activityId))) {
+            return;
         }
+        const activity = await activityService.findById(activityId);
+        const detail = activity?.errorMessage?.trim();
+        const message = detail
+            ? `Job canceled by user. Stopping agent loop. ${detail}`
+            : "Job canceled by user. Stopping agent loop.";
+        logAgent(activityId, message, label);
+        throw new JobCanceledError();
     }
 
     try {
@@ -127,6 +157,7 @@ export async function runAgentLoop(
 
             if (currentContextLength > compressThreshold && messages.length > 2) {
                 logAgent(activityId, "compressing context (proactive)", label);
+                options.onEvent?.({ type: "compression", reason: "proactive" });
                 const summary = await compressMessages(sender, messages, options.onUsage);
                 messages.splice(2);
                 messages.push({
@@ -171,6 +202,7 @@ export async function runAgentLoop(
                         }
 
                         logAgent(activityId, "compressing context (overflow)", label);
+                        options.onEvent?.({ type: "compression", reason: "overflow" });
                         const summary = await compressMessages(sender, messages, options.onUsage);
                         messages.splice(2);
                         messages.push({
@@ -199,6 +231,11 @@ export async function runAgentLoop(
                         throw error;
                     }
 
+                    options.onEvent?.({
+                        type: "request-retry",
+                        attempt: i + 1,
+                        status: typeof status === "number" ? status : null,
+                    });
                     logAgentError(activityId, "agent loop failed", error, label);
                     logAgent(activityId, `→ retrying… ${i + 1}/3`, label);
 
@@ -234,7 +271,7 @@ export async function runAgentLoop(
                     const missingToolNameList = requiredToolNameList.filter(
                         (toolName) => toolCallCount[toolName] === undefined || toolCallCount[toolName] === 0,
                     );
-                    messages.push({ role: "assistant", content: response.message.content });
+                    messages.push(response.message);
                     messages.push({
                         role: "user",
                         content: `[Required tool not called: ${missingToolNameList.join(", ")}]`,
@@ -248,6 +285,13 @@ export async function runAgentLoop(
                     toolCallCount,
                     usage,
                 };
+                options.onEvent?.({
+                    type: "loop-end",
+                    outcome: "completed",
+                    stepCount,
+                    toolCallCount: { ...toolCallCount },
+                    elapsedMs: performance.now() - startedAt,
+                });
                 logAgentResult(activityId, label, result, performance.now() - startedAt, "completed");
                 return result;
             }
@@ -263,16 +307,19 @@ export async function runAgentLoop(
                     toolCallCount,
                     usage,
                 };
+                options.onEvent?.({
+                    type: "loop-end",
+                    outcome: "max-steps",
+                    stepCount,
+                    toolCallCount: { ...toolCallCount },
+                    elapsedMs: performance.now() - startedAt,
+                });
                 logAgent(activityId, `stopping at max steps (${maxSteps})`, label);
                 logAgentResult(activityId, label, result, performance.now() - startedAt, "max_steps");
                 return result;
             }
 
-            messages.push({
-                role: "assistant",
-                content: response.message.content,
-                toolCalls: response.message.toolCalls,
-            });
+            messages.push(response.message);
 
             logAgent(activityId, `step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`, label);
 
@@ -343,6 +390,34 @@ export async function runAgentLoop(
                     content: r.content,
                     toolCallId: r.toolCallId,
                 });
+            }
+
+            if (
+                options.endWhenRequiredToolsCalled &&
+                requiredToolNameList.length > 0 &&
+                requiredToolNameList.every((toolName) => (toolCallCount[toolName] ?? 0) > 0)
+            ) {
+                // The agent delivered its output through the required tool, so the
+                // turn that would follow can only confirm it is done, at the cost of
+                // re-sending the entire transcript. This is each agent's largest
+                // request, because the transcript is never longer than it is here.
+                const result: AgentRunResult = {
+                    finalMessage: response.message.content,
+                    messages,
+                    stepCount,
+                    toolCallCount: { ...toolCallCount },
+                    usage,
+                };
+                options.onEvent?.({
+                    type: "loop-end",
+                    outcome: "completed",
+                    stepCount,
+                    toolCallCount: { ...toolCallCount },
+                    elapsedMs: performance.now() - startedAt,
+                });
+                logAgent(activityId, "every required tool has been called, ending the loop", label);
+                logAgentResult(activityId, label, result, performance.now() - startedAt, "completed");
+                return result;
             }
         }
     } catch (error: unknown) {

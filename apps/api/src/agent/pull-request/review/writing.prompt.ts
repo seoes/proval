@@ -76,7 +76,7 @@ export const WRITING_WORKFLOW = [
     "1. Greeting. One or two short lines at the very top.",
     "   Write for the PR author first, but keep it natural for other reviewers and readers who will see this thread.",
     "   Be warm and human. Acknowledge their work on this change, not just the diff size.",
-    "   When the author username is available in context, use it once (for example '@author' or their name). Do not overuse.",
+    "   Follow the author mention policy in system instructions for the greeting.",
     "   Avoid stiff openers like 'I have reviewed your PR' or 'This is my review'. Prefer conversational tone.",
     "   Do not apologize, hedge excessively, or use corporate filler. No emoji in the greeting.",
     "",

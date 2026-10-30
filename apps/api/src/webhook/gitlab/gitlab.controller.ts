@@ -12,14 +12,16 @@ import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createSender } from "../../agent/llm/factory.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 export const handleGitLabWebhook = async (c: Context) => {
     const event = c.req.header("X-Gitlab-Event");
@@ -132,6 +134,15 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: draft merge request" }), { status: 200 });
     }
 
+    const prInfo = `[!${pullRequest.iid}]: ${(pullRequest as { title?: string }).title ?? ""}`;
+
+    const targetBranch = (pullRequest as { target_branch?: string }).target_branch ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "GitLab");
+        return new Response(JSON.stringify({ message }), { status: 200 });
+    }
+
     const gitlabProvider = new GitLabProvider(access.baseUrl, token, project.id);
     const authorId = (pullRequest as { author_id?: number }).author_id;
     const accessSkip = await skipIfInsufficientAccess(
@@ -142,28 +153,33 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
+    const isReopen = isPullRequestReopenAction(action, "gitlab");
+    const pullRequestState = (pullRequest as { state?: string }).state;
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "gitlab",
+            action,
+            pullRequestState,
+        })
+    ) {
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
+    }
+
     const activityService = new ActivityService();
     const prIid = pullRequest.iid;
-
-    let hasCompleted: boolean | null = null;
-    if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
-        if (hasCompleted) {
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
-    }
 
     const version = await gitlabProvider.fetchPullRequestVersion(prIid);
     const headSha = (pullRequest as { last_commit?: { id?: string } }).last_commit?.id ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prIid);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prIid,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     const changedFileCount = await gitlabProvider.fetchPullRequestChangedFileCount(prIid);
@@ -171,50 +187,17 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prIid);
-    }
-    const isFollowUpReview = hasCompleted;
-
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prIid,
+        headSha,
     });
+    activityQueue.drain();
 
-    const isInlineReview = repository.prInlineReview;
-
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prIid,
-            headSha,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: gitlabProvider,
-                workspace,
-                llmSender,
-                prIid,
-                isInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error);
-    });
-
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 };
 
 type HandleGitLabPullRequestNoteWebhook = (
@@ -287,43 +270,20 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
 
     const prIid = payload.merge_request.iid;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
+    const inlineReviewId = isInlineReviewComment ? (payload.object_attributes.discussion_id ?? null) : null;
+
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prIid,
+        targetCommentId: commentId,
+        targetInlineReviewId: inlineReviewId,
     });
+    activityQueue.drain();
 
-    const inlineReviewId = payload.object_attributes.discussion_id ?? null;
-
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prIid,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: gitlabProvider,
-                workspace,
-                llmSender,
-                prIid,
-                commentId,
-                inlineReviewId: isInlineReviewComment ? inlineReviewId : null,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request reply failed", error);
-    });
-
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 };
 
 type HandleGitLabIssueWebhook = (
@@ -370,39 +330,16 @@ const handleGitLabIssueWebhook: HandleGitLabIssueWebhook = async (payload, repos
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issueIid,
     });
+    activityQueue.drain();
 
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issueIid,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: gitlabProvider,
-                workspace,
-                llmSender,
-                issueIid,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error);
-    });
-
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 };
 
 type HandleGitLabIssueNoteWebhook = (
@@ -473,38 +410,15 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
-    const llmSender = createSender({
-        provider: modelProvider.provider,
-        apiKey: modelProvider.apiKey,
-        baseURL: modelProvider.baseUrl,
-        model: repository.modelName,
-        timeoutSecond: modelProvider.timeoutSecond,
-        reasoningEffort: repository.reasoningEffort,
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid: issueIid,
+        targetCommentId: commentId,
     });
+    activityQueue.drain();
 
-    const workspace = new Workspace(gitlabProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid: issueIid,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: gitlabProvider,
-                workspace,
-                llmSender,
-                issueIid,
-                commentId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error);
-    });
-
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 };

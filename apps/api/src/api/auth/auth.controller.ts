@@ -105,6 +105,31 @@ export const getSettings = async (c: Context<{ Variables: AuthVariables }>) => {
     return c.json(authService.toInstanceSettingResponse(setting), 200);
 };
 
+export const findUserList = async (c: Context<{ Variables: AuthVariables }>) => {
+    return c.json(await authService.findUserList(), 200);
+};
+
+export const removeUser = async (c: Context<{ Variables: AuthVariables }>) => {
+    const actor = c.get("user");
+    const id = c.req.param("id");
+    if (!actor || !id) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+    try {
+        await authService.removeUser(id, actor.id);
+        return c.json({ message: "User deleted" }, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg === "User not found") {
+            return c.json({ error: msg }, 404);
+        }
+        if (msg === "Cannot delete the signed-in user" || msg === "Cannot delete the last admin") {
+            return c.json({ error: msg }, 409);
+        }
+        throw e;
+    }
+};
+
 export const putSettings = async (c: Context<{ Variables: AuthVariables }>) => {
     const body = await c.req.json<InstanceSettingUpdateInput>();
     try {
@@ -114,7 +139,8 @@ export const putSettings = async (c: Context<{ Variables: AuthVariables }>) => {
         const msg = e instanceof Error ? e.message : String(e);
         if (
             msg === "Registration cannot be enabled while authentication is disabled" ||
-            msg === "isAuthEnabled and isRegistrationEnabled are required"
+            msg ===
+                "isAuthEnabled, isRegistrationEnabled, isRerunInterruptedActivity and isWaitForRunningActivityOnShutdown are required"
         ) {
             return c.json({ error: msg }, 400);
         }
