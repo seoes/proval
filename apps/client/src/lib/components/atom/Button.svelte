@@ -34,7 +34,7 @@
 
     let buttonClass = $derived(
         twMerge(
-            "inline-flex cursor-pointer items-center justify-center rounded-lg text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "inline-flex cursor-pointer items-center justify-center rounded-lg text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none",
             size === "md" && "h-10",
             size === "sm" && "h-8",
             !text && size === "md" && "px-4",

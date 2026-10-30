@@ -84,7 +84,12 @@ export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
             };
         },
         getModel() {
-            return { model: config.model, provider: "anthropic", baseUrl: config.baseURL };
+            return {
+                model: config.model,
+                provider: "anthropic",
+                baseUrl: config.baseURL,
+                reasoningEffort: config.reasoningEffort,
+            };
         },
     };
 }

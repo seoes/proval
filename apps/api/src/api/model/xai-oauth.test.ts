@@ -61,7 +61,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
     db.$client.run("PRAGMA foreign_keys = ON");
 
     const clientId = "b1a00492-073a-47ea-816f-4c329264a828";
-    const input = { label: "Subscription", timeoutSecond: 30, concurrency: 2 };
+    const input = { label: "Subscription", timeoutSecond: 30, requestConcurrency: 2 };
     const device = {
         device_code: "private-device-code",
         user_code: "TEST-CODE",
@@ -137,7 +137,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 oauthStatus: null,
                 oauthCredential: null,
                 apiKey: legacyKey,
-                concurrency: 3,
+                requestConcurrency: 3,
             });
             expect(decrypt(row.apiKey!)).toBe("legacy key");
             for (const [table, field] of [
@@ -189,7 +189,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             expect(service.get("browser", start.id).modelProviderId).toBe(result.modelProviderId);
             const row = await new ModelProviderService().findById(result.modelProviderId!);
             expect(row.apiKey).toBeNull();
-            expect(row.concurrency).toBe(2);
+            expect(row.requestConcurrency).toBe(2);
             expect(row.oauthCredential).not.toContain(token.access_token);
             expect(JSON.parse(decrypt(row.oauthCredential!))).toMatchObject({
                 accessToken: token.access_token,

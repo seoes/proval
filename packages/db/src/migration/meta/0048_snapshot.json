@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "313ad6c0-5d22-41d5-a8e2-1eee3e6ec3e5",
+  "id": "df839afc-eeec-42c7-858a-84e1682e8859",
   "prevId": "841dbc1d-59ee-4c1b-abdc-4c0400b7f3e7",
   "tables": {
     "activity": {
@@ -70,15 +70,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "head_sha": {
-          "name": "head_sha",
+        "target_comment_id": {
+          "name": "target_comment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target_inline_review_id": {
+          "name": "target_inline_review_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "triage": {
-          "name": "triage",
+        "head_sha": {
+          "name": "head_sha",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -954,14 +961,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
-        },
-        "pr_triage_enabled": {
-          "name": "pr_triage_enabled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         },
         "user_prompt": {
           "name": "user_prompt",

@@ -3,24 +3,29 @@ import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import { GitHubProvider } from "../../git-provider/github.js";
 import type { GitHubApp, ModelProvider, Repository } from "@proval/types";
-import { logError } from "../../util/log.js";
+import { log, logError } from "../../util/log.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createModelProviderSender } from "../../api/model/model.service.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { reviewBudgetForDepth, triageForReview } from "../../triage/triage.service.js";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
+import { triageForReview } from "../../triage/triage.service.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 type PullRequestWebhookPayload = {
     action?: string;
     pull_request?: {
         number: number;
+        title?: string;
         draft?: boolean;
+        base?: { ref?: string };
         head?: { sha?: string };
+        state?: string;
         user?: { login?: string };
     };
 };
@@ -148,6 +153,15 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "No pull request number" }), { status: 200 });
     }
 
+    const prInfo = `[#${prNumber}]: ${payload.pull_request?.title ?? ""}`;
+
+    const targetBranch = payload.pull_request?.base?.ref ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "Github");
+        return new Response(JSON.stringify({ message }), { status: 200 });
+    }
+
     const gitHubProvider = await createGitHubProvider(repository, githubApp, installationId);
     const authorLogin = payload.pull_request?.user?.login;
     const accessSkip = await skipIfInsufficientAccess(
@@ -158,37 +172,36 @@ async function handlePullRequestWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const activityService = new ActivityService();
-    let hasCompleted: boolean | null = null;
-    if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-        if (hasCompleted) {
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
+    const isReopen = isPullRequestReopenAction(action, "github");
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "github",
+            action,
+            pullRequestState: payload.pull_request?.state,
+        })
+    ) {
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
     }
 
+    const activityService = new ActivityService();
     const version = await gitHubProvider.fetchPullRequestVersion(prNumber);
     const headSha = payload.pull_request?.head?.sha ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prNumber,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     const changedFileCount = await gitHubProvider.fetchPullRequestChangedFileCount(prNumber);
     if (changedFileCount === 0) {
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
-
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-    }
-    const isFollowUpReview = hasCompleted;
 
     // Triage runs on every provider so the record exists; without a versions API it
     // has no delta and classifies the whole pull request from what it can see.
@@ -206,38 +219,18 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
     }
 
-    const isInlineReview = repository.prInlineReview;
-
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prNumber,
-            headSha,
-            triage: triage.record,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                isInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-                ...reviewBudgetForDepth(triage.effectiveDepth),
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prNumber,
+        headSha,
+        triage: triage.record,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 }
 
 async function handleIssueWebhook(
@@ -281,30 +274,16 @@ async function handleIssueWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issueNumber,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issueNumber,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issueNumber,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 }
 
 async function handleIssueCommentWebhook(
@@ -362,36 +341,17 @@ async function handleIssueCommentWebhook(
         );
         if (accessSkip) return accessSkip;
 
-        const workspace = new Workspace(gitHubProvider);
-        runWithActivity(
-            {
-                repositoryId: repository.id,
-                modelProviderId: modelProvider.id,
-                modelName: repository.modelName,
-                type: "pr_reply",
-                targetIid: issueNumber,
-            },
-            (activityId) =>
-                runPullRequestReply({
-                    provider: gitHubProvider,
-                    workspace,
-                    llmSender: createModelProviderSender(
-                        modelProvider,
-                        repository.modelName,
-                        repository.reasoningEffort,
-                    ),
-                    prIid: issueNumber,
-                    commentId,
-                    inlineReviewId: null,
-                    language: repository.language,
-                    userPrompt: repository.userPrompt,
-                    activityId,
-                }),
-        ).catch((error) => {
-            logError("Pull request reply failed", error);
+        await activityQueue.push({
+            repositoryId: repository.id,
+            modelProviderId: modelProvider.id,
+            modelName: repository.modelName,
+            type: "pr_reply",
+            targetIid: issueNumber,
+            targetCommentId: commentId,
         });
+        activityQueue.drain();
 
-        return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+        return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
     }
 
     if (!repository.issueEnabled || !repository.issueReplyEnabled) {
@@ -413,31 +373,17 @@ async function handleIssueCommentWebhook(
     );
     if (accessSkip) return accessSkip;
 
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid: issueNumber,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issueNumber,
-                commentId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid: issueNumber,
+        targetCommentId: commentId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 }
 
 async function handlePullRequestReviewCommentWebhook(
@@ -490,30 +436,16 @@ async function handlePullRequestReviewCommentWebhook(
     if (accessSkip) return accessSkip;
 
     const inlineReviewId = String(comment.in_reply_to_id ?? comment.id);
-    const workspace = new Workspace(gitHubProvider);
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prNumber,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: gitHubProvider,
-                workspace,
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                commentId: comment.id,
-                inlineReviewId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request inline review reply failed", error);
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prNumber,
+        targetCommentId: comment.id,
+        targetInlineReviewId: inlineReviewId,
     });
+    activityQueue.drain();
 
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

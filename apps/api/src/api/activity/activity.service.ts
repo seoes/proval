@@ -15,18 +15,21 @@ import type {
     TokenSeriesPoint,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, gte, inArray, isNotNull, lt, ne, sql, type SQL } from "drizzle-orm";
+import { JobCanceledError } from "../../agent/llm/loop.js";
 import { createModelProviderSender } from "../model/model.service.js";
-import { runPullRequestReview } from "../../agent/pull-request/index.js";
-import { runIssueReplyOnOpen } from "../../agent/issue/index.js";
+import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request/index.js";
+import { runIssueReply, runIssueReplyOnOpen } from "../../agent/issue/index.js";
+import type { GitEmojiTarget } from "../../git-provider/types.js";
 import { Workspace } from "../../git-provider/workspace.js";
 import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
 import { runWithActivity } from "./activity.runner.js";
 import { reviewBudgetForDepth } from "../../triage/triage.service.js";
+import { activityQueue } from "./activity.queue.js";
 
-const RETRY_TYPES = ["pr_review", "issue_open"] as const;
+const RETRY_TYPES = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const FINISHED_STATUSES = ["completed", "failed", "canceled"] as const;
@@ -178,6 +181,8 @@ export type ActivityStartInput = {
     modelName: string;
     type: Activity["type"];
     targetIid: number;
+    targetCommentId?: number | null;
+    targetInlineReviewId?: string | null;
     headSha?: string | null;
     triage?: ActivityTriageJson | null;
 };
@@ -246,7 +251,110 @@ const listOrderBy = [
     desc(activityTable.id),
 ] as const;
 
+/**
+ * A reply created before the retry support does not carry the comment it answered.
+ * Recover it from the stored agent log so an old failed reply can still be replayed.
+ * Only the conversation fetch tools are read, an inline review needs a discussion id
+ * that the log does not keep.
+ */
+function buildEyesEmojiTarget(activity: ActivityResponse): GitEmojiTarget | null {
+    switch (activity.type) {
+        case "pr_review":
+            return { type: "pull_request", prIid: activity.targetIid };
+        case "issue_open":
+            return { type: "issue", issueIid: activity.targetIid };
+        case "pr_reply": {
+            const commentId = activity.targetCommentId;
+            if (commentId == null) return null;
+            if (activity.targetInlineReviewId != null) {
+                return { type: "inline_review_comment", prIid: activity.targetIid, commentId };
+            }
+            return { type: "pull_request_comment", prIid: activity.targetIid, commentId };
+        }
+        case "issue_reply": {
+            const commentId = activity.targetCommentId;
+            if (commentId == null) return null;
+            return { type: "issue_comment", issueIid: activity.targetIid, commentId };
+        }
+        default:
+            return null;
+    }
+}
+
+export function recoverLegacyReplyTargetComment(): number {
+    const result = db.$client.run(`
+        UPDATE activity
+        SET target_comment_id = (
+            SELECT CASE
+                    WHEN json_valid(json_extract(entry.value, '$.message'))
+                    THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                END
+            FROM json_each(activity.logs) AS entry
+            WHERE json_extract(entry.value, '$.type') = 'tool-call'
+              AND json_extract(entry.value, '$.toolName') IN ('get_pull_request_comment', 'get_issue_comment')
+              AND CASE
+                      WHEN json_valid(json_extract(entry.value, '$.message'))
+                      THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                  END IS NOT NULL
+            ORDER BY entry.key
+            LIMIT 1
+        )
+        WHERE type IN ('pr_reply', 'issue_reply')
+          AND target_comment_id IS NULL
+          AND json_valid(logs)
+          AND EXISTS (
+              SELECT 1
+              FROM json_each(activity.logs) AS entry
+              WHERE json_extract(entry.value, '$.type') = 'tool-call'
+                AND json_extract(entry.value, '$.toolName') IN ('get_pull_request_comment', 'get_issue_comment')
+                AND CASE
+                        WHEN json_valid(json_extract(entry.value, '$.message'))
+                        THEN json_extract(json_extract(entry.value, '$.message'), '$.commentId')
+                    END IS NOT NULL
+          )
+    `);
+    return result.changes;
+}
+
 export class ActivityService {
+    private async addEyesEmoji(activityId: number): Promise<void> {
+        try {
+            const activity = await this.findById(activityId);
+            if (activity?.repositoryId == null) return;
+            if (activity.status !== "queued" && activity.status !== "started") return;
+
+            const emojiTarget = buildEyesEmojiTarget(activity);
+            if (emojiTarget == null) return;
+            const gitProvider = await new RepositoryService().createGitProvider(activity.repositoryId);
+            await gitProvider.addEmoji(emojiTarget, "👀");
+
+            const current = await this.findById(activityId);
+            if (current?.status === "queued" || current?.status === "started") return;
+            await this.removeEyesEmoji(activityId);
+        } catch (error) {
+            logError("add emoji failed", error);
+        }
+    }
+
+    private async removeEyesEmoji(activityId: number): Promise<void> {
+        const activity = await this.findById(activityId);
+        if (activity?.repositoryId == null) {
+            return;
+        }
+
+        const emojiTarget = buildEyesEmojiTarget(activity);
+        if (emojiTarget == null) {
+            return;
+        }
+
+        const gitProvider = await new RepositoryService().createGitProvider(activity.repositoryId);
+        if (await this.hasQueuedOrStartedActivity(activityId)) {
+            return;
+        }
+
+        await gitProvider.removeEmoji(emojiTarget, "👀");
+    }
+
     public async findAll(
         input: { page: number; limit: number } & ActivityListFilter,
     ): Promise<Pagination<ActivityResponse>> {
@@ -387,7 +495,7 @@ export class ActivityService {
         return db
             .select(activityWithoutLogs)
             .from(activityTable)
-            .where(eq(activityTable.status, "started"))
+            .where(inArray(activityTable.status, ["queued", "started"]))
             .orderBy(desc(activityTable.createdAt), desc(activityTable.id))
             .limit(limit);
     }
@@ -406,6 +514,7 @@ export class ActivityService {
         const rows = await db
             .select({
                 status: activityTable.status,
+                startedAt: activityTable.startedAt,
                 completedAt: activityTable.completedAt,
                 errorMessage: activityTable.errorMessage,
                 inputToken: activityTable.inputToken,
@@ -455,6 +564,68 @@ export class ActivityService {
                 ),
             );
         return total > 0;
+    }
+
+    public async hasQueuedOrStartedPullRequestReview(repositoryId: number, targetIid: number): Promise<boolean> {
+        const [openPullRequestReviewCount] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    inArray(activityTable.status, ["queued", "started"]),
+                ),
+            );
+        return openPullRequestReviewCount.total > 0;
+    }
+
+    public async hasQueuedOrStartedActivity(id: number): Promise<boolean> {
+        const activity = await this.findById(id);
+        if (activity?.repositoryId == null) return false;
+        const [openActivityCount] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, activity.repositoryId),
+                    eq(activityTable.targetIid, activity.targetIid),
+                    eq(activityTable.type, activity.type),
+                    inArray(activityTable.status, ["queued", "started"]),
+                    ne(activityTable.id, id),
+                    activity.targetCommentId == null
+                        ? undefined
+                        : eq(activityTable.targetCommentId, activity.targetCommentId),
+                    activity.targetInlineReviewId == null
+                        ? undefined
+                        : eq(activityTable.targetInlineReviewId, activity.targetInlineReviewId),
+                ),
+            );
+        return openActivityCount.total > 0;
+    }
+
+    public async recordPullRequestHead(id: number, pullRequestHeadSha: string): Promise<void> {
+        if (id <= 0) return;
+        const activity = await this.findById(id);
+        if (activity?.repositoryId == null) return;
+        await db.update(activityTable).set({ headSha: pullRequestHeadSha }).where(eq(activityTable.id, id));
+        await db
+            .update(activityTable)
+            .set({
+                status: "canceled",
+                completedAt: new Date(),
+                errorMessage: "Included in the running review",
+            })
+            .where(
+                and(
+                    eq(activityTable.repositoryId, activity.repositoryId),
+                    eq(activityTable.targetIid, activity.targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    eq(activityTable.status, "queued"),
+                    eq(activityTable.headSha, pullRequestHeadSha),
+                ),
+            );
     }
 
     public async findLogListById(id: number, from?: number): Promise<ActivityLogResponse | null> {
@@ -524,9 +695,13 @@ export class ActivityService {
         }
     }
 
-    public async start(input: ActivityStartInput): Promise<number> {
+    public async start(input: ActivityStartInput, status: "queued" | "started" = "started"): Promise<number> {
         const [repository] = await db
-            .select({ path: repositoryTable.path, provider: repositoryTable.provider })
+            .select({
+                path: repositoryTable.path,
+                provider: repositoryTable.provider,
+                reasoningEffort: repositoryTable.reasoningEffort,
+            })
             .from(repositoryTable)
             .where(eq(repositoryTable.id, input.repositoryId));
 
@@ -540,12 +715,16 @@ export class ActivityService {
                 ...input,
                 repositoryPath: repository.path,
                 provider: repository.provider,
-                status: "started",
+                reasoningEffort: repository.reasoningEffort,
                 logVersion: "1",
+                status,
+                startedAt: status === "started" ? new Date() : null,
             })
             .returning({ id: activityTable.id });
 
-        return result[0].id;
+        const id = result[0].id;
+        await this.addEyesEmoji(id);
+        return id;
     }
 
     public async addTokenUsage(id: number, delta: ActivityTokenUsage): Promise<void> {
@@ -582,6 +761,8 @@ export class ActivityService {
         if (result.length === 0) {
             throw new Error("Activity not found");
         }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
+        activityQueue.drain();
     }
 
     public async fail(id: number, errorMessage: string): Promise<void> {
@@ -598,16 +779,37 @@ export class ActivityService {
         if (result.length === 0) {
             throw new Error("Activity not found");
         }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
+        activityQueue.drain();
     }
 
-    public async cancel(id: number): Promise<void> {
+    public async findInFlightPullRequestReviewList(
+        repositoryId: number,
+        targetIid: number,
+    ): Promise<ActivityResponse[]> {
+        return db
+            .select(activityWithoutLogs)
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, repositoryId),
+                    eq(activityTable.targetIid, targetIid),
+                    eq(activityTable.type, "pr_review"),
+                    inArray(activityTable.status, ["queued", "started"]),
+                ),
+            );
+    }
+
+    public async cancel(id: number, reason?: string): Promise<void> {
+        const trimmedReason = reason?.trim();
         const result = await db
             .update(activityTable)
             .set({
                 status: "canceled",
                 completedAt: new Date(),
+                ...(trimmedReason ? { errorMessage: trimmedReason } : {}),
             })
-            .where(and(eq(activityTable.id, id), eq(activityTable.status, "started")))
+            .where(and(eq(activityTable.id, id), inArray(activityTable.status, ["queued", "started"])))
             .returning({ id: activityTable.id });
 
         if (result.length === 0) {
@@ -615,7 +817,126 @@ export class ActivityService {
             if (activity === null) {
                 throw new Error("Activity not found");
             }
-            throw new Error("Only started activities can be canceled");
+            throw new Error("Only queued or started activities can be canceled");
+        }
+        void this.removeEyesEmoji(id).catch((error) => logError("remove emoji failed", error));
+        activityQueue.drain();
+    }
+
+    public async runStarted(id: number): Promise<void> {
+        const activity = await this.findById(id);
+        if (activity?.status !== "started") return;
+        if (activity.repositoryId == null || activity.modelProviderId == null) {
+            try {
+                await this.fail(id, "Repository or model provider is no longer linked to this activity");
+            } catch (error) {
+                if (!(error instanceof Error && error.message === "Activity not found")) {
+                    logError("Activity fail failed", error);
+                }
+            }
+            return;
+        }
+
+        try {
+            const repositoryService = new RepositoryService();
+            const repository = await repositoryService.findById(activity.repositoryId);
+            const modelProvider = await new ModelProviderService().findById(activity.modelProviderId);
+            const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
+            const workspace = new Workspace(gitProvider);
+            const llmSender = createModelProviderSender(modelProvider, activity.modelName, activity.reasoningEffort);
+
+            if (activity.type === "pr_review") {
+                const previousHeadSha = await this.findLastReviewedHeadSha(activity.repositoryId, activity.targetIid);
+                if (previousHeadSha && previousHeadSha === activity.headSha) {
+                    await this.appendLog(id, {
+                        type: "common",
+                        timestamp: new Date().toISOString(),
+                        level: "info",
+                        label: "Setup",
+                        message: "Skipped: head already reviewed",
+                    });
+                    await this.complete(id, { inputToken: 0, cachedInputToken: 0, outputToken: 0 });
+                    return;
+                }
+                // Triage ran in the webhook, before the queue, and its record travels on the
+                // activity row: a folded push replaces it along with the head.
+                const triage = (activity.triage as ActivityTriageJson | null) ?? null;
+                await runWithActivity(id, (activityId) =>
+                    runPullRequestReview({
+                        provider: gitProvider,
+                        workspace,
+                        llmSender,
+                        prIid: activity.targetIid,
+                        isInlineReview: repository.prInlineReview,
+                        language: repository.language,
+                        userPrompt: repository.userPrompt,
+                        activityId,
+                        isFollowUpReview: previousHeadSha != null,
+                        previousHeadSha,
+                        ...reviewBudgetForDepth(triage?.applied ? triage.depth : "normal"),
+                    }),
+                );
+                return;
+            }
+
+            if (activity.type === "issue_open") {
+                await runWithActivity(id, (activityId) =>
+                    runIssueReplyOnOpen({
+                        provider: gitProvider,
+                        workspace,
+                        llmSender,
+                        issueIid: activity.targetIid,
+                        language: repository.language,
+                        issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
+                        activityId,
+                    }),
+                );
+                return;
+            }
+
+            const commentId = activity.targetCommentId;
+            if (commentId == null) throw new Error("This activity has no comment to reply to");
+
+            if (activity.type === "pr_reply") {
+                await runWithActivity(id, (activityId) =>
+                    runPullRequestReply({
+                        provider: gitProvider,
+                        workspace,
+                        llmSender,
+                        prIid: activity.targetIid,
+                        commentId,
+                        inlineReviewId: activity.targetInlineReviewId,
+                        language: repository.language,
+                        userPrompt: repository.userPrompt,
+                        activityId,
+                    }),
+                );
+                return;
+            }
+
+            await runWithActivity(id, (activityId) =>
+                runIssueReply({
+                    provider: gitProvider,
+                    workspace,
+                    llmSender,
+                    issueIid: activity.targetIid,
+                    commentId,
+                    language: repository.language,
+                    userPrompt: repository.userPrompt,
+                    activityId,
+                }),
+            );
+        } catch (error) {
+            if (error instanceof JobCanceledError) return;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            try {
+                await this.fail(id, errorMessage);
+            } catch (failError) {
+                if (!(failError instanceof Error && failError.message === "Activity not found")) {
+                    logError("Activity fail failed", failError);
+                }
+            }
+            throw error;
         }
     }
 
@@ -630,6 +951,7 @@ export class ActivityService {
         if (!RETRY_TYPES.includes(activity.type as RetryActivityType)) {
             throw new Error("This activity type cannot be retried");
         }
+
         if (activity.repositoryId == null) {
             throw new Error("Repository is no longer linked to this activity");
         }
@@ -639,63 +961,31 @@ export class ActivityService {
             throw new Error("Model provider is no longer linked to this activity");
         }
 
-        const modelProvider = await new ModelProviderService().findById(repository.modelProviderId);
-        const gitProvider = await repositoryService.createGitProvider(activity.repositoryId);
-        const workspace = new Workspace(gitProvider);
-        const llmSender = createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort);
+        if (activity.type === "pr_review") {
+            if (await this.hasQueuedOrStartedPullRequestReview(activity.repositoryId, activity.targetIid)) {
+                throw new Error("A review for this pull request is already queued or running");
+            }
+        }
+
+        const commentId = activity.targetCommentId;
+        if ((activity.type === "pr_reply" || activity.type === "issue_reply") && commentId === null) {
+            throw new Error("This activity has no comment to reply to");
+        }
 
         // A retry keeps the triage record and the depth it implied, so a light review
         // that failed does not come back as a full one.
         const triage = (activity.triage as ActivityTriageJson | null) ?? null;
-        const startInput: ActivityStartInput = {
+        await activityQueue.push({
             repositoryId: activity.repositoryId,
             modelProviderId: repository.modelProviderId,
             modelName: repository.modelName,
             type: activity.type,
             targetIid: activity.targetIid,
             triage,
-        };
-
-        if (activity.type === "pr_review") {
-            const prIid = activity.targetIid;
-            const isFollowUpReview = await this.hasCompletedPullRequestReview(activity.repositoryId, prIid);
-            const lastHeadSha = isFollowUpReview
-                ? await this.findLastReviewedHeadSha(activity.repositoryId, prIid)
-                : null;
-
-            runWithActivity(startInput, (activityId) =>
-                runPullRequestReview({
-                    provider: gitProvider,
-                    workspace,
-                    llmSender,
-                    prIid,
-                    isInlineReview: repository.prInlineReview,
-                    language: repository.language,
-                    userPrompt: repository.userPrompt,
-                    activityId,
-                    isFollowUpReview,
-                    previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-                    ...reviewBudgetForDepth(triage?.applied ? triage.depth : "normal"),
-                }),
-            ).catch((error) => {
-                logError("Activity retry failed", error);
-            });
-            return;
-        }
-
-        const issueIid = activity.targetIid;
-        runWithActivity(startInput, (activityId) =>
-            runIssueReplyOnOpen({
-                provider: gitProvider,
-                workspace,
-                llmSender,
-                issueIid,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-        ).catch((error) => {
-            logError("Activity retry failed", error);
+            targetCommentId: activity.targetCommentId,
+            targetInlineReviewId: activity.targetInlineReviewId,
+            headSha: activity.headSha,
         });
+        activityQueue.drain();
     }
 }

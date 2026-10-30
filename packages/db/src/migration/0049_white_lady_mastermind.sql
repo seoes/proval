@@ -1,0 +1,1 @@
+ALTER TABLE `repository` ADD `pr_allowed_target_branch_list` text DEFAULT '[]' NOT NULL;

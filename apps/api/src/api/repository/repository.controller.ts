@@ -1,6 +1,8 @@
 import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
 import type { RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
+import { validateAllowedBranchList } from "../../util/allowed-target-branch.js";
+import { log } from "../../util/log.js";
 import { normalizeWebhookSecret, WebhookCredentialError } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {
@@ -22,6 +24,15 @@ export const findById: Handler = async (c) => {
 export const createRepository: Handler = async (c) => {
     const repositoryService = new RepositoryService();
     const body = await c.req.json<RepositoryInsert>();
+
+    if (Object.hasOwn(body, "prAllowedTargetBranchList")) {
+        try {
+            body.prAllowedTargetBranchList = validateAllowedBranchList(body.prAllowedTargetBranchList as string[]);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Invalid allowed target branches";
+            return c.json({ error: message }, 400);
+        }
+    }
 
     if (body.provider === "gitlab" || body.provider === "forgejo") {
         const secret = normalizeWebhookSecret(body.webhookSecret);
@@ -68,6 +79,15 @@ export const updateRepository: Handler = async (c) => {
         return c.json({ error: "Repository ID is required" }, 400);
     }
     const body = await c.req.json<RepositoryUpdateInput>();
+
+    if (Object.hasOwn(body, "prAllowedTargetBranchList")) {
+        try {
+            body.prAllowedTargetBranchList = validateAllowedBranchList(body.prAllowedTargetBranchList as string[]);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Invalid allowed target branches";
+            return c.json({ error: message }, 400);
+        }
+    }
 
     try {
         const repository = await repositoryService.update(parseInt(repositoryId), body);
@@ -167,6 +187,10 @@ export const removeRepository: Handler = async (c) => {
     if (!repositoryId) {
         return c.json({ error: "Repository ID is required" }, 400);
     }
-    await repositoryService.remove(parseInt(repositoryId));
-    return c.json({ message: "Repository deleted" }, 200);
+    try {
+        await repositoryService.remove(parseInt(repositoryId));
+        return c.json({ message: "Repository deleted" }, 200);
+    } catch (error) {
+        return c.json({ error: error instanceof Error ? error.message : "Failed to delete" }, 400);
+    }
 };

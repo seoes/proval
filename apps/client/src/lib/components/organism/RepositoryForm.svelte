@@ -1,11 +1,14 @@
 <script lang="ts">
     import InputText from "../atom/InputText.svelte";
+    import InputCombobox from "../atom/InputCombobox.svelte";
+    import { repositoryLanguageList } from "$lib/repositoryLanguageList";
     import fetchApi from "$lib/utils";
     import { reasoningEffortValueList, USER_PROMPT_MAX_LENGTH } from "@proval/types";
     import type {
         ModelProviderModelListResponse,
         ModelProviderResponse,
         ProviderOption,
+        PrReviewOnClose,
         PrReviewOnPush,
         ReasoningEffort,
         RepositoryInsert,
@@ -40,8 +43,10 @@
         prReviewEnabled: boolean;
         prInlineReview: boolean;
         prReviewOnPush: PrReviewOnPush;
+        prReviewOnClose: PrReviewOnClose;
         prIgnoreDraft: boolean;
         prTriageEnabled: boolean;
+        prAllowedTargetBranchList: string[];
         userPrompt: string | null;
         prReplyEnabled: boolean;
         prMentionOnly: boolean;
@@ -70,6 +75,12 @@
 
     interface ReviewPushOption {
         value: PrReviewOnPush;
+        label: string;
+        description: string;
+    }
+
+    interface ReviewOnCloseOption {
+        value: PrReviewOnClose;
         label: string;
         description: string;
     }
@@ -150,8 +161,10 @@
     let prReviewEnabled = $state<boolean>(config.prReviewEnabled);
     let prInlineReview = $state<boolean>(config.prInlineReview);
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
+    let prReviewOnClose = $state<PrReviewOnClose>(config.prReviewOnClose);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
     let prTriageEnabled = $state<boolean>(config.prTriageEnabled);
+    let allowedTargetBranchText = $state(config.prAllowedTargetBranchList.join(", "));
     let userPrompt = $state<string>(config.userPrompt ?? "");
     let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
 
@@ -233,6 +246,16 @@
             label: "Every push",
             description: "Review on each push",
         },
+    ];
+
+    const reviewOnCloseOptionList: ReviewOnCloseOption[] = [
+        { value: "continue", label: "Continue", description: "Finish and post the review" },
+        {
+            value: "continue_if_started",
+            label: "Continue if already started",
+            description: "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
+        },
+        { value: "cancel", label: "Cancel", description: "Cancel the review" },
     ];
 
     const accessLevelOptionList: AccessLevelOption[] = [
@@ -327,8 +350,13 @@
             prReviewEnabled,
             prInlineReview,
             prReviewOnPush,
+            prReviewOnClose,
             prIgnoreDraft,
             prTriageEnabled,
+            prAllowedTargetBranchList: allowedTargetBranchText
+                .split(",")
+                .map((branch) => branch.trim())
+                .filter((branch) => branch.length > 0),
             userPrompt: userPrompt.trim() || null,
             prReplyEnabled,
             prMentionOnly,
@@ -514,7 +542,7 @@
         <div>
             <FormField label="Language" description="Default language for code review">
                 {#snippet children({ id })}
-                    <InputText {id} placeholder="English" bind:value={language} />
+                    <InputCombobox {id} placeholder="English" bind:value={language} suggestionList={repositoryLanguageList} />
                 {/snippet}
             </FormField>
         </div>
@@ -564,6 +592,23 @@
                             </div>
                         {/snippet}
                     </FormField>
+                    <FormField
+                        label="When a pull request is merged or closed"
+                        description="What happens to a review that is still running"
+                        linkLabelToControl={false}
+                        upper>
+                        {#snippet children({ id: _id })}
+                            <div class="flex flex-col gap-2" id={_id} role="group">
+                                {#each reviewOnCloseOptionList as o}
+                                    <SimpleSelectCard
+                                        label={o.label}
+                                        description={o.description}
+                                        selected={prReviewOnClose === o.value}
+                                        onclick={() => (prReviewOnClose = o.value)} />
+                                {/each}
+                            </div>
+                        {/snippet}
+                    </FormField>
                     <div class="flex items-center justify-between gap-2">
                         <FieldTitle class="ml-1">Inline review</FieldTitle>
                         <ToggleSwitch bind:checked={prInlineReview} disabled={!prEnabled || !prReviewEnabled} />
@@ -583,6 +628,14 @@
                         </div>
                         <ToggleSwitch bind:checked={prTriageEnabled} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
+                    <FormField
+                        label="Allowed target branches"
+                        description="Comma separated branch names. Leave empty to review every target branch."
+                        upper>
+                        {#snippet children({ id })}
+                            <InputText {id} bind:value={allowedTargetBranchText} placeholder="main, dev" />
+                        {/snippet}
+                    </FormField>
                 </div>
             </div>
 

@@ -58,6 +58,7 @@ export function triageRuleLabel(rule: string): string {
 }
 
 export function activityStatusBadge(status: ActivityResponse["status"]): OptionBadge {
+    if (status === "queued") return { variant: "warning", label: "Queued" };
     if (status === "completed") return { variant: "success", label: "Completed" };
     if (status === "failed") return { variant: "danger", label: "Failed" };
     if (status === "canceled") return { variant: "neutral", label: "Canceled" };
@@ -67,6 +68,10 @@ export function activityStatusBadge(status: ActivityResponse["status"]): OptionB
 export function activityTargetLabel(type: ActivityResponse["type"], targetIid: number): string {
     if (type === "pr_review" || type === "pr_reply") return `!${targetIid}`;
     return `#${targetIid}`;
+}
+
+export function activityModelLabel(activity: Pick<ActivityResponse, "modelName" | "reasoningEffort">): string {
+    return `${activity.modelName} (${activity.reasoningEffort ?? "Default"})`;
 }
 
 export function truncateUrl(url: string, max = 40): string {
