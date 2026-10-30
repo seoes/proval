@@ -1,6 +1,9 @@
 # Dependencies
 node_modules
 
+# Benchmark
+apps/api/benchmark
+
 # Build outputs
 apps/client/dist
 apps/api/dist

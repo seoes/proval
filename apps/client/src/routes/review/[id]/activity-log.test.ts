@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { CommonLogEntry, ToolCallLogEntry, ToolErrorLogEntry, ToolResultLogEntry } from "@proval/types";
-import { serializeActivityLogList } from "./activity-log.js";
+import { messageHtml, serializeActivityLogList } from "./activity-log.js";
 
 const common: CommonLogEntry = {
     type: "common",
@@ -130,5 +130,25 @@ describe("serializeActivityLogList", () => {
             assert.equal(typeof row?.argumentHtml, "string");
             if (message) assert.notEqual(row?.argumentHtml, "");
         }
+    });
+
+    test("pretty prints JSON tool results and skips truncated JSON", () => {
+        const call = toolCall("json-result");
+        const [row] = serializeActivityLogList([
+            call,
+            { ...toolResult(call), message: '{"ok":true,"count":2}' },
+        ]);
+        assert.match(row?.resultHtml ?? "", /hljs-attr/);
+        assert.match(row?.resultHtml ?? "", /&quot;count&quot;/);
+        assert.match(row?.resultHtml ?? "", /\n    <span class="hljs-attr">/);
+
+        const [cut] = serializeActivityLogList([call, { ...toolResult(call), message: '{"ok":true…' }]);
+        assert.equal(cut?.resultHtml, undefined);
+    });
+
+    test("messageHtml highlights get_file_content source from filePath", () => {
+        const html = messageHtml("export const n = 1;\n", "src/app.ts");
+        assert.match(html ?? "", /hljs-keyword/);
+        assert.equal(messageHtml("export const n = 1;\n", "src/App.svelte"), undefined);
     });
 });

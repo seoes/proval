@@ -11,7 +11,8 @@ const xaiOAuthAttemptSchema = z
     .object({
         label: z.string().trim().min(1).max(200),
         timeoutSecond: z.number().int().min(10).max(7200),
-        concurrency: z.number().int().min(1).nullable().optional(),
+        requestConcurrency: z.number().int().min(1).nullable().optional(),
+        activityConcurrency: z.number().int().min(1).nullable().optional(),
         modelProviderId: z.number().int().positive().optional(),
     })
     .strict();
@@ -149,7 +150,8 @@ export class XaiOAuthService {
                     userCode: data.user_code,
                     label: attemptInput.label,
                     timeoutSecond: attemptInput.timeoutSecond,
-                    concurrency: attemptInput.concurrency ?? null,
+                    requestConcurrency: attemptInput.requestConcurrency ?? null,
+                    activityConcurrency: attemptInput.activityConcurrency ?? null,
                     verificationUri: verificationUri.href,
                     expiresAt: Date.now() + data.expires_in * 1000,
                 },
@@ -268,7 +270,8 @@ export class XaiOAuthService {
                             .values({
                                 label: attempt.input.label,
                                 timeoutSecond: attempt.input.timeoutSecond,
-                                concurrency: attempt.input.concurrency ?? null,
+                                requestConcurrency: attempt.input.requestConcurrency ?? null,
+                                activityConcurrency: attempt.input.activityConcurrency ?? null,
                                 provider: "openai_responses",
                                 baseUrl: xaiBaseUrl,
                                 authMethod: "xai_oauth",

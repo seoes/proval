@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 const timeStamp = {
@@ -15,6 +15,8 @@ export const instanceSettingTable = sqliteTable("instance_setting", {
     id: integer().primaryKey(),
     authEnabled: integer({ mode: "boolean" }).notNull().default(false),
     registrationEnabled: integer({ mode: "boolean" }).notNull().default(false),
+    rerunInterruptedActivity: integer({ mode: "boolean" }).notNull().default(false),
+    waitForRunningActivityOnShutdown: integer({ mode: "boolean" }).notNull().default(false),
     ...timeStamp,
 });
 
@@ -25,6 +27,7 @@ export const userTable = sqliteTable("user", {
     role: text({ enum: ["admin", "user"] })
         .notNull()
         .default("user"),
+    lastActiveAt: integer({ mode: "timestamp" }),
     ...timeStamp,
 });
 
@@ -75,7 +78,8 @@ export const modelProviderTable = sqliteTable("model_provider", {
     oauthCredential: text(),
     oauthStatus: text({ enum: ["authorized", "reauthorization_required"] }),
     timeoutSecond: integer().notNull().default(600),
-    concurrency: integer(),
+    requestConcurrency: integer("request_concurrency"),
+    activityConcurrency: integer("activity_concurrency"),
     ...timeStamp,
 });
 
@@ -114,6 +118,7 @@ export const gitProviderAccessTable = sqliteTable(
         defaultPrReviewEnabled: integer({ mode: "boolean" }),
         defaultPrInlineReview: integer({ mode: "boolean" }),
         defaultPrReviewOnPush: text({ enum: ["on_first_push", "on_every_push"] }),
+        defaultPrReviewOnClose: text({ enum: ["continue", "continue_if_started", "cancel"] }).default("continue"),
         defaultPrIgnoreDraft: integer({ mode: "boolean" }),
         defaultPrReplyEnabled: integer({ mode: "boolean" }),
         defaultPrMentionOnly: integer({ mode: "boolean" }),
@@ -169,7 +174,11 @@ export const repositoryTable = sqliteTable(
         prReviewOnPush: text({ enum: ["on_first_push", "on_every_push"] })
             .notNull()
             .default("on_every_push"),
+        prReviewOnClose: text({ enum: ["continue", "continue_if_started", "cancel"] })
+            .notNull()
+            .default("continue"),
         prIgnoreDraft: integer({ mode: "boolean" }).notNull().default(true),
+        prAllowedTargetBranchList: text({ mode: "json" }).$type<string[]>().notNull().default([]),
         userPrompt: text(),
 
         // Pull Request Reply
@@ -220,9 +229,12 @@ export const activityTable = sqliteTable(
         provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
         modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
+        reasoningEffort: text({ enum: reasoningEffortValueList }),
         type: text({ enum: ["pr_review", "pr_reply", "issue_open", "issue_reply"] }).notNull(),
-        status: text({ enum: ["started", "completed", "failed", "canceled"] }).notNull(),
+        status: text({ enum: ["queued", "started", "completed", "failed", "canceled"] }).notNull(),
         targetIid: integer().notNull(),
+        targetCommentId: integer(),
+        targetInlineReviewId: text(),
         headSha: text(),
         inputToken: integer(),
         cachedInputToken: integer(),
@@ -230,12 +242,19 @@ export const activityTable = sqliteTable(
         errorMessage: text(),
         logVersion: text({ enum: ["1"] }),
         logs: text({ mode: "json" }).$type<ActivityLogEntryJson[]>().notNull().default([]),
+        startedAt: integer({ mode: "timestamp" }),
         completedAt: integer({ mode: "timestamp" }),
         ...timeStamp,
     },
     (table) => [
         index("activity_repository_id_created_at_idx").on(table.repositoryId, table.createdAt),
         index("activity_model_provider_id_created_at_idx").on(table.modelProviderId, table.createdAt),
+        uniqueIndex("activity_one_queued_pr_review")
+            .on(table.repositoryId, table.targetIid)
+            .where(sql`${table.type} = 'pr_review' AND ${table.status} = 'queued'`),
+        uniqueIndex("activity_one_started_pr_review")
+            .on(table.repositoryId, table.targetIid)
+            .where(sql`${table.type} = 'pr_review' AND ${table.status} = 'started'`),
     ],
 );
 

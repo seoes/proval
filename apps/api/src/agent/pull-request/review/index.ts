@@ -1,4 +1,5 @@
-import type { PullRequestReview } from "../index.js";
+import type { PullRequestReview, ReviewMeasureEvent } from "../index.js";
+import type { AgentLoopEvent } from "../../llm/loop.js";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { generatePullRequestPrompt } from "../prompt/context.js";
 import { buildAgentInstructionPrompt } from "../prompt/agents-md.js";
@@ -8,6 +9,7 @@ import type { ReviewHandoff } from "./handoff.schema.js";
 import { runReviewWritingAgent, truncatePriorSummary } from "./writing.service.js";
 import { buildFollowUpThreadContext, buildPushScopeContext } from "./follow-up.context.js";
 import { logAgent, logAgentError } from "../../../util/log.js";
+import { ActivityService } from "../../../api/activity/activity.service.js";
 
 async function loadPriorBotSummary(
     provider: Parameters<PullRequestReview>[0]["provider"],
@@ -42,21 +44,20 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         activityId,
         isFollowUpReview = false,
         previousHeadSha = null,
+        onEvent,
     } = params;
+    const emit = (event: ReviewMeasureEvent) => onEvent?.(event);
+    const emitLoop = (agent: string) => (event: AgentLoopEvent) => emit({ type: "agent", agent, event });
     const label = `[PR #${prIid}] Setup`;
-    const emojiTarget = { type: "pull_request" as const, prIid };
+    const activityService = new ActivityService();
+    emit({ type: "phase-start", phase: "setup" });
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, "fetching pull request version", label);
         const detail = await provider.fetchPullRequestDetail(prIid);
         const version = await provider.fetchPullRequestVersion(prIid);
         const { baseSha, headSha, startSha } = version;
         logAgent(activityId, `version ready head=${headSha.slice(0, 12)}…`, label);
+        await activityService.recordPullRequestHead(activityId, headSha);
 
         await workspace.loadFromPullRequest({
             prIid,
@@ -115,6 +116,8 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         const promptPartList = [prompt, pushScopePrompt, threadContext].filter(Boolean);
         prompt = promptPartList.join("\n\n");
 
+        emit({ type: "phase-end", phase: "setup" });
+        emit({ type: "phase-start", phase: "plan" });
         const planResult = await runReviewPlanAgent(
             provider,
             workspace,
@@ -126,7 +129,10 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             usePushScope,
             userPrompt,
             agentInstructionPrompt,
+            emitLoop("plan"),
         );
+        emit({ type: "phase-end", phase: "plan" });
+        emit({ type: "phase-start", phase: "sub" });
         const total = planResult.reviewUnitList.length;
         const reviewHandoffList: ReviewHandoff[] = [];
 
@@ -136,24 +142,35 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         // no longer exists, which otherwise burns model token until the step
         // budget runs out.
         const subAgentSettledList = await Promise.allSettled(
-            planResult.reviewUnitList.map((reviewUnit, index) =>
-                runReviewSubAgent(
-                    provider,
-                    workspace,
-                    llmSender,
-                    prompt,
-                    prIid,
-                    reviewUnit,
-                    reviewHandoffList,
-                    index + 1,
-                    total,
-                    activityId,
-                    usePushScope,
-                    userPrompt,
-                    agentInstructionPrompt,
-                ),
-            ),
+            planResult.reviewUnitList.map(async (reviewUnit, index) => {
+                emit({ type: "sub-start", index: index + 1, total });
+                try {
+                    const result = await runReviewSubAgent(
+                        provider,
+                        workspace,
+                        llmSender,
+                        prompt,
+                        prIid,
+                        reviewUnit,
+                        reviewHandoffList,
+                        index + 1,
+                        total,
+                        activityId,
+                        usePushScope,
+                        userPrompt,
+                        agentInstructionPrompt,
+                        emitLoop(`sub-${index + 1}`),
+                    );
+                    emit({ type: "sub-end", index: index + 1, ok: true });
+                    return result;
+                } catch (error) {
+                    emit({ type: "sub-end", index: index + 1, ok: false });
+                    throw error;
+                }
+            }),
         );
+        emit({ type: "phase-end", phase: "sub" });
+        emit({ type: "phase-start", phase: "writing" });
 
         const subAgentResultList: Awaited<ReturnType<typeof runReviewSubAgent>>[] = [];
         for (const settled of subAgentSettledList) {
@@ -170,6 +187,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             workspace,
             llmSender,
             prompt,
+            detail.author,
             prIid,
             baseSha,
             headSha,
@@ -183,7 +201,10 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             usePushScope,
             userPrompt,
             agentInstructionPrompt,
+            emitLoop("writing"),
         );
+        emit({ type: "phase-end", phase: "writing" });
+        emit({ type: "phase-start", phase: "finalize" });
 
         const usage = {
             inputToken:
@@ -212,9 +233,11 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             },
         });
 
+        emit({ type: "phase-end", phase: "finalize" });
         return {
             ...usage,
             reviewUnitList: planResult.reviewUnitList,
+            skippedFileList: planResult.skippedFileList,
             subAgentList: subAgentResultList.map((result, index) => ({
                 index: index + 1,
                 total,
@@ -226,11 +249,6 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             })),
         };
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

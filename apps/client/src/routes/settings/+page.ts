@@ -10,6 +10,8 @@ export const load: PageLoad = async ({ parent }) => {
         : {
               isAuthEnabled: auth.isAuthEnabled,
               isRegistrationEnabled: auth.isRegistrationEnabled,
+              isRerunInterruptedActivity: false,
+              isWaitForRunningActivityOnShutdown: false,
           };
 
     // Token management needs a session, so an anonymous or token authenticated

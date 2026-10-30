@@ -16,7 +16,10 @@
     interface Props {
         mode: "create" | "edit";
         modelProviderId?: number;
-        initialData?: Pick<ModelProviderResponse, "label" | "timeoutSecond" | "concurrency" | "oauthStatus">;
+        initialData?: Pick<
+            ModelProviderResponse,
+            "label" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency" | "oauthStatus"
+        >;
         border?: boolean;
     }
 
@@ -24,7 +27,12 @@
 
     let label = $state(initialData?.label ?? "");
     let timeoutSecond = $state(String(initialData?.timeoutSecond ?? 600));
-    let concurrency = $state(initialData?.concurrency == null ? "" : String(initialData.concurrency));
+    let requestConcurrency = $state(
+        initialData?.requestConcurrency == null ? "" : String(initialData.requestConcurrency),
+    );
+    let activityConcurrency = $state(
+        initialData?.activityConcurrency == null ? "" : String(initialData.activityConcurrency),
+    );
     let testModalOpen = $state(false);
     let testModelNameDraft = $state("");
     let testResult = $state<{ success: boolean; message: string } | null>(null);
@@ -57,7 +65,8 @@
         oauthAttempt = attempt;
         label = attempt.label;
         timeoutSecond = String(attempt.timeoutSecond);
-        concurrency = attempt.concurrency == null ? "" : String(attempt.concurrency);
+        requestConcurrency = attempt.requestConcurrency == null ? "" : String(attempt.requestConcurrency);
+        activityConcurrency = attempt.activityConcurrency == null ? "" : String(attempt.activityConcurrency);
         if (attempt.status === "authorized") {
             rememberAttempt(null);
             await goto("/model-provider", { invalidateAll: true });
@@ -111,10 +120,22 @@
             await openAlert("Enter a Display Name and a timeout between 10 and 7200 seconds");
             return;
         }
-        const concurrencyText = concurrency.trim();
-        const concurrencyValue = concurrencyText === "" ? null : Number(concurrencyText);
-        if (concurrencyValue !== null && (!Number.isInteger(concurrencyValue) || concurrencyValue < 1)) {
-            await openAlert("Concurrency must be an integer of at least 1, or null for no limit");
+        const requestConcurrencyText = requestConcurrency.trim();
+        const requestConcurrencyValue = requestConcurrencyText === "" ? null : Number(requestConcurrencyText);
+        if (
+            requestConcurrencyValue !== null &&
+            (!Number.isInteger(requestConcurrencyValue) || requestConcurrencyValue < 1)
+        ) {
+            await openAlert("Request concurrency must be an integer of at least 1, or empty for no limit");
+            return;
+        }
+        const activityConcurrencyText = activityConcurrency.trim();
+        const activityConcurrencyValue = activityConcurrencyText === "" ? null : Number(activityConcurrencyText);
+        if (
+            activityConcurrencyValue !== null &&
+            (!Number.isInteger(activityConcurrencyValue) || activityConcurrencyValue < 1)
+        ) {
+            await openAlert("Activity concurrency must be an integer of at least 1, or empty for no limit");
             return;
         }
         oauthLoading = true;
@@ -129,7 +150,8 @@
                 body: JSON.stringify({
                     label: label.trim(),
                     timeoutSecond: timeout,
-                    concurrency: concurrencyValue,
+                    requestConcurrency: requestConcurrencyValue,
+                    activityConcurrency: activityConcurrencyValue,
                     modelProviderId,
                 }),
             });
@@ -210,10 +232,22 @@
             await openAlert("Timeout must be between 10 and 7200 seconds");
             return;
         }
-        const concurrencyText = concurrency.trim();
-        const concurrencyValue = concurrencyText === "" ? null : Number(concurrencyText);
-        if (concurrencyValue !== null && (!Number.isInteger(concurrencyValue) || concurrencyValue < 1)) {
-            await openAlert("Concurrency must be an integer of at least 1, or null for no limit");
+        const requestConcurrencyText = requestConcurrency.trim();
+        const requestConcurrencyValue = requestConcurrencyText === "" ? null : Number(requestConcurrencyText);
+        if (
+            requestConcurrencyValue !== null &&
+            (!Number.isInteger(requestConcurrencyValue) || requestConcurrencyValue < 1)
+        ) {
+            await openAlert("Request concurrency must be an integer of at least 1, or empty for no limit");
+            return;
+        }
+        const activityConcurrencyText = activityConcurrency.trim();
+        const activityConcurrencyValue = activityConcurrencyText === "" ? null : Number(activityConcurrencyText);
+        if (
+            activityConcurrencyValue !== null &&
+            (!Number.isInteger(activityConcurrencyValue) || activityConcurrencyValue < 1)
+        ) {
+            await openAlert("Activity concurrency must be an integer of at least 1, or empty for no limit");
             return;
         }
         const confirm = await openConfirm("Update this model provider?");
@@ -221,7 +255,12 @@
         const res = await fetchApi(`/model-provider/${modelProviderId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ label, timeoutSecond: timeout, concurrency: concurrencyValue }),
+            body: JSON.stringify({
+                label,
+                timeoutSecond: timeout,
+                requestConcurrency: requestConcurrencyValue,
+                activityConcurrency: activityConcurrencyValue,
+            }),
         });
         if (!res.ok) {
             const errBody = (await res.json().catch(() => ({}))) as { error?: string };
@@ -296,12 +335,27 @@
             {/snippet}
         </FormField>
 
-        <FormField label="Concurrency" description="Applies to every activity that uses this provider.">
+        <FormField
+            label="Request concurrency"
+            description="Maximum concurrent model requests for this provider. Empty means no limit.">
             {#snippet children({ id })}
                 <InputText
                     {id}
                     placeholder="Leave empty for unlimited"
-                    bind:value={concurrency}
+                    bind:value={requestConcurrency}
+                    disabled={oauthLocked}
+                    numeric />
+            {/snippet}
+        </FormField>
+
+        <FormField
+            label="Activity concurrency"
+            description="Maximum activities running at once for this provider. Others wait. Empty means no limit.">
+            {#snippet children({ id })}
+                <InputText
+                    {id}
+                    placeholder="Leave empty for unlimited"
+                    bind:value={activityConcurrency}
                     disabled={oauthLocked}
                     numeric />
             {/snippet}

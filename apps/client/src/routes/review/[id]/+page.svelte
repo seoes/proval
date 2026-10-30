@@ -6,7 +6,7 @@
     import Button from "$lib/components/atom/Button.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Modal from "$lib/components/atom/Modal.svelte";
-    import { activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
+    import { activityModelLabel, activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
     import { activityTargetWebUrl, viewInProviderLabel } from "../../repository/[id]/load.js";
@@ -20,7 +20,7 @@
     import { readReviewListBackHref } from "../filterQuery.js";
     import { untrack } from "svelte";
     import { CaretRightIcon, WrenchIcon } from "phosphor-svelte";
-    import { serializeActivityLogList } from "./activity-log.js";
+    import { CODE_HIGHLIGHT_CLASS, serializeActivityLogList } from "./activity-log.js";
     import { toolIconRecord, transformToolName } from "$lib/utils/tool.js";
 
     const POLL_MS = 1000;
@@ -34,10 +34,45 @@
     const status = $derived(activityStatusBadge(review.status));
     const target = $derived(activityTargetLabel(review.type, review.targetIid));
     const typeLabel = $derived(activityTypeLabel(review.type));
-    const durationLabel = $derived(review.completedAt ? formatDuration(review.createdAt, review.completedAt) : null);
+    const detailTimeLabelOption = { absoluteAfterMinutes: 60 };
+    const formatDetailTime = (date: Date) => formatTimeAgo(date, detailTimeLabelOption);
+    const isSameSecond = (a: Date | string, b: Date | string) =>
+        Math.abs(Math.trunc(new Date(a).getTime() / 1000) - Math.trunc(new Date(b).getTime() / 1000)) <= 5;
+    const showQueuedAtBeforeStarted = $derived(
+        review.startedAt != null && !isSameSecond(review.createdAt, review.startedAt),
+    );
+
+    let runningClockMs = $state(Date.now());
+    $effect(() => {
+        if (review.status !== "started") {
+            return;
+        }
+        const timer = setInterval(() => {
+            runningClockMs = Date.now();
+        }, POLL_MS);
+        return () => clearInterval(timer);
+    });
+
+    const runningDurationLabel = $derived(
+        review.status === "started" && review.startedAt
+            ? formatDuration(review.startedAt, new Date(runningClockMs))
+            : null,
+    );
+
+    const showFinishedTimeline = $derived(
+        review.status === "completed" || review.status === "failed" || review.status === "canceled",
+    );
+    const finishedDurationLabel = $derived(
+        showFinishedTimeline && review.startedAt && review.completedAt
+            ? formatDuration(review.startedAt, review.completedAt)
+            : null,
+    );
+    const showStatusMessage = $derived(
+        (review.status === "failed" || review.status === "canceled") && Boolean(review.errorMessage),
+    );
     const showFullErrorButton = $derived.by(() => {
         const message = review.errorMessage;
-        if (review.status !== "failed" || !message) {
+        if (!showStatusMessage || !message) {
             return false;
         }
         return message.split("\n").length > 5 || message.length > 400;
@@ -49,9 +84,12 @@
     const canRetry = $derived(
         (review.status === "failed" || review.status === "canceled") &&
             review.repositoryId != null &&
-            (review.type === "pr_review" || review.type === "issue_open"),
+            (review.type === "pr_review" ||
+                review.type === "issue_open" ||
+                ((review.type === "pr_reply" || review.type === "issue_reply") && review.targetCommentId != null)),
     );
-    const canCancel = $derived(review.status === "started");
+    const isQueuedOrStarted = $derived(review.status === "queued" || review.status === "started");
+    const canCancel = $derived(isQueuedOrStarted);
     const isRunning = $derived(review.status === "started");
 
     let isCanceling = $state(false);
@@ -64,10 +102,18 @@
     async function onRetry(): Promise<void> {
         if (isRetrying || !canRetry) return;
 
-        const message =
-            review.type === "pr_review"
-                ? "Start a new activity and run the pull request review again? This may post another review or comment on the pull request."
-                : "Start a new activity and run the issue open workflow again? This may post another comment on the issue.";
+        const retryMessageRecord: Record<ActivityResponse["type"], string> = {
+            pr_review:
+                "Queue a new activity and run the pull request review again? This may post another review or comment on the pull request.",
+            pr_reply:
+                "Queue a new activity and reply to the same pull request comment again? This may post another comment on the pull request.",
+            issue_open:
+                "Queue a new activity and run the issue open workflow again? This may post another comment on the issue.",
+            issue_reply:
+                "Queue a new activity and reply to the same issue comment again? This may post another comment on the issue.",
+        };
+
+        const message = retryMessageRecord[review.type];
 
         const confirmed = await openConfirm(message, { title: "Retry activity", confirmText: "Retry" });
         if (!confirmed) return;
@@ -214,7 +260,7 @@
 
     $effect(() => {
         const id = data.review.id;
-        if (!isRunning) {
+        if (!isQueuedOrStarted) {
             return;
         }
 
@@ -255,7 +301,7 @@
                     <span class="text-border-strong">·</span>
                     {typeLabel}
                     <span class="text-border-strong">·</span>
-                    {review.modelName}
+                    {activityModelLabel(review)}
                     {#if review.headSha}
                         <span class="text-border-strong">·</span>
                         <span class="font-mono text-secondary-foreground">{review.headSha.slice(0, 7)}</span>
@@ -263,28 +309,75 @@
                 </p>
             </div>
             <div class="shrink-0 space-y-1 text-right text-xs">
-                <div>
-                    <span class="text-muted-foreground">Started</span>
-                    <span class="ml-1.5 text-secondary-foreground">{formatTimeAgo(review.createdAt)}</span>
-                </div>
-                {#if durationLabel}
+                {#if review.status === "queued"}
                     <div>
-                        <span class="text-muted-foreground">Duration</span>
-                        <span class="ml-1.5 font-medium text-foreground tabular-nums">{durationLabel}</span>
+                        <span class="text-muted-foreground">Queued at</span>
+                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
                     </div>
+                {:else if review.status === "started"}
+                    {#if review.startedAt}
+                        {#if showQueuedAtBeforeStarted}
+                            <div>
+                                <span class="text-muted-foreground">Queued at</span>
+                                <span class="ml-1.5 text-secondary-foreground"
+                                    >{formatDetailTime(review.createdAt)}</span>
+                            </div>
+                        {/if}
+                        <div>
+                            <span class="text-muted-foreground">Started at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
+                        </div>
+                    {/if}
+                    {#if runningDurationLabel}
+                        <div>
+                            <span class="text-muted-foreground">Duration</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums">{runningDurationLabel}</span>
+                        </div>
+                    {/if}
+                {:else if showFinishedTimeline}
+                    {#if review.startedAt}
+                        {#if showQueuedAtBeforeStarted}
+                            <div>
+                                <span class="text-muted-foreground">Queued at</span>
+                                <span class="ml-1.5 text-secondary-foreground"
+                                    >{formatDetailTime(review.createdAt)}</span>
+                            </div>
+                        {/if}
+                        <div>
+                            <span class="text-muted-foreground">Started at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.startedAt)}</span>
+                        </div>
+                    {:else}
+                        <div>
+                            <span class="text-muted-foreground">Queued at</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
+                        </div>
+                    {/if}
+                    {#if finishedDurationLabel}
+                        <div>
+                            <span class="text-muted-foreground">Duration</span>
+                            <span class="ml-1.5 font-medium text-foreground tabular-nums">{finishedDurationLabel}</span>
+                        </div>
+                    {/if}
                 {/if}
             </div>
         </div>
 
-        {#if review.status === "failed" && review.errorMessage}
-            <div class="mt-3 rounded-md bg-destructive-muted px-3 py-2">
-                <p class="line-clamp-5 text-sm break-words whitespace-pre-wrap text-destructive">
+        {#if showStatusMessage}
+            <div class="mt-3 rounded-md px-3 py-2 {review.status === 'failed' ? 'bg-destructive-muted' : 'bg-muted'}">
+                <p
+                    class="line-clamp-5 text-sm break-words whitespace-pre-wrap {review.status === 'failed'
+                        ? 'text-destructive'
+                        : 'text-secondary-foreground'}">
                     {review.errorMessage}
                 </p>
                 {#if showFullErrorButton}
                     <button
                         type="button"
-                        class="mt-1.5 cursor-pointer text-xs font-medium text-destructive underline-offset-2 hover:underline"
+                        class="mt-1.5 cursor-pointer text-xs font-medium underline-offset-2 hover:underline {review.status ===
+                        'failed'
+                            ? 'text-destructive'
+                            : 'text-secondary-foreground'}"
                         onclick={() => (errorModalOpen = true)}>
                         View full
                     </button>
@@ -385,9 +478,7 @@
                                                             >{formatLogTime(entry.timestamp)}</span>
                                                     </span>
                                                     <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes the argument text before adding markup -->
-                                                    <code
-                                                        class="whitespace-pre-wrap [&_.hljs-attr]:text-primary-text [&_.hljs-literal]:text-violet-700 dark:[&_.hljs-literal]:text-violet-300 [&_.hljs-number]:text-warning [&_.hljs-punctuation]:text-secondary-foreground [&_.hljs-string]:text-success"
-                                                        >{@html row.argumentHtml}</code>
+                                                    <code class={CODE_HIGHLIGHT_CLASS}>{@html row.argumentHtml}</code>
                                                     <!-- eslint-enable svelte/no-at-html-tags -->
                                                 </span>
                                                 <CaretRightIcon
@@ -404,8 +495,15 @@
                                                         <!-- <span class="block font-semibold">Result</span> -->
                                                         <div
                                                             class="rounded-sm border border-border bg-card px-2 py-1.5 text-secondary-foreground">
-                                                            <span class="whitespace-pre-wrap"
-                                                                >{row.result.message}</span>
+                                                            {#if row.resultHtml}
+                                                                <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes text before adding markup -->
+                                                                <code class={CODE_HIGHLIGHT_CLASS}
+                                                                    >{@html row.resultHtml}</code>
+                                                                <!-- eslint-enable svelte/no-at-html-tags -->
+                                                            {:else}
+                                                                <span class="whitespace-pre-wrap"
+                                                                    >{row.result.message}</span>
+                                                            {/if}
                                                         </div>
                                                     </div>
                                                 {:else}
@@ -437,11 +535,16 @@
     </div>
 </DefaultLayout>
 
-{#if review.errorMessage}
+{#if review.errorMessage && showStatusMessage}
     <Modal bind:open={errorModalOpen} class="max-w-2xl">
-        <h3 class="mb-3 text-lg font-semibold tracking-tight text-foreground">Error</h3>
+        <h3 class="mb-3 text-lg font-semibold tracking-tight text-foreground">
+            {review.status === "canceled" ? "Canceled" : "Error"}
+        </h3>
         <pre
-            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md bg-destructive-muted px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap text-destructive">{review.errorMessage}</pre>
+            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap {review.status ===
+            'canceled'
+                ? 'bg-muted text-secondary-foreground'
+                : 'bg-destructive-muted text-destructive'}">{review.errorMessage}</pre>
         <div class="mt-6 flex justify-end">
             <Button primary onclick={() => (errorModalOpen = false)}>Close</Button>
         </div>

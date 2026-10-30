@@ -1,3 +1,4 @@
+export { buildAuthorMentionPolicy, type AuthorMentionMode } from "./author.js";
 export { buildCommentToolLanguageNote, buildCommentBodyDescription, COMMENT_LANGUAGE_RULE } from "./language.js";
 export { USER_PROMPT_BASE } from "./user-prompt.js";
 export {

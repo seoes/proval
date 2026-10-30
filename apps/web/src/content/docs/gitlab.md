@@ -71,7 +71,7 @@ Use `https://` when TLS terminates before Proval. LAN `http://` may require [all
     - **Comments**
     - **Issues events**
 
-Merge request events include open, reopen, and update (push or draft to ready). Proval reviews on first push or every push per repository settings, and skips draft MRs until they become ready.
+Merge request events include open, reopen, and update (push or draft to ready). Proval reviews on first push or every push while the merge request is open, and skips draft MRs until they become ready. Reopen only triggers a review if the current head was never reviewed. Pushes while the merge request is closed are ignored. Close and merge use the same webhook event. Repository settings decide whether an in flight review keeps running or is canceled.
 
 <figure>
     <img src="/docs/gitlab/03-webhook.png" alt="GitLab project webhook form with URL and secret" />

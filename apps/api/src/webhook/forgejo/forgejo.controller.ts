@@ -3,14 +3,16 @@ import { ForgejoProvider } from "../../git-provider/forgejo.js";
 import type { Access, ModelProvider, Repository } from "@proval/types";
 import { log, logError } from "../../util/log.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
+import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
-import { runWithActivity } from "../../api/activity/activity.runner.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
-import { createModelProviderSender } from "../../api/model/model.service.js";
-import { runPullRequestReply, runPullRequestReview } from "../../agent/pull-request";
-import { runIssueReplyOnOpen, runIssueReply } from "../../agent/issue";
-import { Workspace } from "../../git-provider/workspace.js";
+import { activityQueue } from "../../api/activity/activity.queue.js";
 import { CommentService } from "../../api/comment/comment.service.js";
+import {
+    isPullRequestPushWhileClosed,
+    isPullRequestReopenAction,
+    skipPullRequestReviewBeforeQueue,
+} from "../pull-request-review-guard.js";
 
 interface ForgejoPullRequestPayload {
     action: string;
@@ -22,6 +24,7 @@ interface ForgejoPullRequestPayload {
         state: string;
         merged: boolean;
         draft?: boolean;
+        base?: { ref?: string };
         head?: { sha?: string };
         user?: { login?: string };
     };
@@ -132,11 +135,13 @@ const handleForgejoPullRequestWebhook = async (
 ) => {
     const action = payload.action;
     const pr = payload.pull_request;
-    const prInfo = `#${pr.number} ${pr.title}`;
+    const prInfo = `[#${pr.number}]: ${pr.title}`;
     if (!repository.prEnabled || !repository.prReviewEnabled) {
-        log(`Skipped: review is off (${prInfo})`, "Forgejo");
+        log(`Skipped: review is off - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: review is off" }), { status: 200 });
     }
+
+    const reviewMode = repository.prReviewOnPush;
 
     const allowedAction =
         action === "opened" ||
@@ -145,15 +150,22 @@ const handleForgejoPullRequestWebhook = async (
         action === "synchronize" ||
         action === "ready_for_review";
     if (!allowedAction) {
-        log(`Skipped: action '${action}' (${prInfo})`, "Forgejo");
+        log(`Skipped: action '${action}' - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });
     }
 
     if (repository.prIgnoreDraft && pr.draft === true && action !== "ready_for_review") {
-        log(`Skipped: draft pull request (${prInfo})`, "Forgejo");
+        log(`Skipped: draft pull request - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: draft pull request" }), { status: 200 });
+    }
+
+    const targetBranch = pr.base?.ref ?? "";
+    if (!isAllowedTargetBranch(repository.prAllowedTargetBranchList, targetBranch)) {
+        const message = `Skipped: target branch '${targetBranch}' is not allowed`;
+        log(`${message} - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message }), { status: 200 });
     }
 
     const token = access.accessToken;
@@ -174,71 +186,53 @@ const handleForgejoPullRequestWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
+    const isReopen = isPullRequestReopenAction(action, "forgejo");
+    if (
+        isPullRequestPushWhileClosed({
+            provider: "forgejo",
+            action,
+            pullRequestState: pr.state,
+        })
+    ) {
+        log(`Skipped: pull request is closed - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message: "Skipped: pull request is closed" }), { status: 200 });
+    }
+
     const activityService = new ActivityService();
     const prNumber = pr.number;
-    const reviewMode = repository.prReviewOnPush;
-
-    let hasCompleted: boolean | null = null;
-    if (reviewMode === "on_first_push") {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-        if (hasCompleted) {
-            log(`Skipped: already reviewed (on_first_push) (${prInfo})`, "Forgejo");
-            return new Response(JSON.stringify({ message: "Skipped: already reviewed (on_first_push)" }), {
-                status: 200,
-            });
-        }
-    }
 
     const version = await forgejoProvider.fetchPullRequestVersion(prNumber);
     const headSha = pr.head?.sha ?? version.headSha;
 
-    let lastHeadSha: string | null = null;
-    if (reviewMode === "on_every_push") {
-        lastHeadSha = await activityService.findLastReviewedHeadSha(repository.id, prNumber);
-        if (lastHeadSha && lastHeadSha === headSha) {
-            log(`Skipped: head already reviewed (${prInfo})`, "Forgejo");
-            return new Response(JSON.stringify({ message: "Skipped: head already reviewed" }), { status: 200 });
-        }
+    const skipMessage = await skipPullRequestReviewBeforeQueue(activityService, {
+        repositoryId: repository.id,
+        targetIid: prNumber,
+        headSha,
+        reviewMode,
+        isReopen,
+    });
+    if (skipMessage) {
+        log(`${skipMessage} - ${prInfo}`, "Forgejo");
+        return new Response(JSON.stringify({ message: skipMessage }), { status: 200 });
     }
 
     if ((await forgejoProvider.fetchPullRequestChangedFileCount(prNumber)) === 0) {
-        log(`Skipped: no changed files (${prInfo})`, "Forgejo");
+        log(`Skipped: no changed files - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
-    if (hasCompleted === null) {
-        hasCompleted = await activityService.hasCompletedPullRequestReview(repository.id, prNumber);
-    }
-    const isFollowUpReview = hasCompleted;
-
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_review",
-            targetIid: prNumber,
-            headSha,
-        },
-        (activityId) =>
-            runPullRequestReview({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                isInlineReview: repository.prInlineReview,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-                isFollowUpReview,
-                previousHeadSha: isFollowUpReview ? lastHeadSha : null,
-            }),
-    ).catch((error) => {
-        logError("Pull request review failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_review",
+        targetIid: prNumber,
+        headSha,
     });
+    activityQueue.drain();
 
-    log(`PR review started (${prInfo})`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Review started" }), { status: 202 });
+    log(`PR review queued - ${prInfo}`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Review queued" }), { status: 202 });
 };
 
 const handleForgejoIssuesWebhook = async (
@@ -286,30 +280,17 @@ const handleForgejoIssuesWebhook = async (
     );
     if (accessSkip) return accessSkip;
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_open",
-            targetIid: issue.number,
-        },
-        (activityId) =>
-            runIssueReplyOnOpen({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: issue.number,
-                language: repository.language,
-                issueLabelOnOpenEnabled: repository.issueLabelOnOpenEnabled,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue comment failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_open",
+        targetIid: issue.number,
     });
+    activityQueue.drain();
 
-    log(`Issue comment started (${issueInfo})`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Issue comment started" }), { status: 202 });
+    log(`Issue comment queued (${issueInfo})`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Issue comment queued" }), { status: 202 });
 };
 
 const handleForgejoCommentWebhook = async (
@@ -405,31 +386,18 @@ const handleForgejoCommentWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: own comment" }), { status: 200 });
     }
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "issue_reply",
-            targetIid,
-        },
-        (activityId) =>
-            runIssueReply({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                issueIid: targetIid,
-                commentId: comment.id,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Issue reply failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "issue_reply",
+        targetIid,
+        targetCommentId: comment.id,
     });
+    activityQueue.drain();
 
-    log(`Issue reply started (#${targetIid} comment ${comment.id})`, "Forgejo");
-    return new Response(JSON.stringify({ message: "Issue reply started" }), { status: 202 });
+    log(`Issue reply queued (#${targetIid} comment ${comment.id})`, "Forgejo");
+    return new Response(JSON.stringify({ message: "Issue reply queued" }), { status: 202 });
 };
 
 const handleForgejoReviewedWebhook = async (
@@ -439,7 +407,7 @@ const handleForgejoReviewedWebhook = async (
     access: Access,
 ) => {
     const prNumber = payload.pull_request?.number;
-    const prInfo = `#${prNumber ?? "?"}`;
+    const prInfo = `[#${prNumber ?? "?"}]:`;
     if (!prNumber) {
         log("Skipped: missing pull request number", "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: missing pull request number" }), { status: 200 });
@@ -447,7 +415,7 @@ const handleForgejoReviewedWebhook = async (
 
     const reviewType = payload.review?.type;
     if (reviewType !== "comment" && reviewType !== "pull_request_review_comment") {
-        log(`Skipped: not a comment review (${prInfo} ${reviewType ?? "missing"})`, "Forgejo");
+        log(`Skipped: not a comment review (${reviewType ?? "missing"}) - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: not a comment review" }), { status: 200 });
     }
 
@@ -464,7 +432,7 @@ const handleForgejoReviewedWebhook = async (
         payload.sender?.login,
     );
     if (!target) {
-        log(`Skipped: no reply target (${prInfo})`, "Forgejo");
+        log(`Skipped: no reply target - ${prInfo}`, "Forgejo");
         return new Response(JSON.stringify({ message: "Skipped: no reply target" }), { status: 200 });
     }
 
@@ -531,33 +499,20 @@ async function startForgejoPrReply(
     );
     if (accessSkip) return accessSkip;
 
-    runWithActivity(
-        {
-            repositoryId: repository.id,
-            modelProviderId: modelProvider.id,
-            modelName: repository.modelName,
-            type: "pr_reply",
-            targetIid: prNumber,
-        },
-        (activityId) =>
-            runPullRequestReply({
-                provider: forgejoProvider,
-                workspace: new Workspace(forgejoProvider),
-                llmSender: createModelProviderSender(modelProvider, repository.modelName, repository.reasoningEffort),
-                prIid: prNumber,
-                commentId,
-                inlineReviewId,
-                language: repository.language,
-                userPrompt: repository.userPrompt,
-                activityId,
-            }),
-    ).catch((error) => {
-        logError("Pull request reply failed", error, "Forgejo");
+    await activityQueue.push({
+        repositoryId: repository.id,
+        modelProviderId: modelProvider.id,
+        modelName: repository.modelName,
+        type: "pr_reply",
+        targetIid: prNumber,
+        targetCommentId: commentId,
+        targetInlineReviewId: inlineReviewId,
     });
+    activityQueue.drain();
 
     log(
-        `PR reply started (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
+        `PR reply queued (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
         "Forgejo",
     );
-    return new Response(JSON.stringify({ message: "Reply started" }), { status: 202 });
+    return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

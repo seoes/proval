@@ -1,6 +1,6 @@
 import db from "../../db/index.js";
 import { activityTable, githubAppTable, githubInstallationTable, repositoryTable } from "@proval/db";
-import { desc, eq, getTableColumns, max } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, inArray, max } from "drizzle-orm";
 import { App } from "@octokit/app";
 import { Octokit } from "@octokit/rest";
 import {
@@ -407,6 +407,20 @@ export class RepositoryService {
 
     public async remove(id: number): Promise<void> {
         const repository = await this.findById(id);
+        const [openActivityCount] = await db
+            .select({ total: count() })
+            .from(activityTable)
+            .where(
+                and(
+                    eq(activityTable.repositoryId, id),
+                    inArray(activityTable.status, ["queued", "started"]),
+                ),
+            );
+        if (openActivityCount.total > 0) {
+            throw new Error(
+                `There are ${openActivityCount.total} queued or running activities for this repository. Cancel them first.`,
+            );
+        }
         if (repository.provider === "gitlab") {
             try {
                 if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {

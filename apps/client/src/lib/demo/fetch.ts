@@ -49,7 +49,7 @@ function parsePositiveInt(value: string | null, fallback: number): number {
     return Math.floor(parsed);
 }
 
-const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_STATUS_LIST = ["queued", "started", "completed", "failed", "canceled"] as const;
 const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 
 function parseCommaSeparatedActivityStatus(value: string | null): (typeof ACTIVITY_STATUS_LIST)[number][] {
@@ -192,6 +192,7 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
         if (!activity) return notFoundResponse();
         return jsonResponse({
             status: activity.status,
+            startedAt: activity.startedAt,
             completedAt: activity.completedAt,
             errorMessage: activity.errorMessage,
             inputToken: activity.inputToken,

@@ -45,7 +45,7 @@ A webhook event leads to repository settings, then the Git Provider API, then an
 
 #### Pull Request Review
 
-Webhook events for open, push updates, reopen, and ready for review can start a review based on `reviewOnPullRequestPush`. The plan agent groups changed files. Specialist sub agents run in parallel. The writing agent posts a summary and optional inline comments through the Git Provider. Follow up reviews reuse the full PR context and prompt the writing agent to avoid repeating prior Proval findings.
+Webhook events for open, push updates, and ready for review can start a review based on `reviewOnPullRequestPush`. Reopening a pull request only queues a review when the current head has not been reviewed yet. Pushes while the pull request is closed are ignored until it is open again. The plan agent groups changed files. Specialist sub agents run in parallel. The writing agent posts a summary and optional inline comments through the Git Provider. Follow up reviews reuse the full PR context and prompt the writing agent to avoid repeating prior Proval findings.
 
 #### Issue Comment
 
