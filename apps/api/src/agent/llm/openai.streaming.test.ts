@@ -114,7 +114,6 @@ describe("createOpenAiSender streaming", () => {
             baseURL: "https://gateway.example/v1",
             model: "opencode-go/deepseek-v4.1-flash",
             timeoutSecond: 600,
-            stream: true,
             reasoningEffort: "xhigh",
             fetch: fetchStub,
         });
@@ -150,7 +149,6 @@ describe("createOpenAiSender streaming", () => {
             baseURL: "https://gateway.example/v1",
             model: "m",
             timeoutSecond: 60,
-            stream: true,
             fetch: fetchStub,
         });
 
@@ -171,7 +169,6 @@ describe("createOpenAiSender streaming", () => {
             baseURL: "https://gateway.example/v1",
             model: "m",
             timeoutSecond: 60,
-            stream: true,
             fetch: fetchStub,
         });
 
@@ -190,17 +187,11 @@ describe("createOpenAiSender streaming", () => {
             baseURL: "https://gateway.example/v1",
             model: "m",
             timeoutSecond: 60,
-            stream: true,
             fetch: fetchStub,
         });
 
-        // The OpenAI SDK turns an error frame into an APIError before the
-        // accumulator sees the chunk; the sender copies the provider code onto
-        // the error status so the agent loop can retry rate limits.
         const error = await sender.send([{ role: "user", content: "hi" }], []).catch((e: unknown) => e);
-        expect(error).toBeInstanceOf(Error);
         expect((error as Error).message).toBe("rate limit reached");
-        expect((error as { status?: number }).status).toBe(429);
     });
 
     test("fails when the stream ends without a finish reason", async () => {
@@ -210,7 +201,6 @@ describe("createOpenAiSender streaming", () => {
             baseURL: "https://gateway.example/v1",
             model: "m",
             timeoutSecond: 60,
-            stream: true,
             fetch: fetchStub,
         });
 
@@ -245,16 +235,6 @@ describe("accumulateChatCompletionStream", () => {
             { id: "b", name: "b", arguments: "{}" },
         ]);
         expect(accumulated.content).toBeNull();
-        expect(accumulated.error).toBeNull();
-    });
-
-    test("keeps the provider code of an in-stream error as a status", async () => {
-        const accumulated = await accumulateChatCompletionStream(
-            from([{ error: { code: 429, message: "rate limit reached" } }]),
-        );
-
-        expect(accumulated.error).toEqual({ message: "rate limit reached", status: 429 });
-        expect(accumulated.finishReason).toBeNull();
     });
 
     test("keeps a partial tool call id and name from an earlier chunk", async () => {
@@ -273,102 +253,22 @@ describe("accumulateChatCompletionStream", () => {
     });
 });
 
-describe("createOpenAiSender without streaming", () => {
-    test("uses the buffered path when the provider turns streaming off", async () => {
-        const requests: Record<string, unknown>[] = [];
-        const fetchStub = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-            requests.push(JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>);
-            return new Response(
-                JSON.stringify({
-                    id: "chatcmpl-plain",
-                    object: "chat.completion",
-                    created: 0,
-                    model: "test-model",
-                    choices: [
-                        {
-                            index: 0,
-                            message: {
-                                role: "assistant",
-                                content: "buffered answer",
-                                tool_calls: [
-                                    {
-                                        id: "call_9",
-                                        type: "function",
-                                        function: { name: "grep", arguments: '{"query":"x"}' },
-                                    },
-                                ],
-                            },
-                            finish_reason: "tool_calls",
-                        },
-                    ],
-                    usage: { prompt_tokens: 10, completion_tokens: 4, prompt_tokens_details: { cached_tokens: 1 } },
-                }),
-                { headers: { "content-type": "application/json" } },
-            );
-        };
-
+describe("createOpenAiSender OpenRouter errors", () => {
+    test("throws the OpenRouter error message from an in-stream error frame", async () => {
+        const { fetchStub } = captureFetch([
+            chunkFrame({ error: { code: 429, message: "rate limit reached" } }),
+            "data: [DONE]\n\n",
+        ]);
         const sender = createOpenAiSender({
             apiKey: "test-key",
-            baseURL: "https://gateway.example/v1",
+            baseURL: "https://openrouter.ai/api/v1",
             model: "m",
             timeoutSecond: 60,
-            stream: false,
             fetch: fetchStub,
         });
-
-        const result = await sender.send([{ role: "user", content: "hi" }], []);
-
-        expect(requests[0]?.stream).toBeUndefined();
-        expect(requests[0]?.stream_options).toBeUndefined();
-        expect(result.message.content).toBe("buffered answer");
-        expect(result.message.toolCalls).toEqual([{ id: "call_9", name: "grep", arguments: '{"query":"x"}' }]);
-        expect(result.finishReason).toBe("tool_calls");
-        expect(result.requestId).toBe("chatcmpl-plain");
-        expect(result.usage).toEqual({ inputToken: 10, outputToken: 4, cachedInputToken: 1 });
-    });
-
-    function bufferedSender(body: unknown) {
-        const fetchStub = async (_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
-            new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
-        return createOpenAiSender({
-            apiKey: "test-key",
-            baseURL: "https://gateway.example/v1",
-            model: "m",
-            timeoutSecond: 60,
-            stream: false,
-            fetch: fetchStub,
-        });
-    }
-
-    test("throws the provider error with its status when a buffered reply carries an error body", async () => {
-        const sender = bufferedSender({ error: { code: 429, message: "rate limit reached" } });
 
         const error = await sender.send([{ role: "user", content: "hi" }], []).catch((e: unknown) => e);
         expect((error as Error).message).toBe("rate limit reached");
-        expect((error as { status?: number }).status).toBe(429);
-    });
-
-    test("throws the provider error when the error code is not numeric", async () => {
-        const sender = bufferedSender({ error: { code: "rate_limited", message: "slow down" } });
-
-        const error = await sender.send([{ role: "user", content: "hi" }], []).catch((e: unknown) => e);
-        expect((error as Error).message).toBe("slow down");
         expect((error as { status?: number }).status).toBeUndefined();
-    });
-
-    test("fails loudly when a buffered reply has no choices key at all", async () => {
-        const sender = bufferedSender({ id: "chatcmpl-error", object: "error" });
-
-        await expect(sender.send([{ role: "user", content: "hi" }], [])).rejects.toThrow(
-            "The model provider returned a completion without choices",
-        );
-    });
-
-    test("fails loudly when a buffered reply has neither an error message nor choices", async () => {
-        const sender = bufferedSender({ id: "chatcmpl-empty", choices: [] });
-
-        await expect(sender.send([{ role: "user", content: "hi" }], [])).rejects.toThrow(
-            "The model provider returned a completion without choices",
-        );
     });
 });

@@ -195,7 +195,6 @@ async function handlePullRequestWebhook(
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
-        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -278,7 +277,6 @@ async function handleIssueWebhook(
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
-        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -369,7 +367,6 @@ async function handleIssueCommentWebhook(
             baseURL: modelProvider.baseUrl,
             model: repository.modelName,
             timeoutSecond: modelProvider.timeoutSecond,
-            stream: modelProvider.stream,
             reasoningEffort: repository.reasoningEffort,
         });
 
@@ -426,7 +423,6 @@ async function handleIssueCommentWebhook(
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
-        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 
@@ -513,7 +509,6 @@ async function handlePullRequestReviewCommentWebhook(
         baseURL: modelProvider.baseUrl,
         model: repository.modelName,
         timeoutSecond: modelProvider.timeoutSecond,
-        stream: modelProvider.stream,
         reasoningEffort: repository.reasoningEffort,
     });
 

@@ -1,1 +1,0 @@
-ALTER TABLE `model_provider` ADD `stream` integer DEFAULT true NOT NULL;

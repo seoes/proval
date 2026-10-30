@@ -9,7 +9,6 @@ export interface SenderConfig {
     baseURL: string;
     model: string;
     timeoutSecond: number;
-    stream: boolean;
     reasoningEffort?: ReasoningEffort;
 }
 
