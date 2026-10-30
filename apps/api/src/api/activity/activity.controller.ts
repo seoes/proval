@@ -9,7 +9,7 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
     return parsed;
 }
 
-const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_STATUS_LIST = ["queued", "started", "completed", "failed", "canceled"] as const;
 const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 
 function parseCommaSeparatedEnum<T extends string>(value: string | undefined, allowedList: readonly T[]): T[] {
@@ -64,9 +64,7 @@ export const getActivitySummary: Handler = async (c) => {
         activityService.findRecent(since, 5, repositoryId),
         activityService.getTokenSeries(since, bucket, new Date(), repositoryId),
         activityService.getTokenBreakdownByModel(since, 5, repositoryId),
-        repositoryId != null
-            ? Promise.resolve([])
-            : activityService.getTokenBreakdownByRepository(since, 5),
+        repositoryId != null ? Promise.resolve([]) : activityService.getTokenBreakdownByRepository(since, 5),
         activityService.findInProgress(10),
     ]);
     return c.json({ range, stats, recent, tokenSeries, tokensByModel, tokensByRepository, inProgress }, 200);
@@ -119,13 +117,15 @@ const RETRY_NOT_FOUND_ERRORS = new Set(["Activity not found", "Repository not fo
 const RETRY_CLIENT_ERRORS = new Set([
     "Only failed or canceled activities can be retried",
     "This activity type cannot be retried",
+    "This activity has no comment to reply to",
     "Repository is no longer linked to this activity",
     "Model provider is no longer linked to this activity",
+    "A review for this pull request is already queued or running",
 ]);
 
 const CANCEL_NOT_FOUND_ERRORS = new Set(["Activity not found"]);
 
-const CANCEL_CLIENT_ERRORS = new Set(["Only started activities can be canceled"]);
+const CANCEL_CLIENT_ERRORS = new Set(["Only queued or started activities can be canceled"]);
 
 export const retryActivity: Handler = async (c) => {
     const id = c.req.param("id");

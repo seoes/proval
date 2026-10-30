@@ -1,9 +1,13 @@
-import { demoFetch } from "./demo/fetch.js";
-import { isDemoMode } from "./demo/enabled.js";
-import { formatLocalDateOnly } from "./utils/date.js";
+import { formatLocalDateOnly, formatLocalDateTime } from "./utils/date.js";
+
+export type FormatTimeAgoOptions = {
+    /** Relative labels switch to local datetime once age reaches this many minutes. */
+    absoluteAfterMinutes?: number;
+};
 
 const fetchApi = async (path: string, options: RequestInit = {}) => {
-    if (isDemoMode()) {
+    if (__PROVAL_DEMO_BUILD__) {
+        const { demoFetch } = await import("./demo/fetch.js");
         return demoFetch(path, options);
     }
     const response = await fetch(`/api${path}`, {
@@ -15,13 +19,19 @@ const fetchApi = async (path: string, options: RequestInit = {}) => {
 
 export default fetchApi;
 
-export const formatTimeAgo = (date: Date): string => {
+export const formatTimeAgo = (date: Date, options?: FormatTimeAgoOptions): string => {
     const now = new Date();
-    const diffMs = now.getTime() - new Date(date).getTime();
+    const target = new Date(date);
+    const diffMs = now.getTime() - target.getTime();
     const diffSeconds = Math.floor(diffMs / 1000);
     const diffMinutes = Math.floor(diffSeconds / 60);
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
+
+    const absoluteAfterMinutes = options?.absoluteAfterMinutes;
+    if (absoluteAfterMinutes != null && diffMinutes >= absoluteAfterMinutes) {
+        return formatLocalDateTime(target);
+    }
 
     if (diffSeconds < 60) {
         return `${diffSeconds} seconds ago`;
@@ -32,7 +42,7 @@ export const formatTimeAgo = (date: Date): string => {
     } else if (diffDays <= 7) {
         return `${diffDays} days ago`;
     } else {
-        return formatLocalDateOnly(new Date(date));
+        return formatLocalDateOnly(target);
     }
 };
 

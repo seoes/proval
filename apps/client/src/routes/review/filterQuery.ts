@@ -3,7 +3,7 @@ import { formatDateOnlyLabel, parseDateOnlyQuery } from "$lib/utils/date.js";
 
 export const REVIEW_LIST_LIMIT = 10;
 
-const ACTIVITY_STATUS_LIST = ["started", "completed", "failed", "canceled"] as const;
+const ACTIVITY_STATUS_LIST = ["queued", "started", "completed", "failed", "canceled"] as const;
 const ACTIVITY_TYPE_LIST = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
 
 export type ReviewFilter = {
@@ -137,6 +137,7 @@ export function toggleRepositoryId(list: number[], id: number): number[] {
 }
 
 export const REVIEW_STATUS_OPTION_LIST: { value: Activity["status"]; label: string }[] = [
+    { value: "queued", label: "Queued" },
     { value: "started", label: "In progress" },
     { value: "completed", label: "Completed" },
     { value: "failed", label: "Failed" },

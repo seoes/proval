@@ -1,14 +1,13 @@
 import type { ActivityTokenUsage } from "@proval/types";
 import { JobCanceledError } from "../../agent/llm/loop.js";
-import { ActivityService, type ActivityStartInput } from "./activity.service";
-import { logError } from "../../util/log";
+import { ActivityService } from "./activity.service.js";
+import { logError } from "../../util/log.js";
 
 export async function runWithActivity(
-    input: ActivityStartInput,
+    activityId: number,
     run: (activityId: number) => Promise<ActivityTokenUsage>,
 ): Promise<void> {
     const activityService = new ActivityService();
-    const activityId = await activityService.start(input);
     try {
         const tokenUsage = await run(activityId);
         await activityService.complete(activityId, tokenUsage);

@@ -20,7 +20,7 @@ import {
     skipFileTool,
 } from "../tool";
 import { getFileContentTool, globTool, grepTool, listDirectoryTool } from "../../shared/tool";
-import { runAgentLoop } from "../../llm/loop";
+import { runAgentLoop, type AgentLoopEvent } from "../../llm/loop";
 import { ActivityService } from "../../../api/activity/activity.service.js";
 
 export async function runReviewPlanAgent(
@@ -34,7 +34,8 @@ export async function runReviewPlanAgent(
     usePushScope = false,
     userPrompt: string | null = null,
     agentInstructionPrompt = "",
-): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[] }> {
+    onEvent?: (event: AgentLoopEvent) => void,
+): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[]; skippedFileList: SkippedFile[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
 
@@ -72,10 +73,12 @@ export async function runReviewPlanAgent(
         toolList,
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
+        onEvent,
     });
 
     return {
         reviewUnitList,
+        skippedFileList,
         ...result.usage,
     };
 }

@@ -1,7 +1,7 @@
-import { logAgent, logAgentError, debug } from "../../../util/log";
+import { logAgent, debug } from "../../../util/log";
 import { postDevDebugPullRequestComment } from "../../shared/util/debug.js";
 import { runAgentLoop } from "../../llm/loop";
-import { COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
+import { buildAuthorMentionPolicy, COMMENT_LANGUAGE_RULE } from "../../shared/prompt";
 import { PR_REPLY_BODY, PR_REPLY_USER_PROMPT_HEADER, PR_REPLY_WORKFLOW } from "./prompt/reply.prompt.js";
 import {
     getChangedFileListTool,
@@ -28,14 +28,8 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
     userPrompt = null,
 }) => {
     const label = `[PR #${prIid}] Reply`;
-    const emojiTarget = { type: "pull_request_comment" as const, prIid, commentId };
+    const activityService = new ActivityService();
     try {
-        try {
-            await provider.addEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "add emoji failed", error, label);
-        }
-
         logAgent(activityId, `fetching PR comment ${commentId}`, label);
         const comment = await provider.fetchPullRequestComment(prIid, commentId);
         const detail = await provider.fetchPullRequestDetail(prIid);
@@ -54,6 +48,7 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
             PR_REPLY_BODY,
             PR_REPLY_WORKFLOW,
             COMMENT_LANGUAGE_RULE,
+            buildAuthorMentionPolicy(comment.author, "reply"),
             agentInstructionPrompt,
             generateUserPrompt(PR_REPLY_USER_PROMPT_HEADER, userPrompt),
         ]
@@ -77,8 +72,6 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 
         const requiredToolList = [postPullRequestReplyTool(provider, prIid, comment.author, language, activityId)];
 
-        const activityService = new ActivityService();
-
         const result = await runAgentLoop(llmSender, system, prompt, label, {
             toolList,
             requiredToolList,
@@ -98,11 +91,6 @@ export const runPullRequestCommentReply: PullRequestCommentReply = async ({
 
         return result.usage;
     } finally {
-        try {
-            await provider.removeEmoji(emojiTarget, "👀");
-        } catch (error) {
-            logAgentError(activityId, "remove emoji failed", error, label);
-        }
         await workspace.clean();
     }
 };

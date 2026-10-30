@@ -341,8 +341,64 @@
     {
       "idx": 48,
       "version": "6",
-      "when": 1791698407600,
-      "tag": "0048_clean_terrax",
+      "when": 1792459919003,
+      "tag": "0048_puzzling_centennial",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1792467408620,
+      "tag": "0049_white_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792502142877,
+      "tag": "0050_spooky_gideon",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1792674671883,
+      "tag": "0051_old_microbe",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1792756214084,
+      "tag": "0052_lazy_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1793022609610,
+      "tag": "0053_solid_bedlam",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1793080637569,
+      "tag": "0054_silent_lockjaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1793252360350,
+      "tag": "0055_remarkable_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1793252361350,
+      "tag": "0056_clean_terrax",
       "breakpoints": true
     }
   ]

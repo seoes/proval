@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "setting": {
+        "language": "English",
+        "inlineReview": true,
+        "userPrompt": "",
+        "reasoningEffort": null,
+        "llmConcurrency": 4,
+        "timeoutSecond": 600
+    },
+    "quick": {
+        "repeatCount": 1,
+        "seed": 42,
+        "caseIdList": [
+            "cal_dot_com__10967",
+            "discourse__8",
+            "grafana__106778",
+            "keycloak__37634",
+            "sentry__2"
+        ]
+    },
+    "full": {
+        "repeatCount": 3,
+        "seed": 42,
+        "caseIdList": null
+    }
+}
