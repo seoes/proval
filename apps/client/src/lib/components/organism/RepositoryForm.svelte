@@ -1,8 +1,7 @@
 <script lang="ts">
     import InputText from "../atom/InputText.svelte";
     import fetchApi from "$lib/utils";
-    import { reasoningEffortValueList } from "@proval/types";
-    import { userPromptMaxLength } from "$lib/store/instance";
+    import { reasoningEffortValueList, USER_PROMPT_MAX_LENGTH } from "@proval/types";
     import type {
         ModelProviderModelListResponse,
         ModelProviderResponse,
@@ -505,13 +504,13 @@
                 <textarea
                     {id}
                     bind:value={userPrompt}
-                    maxlength={$userPromptMaxLength}
+                    maxlength={USER_PROMPT_MAX_LENGTH}
                     placeholder="Ignore the lack of test coverage."
                     rows={4}
                     class="w-full resize-y rounded-lg border border-input bg-input-background px-4 py-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 ></textarea>
                 <p class="mt-1 text-right text-xs text-muted-foreground">
-                    {userPromptLength}/{$userPromptMaxLength}
+                    {userPromptLength}/{USER_PROMPT_MAX_LENGTH}
                 </p>
             {/snippet}
         </FormField>

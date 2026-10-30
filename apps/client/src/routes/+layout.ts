@@ -2,7 +2,6 @@ import { redirect } from "@sveltejs/kit";
 import type { LayoutLoad } from "./$types";
 import { fetchAuthMe, isAuthPagePath } from "$lib/auth";
 import { isDemoMode } from "$lib/demo/enabled";
-import { USER_PROMPT_MAX_LENGTH } from "@proval/types";
 
 export const ssr = false;
 export const prerender = false;
@@ -20,7 +19,6 @@ export const load: LayoutLoad = async ({ url }) => {
                 isAuthEnabled: false,
                 isRegistrationEnabled: false,
                 isSetupRequired: false,
-                userPromptMaxLength: USER_PROMPT_MAX_LENGTH,
             },
         };
     }

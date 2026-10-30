@@ -146,7 +146,6 @@ export type AuthMeResponse = {
     isAuthEnabled: boolean;
     isRegistrationEnabled: boolean;
     isSetupRequired: boolean;
-    userPromptMaxLength: number;
 };
 
 export type InstanceSettingResponse = {
