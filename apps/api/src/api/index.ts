@@ -35,6 +35,7 @@ import {
     cancelActivity,
 } from "./activity/activity.controller.js";
 import { authRouter, settingsRouter } from "./auth/index.js";
+import { apiTokenRouter } from "./api-token/index.js";
 import { findUserList, removeUser } from "./auth/auth.controller.js";
 import { checkIfAdmin, resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
 
@@ -49,6 +50,7 @@ apiRouter.get("/health", (c) => {
 
 apiRouter.route("/auth", authRouter);
 apiRouter.route("/settings", settingsRouter);
+apiRouter.route("/api-token", apiTokenRouter);
 
 apiRouter.get("/user", checkIfAdmin, findUserList);
 apiRouter.delete("/user/:id", checkIfAdmin, removeUser);
