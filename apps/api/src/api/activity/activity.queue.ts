@@ -91,6 +91,7 @@ class ActivityQueue {
                     targetCommentId: activityTable.targetCommentId,
                     targetInlineReviewId: activityTable.targetInlineReviewId,
                     headSha: activityTable.headSha,
+                    triage: activityTable.triage,
                     createdAt: activityTable.createdAt,
                 })
                 .from(activityTable)
@@ -140,6 +141,7 @@ class ActivityQueue {
                         targetCommentId: started.targetCommentId,
                         targetInlineReviewId: started.targetInlineReviewId,
                         headSha: started.headSha,
+                        triage: started.triage,
                         logVersion: "1",
                         createdAt: started.createdAt,
                     });

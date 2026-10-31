@@ -370,6 +370,33 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             expect(runPullRequestReviewMock.mock.calls.length).toBe(callsBefore);
         });
 
+        it("mergeDuplicated keeps the triage record on the cloned row", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            const triage = { rule: "small_delta", depth: "light", applied: true } as never;
+            const [startedRow] = await db
+                .insert(activityTable)
+                .values({
+                    repositoryId: repository.id,
+                    repositoryPath: "group/repo",
+                    provider: "gitlab",
+                    modelProviderId: modelProvider.id,
+                    modelName: "test-model",
+                    type: "pr_review",
+                    status: "started",
+                    targetIid: 9,
+                    headSha: "sha-light",
+                    triage,
+                    logVersion: "1",
+                    startedAt: new Date(),
+                })
+                .returning();
+            await activityQueue.mergeDuplicated();
+            const rows = await db.select().from(activityTable).where(eq(activityTable.repositoryId, repository.id));
+            const queued = rows.find((row) => row.id !== startedRow.id);
+            expect(queued?.status).toBe("queued");
+            expect(queued?.triage).toEqual(triage);
+        });
+
         it("drain runs the cloned row after mergeDuplicated", async () => {
             const { modelProvider, repository } = await insertProvider();
             await db.insert(activityTable).values({
