@@ -45,6 +45,7 @@
         prReviewOnPush: PrReviewOnPush;
         prReviewOnClose: PrReviewOnClose;
         prIgnoreDraft: boolean;
+        prTriageEnabled: boolean;
         prAllowedTargetBranchList: string[];
         userPrompt: string | null;
         prReplyEnabled: boolean;
@@ -162,6 +163,7 @@
     let prReviewOnPush = $state<PrReviewOnPush>(config.prReviewOnPush);
     let prReviewOnClose = $state<PrReviewOnClose>(config.prReviewOnClose);
     let prIgnoreDraft = $state<boolean>(config.prIgnoreDraft);
+    let prTriageEnabled = $state<boolean>(config.prTriageEnabled);
     let allowedTargetBranchText = $state(config.prAllowedTargetBranchList.join(", "));
     let userPrompt = $state<string>(config.userPrompt ?? "");
     let prReplyEnabled = $state<boolean>(config.prReplyEnabled);
@@ -350,6 +352,7 @@
             prReviewOnPush,
             prReviewOnClose,
             prIgnoreDraft,
+            prTriageEnabled,
             prAllowedTargetBranchList: allowedTargetBranchText
                 .split(",")
                 .map((branch) => branch.trim())
@@ -613,6 +616,17 @@
                     <div class="flex items-center justify-between gap-2">
                         <FieldTitle class="ml-1">Ignore draft pull requests</FieldTitle>
                         <ToggleSwitch bind:checked={prIgnoreDraft} disabled={!prEnabled || !prReviewEnabled} />
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <FieldTitle class="ml-1">Act on triage</FieldTitle>
+                            <Description placement="below">
+                                Triage always records why a review ran at its depth. When on, a change that is
+                                documentation only, tests only, small, or unchanged since the last review gets a
+                                lighter review instead of a full one.
+                            </Description>
+                        </div>
+                        <ToggleSwitch bind:checked={prTriageEnabled} disabled={!prEnabled || !prReviewEnabled} />
                     </div>
                     <FormField
                         label="Allowed target branches"

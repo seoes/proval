@@ -6,7 +6,13 @@
     import Button from "$lib/components/atom/Button.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Modal from "$lib/components/atom/Modal.svelte";
-    import { activityModelLabel, activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
+    import {
+        activityModelLabel,
+        activityStatusBadge,
+        activityTargetLabel,
+        activityTypeLabel,
+        triageRuleLabel,
+    } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
     import { activityTargetWebUrl, viewInProviderLabel } from "../../repository/[id]/load.js";
@@ -305,6 +311,14 @@
                     {#if review.headSha}
                         <span class="text-border-strong">·</span>
                         <span class="font-mono text-secondary-foreground">{review.headSha.slice(0, 7)}</span>
+                    {/if}
+                    {#if review.triage}
+                        <span class="text-border-strong">·</span>
+                        <span class="text-secondary-foreground" title={review.triage.reason}>
+                            triage {review.triage.depth} ({triageRuleLabel(review.triage.rule)}{review.triage.applied
+                                ? ""
+                                : ", recorded only"})
+                        </span>
                     {/if}
                 </p>
             </div>

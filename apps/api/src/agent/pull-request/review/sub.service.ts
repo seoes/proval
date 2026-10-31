@@ -32,6 +32,7 @@ export async function runReviewSubAgent(
     userPrompt: string | null = null,
     agentInstructionPrompt = "",
     onEvent?: (event: AgentLoopEvent) => void,
+    maxSteps: number | null = null,
 ): Promise<ActivityTokenUsage & { handoff: ReviewHandoff }> {
     const system = [
         REVIEW_SUB_AGENT_BODY,
@@ -62,6 +63,7 @@ export async function runReviewSubAgent(
         activityId,
         onUsage: (stepUsage) => activityService.addTokenUsage(activityId, stepUsage),
         onEvent,
+        ...(maxSteps !== null ? { maxSteps } : {}),
     });
 
     const handoff = reviewHandoffList.find((item) => item.unitId === reviewUnit.id);

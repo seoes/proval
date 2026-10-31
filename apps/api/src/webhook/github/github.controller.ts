@@ -7,6 +7,7 @@ import { log, logError } from "../../util/log.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
+import { triageForReview } from "../../triage/triage.service.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { isBotMentioned, shouldSkipReplyWithoutMention } from "../../util/mention.js";
@@ -202,6 +203,22 @@ async function handlePullRequestWebhook(
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
+    // Triage runs on every provider so the record exists; without a versions API it
+    // has no delta and classifies the whole pull request from what it can see.
+    const triage = await triageForReview({
+        provider: gitHubProvider,
+        activityService,
+        repositoryId: repository.id,
+        prIid: prNumber,
+        title: (payload.pull_request as { title?: string } | undefined)?.title ?? "",
+        author: payload.pull_request?.user?.login ?? "",
+        enabled: repository.prTriageEnabled,
+        logError,
+    });
+    if (triage.effectiveDepth === "skip") {
+        return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
+    }
+
     await activityQueue.push({
         repositoryId: repository.id,
         modelProviderId: modelProvider.id,
@@ -209,6 +226,7 @@ async function handlePullRequestWebhook(
         type: "pr_review",
         targetIid: prNumber,
         headSha,
+        triage: triage.record,
     });
     activityQueue.drain();
 

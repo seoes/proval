@@ -151,6 +151,37 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             expect(rows[0].headSha).toBe("sha-b");
         });
 
+        it("replaces the triage record when a push folds into a queued review", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            const first = { rule: "normal", depth: "normal", applied: true } as never;
+            const second = { rule: "small_delta", depth: "light", applied: true } as never;
+            const firstId = await activityQueue.push({
+                ...reviewInput(repository.id, modelProvider.id, 1, "sha-a"),
+                triage: first,
+            });
+            const secondId = await activityQueue.push({
+                ...reviewInput(repository.id, modelProvider.id, 1, "sha-b"),
+                triage: second,
+            });
+            expect(secondId).toBe(firstId);
+            const [row] = await db.select().from(activityTable).where(eq(activityTable.id, firstId));
+            expect(row.headSha).toBe("sha-b");
+            expect(row.triage).toEqual(second);
+        });
+
+        it("keeps the triage record when a folded push carries none", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            const first = { rule: "normal", depth: "normal", applied: true } as never;
+            const id = await activityQueue.push({
+                ...reviewInput(repository.id, modelProvider.id, 1, "sha-a"),
+                triage: first,
+            });
+            await activityQueue.push(reviewInput(repository.id, modelProvider.id, 1, "sha-b"));
+            const [row] = await db.select().from(activityTable).where(eq(activityTable.id, id));
+            expect(row.headSha).toBe("sha-b");
+            expect(row.triage).toEqual(first);
+        });
+
         it("limits concurrent activities per provider", async () => {
             const { modelProvider, repository } = await insertProvider(1);
             const idA = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 1, "sha-1"));
@@ -337,6 +368,33 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             expect(queued?.startedAt).toBeNull();
             expect(queued?.createdAt?.getTime()).toBe(createdAt.getTime());
             expect(runPullRequestReviewMock.mock.calls.length).toBe(callsBefore);
+        });
+
+        it("mergeDuplicated keeps the triage record on the cloned row", async () => {
+            const { modelProvider, repository } = await insertProvider();
+            const triage = { rule: "small_delta", depth: "light", applied: true } as never;
+            const [startedRow] = await db
+                .insert(activityTable)
+                .values({
+                    repositoryId: repository.id,
+                    repositoryPath: "group/repo",
+                    provider: "gitlab",
+                    modelProviderId: modelProvider.id,
+                    modelName: "test-model",
+                    type: "pr_review",
+                    status: "started",
+                    targetIid: 9,
+                    headSha: "sha-light",
+                    triage,
+                    logVersion: "1",
+                    startedAt: new Date(),
+                })
+                .returning();
+            await activityQueue.mergeDuplicated();
+            const rows = await db.select().from(activityTable).where(eq(activityTable.repositoryId, repository.id));
+            const queued = rows.find((row) => row.id !== startedRow.id);
+            expect(queued?.status).toBe("queued");
+            expect(queued?.triage).toEqual(triage);
         });
 
         it("drain runs the cloned row after mergeDuplicated", async () => {
