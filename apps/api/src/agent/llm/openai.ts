@@ -30,45 +30,56 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 },
             }));
 
-            const completion = await client.chat.completions.create({
-                model: config.model,
-                messages: messages.map(convertToOpenAiMessage),
-                ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
-                ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
-                ...(config.reasoningEffort
-                    ? { reasoning_effort: config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"], }
-                    : {}
-                ),
-            });
-
-            if (client.baseURL?.includes("openrouter.ai")) {
-                const result = openRouterErrorSchema.safeParse(completion);
-                if (result.success) {
-                    throw new Error(result.data.error.message);
+            const signal = AbortSignal.timeout(config.timeoutSecond * 1000);
+            try {
+                const stream = await client.chat.completions.create(
+                    {
+                        model: config.model,
+                        messages: messages.map(convertToOpenAiMessage),
+                        ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
+                        ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
+                        ...(config.reasoningEffort
+                            ? {
+                                  reasoning_effort:
+                                      config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"],
+                              }
+                            : {}),
+                        stream: true,
+                        stream_options: { include_usage: true },
+                    },
+                    { signal },
+                );
+                const accumulated = await accumulateChatCompletionStream(stream);
+                if (accumulated.finishReason === null) {
+                    throw new Error("The model stream ended without a finish reason");
                 }
+
+                return {
+                    message: {
+                        role: "assistant",
+                        content: accumulated.content,
+                        toolCalls: accumulated.toolCalls,
+                    },
+                    finishReason: accumulated.finishReason,
+                    requestId: accumulated.id,
+                    usage: {
+                        inputToken: accumulated.promptTokens,
+                        outputToken: accumulated.completionTokens,
+                        cachedInputToken: accumulated.cachedInputTokens,
+                    },
+                };
+            } catch (error) {
+                if (signal.aborted) {
+                    throw new OpenAI.APIConnectionTimeoutError();
+                }
+                if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
+                    const result = openRouterErrorSchema.safeParse({ error: error.error });
+                    if (result.success) {
+                        throw new Error(result.data.error.message);
+                    }
+                }
+                throw error;
             }
-
-            const choice = completion.choices[0];
-            const message = choice.message;
-
-            return {
-                message: {
-                    role: "assistant",
-                    content: message.content ?? null,
-                    toolCalls: message.tool_calls?.map((tc) => ({
-                        id: tc.id,
-                        name: tc.function.name,
-                        arguments: tc.function.arguments,
-                    })),
-                },
-                finishReason: choice.finish_reason,
-                requestId: completion.id ?? null,
-                usage: {
-                    inputToken: completion.usage?.prompt_tokens ?? 0,
-                    outputToken: completion.usage?.completion_tokens ?? 0,
-                    cachedInputToken: completion.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-                },
-            };
         },
         getModel() {
             return {
@@ -78,6 +89,67 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 reasoningEffort: config.reasoningEffort,
             };
         },
+    };
+}
+
+type AccumulatedChatCompletion = {
+    id: string | null;
+    content: string | null;
+    toolCalls: { id: string; name: string; arguments: string }[] | undefined;
+    finishReason: OpenAI.Chat.ChatCompletion.Choice["finish_reason"] | null;
+    promptTokens: number;
+    completionTokens: number;
+    cachedInputTokens: number;
+};
+
+export async function accumulateChatCompletionStream(
+    stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
+): Promise<AccumulatedChatCompletion> {
+    let id: string | null = null;
+    let content = "";
+    let finishReason: OpenAI.Chat.ChatCompletion.Choice["finish_reason"] | null = null;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let cachedInputTokens = 0;
+    const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+
+    for await (const chunk of stream) {
+        if (chunk.id) id = chunk.id;
+        if (chunk.usage) {
+            promptTokens = chunk.usage.prompt_tokens ?? promptTokens;
+            completionTokens = chunk.usage.completion_tokens ?? completionTokens;
+            cachedInputTokens = chunk.usage.prompt_tokens_details?.cached_tokens ?? cachedInputTokens;
+        }
+
+        const choice = chunk.choices?.[0];
+        if (!choice) continue;
+        if (choice.finish_reason) finishReason = choice.finish_reason;
+
+        const delta = choice.delta;
+        if (!delta) continue;
+        if (delta.content) content += delta.content;
+
+        for (const toolCall of delta.tool_calls ?? []) {
+            const index = toolCall.index ?? 0;
+            const current = toolCalls.get(index) ?? { id: "", name: "", arguments: "" };
+            if (toolCall.id) current.id = toolCall.id;
+            if (toolCall.function?.name) current.name = toolCall.function.name;
+            if (toolCall.function?.arguments) current.arguments += toolCall.function.arguments;
+            toolCalls.set(index, current);
+        }
+    }
+
+    return {
+        id,
+        content: content.length > 0 ? content : null,
+        toolCalls:
+            toolCalls.size > 0
+                ? [...toolCalls.entries()].sort(([a], [b]) => a - b).map(([, value]) => value)
+                : undefined,
+        finishReason,
+        promptTokens,
+        completionTokens,
+        cachedInputTokens,
     };
 }
 
