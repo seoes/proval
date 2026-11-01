@@ -101,7 +101,7 @@ jobs:
         name: benchmark
         needs: gate
         runs-on: ubuntu-latest
-        timeout-minutes: 240
+        timeout-minutes: 360
         concurrency:
             group: benchmark
             cancel-in-progress: false
