@@ -38,6 +38,14 @@ bun run benchmark list
 - `report` generates a readable `report.md` from existing batch output.
 - `compare` generates `compare-<baseline>.md` in the candidate batch directory.
 
+## GitHub Actions
+
+`.github/workflows/benchmark.yml` is a manual workflow. It runs `quick` with `--repeat 3` and writes the report to the workflow summary. Raw output is attached as an artifact.
+
+Set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` as repository secrets or variables before the first run. `LLM_PROVIDER` is optional.
+
+The repository owner can run it any number of times. Every other account shares one run per rolling 24 hours. A run counts once its benchmark job has started. A rejected attempt does not count.
+
 ## Reading a result
 
 Open `apps/api/benchmark/data/output/<batchId>/report.md` in a Markdown preview.
