@@ -129,6 +129,8 @@ export type RunOptions = {
     resume: boolean;
     /** Restrict the batch to a subset of profile cases. */
     caseIdList?: string[];
+    /** Replaces the profile repeatCount for this batch. */
+    repeatCount?: number;
 };
 
 export type AttemptRecord = {

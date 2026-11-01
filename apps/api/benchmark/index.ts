@@ -2,7 +2,7 @@
  * Proval agent benchmark runner.
  *
  * Usage:
- *   bun run benchmark run <quick|full> [--batch <id>] [--resume]
+ *   bun run benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>]
  *   bun run benchmark report <batchId>
  *   bun run benchmark compare <baselineBatchId> <candidateBatchId>
  *   bun run benchmark ready
@@ -22,6 +22,17 @@ function optionValue(name: string): string | undefined {
     return index >= 0 ? argList[index + 1] : undefined;
 }
 
+/** Positive integer that replaces the profile repeatCount. Absent means use the profile. */
+function repeatCountOption(): number | undefined {
+    const index = argList.indexOf("--repeat");
+    if (index < 0) return undefined;
+    const raw = argList[index + 1];
+    if (!raw || !/^[1-9]\d*$/.test(raw)) {
+        throw new Error("--repeat must be a positive integer");
+    }
+    return Number(raw);
+}
+
 async function main(): Promise<void> {
     // Model credentials stay in environment configuration and are never
     // persisted. Benchmark runs use the dedicated .env.benchmark file.
@@ -31,12 +42,15 @@ async function main(): Promise<void> {
         case "run": {
             const profileName = argList[0];
             if (profileName !== "quick" && profileName !== "full") {
-                throw new Error("usage: benchmark run <quick|full> [--batch <id>] [--resume]");
+                throw new Error(
+                    "usage: benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]",
+                );
             }
             await runBatch({
                 profileName,
                 batchId: optionValue("batch"),
                 resume: argList.includes("--resume"),
+                repeatCount: repeatCountOption(),
                 caseIdList: optionValue("case")?.split(",").filter(Boolean),
             });
             break;
@@ -95,7 +109,7 @@ async function main(): Promise<void> {
             console.log(
                 [
                     "usage:",
-                    "  benchmark run <quick|full> [--batch <id>] [--resume] [--case <id,id...>]",
+                    "  benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]",
                     "  benchmark report <batchId>",
                     "  benchmark compare <baselineBatchId> <candidateBatchId>",
                     "  benchmark ready",

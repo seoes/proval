@@ -102,6 +102,10 @@ export async function runBatch(option: RunOptions): Promise<void> {
         }
         caseIdList = caseIdList.filter((caseId) => option.caseIdList!.includes(caseId));
     }
+    const repeatCount = option.repeatCount ?? runProfile.repeatCount;
+    if (option.repeatCount !== undefined && (!Number.isInteger(repeatCount) || repeatCount < 1)) {
+        throw new Error("--repeat must be a positive integer");
+    }
 
     if (option.resume && !option.batchId) {
         throw new Error("--resume requires --batch <id>");
@@ -120,7 +124,7 @@ export async function runBatch(option: RunOptions): Promise<void> {
     const sourceState = await collectSourceState();
     const runIdentity = {
         profileName: option.profileName,
-        repeatCount: runProfile.repeatCount,
+        repeatCount,
         seed: runProfile.seed,
         caseIdList,
         setting: profile.setting,
@@ -208,7 +212,7 @@ export async function runBatch(option: RunOptions): Promise<void> {
     let skipped = 0;
     try {
         await reportBatch(batchId);
-        for (let round = 1; round <= runProfile.repeatCount; round++) {
+        for (let round = 1; round <= repeatCount; round++) {
             const orderedList = seededShuffle(caseIdList, runProfile.seed + round);
             for (const caseId of orderedList) {
                 if (cancelRequested) break;

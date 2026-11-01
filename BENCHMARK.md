@@ -24,7 +24,7 @@ rate limit allows roughly one import pass per hour.
 Run from the repo root.
 
 ```sh
-bun run benchmark run <quick|full> [--batch <id>] [--resume] [--case <id,id...>]
+bun run benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]
 bun run benchmark report <batchId>
 bun run benchmark compare <baselineBatchId> <candidateBatchId>
 bun run benchmark ready
@@ -33,7 +33,8 @@ bun run benchmark list
 
 - `ready` sends one tiny request so model warm up stays outside measurement.
 - `run` executes a batch. `quick` is five PRs once each (one per project), `full` is all 50 PRs
-  three times each (150 planned attempts).
+  three times each (150 planned attempts). `--repeat` replaces the profile repeat count for that
+  batch without editing `profile.json`.
 - `report` generates a readable `report.md` from existing batch output.
 - `compare` generates `compare-<baseline>.md` in the candidate batch directory.
 
@@ -93,7 +94,8 @@ records are preserved. Resume checks the frozen manifest, profile file,
 selected profile, case selection, repeat count, seed, agent setting, source
 state, model identity, endpoint, Bun version, and machine description against
 the original batch. A changed or missing value requires a new batch. Repeat
-the original case selection when resuming a subset. Credential rotation does
+the original case selection when resuming a subset. Pass the same `--repeat`
+value when the batch was started with one. Credential rotation does
 not invalidate a batch.
 
 Comparison requires the same manifest hash in both batch records and every
