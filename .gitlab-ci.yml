@@ -100,7 +100,7 @@ benchmark_quick_repeat_3:
 
 benchmark_full:
     extends: .benchmark
-    timeout: 24h
+    timeout: 48h
     script:
         - export BATCH_ID="full-${CI_PIPELINE_ID}"
         - bun run benchmark run full --batch "$BATCH_ID"
@@ -112,7 +112,7 @@ benchmark_full:
 
 benchmark_full_score:
     extends: .benchmark
-    timeout: 24h
+    timeout: 48h
     script:
         - export BATCH_ID="full-${CI_PIPELINE_ID}"
         - bun run benchmark run full --batch "$BATCH_ID"
