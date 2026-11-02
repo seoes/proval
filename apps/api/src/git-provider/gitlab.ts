@@ -1,4 +1,12 @@
 import { createHash } from "node:crypto";
+import {
+    compareVersionDiffs,
+    countDeltaLines,
+    normaliseVersionDiffs,
+    type VersionDelta,
+    type VersionDiff,
+} from "../triage/delta.js";
+import type { PullRequestVersionSummary } from "../triage/capability.js";
 import { Gitlab, type MergeRequestReviewerSchema } from "@gitbeaker/rest";
 import {
     emojiList,
@@ -626,6 +634,68 @@ export class GitLabProvider implements GitProvider {
     public async fetchPullRequestReviewerList(prIid: number): Promise<string[]> {
         const mr = await this.gitlab.MergeRequests.show(this.projectId, prIid);
         return (mr.reviewers ?? []).map((r: { username: string }) => r.username);
+    }
+
+    /**
+     * Every version of a merge request. GitLab records one per push, so a long lived
+     * stacked branch accrues dozens; the typed options expose no pagination, so the
+     * page size and page cap go through to the request untyped.
+     */
+    private async fetchAllDiffVersions(prIid: number) {
+        return this.gitlab.MergeRequests.allDiffVersions(this.projectId, prIid, {
+            perPage: 100,
+            maxPages: 10,
+        } as never);
+    }
+
+    public async fetchPullRequestVersionSummary(prIid: number): Promise<PullRequestVersionSummary> {
+        const versions = await this.fetchAllDiffVersions(prIid);
+        const latest = versions[0];
+        if (!latest) {
+            return { headSha: "", filePathList: [], additions: 0, deletions: 0 };
+        }
+        const version = await this.gitlab.MergeRequests.showDiffVersion(this.projectId, prIid, latest.id);
+        const diffs = (version.diffs ?? []) as VersionDiff[];
+        let additions = 0;
+        let deletions = 0;
+        for (const entry of diffs) {
+            for (const line of (entry.diff ?? "").split("\n")) {
+                if (line.startsWith("+") && !line.startsWith("+++")) additions++;
+                else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+            }
+        }
+        return {
+            headSha: latest.head_commit_sha,
+            filePathList: diffs.map((d) => d.new_path || d.old_path || "").filter(Boolean),
+            additions,
+            deletions,
+        };
+    }
+
+    /**
+     * What changed in the merge request's own diff since `reviewedHeadSha`, with rebase
+     * movement removed. Null when that head is no longer among the versions, which
+     * happens after history is rewritten, and the caller then treats the review as a
+     * first review.
+     */
+    public async fetchPullRequestVersionDelta(prIid: number, reviewedHeadSha: string): Promise<VersionDelta | null> {
+        const versions = await this.fetchAllDiffVersions(prIid);
+        const latest = versions[0];
+        const reviewed = versions.find((v) => v.head_commit_sha === reviewedHeadSha);
+        if (!latest || !reviewed) {
+            return null;
+        }
+        if (latest.id === reviewed.id) {
+            return { unchanged: true, added: [], removed: [], changed: [], touched: [], additions: 0, deletions: 0 };
+        }
+        const [before, after] = await Promise.all([
+            this.gitlab.MergeRequests.showDiffVersion(this.projectId, prIid, reviewed.id),
+            this.gitlab.MergeRequests.showDiffVersion(this.projectId, prIid, latest.id),
+        ]);
+        const beforeDiffs = normaliseVersionDiffs((before.diffs ?? []) as VersionDiff[]);
+        const afterDiffs = normaliseVersionDiffs((after.diffs ?? []) as VersionDiff[]);
+        const delta = compareVersionDiffs(beforeDiffs, afterDiffs);
+        return { ...delta, ...countDeltaLines(beforeDiffs, afterDiffs, delta) };
     }
 
     public async fetchPullRequestVersion(prIid: number): Promise<GitPullRequestVersion> {

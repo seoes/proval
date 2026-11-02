@@ -31,9 +31,15 @@ class ActivityQueue {
                     if (!input.headSha || queuedPullRequestReview.headSha === input.headSha) {
                         return queuedPullRequestReview.id;
                     }
+                    // The webhook triaged the new head; the queued row's record describes a
+                    // head that will no longer be reviewed, so it goes with the old head.
                     const updated = await db
                         .update(activityTable)
-                        .set({ headSha: input.headSha })
+                        .set(
+                            input.triage === undefined
+                                ? { headSha: input.headSha }
+                                : { headSha: input.headSha, triage: input.triage },
+                        )
                         .where(
                             and(eq(activityTable.id, queuedPullRequestReview.id), eq(activityTable.status, "queued")),
                         )
@@ -85,6 +91,7 @@ class ActivityQueue {
                     targetCommentId: activityTable.targetCommentId,
                     targetInlineReviewId: activityTable.targetInlineReviewId,
                     headSha: activityTable.headSha,
+                    triage: activityTable.triage,
                     createdAt: activityTable.createdAt,
                 })
                 .from(activityTable)
@@ -134,6 +141,7 @@ class ActivityQueue {
                         targetCommentId: started.targetCommentId,
                         targetInlineReviewId: started.targetInlineReviewId,
                         headSha: started.headSha,
+                        triage: started.triage,
                         logVersion: "1",
                         createdAt: started.createdAt,
                     });

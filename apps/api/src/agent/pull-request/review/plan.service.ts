@@ -4,7 +4,7 @@ import type { Workspace } from "../../../git-provider/workspace.js";
 import type { LlmSender } from "../../llm/loop";
 import type { ReviewUnit, SkippedFile } from "./plan.schema.js";
 import { generateUserPrompt } from "../../../util/user-prompt.js";
-import { PR_REVIEW_PLAN_USER_PROMPT_HEADER, REVIEW_PLAN } from "./plan.prompt.js";
+import { PR_REVIEW_PLAN_USER_PROMPT_HEADER, REVIEW_PLAN, unitBudgetHint } from "./plan.prompt.js";
 import { FOLLOW_UP_PLAN_HINT, FOLLOW_UP_PUSH_PLAN_HINT } from "./follow-up.prompt.js";
 import { FILE_COVERAGE_RULE } from "../prompt";
 import {
@@ -35,6 +35,7 @@ export async function runReviewPlanAgent(
     userPrompt: string | null = null,
     agentInstructionPrompt = "",
     onEvent?: (event: AgentLoopEvent) => void,
+    unitBudget: number | null = null,
 ): Promise<ActivityTokenUsage & { reviewUnitList: ReviewUnit[]; skippedFileList: SkippedFile[] }> {
     const reviewUnitList: ReviewUnit[] = [];
     const skippedFileList: SkippedFile[] = [];
@@ -44,6 +45,7 @@ export async function runReviewPlanAgent(
         isFollowUpReview ? FOLLOW_UP_PLAN_HINT : null,
         usePushScope ? FOLLOW_UP_PUSH_PLAN_HINT : null,
         FILE_COVERAGE_RULE,
+        unitBudget !== null ? unitBudgetHint(unitBudget) : null,
         agentInstructionPrompt,
         generateUserPrompt(PR_REVIEW_PLAN_USER_PROMPT_HEADER, userPrompt),
     ]

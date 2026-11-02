@@ -7,6 +7,7 @@ import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { resolveForgejoWebhookEvent, skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
+import { triageForReview } from "../../triage/triage.service.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 import {
     isPullRequestPushWhileClosed,
@@ -221,6 +222,22 @@ const handleForgejoPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
+    // Triage runs on every provider so the record exists; without a versions API it
+    // has no delta and classifies the whole pull request from what it can see.
+    const triage = await triageForReview({
+        provider: forgejoProvider,
+        activityService,
+        repositoryId: repository.id,
+        prIid: prNumber,
+        title: pr.title ?? "",
+        author: pr.user?.login ?? "",
+        enabled: repository.prTriageEnabled,
+        logError,
+    });
+    if (triage.effectiveDepth === "skip") {
+        return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
+    }
+
     await activityQueue.push({
         repositoryId: repository.id,
         modelProviderId: modelProvider.id,
@@ -228,6 +245,7 @@ const handleForgejoPullRequestWebhook = async (
         type: "pr_review",
         targetIid: prNumber,
         headSha,
+        triage: triage.record,
     });
     activityQueue.drain();
 

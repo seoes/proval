@@ -109,6 +109,7 @@ function makeRepositoryRow(overrides: Partial<Repository> = {}): Repository {
         prReviewOnPush: "on_every_push",
         prReviewOnClose: "continue",
         prIgnoreDraft: true,
+        prTriageEnabled: false,
         prAllowedTargetBranchList: [],
         userPrompt: null,
         prReplyEnabled: true,

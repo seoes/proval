@@ -64,7 +64,7 @@ if (process.env.PROVAL_WEBHOOK_TEST_CHILD !== "1") {
     );
     const activityBefore = db.$client
         .query(
-            "SELECT *, NULL AS log_version, NULL AS target_comment_id, NULL AS target_inline_review_id, created_at AS started_at FROM activity",
+            "SELECT *, NULL AS log_version, NULL AS triage, NULL AS target_comment_id, NULL AS target_inline_review_id, created_at AS started_at FROM activity",
         )
         .all();
     const commentBefore = db.$client.query("SELECT * FROM comment").all();

@@ -16,6 +16,7 @@ import { isAllowedTargetBranch } from "../../util/allowed-target-branch.js";
 import { skipIfInsufficientAccess } from "../../util/webhook-controller.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
+import { triageForReview } from "../../triage/triage.service.js";
 import { CommentService } from "../../api/comment/comment.service.js";
 import {
     isPullRequestPushWhileClosed,
@@ -187,6 +188,26 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         return new Response(JSON.stringify({ message: "Skipped: no changed files" }), { status: 200 });
     }
 
+    // Triage decides how deep this review should be before any token is spent. The
+    // record is always written to the activity; it only changes the depth when the
+    // repository has opted in, and a skip answers like every other guard above.
+    // The webhook's top level user is whoever triggered the event, not the merge
+    // request's author, and the mechanical-author rule needs the latter.
+    const detail = await gitlabProvider.fetchPullRequestDetail(prIid);
+    const triage = await triageForReview({
+        provider: gitlabProvider,
+        activityService,
+        repositoryId: repository.id,
+        prIid,
+        title: (pullRequest as { title?: string }).title ?? detail.title,
+        author: detail.author,
+        enabled: repository.prTriageEnabled,
+        logError,
+    });
+    if (triage.effectiveDepth === "skip") {
+        return new Response(JSON.stringify({ message: `Skipped: triage ${triage.record.rule}` }), { status: 200 });
+    }
+
     await activityQueue.push({
         repositoryId: repository.id,
         modelProviderId: modelProvider.id,
@@ -194,6 +215,7 @@ const handleGitLabPullRequestWebhook: HandleGitLabPullRequestWebhook = async (
         type: "pr_review",
         targetIid: prIid,
         headSha,
+        triage: triage.record,
     });
     activityQueue.drain();
 

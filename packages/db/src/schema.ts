@@ -156,6 +156,10 @@ export const repositoryTable = sqliteTable(
             .notNull()
             .default("continue"),
         prIgnoreDraft: integer({ mode: "boolean" }).notNull().default(true),
+        // Triage rules always run and are always recorded on the activity. Only when this
+        // is on do they change the review's depth or skip it. Off by default so an
+        // operator can read a few days of records before trusting them.
+        prTriageEnabled: integer({ mode: "boolean" }).notNull().default(false),
         prAllowedTargetBranchList: text({ mode: "json" }).$type<string[]>().notNull().default([]),
         userPrompt: text(),
 
@@ -187,6 +191,20 @@ export const repositoryTable = sqliteTable(
     (table) => [unique().on(table.gitProviderRepositoryId, table.gitProviderAccessId)],
 );
 
+export type ActivityTriageJson = {
+    depth: "skip" | "light" | "normal";
+    rule: string;
+    reason: string;
+    /** True when the depth was applied; false when it was only recorded. */
+    applied: boolean;
+    evidence: {
+        hadDelta: boolean;
+        fileCount: number;
+        lineCount: number;
+        filePathList: string[];
+    };
+};
+
 export type ActivityLogEntryJson = {
     type?: "common" | "tool-call" | "tool-result" | "tool-error";
     timestamp: string;
@@ -214,6 +232,9 @@ export const activityTable = sqliteTable(
         targetCommentId: integer(),
         targetInlineReviewId: text(),
         headSha: text(),
+        // Why this review ran at the depth it did: rule, depth, reason and evidence.
+        // Written before the review starts, including when no rule matched.
+        triage: text({ mode: "json" }).$type<ActivityTriageJson>(),
         inputToken: integer(),
         cachedInputToken: integer(),
         outputToken: integer(),

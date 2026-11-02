@@ -1,3 +1,4 @@
+import type { ActivityTriageJson } from "@proval/db";
 import { activityTable, repositoryTable, type ActivityLogEntryJson } from "@proval/db";
 import type {
     Activity,
@@ -25,6 +26,7 @@ import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 import { RepositoryService } from "../repository/repository.service.js";
 import { runWithActivity } from "./activity.runner.js";
+import { reviewBudgetForDepth } from "../../triage/triage.service.js";
 import { activityQueue } from "./activity.queue.js";
 
 const RETRY_TYPES = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
@@ -182,6 +184,7 @@ export type ActivityStartInput = {
     targetCommentId?: number | null;
     targetInlineReviewId?: string | null;
     headSha?: string | null;
+    triage?: ActivityTriageJson | null;
 };
 
 export type ActivityCompleteOptions = Pick<Activity, "inputToken" | "cachedInputToken" | "outputToken">;
@@ -855,6 +858,9 @@ export class ActivityService {
                     await this.complete(id, { inputToken: 0, cachedInputToken: 0, outputToken: 0 });
                     return;
                 }
+                // Triage ran in the webhook, before the queue, and its record travels on the
+                // activity row: a folded push replaces it along with the head.
+                const triage = (activity.triage as ActivityTriageJson | null) ?? null;
                 await runWithActivity(id, (activityId) =>
                     runPullRequestReview({
                         provider: gitProvider,
@@ -867,6 +873,7 @@ export class ActivityService {
                         activityId,
                         isFollowUpReview: previousHeadSha != null,
                         previousHeadSha,
+                        ...reviewBudgetForDepth(triage?.applied ? triage.depth : "normal"),
                     }),
                 );
                 return;
@@ -965,12 +972,16 @@ export class ActivityService {
             throw new Error("This activity has no comment to reply to");
         }
 
+        // A retry keeps the triage record and the depth it implied, so a light review
+        // that failed does not come back as a full one.
+        const triage = (activity.triage as ActivityTriageJson | null) ?? null;
         await activityQueue.push({
             repositoryId: activity.repositoryId,
             modelProviderId: repository.modelProviderId,
             modelName: repository.modelName,
             type: activity.type,
             targetIid: activity.targetIid,
+            triage,
             targetCommentId: activity.targetCommentId,
             targetInlineReviewId: activity.targetInlineReviewId,
             headSha: activity.headSha,

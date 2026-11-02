@@ -44,6 +44,8 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
         activityId,
         isFollowUpReview = false,
         previousHeadSha = null,
+        unitBudget = null,
+        unitStepBudget = null,
         onEvent,
     } = params;
     const emit = (event: ReviewMeasureEvent) => onEvent?.(event);
@@ -130,6 +132,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             userPrompt,
             agentInstructionPrompt,
             emitLoop("plan"),
+            unitBudget,
         );
         emit({ type: "phase-end", phase: "plan" });
         emit({ type: "phase-start", phase: "sub" });
@@ -160,6 +163,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
                         userPrompt,
                         agentInstructionPrompt,
                         emitLoop(`sub-${index + 1}`),
+                        unitStepBudget,
                     );
                     emit({ type: "sub-end", index: index + 1, ok: true });
                     return result;
