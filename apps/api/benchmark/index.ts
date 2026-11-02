@@ -5,6 +5,7 @@
  *   bun run benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>]
  *   bun run benchmark report <batchId>
  *   bun run benchmark compare <baselineBatchId> <candidateBatchId>
+ *   bun run benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]
  *   bun run benchmark ready
  *   bun run benchmark list
  */
@@ -69,6 +70,11 @@ async function main(): Promise<void> {
             console.log(await compareBatchById(baselineId, candidateId));
             break;
         }
+        case "score": {
+            const { parseScoreOption, runScore } = await import("./score/run.js");
+            await runScore(parseScoreOption(argList));
+            break;
+        }
         case "ready": {
             const llm = loadBenchmarkLlmConfig();
             const profile = await loadProfile();
@@ -112,6 +118,7 @@ async function main(): Promise<void> {
                     "  benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]",
                     "  benchmark report <batchId>",
                     "  benchmark compare <baselineBatchId> <candidateBatchId>",
+                    "  benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]",
                     "  benchmark ready",
                     "  benchmark list",
                 ].join("\n"),

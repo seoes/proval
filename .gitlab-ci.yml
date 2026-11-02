@@ -1,6 +1,7 @@
 stages:
     - verify
     - build
+    - benchmark
 
 .bun_verify:
     image: oven/bun:1.3.11
@@ -68,3 +69,55 @@ build_and_push:
     script:
         - docker build --build-arg PROVAL_VERSION="$CI_COMMIT_TAG" -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
         - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+
+.benchmark:
+    image: oven/bun:1.3.11
+    stage: benchmark
+    tags:
+        - container
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+          when: manual
+        - when: never
+    before_script:
+        - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+        - bun install --frozen-lockfile
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
+        - bun run benchmark ready
+
+benchmark_quick_repeat_3:
+    extends: .benchmark
+    timeout: 24h
+    script:
+        - export BATCH_ID="quick-r3-${CI_PIPELINE_ID}"
+        - bun run benchmark run quick --batch "$BATCH_ID" --repeat 3
+    artifacts:
+        when: always
+        expire_in: 90 days
+        paths:
+            - apps/api/benchmark/data/output/quick-r3-${CI_PIPELINE_ID}
+
+benchmark_full:
+    extends: .benchmark
+    timeout: 24h
+    script:
+        - export BATCH_ID="full-${CI_PIPELINE_ID}"
+        - bun run benchmark run full --batch "$BATCH_ID"
+    artifacts:
+        when: always
+        expire_in: 90 days
+        paths:
+            - apps/api/benchmark/data/output/full-${CI_PIPELINE_ID}
+
+benchmark_full_score:
+    extends: .benchmark
+    timeout: 24h
+    script:
+        - export BATCH_ID="full-${CI_PIPELINE_ID}"
+        - bun run benchmark run full --batch "$BATCH_ID"
+        - bun run benchmark score "$BATCH_ID"
+    artifacts:
+        when: always
+        paths:
+            - apps/api/benchmark/data/output/full-${CI_PIPELINE_ID}

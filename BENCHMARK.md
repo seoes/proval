@@ -40,11 +40,26 @@ bun run benchmark list
 
 ## GitHub Actions
 
-`.github/workflows/benchmark.yml` is a manual workflow. It runs `quick` with `--repeat 3` and writes the report to the workflow summary. Raw output is attached as an artifact.
+`.github/workflows/benchmark.yml` is a manual workflow. Choose **full** or **full-score** when you start it.
 
-Set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` as repository secrets or variables before the first run. `LLM_PROVIDER` is optional.
+- **full** runs all 50 PRs three times each (`profile.json` full repeat count).
+- **full-score** runs the same batch, then runs `benchmark score` on that batch.
+
+The workflow summary shows `report.md`. **full-score** also prints the score summary there. Raw batch output is attached as an artifact named `benchmark-full-<run id>`.
+
+Set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` as repository secrets or variables before the first run. `LLM_PROVIDER` is optional. Scoring uses `JUDGE_BASE_URL`, `JUDGE_API_KEY` and `JUDGE_MODEL` when set, otherwise the same `LLM_*` values.
 
 The repository owner can run it any number of times. Every other account shares one run per rolling 24 hours. A run counts once its benchmark job has started. A rejected attempt does not count.
+
+## GitLab CI
+
+On a **Run pipeline** from the GitLab web UI, three manual jobs appear in the **benchmark** stage.
+
+- **benchmark_quick_repeat_3** runs `quick` with `--repeat 3`.
+- **benchmark_full** runs the full profile.
+- **benchmark_full_score** runs full, then scores that batch.
+
+Set the same `LLM_*` variables (and optional `JUDGE_*` variables) in GitLab CI/CD settings. Each job uploads its batch directory as an artifact.
 
 ## Reading a result
 
