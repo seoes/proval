@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { buildRootReadme, renderBatchReadme } from "./readme.js";
@@ -49,11 +49,29 @@ export function assertValidBatchId(batchId: string): void {
     }
 }
 
-export function sanitizeRunJson(content: string): string {
-    const value = JSON.parse(content) as Record<string, unknown>;
+function stripSensitiveField(value: Record<string, unknown>): void {
     delete value.modelBaseUrl;
     delete value.machineDescription;
+}
+
+export function sanitizeRunJson(content: string): string {
+    const value = JSON.parse(content) as Record<string, unknown>;
+    stripSensitiveField(value);
     return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+export function sanitizeResultJsonl(content: string): string {
+    return content
+        .split("\n")
+        .map((line) => {
+            if (!line) return line;
+            const value = JSON.parse(line) as Record<string, unknown>;
+            stripSensitiveField(value);
+            const repro = value.repro;
+            if (repro && typeof repro === "object") stripSensitiveField(repro as Record<string, unknown>);
+            return JSON.stringify(value);
+        })
+        .join("\n");
 }
 
 export async function publishFileNameList(batchDir: string): Promise<string[]> {
@@ -116,7 +134,7 @@ async function preparePublishedBatch(batchId: string, targetDir: string): Promis
     const scoreJson = existsSync(scorePath) ? await readFile(scorePath, "utf-8") : undefined;
     await mkdir(targetDir, { recursive: true });
     await writeFile(join(targetDir, "run.json"), sanitizeRunJson(runJson));
-    await copyFile(resultPath, join(targetDir, "result.jsonl"));
+    await writeFile(join(targetDir, "result.jsonl"), sanitizeResultJsonl(resultJsonl));
     await writeFile(
         join(targetDir, "README.md"),
         renderBatchReadme({ batchId, runJson, resultJsonl, scoreJson }),

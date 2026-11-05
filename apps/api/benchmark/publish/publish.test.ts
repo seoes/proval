@@ -10,6 +10,7 @@ import {
     publishBatch,
     publishFileNameList,
     resolveResultRepoUrl,
+    sanitizeResultJsonl,
     sanitizeRunJson,
 } from "./publish.js";
 
@@ -82,6 +83,38 @@ describe("sanitizeRunJson", () => {
         expect(parsed.modelBaseUrl).toBeUndefined();
         expect(parsed.machineDescription).toBeUndefined();
         expect(parsed.modelName).toBe("model");
+    });
+});
+
+describe("sanitizeResultJsonl", () => {
+    test("removes sensitive fields from the line and nested repro", () => {
+        const raw = [
+            JSON.stringify({
+                type: "result",
+                modelBaseUrl: "https://secret.example/v1",
+                machineDescription: "secret machine",
+                repro: {
+                    modelName: "fixture",
+                    modelBaseUrl: "https://private.example/v1",
+                    machineDescription: "secret runner",
+                },
+            }),
+            "",
+        ].join("\n");
+        const line = sanitizeResultJsonl(raw).split("\n")[0] ?? "";
+        const parsed = JSON.parse(line) as {
+            modelBaseUrl?: string;
+            machineDescription?: string;
+            repro?: { modelName?: string; modelBaseUrl?: string; machineDescription?: string };
+        };
+        expect(parsed.modelBaseUrl).toBeUndefined();
+        expect(parsed.machineDescription).toBeUndefined();
+        expect(parsed.repro?.modelName).toBe("fixture");
+        expect(parsed.repro?.modelBaseUrl).toBeUndefined();
+        expect(parsed.repro?.machineDescription).toBeUndefined();
+        expect(line).not.toContain("secret.example");
+        expect(line).not.toContain("private.example");
+        expect(line).not.toContain("secret runner");
     });
 });
 
@@ -338,6 +371,13 @@ describe("publishBatch", () => {
                     attemptIndex: 1,
                     status: "completed",
                     timing: { reviewMs: 1500 },
+                    modelBaseUrl: "https://top.private.example/v1",
+                    machineDescription: "top secret runner",
+                    repro: {
+                        modelName: "fixture",
+                        modelBaseUrl: "https://private.example/v1",
+                        machineDescription: "secret runner",
+                    },
                 })}\n`,
             );
             await writeFile(
@@ -371,6 +411,19 @@ describe("publishBatch", () => {
             const publishedRun = JSON.parse(await readFile(join(inspectDir, "result", batchId, "run.json"), "utf-8"));
             expect(publishedRun.modelBaseUrl).toBeUndefined();
             expect(publishedRun.machineDescription).toBeUndefined();
+            const publishedResult = await readFile(join(inspectDir, "result", batchId, "result.jsonl"), "utf-8");
+            const publishedLine = JSON.parse(publishedResult.trim()) as {
+                modelBaseUrl?: string;
+                machineDescription?: string;
+                repro?: { modelName?: string; modelBaseUrl?: string; machineDescription?: string };
+            };
+            expect(publishedLine.modelBaseUrl).toBeUndefined();
+            expect(publishedLine.machineDescription).toBeUndefined();
+            expect(publishedLine.repro?.modelName).toBe("fixture");
+            expect(publishedLine.repro?.modelBaseUrl).toBeUndefined();
+            expect(publishedLine.repro?.machineDescription).toBeUndefined();
+            expect(publishedResult).not.toContain("private.example");
+            expect(publishedResult).not.toContain("secret runner");
             const publishedReadme = await readFile(join(inspectDir, "result", batchId, "README.md"), "utf-8");
             expect(publishedReadme).toContain("rewritten-model");
             expect(publishedReadme).not.toContain("secret runner");
