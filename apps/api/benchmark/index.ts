@@ -6,6 +6,7 @@
  *   bun run benchmark report <batchId>
  *   bun run benchmark compare <baselineBatchId> <candidateBatchId>
  *   bun run benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]
+ *   bun run benchmark publish <batchId>
  *   bun run benchmark ready
  *   bun run benchmark list
  */
@@ -95,6 +96,13 @@ async function main(): Promise<void> {
             );
             break;
         }
+        case "publish": {
+            const batchId = argList[0];
+            if (!batchId) throw new Error("usage: benchmark publish <batchId>");
+            const { publishBatch } = await import("./publish/publish.js");
+            await publishBatch(batchId);
+            break;
+        }
         case "list": {
             const manifest = await loadManifest();
             for (const entry of manifest.caseList) {
@@ -120,6 +128,7 @@ async function main(): Promise<void> {
                     "  benchmark compare <baselineBatchId> <candidateBatchId>",
                     "  benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]",
                     "  benchmark ready",
+                    "  benchmark publish <batchId>",
                     "  benchmark list",
                 ].join("\n"),
             );

@@ -27,6 +27,8 @@ Run from the repo root.
 bun run benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]
 bun run benchmark report <batchId>
 bun run benchmark compare <baselineBatchId> <candidateBatchId>
+bun run benchmark score <batchId>
+bun run benchmark publish <batchId>
 bun run benchmark ready
 bun run benchmark list
 ```
@@ -37,6 +39,14 @@ bun run benchmark list
   batch without editing `profile.json`.
 - `report` generates a readable `report.md` from existing batch output.
 - `compare` generates `compare-<baseline>.md` in the candidate batch directory.
+- `publish` copies a local batch to your configured result repository on GitHub.
+  Set `RESULT_REPO_URL` and `RESULT_REPO_TOKEN` in `.env.benchmark`. Create the
+  remote repository with a cloneable `main` branch (for example one empty initial
+  commit). Sensitive fields such as the model base URL and machine description
+  are stripped before upload. Publishing an existing batch id replaces that
+  folder and records the commit as an overwrite. The published README is generated
+  from the batch files. It leads with the result, groups PRs by project and size,
+  then lists every PR. A scored batch includes the score in that report.
 
 ## GitHub Actions
 
@@ -59,7 +69,9 @@ On a **Run pipeline** from the GitLab web UI, three manual jobs appear in the **
 - **benchmark_full** runs the full profile.
 - **benchmark_full_score** runs full, then scores that batch.
 
-Set the same `LLM_*` variables (and optional `JUDGE_*` variables) in GitLab CI/CD settings. Each job uploads its batch directory as an artifact.
+After **benchmark_full_score** succeeds, **benchmark_publish** becomes playable. It publishes `full-<pipeline id>` from that job artifact and does not wait for the other benchmark jobs.
+
+Set the same `LLM_*` variables (and optional `JUDGE_*` variables) in GitLab CI/CD settings. Set `RESULT_REPO_URL` and `RESULT_REPO_TOKEN` before starting the publish job. Each benchmark job uploads its batch directory as an artifact.
 
 ## Reading a result
 
@@ -89,7 +101,8 @@ bookkeeping (`run.ts`), the child process for one attempt (`attempt.ts`),
 measurement (`measure.ts`), the fake sender used by tests (`sender.ts`), and
 attempt cleanup (`clean.ts`). `report/` holds aggregation and Markdown
 rendering (`report.ts`) next to the `report.template.md` and
-`compare.template.md` templates.
+`compare.template.md` templates. `publish/` copies a sanitized batch to the
+public result repository and rebuilds its index README.
 
 ## Batch execution
 
@@ -167,6 +180,9 @@ plan-loop-forever|no-handoff`) drives the production flow against a small
 local git fixture and checks phase ordering, parallel wall time, compression
 accounting, failure records, cancellation, and preparation failure. Report
 and compare logic is verified with a deterministic result fixture.
+Publish sanitization and index tables are covered in
+`apps/api/benchmark/publish/publish.test.ts`. The file URL git push exercise
+runs when the test runner can spawn `git` and is skipped otherwise.
 
 Real model execution is manual. Run `ready` first, then run `quick`, and
 only run `full` after input identity and metric collection look right. If the

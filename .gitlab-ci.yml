@@ -2,6 +2,7 @@ stages:
     - verify
     - build
     - benchmark
+    - publish
 
 .bun_verify:
     image: oven/bun:1.3.11
@@ -121,3 +122,21 @@ benchmark_full_score:
         when: always
         paths:
             - apps/api/benchmark/data/output/full-${CI_PIPELINE_ID}
+
+benchmark_publish:
+    image: oven/bun:1.3.11
+    stage: publish
+    tags:
+        - container
+    needs:
+        - job: benchmark_full_score
+          artifacts: true
+    rules:
+        - if: '$CI_PIPELINE_SOURCE == "web"'
+          when: manual
+        - when: never
+    before_script:
+        - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+        - bun install --frozen-lockfile
+    script:
+        - bun run benchmark publish "full-${CI_PIPELINE_ID}"
