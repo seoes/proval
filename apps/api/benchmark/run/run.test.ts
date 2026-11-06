@@ -119,8 +119,8 @@ async function writeFixtureRepo(): Promise<void> {
             llmConcurrency: null,
             timeoutSecond: 600,
         },
-        quick: { repeatCount: 1, seed: 42, caseIdList: ["fixture__1"] },
-        full: { repeatCount: 1, seed: 42, caseIdList: null },
+        quick: { seed: 42, caseIdList: ["fixture__1"] },
+        full: { seed: 42, caseIdList: null },
     };
     await writeFile(profilePath, JSON.stringify(profile, null, 2));
 }
@@ -263,6 +263,7 @@ describe("batch resume with fake sender", () => {
         const originalResult = await readFile(resultPath, "utf-8");
         expect(JSON.parse(originalResult.trim().split("\n").at(-1)!).status).toBe("completed");
         const originalMeta = await readFile(metaPath, "utf-8");
+        expect(JSON.parse(originalMeta).repeatCount).toBe(1);
         expect(JSON.parse(originalMeta).caseInfoList).toEqual([
             { caseId: "fixture__1", project: "fixture", addedLineCount: 1, deletedLineCount: 1, changedFileCount: 2 },
         ]);
@@ -338,7 +339,7 @@ describe("batch resume with fake sender", () => {
         }
     }, 120_000);
 
-    test("--repeat overrides the profile count without editing the profile", async () => {
+    test("--repeat sets the batch count and defaults to 1", async () => {
         const env = childEnv({ BENCHMARK_FAKE_SENDER: "scripted" });
         const run = async (argList: string[]) => {
             const proc = Bun.spawn(
@@ -357,8 +358,8 @@ describe("batch resume with fake sender", () => {
         const batchDir = join(dataDir, "output", "repeat-batch");
         const meta = JSON.parse(await readFile(join(batchDir, "run.json"), "utf-8")) as { repeatCount: number };
         expect(meta.repeatCount).toBe(2);
-        const profile = JSON.parse(await readFile(profilePath, "utf-8")) as { quick: { repeatCount: number } };
-        expect(profile.quick.repeatCount).toBe(1);
+        const profile = JSON.parse(await readFile(profilePath, "utf-8")) as { quick: Record<string, unknown> };
+        expect(profile.quick.repeatCount).toBeUndefined();
         const resultList = (await readFile(join(batchDir, "result.jsonl"), "utf-8"))
             .trim()
             .split("\n")

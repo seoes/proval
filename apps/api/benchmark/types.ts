@@ -44,7 +44,6 @@ export type BenchmarkProfileSetting = {
 };
 
 export type BenchmarkRunProfile = {
-    repeatCount: number;
     seed: number;
     /** null means every manifest case. */
     caseIdList: string[] | null;
@@ -129,7 +128,7 @@ export type RunOptions = {
     resume: boolean;
     /** Restrict the batch to a subset of profile cases. */
     caseIdList?: string[];
-    /** Replaces the profile repeatCount for this batch. */
+    /** Times to review each selected case. Absent means 1. */
     repeatCount?: number;
 };
 

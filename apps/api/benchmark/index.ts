@@ -5,6 +5,8 @@
  *   bun run benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>]
  *   bun run benchmark report <batchId>
  *   bun run benchmark compare <baselineBatchId> <candidateBatchId>
+ *   bun run benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]
+ *   bun run benchmark publish <batchId>
  *   bun run benchmark ready
  *   bun run benchmark list
  */
@@ -22,7 +24,7 @@ function optionValue(name: string): string | undefined {
     return index >= 0 ? argList[index + 1] : undefined;
 }
 
-/** Positive integer that replaces the profile repeatCount. Absent means use the profile. */
+/** Positive integer for this batch. Absent means one review per case. */
 function repeatCountOption(): number | undefined {
     const index = argList.indexOf("--repeat");
     if (index < 0) return undefined;
@@ -69,6 +71,11 @@ async function main(): Promise<void> {
             console.log(await compareBatchById(baselineId, candidateId));
             break;
         }
+        case "score": {
+            const { parseScoreOption, runScore } = await import("./score/run.js");
+            await runScore(parseScoreOption(argList));
+            break;
+        }
         case "ready": {
             const llm = loadBenchmarkLlmConfig();
             const profile = await loadProfile();
@@ -87,6 +94,13 @@ async function main(): Promise<void> {
                 `warm request done in ${Math.round(performance.now() - startedAt)}ms, ` +
                     `input=${response.usage.inputToken} output=${response.usage.outputToken} cached=${response.usage.cachedInputToken}`,
             );
+            break;
+        }
+        case "publish": {
+            const batchId = argList[0];
+            if (!batchId) throw new Error("usage: benchmark publish <batchId>");
+            const { publishBatch } = await import("./publish/publish.js");
+            await publishBatch(batchId);
             break;
         }
         case "list": {
@@ -112,7 +126,9 @@ async function main(): Promise<void> {
                     "  benchmark run <quick|full> [--batch <id>] [--resume] [--repeat <n>] [--case <id,id...>]",
                     "  benchmark report <batchId>",
                     "  benchmark compare <baselineBatchId> <candidateBatchId>",
+                    "  benchmark score <batchId> [--force] [--limit n] [--no-dedup] [--profile core] [--beta 2]",
                     "  benchmark ready",
+                    "  benchmark publish <batchId>",
                     "  benchmark list",
                 ].join("\n"),
             );
