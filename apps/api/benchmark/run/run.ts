@@ -102,8 +102,8 @@ export async function runBatch(option: RunOptions): Promise<void> {
         }
         caseIdList = caseIdList.filter((caseId) => option.caseIdList!.includes(caseId));
     }
-    const repeatCount = option.repeatCount ?? runProfile.repeatCount;
-    if (option.repeatCount !== undefined && (!Number.isInteger(repeatCount) || repeatCount < 1)) {
+    const repeatCount = option.repeatCount ?? 1;
+    if (!Number.isInteger(repeatCount) || repeatCount < 1) {
         throw new Error("--repeat must be a positive integer");
     }
 

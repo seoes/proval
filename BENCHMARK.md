@@ -34,9 +34,8 @@ bun run benchmark list
 ```
 
 - `ready` sends one tiny request so model warm up stays outside measurement.
-- `run` executes a batch. `quick` is five PRs once each (one per project), `full` is all 50 PRs
-  three times each (150 planned attempts). `--repeat` replaces the profile repeat count for that
-  batch without editing `profile.json`.
+- `run` executes a batch. `quick` is five PRs (one per project). `full` is all 50 PRs. Each selected
+  PR runs once unless `--repeat` is set. `--repeat 3` reviews each selected PR three times.
 - `report` generates a readable `report.md` from existing batch output.
 - `compare` generates `compare-<baseline>.md` in the candidate batch directory.
 - `publish` copies a local batch to your configured result repository on GitHub.
@@ -50,14 +49,11 @@ bun run benchmark list
 
 ## GitHub Actions
 
-`.github/workflows/benchmark.yml` is a manual workflow. Choose **full** or **full-score** when you start it.
+`.github/workflows/benchmark.yml` is a manual workflow. It runs `quick --repeat 3`, so it reviews five PRs three times each.
 
-- **full** runs all 50 PRs three times each (`profile.json` full repeat count).
-- **full-score** runs the same batch, then runs `benchmark score` on that batch.
+The workflow summary shows `report.md`. Raw batch output is attached as an artifact named `benchmark-report`.
 
-The workflow summary shows `report.md`. **full-score** also prints the score summary there. Raw batch output is attached as an artifact named `benchmark-full-<run id>`.
-
-Set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` as repository secrets or variables before the first run. `LLM_PROVIDER` is optional. Scoring uses `JUDGE_BASE_URL`, `JUDGE_API_KEY` and `JUDGE_MODEL` when set, otherwise the same `LLM_*` values.
+Set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` as repository secrets or variables before the first run. `LLM_PROVIDER` is optional.
 
 The repository owner can run it any number of times. Every other account shares one run per rolling 24 hours. A run counts once its benchmark job has started. A rejected attempt does not count.
 
@@ -65,9 +61,9 @@ The repository owner can run it any number of times. Every other account shares 
 
 On a **Run pipeline** from the GitLab web UI, three manual jobs appear in the **benchmark** stage.
 
-- **benchmark_quick_repeat_3** runs `quick` with `--repeat 3`.
-- **benchmark_full** runs the full profile.
-- **benchmark_full_score** runs full, then scores that batch.
+- **benchmark_quick_repeat_3** runs `quick --repeat 3`, so it reviews five PRs three times each.
+- **benchmark_full** runs `full` with no `--repeat`, so it reviews all 50 PRs once each.
+- **benchmark_full_score** runs that same `full` batch, then scores it.
 
 After **benchmark_full_score** succeeds, **benchmark_publish** becomes playable. It publishes `full-<pipeline id>` from that job artifact and does not wait for the other benchmark jobs.
 
@@ -131,8 +127,8 @@ selected profile, case selection, repeat count, seed, agent setting, source
 state, model identity, endpoint, Bun version, and machine description against
 the original batch. A changed or missing value requires a new batch. Repeat
 the original case selection when resuming a subset. Pass the same `--repeat`
-value when the batch was started with one. Credential rotation does
-not invalidate a batch.
+value the batch was started with. Omit it only when the original command also
+omitted it. Credential rotation does not invalidate a batch.
 
 Comparison requires the same manifest hash in both batch records and every
 completed attempt. A different or missing input identity stops comparison

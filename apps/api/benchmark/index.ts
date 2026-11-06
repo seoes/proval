@@ -24,7 +24,7 @@ function optionValue(name: string): string | undefined {
     return index >= 0 ? argList[index + 1] : undefined;
 }
 
-/** Positive integer that replaces the profile repeatCount. Absent means use the profile. */
+/** Positive integer for this batch. Absent means one review per case. */
 function repeatCountOption(): number | undefined {
     const index = argList.indexOf("--repeat");
     if (index < 0) return undefined;
