@@ -103,10 +103,20 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                     });
                 }
                 if (url.endsWith("/chat/completions")) {
-                    return Response.json({
-                        id: "chat_test",
-                        choices: [{ message: { role: "assistant", content: "OK" }, finish_reason: "stop" }],
-                    });
+                    const frame = (choice: Record<string, unknown>) =>
+                        `data: ${JSON.stringify({
+                            id: "chat_test",
+                            object: "chat.completion.chunk",
+                            created: 0,
+                            model: "test-model",
+                            choices: [choice],
+                        })}\n\n`;
+                    return new Response(
+                        frame({ index: 0, delta: { role: "assistant", content: "OK" }, finish_reason: null }) +
+                            frame({ index: 0, delta: {}, finish_reason: "stop" }) +
+                            "data: [DONE]\n\n",
+                        { headers: { "content-type": "text/event-stream" } },
+                    );
                 }
                 if (url.endsWith("/messages")) {
                     return Response.json({
