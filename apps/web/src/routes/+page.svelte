@@ -587,6 +587,16 @@
                             </li>
                             <li>
                                 <a
+                                    href="/docs/openllm"
+                                    class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
+                                    <span
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 font-mono text-[10px] font-bold text-white"
+                                        >OL</span>
+                                    <span class="text-sm font-medium text-neutral-900">OpenLLM</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a
                                     href="/docs/set-llm"
                                     class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
                                     <span

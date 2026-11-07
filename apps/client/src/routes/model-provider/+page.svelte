@@ -66,6 +66,15 @@
         <div class="space-y-2">
             <Button
                 secondary
+                href="/model-provider/create/openllm"
+                class="w-full justify-start gap-2 focus-visible:outline-none">
+                <span
+                    class="flex size-4 shrink-0 items-center justify-center rounded-sm bg-foreground font-mono text-[8px] font-semibold text-background"
+                    aria-hidden="true">OL</span>
+                OpenLLM
+            </Button>
+            <Button
+                secondary
                 href="/model-provider/create/api-key"
                 class="w-full justify-start gap-2 focus-visible:outline-none">
                 <KeyIcon class="size-4 shrink-0" aria-hidden="true" />
