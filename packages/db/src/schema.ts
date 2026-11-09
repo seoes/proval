@@ -220,6 +220,9 @@ export const activityTable = sqliteTable(
         errorMessage: text(),
         logVersion: text({ enum: ["1"] }),
         logs: text({ mode: "json" }).$type<ActivityLogEntryJson[]>().notNull().default([]),
+        queuedAt: integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`),
         startedAt: integer({ mode: "timestamp" }),
         completedAt: integer({ mode: "timestamp" }),
         ...timeStamp,

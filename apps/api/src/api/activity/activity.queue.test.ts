@@ -135,12 +135,8 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
 
         it("coalesces duplicate pr_review push into one queued row", async () => {
             const { modelProvider, repository } = await insertProvider();
-            const firstId = await activityQueue.push(
-                reviewInput(repository.id, modelProvider.id, 1, "sha-a"),
-            );
-            const secondId = await activityQueue.push(
-                reviewInput(repository.id, modelProvider.id, 1, "sha-b"),
-            );
+            const firstId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 1, "sha-a"));
+            const secondId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 1, "sha-b"));
             expect(secondId).toBe(firstId);
             const rows = await db
                 .select()
@@ -158,7 +154,11 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             activityQueue.drain();
             await Bun.sleep(80);
             const rowA = await waitForStatus(idA, "started", 3000);
-            const rowB = await db.select().from(activityTable).where(eq(activityTable.id, idB)).then((r) => r[0]);
+            const rowB = await db
+                .select()
+                .from(activityTable)
+                .where(eq(activityTable.id, idB))
+                .then((r) => r[0]);
             expect(rowA.status).toBe("started");
             expect(rowB.status).toBe("queued");
             releaseReview?.();
@@ -168,6 +168,24 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             await waitForStatus(idA, "completed", 10000);
             activityQueue.drain();
             await waitForStatus(idB, "started", 10000);
+        });
+
+        it("starts the older queuedAt before a row created earlier", async () => {
+            const { modelProvider, repository } = await insertProvider(1);
+            const newerTicketId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 1, "sha-new"));
+            const olderTicketId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 2, "sha-old"));
+            await db
+                .update(activityTable)
+                .set({ queuedAt: new Date("2020-01-02"), createdAt: new Date("2019-01-01") })
+                .where(eq(activityTable.id, newerTicketId));
+            await db
+                .update(activityTable)
+                .set({ queuedAt: new Date("2020-01-01"), createdAt: new Date("2021-01-01") })
+                .where(eq(activityTable.id, olderTicketId));
+            activityQueue.drain();
+            await waitForStatus(olderTicketId, "started", 5000);
+            const [newer] = await db.select().from(activityTable).where(eq(activityTable.id, newerTicketId));
+            expect(newer.status).toBe("queued");
         });
 
         it("does not start queued pr_review while same pr is started", async () => {
@@ -305,7 +323,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
                 level: "info" as const,
                 message: "partial",
             };
-            const createdAt = new Date("2020-01-01");
+            const queuedAt = new Date("2020-01-01");
             const [startedRow] = await db
                 .insert(activityTable)
                 .values({
@@ -321,7 +339,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
                     logVersion: "1",
                     logs: [partialLog],
                     startedAt: new Date(),
-                    createdAt,
+                    queuedAt,
                 })
                 .returning();
             await activityQueue.mergeDuplicated();
@@ -335,7 +353,8 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             expect(queued?.headSha).toBe("sha-lone");
             expect(queued?.logs).toEqual([]);
             expect(queued?.startedAt).toBeNull();
-            expect(queued?.createdAt?.getTime()).toBe(createdAt.getTime());
+            expect(queued?.queuedAt?.getTime()).toBe(queuedAt.getTime());
+            expect(queued?.createdAt?.getTime()).not.toBe(queuedAt.getTime());
             expect(runPullRequestReviewMock.mock.calls.length).toBe(callsBefore);
         });
 
@@ -373,20 +392,18 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
         it("drains queued rows after boot marks started as failed", async () => {
             const { modelProvider, repository } = await insertProvider();
             const queuedId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 4, "sha-q"));
-            await db
-                .insert(activityTable)
-                .values({
-                    repositoryId: repository.id,
-                    repositoryPath: "group/repo",
-                    provider: "gitlab",
-                    modelProviderId: modelProvider.id,
-                    modelName: "test-model",
-                    type: "pr_review",
-                    status: "started",
-                    targetIid: 99,
-                    headSha: "dead",
-                    logVersion: "1",
-                });
+            await db.insert(activityTable).values({
+                repositoryId: repository.id,
+                repositoryPath: "group/repo",
+                provider: "gitlab",
+                modelProviderId: modelProvider.id,
+                modelName: "test-model",
+                type: "pr_review",
+                status: "started",
+                targetIid: 99,
+                headSha: "dead",
+                logVersion: "1",
+            });
             await db.update(activityTable).set({ status: "failed" }).where(eq(activityTable.status, "started"));
             activityQueue.drain();
             await waitForStatus(queuedId, "started", 5000);
@@ -399,9 +416,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             const runningId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 20, "sha-run"));
             activityQueue.drain();
             await waitForStatus(runningId, "started", 5000);
-            const nextQueuedId = await activityQueue.push(
-                reviewInput(repository.id, modelProvider.id, 21, "sha-next"),
-            );
+            const nextQueuedId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 21, "sha-next"));
             activityQueue.stopQueueForShutdown();
             releaseReview?.();
             releaseReview = null;
