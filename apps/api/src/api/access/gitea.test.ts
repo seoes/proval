@@ -376,4 +376,81 @@ describe("Gitea connection test service", () => {
             spyGetToken.mockRestore();
         }
     });
+
+    it("verifies getPullRequestDetail controller endpoint for Gitea", async () => {
+        const { Hono } = await import("hono");
+        const { getPullRequestDetail } = await import("./access.controller");
+
+        const baseUrl = startMockGiteaServer((req) => {
+            const url = new URL(req.url);
+            if (url.pathname === "/api/v1/repos/marcio/my_repo/pulls/42") {
+                return new Response(
+                    JSON.stringify({
+                        id: 100,
+                        number: 42,
+                        title: "Feature branch update",
+                        body: "Detail description",
+                        state: "open",
+                        merged: false,
+                        user: { login: "alice" },
+                        head: { ref: "feat", sha: "sha_head_123" },
+                        base: { ref: "main", sha: "sha_base_456" },
+                        created_at: "2026-11-01T00:00:00Z",
+                        updated_at: "2026-11-02T00:00:00Z",
+                        additions: 12,
+                        deletions: 4,
+                        changed_files: 1,
+                    }),
+                    { headers: { "Content-Type": "application/json" } },
+                );
+            }
+            if (url.pathname === "/api/v1/repos/marcio/my_repo/pulls/42/files") {
+                return new Response(
+                    JSON.stringify([
+                        {
+                            filename: "src/calc.ts",
+                            status: "modified",
+                            additions: 12,
+                            deletions: 4,
+                            changes: 16,
+                            patch: "@@ -1,4 +1,12 @@\n-old\n+new",
+                        },
+                    ]),
+                    { headers: { "Content-Type": "application/json", "x-total-count": "1" } },
+                );
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 1,
+            provider: "gitea",
+            name: "Test Gitea",
+            baseUrl,
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
+
+        try {
+            const app = new Hono();
+            app.get("/:id/pull-request-detail", getPullRequestDetail);
+
+            const res = await app.request("/1/pull-request-detail?owner=marcio&repo=my_repo&index=42");
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.pullRequest.number).toBe(42);
+            expect(body.pullRequest.title).toBe("Feature branch update");
+            expect(body.pullRequest.headSha).toBe("sha_head_123");
+            expect(body.fileList.length).toBe(1);
+            expect(body.fileList[0].filename).toBe("src/calc.ts");
+            expect(body.fileList[0].patch).toContain("+new");
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+        }
+    });
 });

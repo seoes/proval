@@ -83,6 +83,81 @@ export type PagedPullRequestResult = {
     limit: number;
 };
 
+export type GiteaPullRequestFile = {
+    filename: string;
+    previousFilename: string | null;
+    status: "added" | "modified" | "deleted" | "renamed" | string;
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch: string | null;
+    isBinary: boolean;
+    isTruncated?: boolean;
+    rawUrl?: string | null;
+};
+
+export type GiteaPullRequestDetailed = {
+    id: number;
+    number: number;
+    title: string;
+    body: string | null;
+    state: "open" | "closed" | "merged";
+    author: string;
+    authorAvatarUrl: string | null;
+    owner: string;
+    repo: string;
+    sourceBranch: string;
+    targetBranch: string;
+    headSha: string;
+    baseSha: string;
+    createdAt: string;
+    updatedAt: string;
+    closedAt: string | null;
+    mergedAt: string | null;
+    isMerged: boolean;
+    url: string;
+    additions: number;
+    deletions: number;
+    changedFileCount: number;
+};
+
+export type GiteaPullRequestDiffDetail = {
+    pullRequest: GiteaPullRequestDetailed;
+    fileList: GiteaPullRequestFile[];
+    rawDiff?: string | null;
+    totalFileCount: number;
+    isTruncated: boolean;
+};
+
+const BINARY_FILE_EXTENSIONS = new Set([
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp", ".tiff",
+    ".pdf", ".zip", ".tar", ".gz", ".tgz", ".7z", ".rar",
+    ".exe", ".dll", ".so", ".dylib", ".bin", ".iso", ".dmg",
+    ".woff", ".woff2", ".ttf", ".eot", ".otf",
+    ".mp3", ".wav", ".ogg", ".mp4", ".webm", ".avi", ".mov",
+    ".pyc", ".class", ".jar", ".war"
+]);
+
+function isBinaryFile(filename: string, patch: string | null | undefined): boolean {
+    if (patch) {
+        if (
+            patch.includes("Binary files differ") ||
+            patch.includes("GIT binary patch") ||
+            patch.includes("Binary file")
+        ) {
+            return true;
+        }
+    }
+    const dotIndex = filename.lastIndexOf(".");
+    if (dotIndex !== -1) {
+        const ext = filename.slice(dotIndex).toLowerCase();
+        if (BINARY_FILE_EXTENSIONS.has(ext)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 type GiteaInlineReviewCommentDraft = {
     path: string;
     body: string;
@@ -268,6 +343,184 @@ export class GiteaProvider implements GitProvider {
             total: requestedState === "merged" || requestedState === "closed" ? pullRequestList.length : (Number.isFinite(total) ? total : pullRequestList.length),
             page,
             limit,
+        };
+    }
+
+    public async fetchDetailedPullRequest(
+        owner: string,
+        repo: string,
+        index: number,
+    ): Promise<GiteaPullRequestDetailed> {
+        const raw = await this.requestJson<{
+            id: number;
+            number: number;
+            title: string;
+            body: string | null;
+            state: string;
+            merged: boolean;
+            created_at: string;
+            updated_at: string;
+            closed_at: string | null;
+            merged_at: string | null;
+            user: { login: string; avatar_url?: string } | null;
+            base: { ref: string; sha: string; repo?: { name: string; owner?: { login: string } } } | null;
+            head: { ref: string; sha: string; repo?: { name: string; owner?: { login: string } } } | null;
+            html_url?: string;
+            additions?: number;
+            deletions?: number;
+            changed_files?: number;
+        }>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${index}`);
+
+        const isMerged = Boolean(raw.merged);
+        const state: "open" | "closed" | "merged" = isMerged
+            ? "merged"
+            : raw.state === "open"
+              ? "open"
+              : "closed";
+
+        return {
+            id: raw.id ?? index,
+            number: raw.number ?? index,
+            title: raw.title ?? "",
+            body: raw.body ?? null,
+            state,
+            author: raw.user?.login ?? "",
+            authorAvatarUrl: raw.user?.avatar_url ?? null,
+            owner: raw.base?.repo?.owner?.login ?? owner,
+            repo: raw.base?.repo?.name ?? repo,
+            sourceBranch: raw.head?.ref ?? "",
+            targetBranch: raw.base?.ref ?? "",
+            headSha: raw.head?.sha ?? "",
+            baseSha: raw.base?.sha ?? "",
+            createdAt: raw.created_at ?? "",
+            updatedAt: raw.updated_at ?? "",
+            closedAt: raw.closed_at ?? null,
+            mergedAt: raw.merged_at ?? null,
+            isMerged,
+            url: raw.html_url ?? "",
+            additions: raw.additions ?? 0,
+            deletions: raw.deletions ?? 0,
+            changedFileCount: raw.changed_files ?? 0,
+        };
+    }
+
+    public async fetchPullRequestFileList(
+        owner: string,
+        repo: string,
+        index: number,
+        options?: { page?: number; limit?: number },
+    ): Promise<{ fileList: GiteaPullRequestFile[]; totalFileCount: number; isTruncated: boolean }> {
+        const page = options?.page ?? 1;
+        const limit = Math.min(options?.limit ?? 100, 100);
+
+        const endpoint = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${index}/files?page=${page}&limit=${limit}`;
+        const { data, headers } = await this.requestWithHeader<
+            Array<{
+                filename: string;
+                previous_filename?: string | null;
+                status: string;
+                additions?: number;
+                deletions?: number;
+                changes?: number;
+                html_url?: string;
+                raw_url?: string;
+                contents_url?: string;
+                patch?: string | null;
+            }>
+        >(endpoint);
+
+        const totalHeader = headers.get("x-total-count");
+        const totalFileCount = totalHeader ? parseInt(totalHeader, 10) : data.length;
+        const MAX_PATCH_LENGTH = 100_000;
+
+        let hasTruncatedFile = false;
+        const fileList: GiteaPullRequestFile[] = (Array.isArray(data) ? data : []).map((file) => {
+            const rawPatch = file.patch ?? null;
+            const isBinary = isBinaryFile(file.filename, rawPatch);
+
+            let patch = rawPatch;
+            let isTruncated = false;
+
+            if (isBinary) {
+                patch = null;
+            } else if (rawPatch && rawPatch.length > MAX_PATCH_LENGTH) {
+                patch = rawPatch.slice(0, MAX_PATCH_LENGTH) + "\n\n[Diff truncated: file diff exceeds maximum size limit]";
+                isTruncated = true;
+                hasTruncatedFile = true;
+            }
+
+            const additions = file.additions ?? 0;
+            const deletions = file.deletions ?? 0;
+            const changes = file.changes ?? additions + deletions;
+
+            return {
+                filename: file.filename,
+                previousFilename: file.previous_filename ?? null,
+                status: file.status || "modified",
+                additions,
+                deletions,
+                changes,
+                patch,
+                isBinary,
+                isTruncated,
+                rawUrl: file.raw_url ?? null,
+            };
+        });
+
+        return {
+            fileList,
+            totalFileCount: Number.isFinite(totalFileCount) ? totalFileCount : fileList.length,
+            isTruncated: hasTruncatedFile || (Number.isFinite(totalFileCount) && totalFileCount > fileList.length),
+        };
+    }
+
+    public async fetchPullRequestRawDiff(
+        owner: string,
+        repo: string,
+        index: number,
+    ): Promise<string> {
+        const url = new URL(
+            `/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${index}.diff`,
+            this.baseUrl,
+        );
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `token ${this.token}`,
+                Accept: "text/plain",
+            },
+            signal: AbortSignal.timeout(15000),
+        });
+
+        if (!response.ok) {
+            log(`raw diff request failed ${response.status}`, "Gitea");
+            const error = new Error(`Gitea diff request failed: ${response.status}`);
+            (error as Error & { status: number }).status = response.status;
+            throw error;
+        }
+
+        const MAX_DIFF_BYTES = 2 * 1024 * 1024;
+        const text = await response.text();
+        if (text.length > MAX_DIFF_BYTES) {
+            return text.slice(0, MAX_DIFF_BYTES) + "\n\n[Diff truncated: exceeded 2MB limit]";
+        }
+        return text;
+    }
+
+    public async fetchPullRequestDiffDetail(
+        owner: string,
+        repo: string,
+        index: number,
+    ): Promise<GiteaPullRequestDiffDetail> {
+        const [pullRequest, { fileList, totalFileCount, isTruncated }] = await Promise.all([
+            this.fetchDetailedPullRequest(owner, repo, index),
+            this.fetchPullRequestFileList(owner, repo, index),
+        ]);
+
+        return {
+            pullRequest,
+            fileList,
+            totalFileCount,
+            isTruncated,
         };
     }
 
@@ -1223,6 +1476,7 @@ export class GiteaProvider implements GitProvider {
         const url = new URL(`/api/v1${path}`, this.baseUrl);
         const response = await fetch(url, {
             ...init,
+            signal: init?.signal ?? AbortSignal.timeout(15000),
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `token ${this.token}`,

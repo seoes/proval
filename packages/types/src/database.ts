@@ -194,6 +194,52 @@ export type GitPagedPullRequestResponse = {
     limit: number;
 };
 
+export type GitPullRequestFile = {
+    filename: string;
+    previousFilename: string | null;
+    status: "added" | "modified" | "deleted" | "renamed" | string;
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch: string | null;
+    isBinary: boolean;
+    isTruncated?: boolean;
+    rawUrl?: string | null;
+};
+
+export type GitPullRequestDetailed = {
+    id: number;
+    number: number;
+    title: string;
+    body: string | null;
+    state: "open" | "closed" | "merged";
+    author: string;
+    authorAvatarUrl: string | null;
+    owner: string;
+    repo: string;
+    sourceBranch: string;
+    targetBranch: string;
+    headSha: string;
+    baseSha: string;
+    createdAt: string;
+    updatedAt: string;
+    closedAt: string | null;
+    mergedAt: string | null;
+    isMerged: boolean;
+    url: string;
+    additions?: number;
+    deletions?: number;
+    changedFileCount?: number;
+};
+
+export type GitPullRequestDiffResponse = {
+    pullRequest: GitPullRequestDetailed;
+    fileList: GitPullRequestFile[];
+    rawDiff?: string | null;
+    totalFileCount: number;
+    isTruncated: boolean;
+};
+
 export type GitAccessOverviewResponse = {
     user: {
         id: number;

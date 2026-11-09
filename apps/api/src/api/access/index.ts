@@ -7,6 +7,7 @@ import {
     getAccessOverview,
     getPagedPullRequestList,
     getPagedRepositoryList,
+    getPullRequestDetail,
     getRepositoryListByAccessId,
     testAccess,
     testAccessCredentials,
@@ -21,6 +22,7 @@ accessRouter.get("/:id", getAccessById);
 accessRouter.get("/:id/overview", getAccessOverview);
 accessRouter.get("/:id/repository-paged", getPagedRepositoryList);
 accessRouter.get("/:id/pull-request", getPagedPullRequestList);
+accessRouter.get("/:id/pull-request-detail", getPullRequestDetail);
 accessRouter.get("/:id/repository", getRepositoryListByAccessId);
 accessRouter.post("/", createAccess);
 accessRouter.post("/test", testAccessCredentials);

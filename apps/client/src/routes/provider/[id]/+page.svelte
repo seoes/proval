@@ -6,12 +6,25 @@
     import GitProviderIcon from "$lib/components/atom/GitProviderIcon.svelte";
     import InputText from "$lib/components/atom/InputText.svelte";
     import fetchApi, { formatTimeAgo } from "$lib/utils";
-    import { ArrowLeftIcon, ArrowSquareOutIcon, ArrowsClockwiseIcon, GitPullRequestIcon, FolderIcon } from "phosphor-svelte";
+    import {
+        ArrowLeftIcon,
+        ArrowSquareOutIcon,
+        ArrowsClockwiseIcon,
+        GitPullRequestIcon,
+        FolderIcon,
+        CaretDownIcon,
+        CaretRightIcon,
+        FileCodeIcon,
+        GitCommitIcon,
+        GitBranchIcon,
+    } from "phosphor-svelte";
     import type {
         GitAccessOverviewResponse,
         GitOrganization,
         GitPagedPullRequestResponse,
         GitPagedRepositoryResponse,
+        GitPullRequestDiffResponse,
+        GitPullRequestFile,
         GitPullRequestItem,
         GitRepositoryDetail,
     } from "@proval/types";
@@ -44,6 +57,14 @@
     let isLoadingPrs = $state(false);
     let prError = $state<string | null>(null);
 
+    // Pull Request Detail and Diff View
+    let selectedPr = $state<GitPullRequestItem | null>(null);
+    let prDetail = $state<GitPullRequestDiffResponse | null>(null);
+    let isLoadingPrDetail = $state(false);
+    let prDetailError = $state<string | null>(null);
+    let collapsedFiles = $state<Record<string, boolean>>({});
+    let fileFilterQuery = $state("");
+
     const totalRepoPages = $derived(Math.max(1, Math.ceil(repoTotal / repoLimit)));
     const totalPrPages = $derived(Math.max(1, Math.ceil(prTotal / prLimit)));
 
@@ -52,6 +73,17 @@
         if (!query) return repoList;
         return repoList.filter(
             (r) => r.name.toLowerCase().includes(query) || r.fullName.toLowerCase().includes(query),
+        );
+    });
+
+    const filteredFileList = $derived.by(() => {
+        if (!prDetail?.fileList) return [];
+        const query = fileFilterQuery.trim().toLowerCase();
+        if (!query) return prDetail.fileList;
+        return prDetail.fileList.filter(
+            (f) =>
+                f.filename.toLowerCase().includes(query) ||
+                (f.previousFilename && f.previousFilename.toLowerCase().includes(query)),
         );
     });
 
@@ -110,16 +142,55 @@
         }
     }
 
+    async function openPullRequest(pr: GitPullRequestItem) {
+        if (!selectedRepo) return;
+        selectedPr = pr;
+        isLoadingPrDetail = true;
+        prDetailError = null;
+        prDetail = null;
+        collapsedFiles = {};
+        fileFilterQuery = "";
+        try {
+            const res = await fetchApi(
+                `/access/${access.id}/pull-request-detail?owner=${encodeURIComponent(selectedRepo.owner)}&repo=${encodeURIComponent(selectedRepo.name)}&index=${pr.number}`,
+            );
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                prDetailError = body.message ?? body.error ?? "Failed to load pull request details and diff";
+                return;
+            }
+            prDetail = await res.json();
+        } catch {
+            prDetailError = "Network error loading pull request details and diff";
+        } finally {
+            isLoadingPrDetail = false;
+        }
+    }
+
+    function backToPullRequests() {
+        selectedPr = null;
+        prDetail = null;
+        prDetailError = null;
+    }
+
+    function backToRepositories() {
+        selectedPr = null;
+        prDetail = null;
+        selectedRepo = null;
+    }
+
     function handleScopeChange(scope: string) {
         selectedScope = scope;
         repoPage = 1;
         selectedRepo = null;
+        selectedPr = null;
         searchQuery = "";
         void loadRepositories(scope, 1);
     }
 
     function openRepository(repo: GitRepositoryDetail) {
         selectedRepo = repo;
+        selectedPr = null;
         prPage = 1;
         prState = "all";
         void loadPullRequests(repo, "all", 1);
@@ -133,8 +204,25 @@
         }
     }
 
+    function toggleFileCollapse(filename: string) {
+        collapsedFiles[filename] = !collapsedFiles[filename];
+    }
+
+    function statusBadgeVariant(status: string): "success" | "neutral" | "destructive" | "warning" {
+        switch (status.toLowerCase()) {
+            case "added":
+                return "success";
+            case "deleted":
+            case "removed":
+                return "destructive";
+            case "renamed":
+                return "warning";
+            default:
+                return "neutral";
+        }
+    }
+
     $effect(() => {
-        // Initial load
         void loadRepositories(selectedScope, 1);
     });
 </script>
@@ -173,12 +261,240 @@
             </div>
         </Card>
 
-        {#if selectedRepo}
+        {#if selectedPr}
+            <!-- Pull Request Detail and Diff View -->
+            <div class="space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <Button text size="sm" class="gap-1" onclick={backToPullRequests}>
+                            <ArrowLeftIcon class="size-4" />
+                            Pull Requests
+                        </Button>
+                        <span class="text-muted-foreground">/</span>
+                        <span class="text-xs font-mono font-semibold text-muted-foreground">#{selectedPr.number}</span>
+                        <h3 class="font-semibold text-foreground truncate max-w-md">{selectedPr.title}</h3>
+                        <Badge
+                            variant={selectedPr.state === "open"
+                                ? "success"
+                                : selectedPr.state === "merged"
+                                  ? "neutral"
+                                  : "destructive"}>
+                            {selectedPr.state.toUpperCase()}
+                        </Badge>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {#if selectedPr.url}
+                            <a
+                                href={selectedPr.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                                Open in Gitea
+                                <ArrowSquareOutIcon class="size-3.5" />
+                            </a>
+                        {/if}
+                        <Button
+                            text
+                            size="sm"
+                            class="gap-1"
+                            disabled={isLoadingPrDetail}
+                            onclick={() => selectedPr && openPullRequest(selectedPr)}>
+                            <ArrowsClockwiseIcon class="size-3.5 {isLoadingPrDetail ? 'animate-spin' : ''}" />
+                            Refresh
+                        </Button>
+                    </div>
+                </div>
+
+                {#if isLoadingPrDetail}
+                    <div class="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+                        Loading pull request details and diff...
+                    </div>
+                {:else if prDetailError}
+                    <div class="rounded-lg border border-destructive/20 bg-destructive-muted p-6 text-center text-sm text-destructive">
+                        <p class="font-medium">{prDetailError}</p>
+                        <Button text size="sm" class="mt-3" onclick={() => selectedPr && openPullRequest(selectedPr)}>
+                            Retry
+                        </Button>
+                    </div>
+                {:else if prDetail}
+                    <!-- PR Metadata Card -->
+                    <Card border>
+                        <div class="space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                                <div class="flex flex-wrap items-center gap-3 text-sm">
+                                    <span class="font-medium text-foreground">Author: {prDetail.pullRequest.author}</span>
+                                    <span class="text-muted-foreground">&bull;</span>
+                                    <span class="inline-flex items-center gap-1 font-mono text-xs bg-muted px-2 py-0.5 rounded">
+                                        <GitBranchIcon class="size-3" />
+                                        {prDetail.pullRequest.sourceBranch} &rarr; {prDetail.pullRequest.targetBranch}
+                                    </span>
+                                    {#if prDetail.pullRequest.headSha}
+                                        <span class="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                                            <GitCommitIcon class="size-3" />
+                                            {prDetail.pullRequest.headSha.slice(0, 7)}
+                                        </span>
+                                    {/if}
+                                </div>
+                                <div class="flex items-center gap-3 text-xs">
+                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">+{prDetail.pullRequest.additions}</span>
+                                    <span class="font-semibold text-rose-600 dark:text-rose-400">-{prDetail.pullRequest.deletions}</span>
+                                    <span class="text-muted-foreground">{prDetail.totalFileCount} files changed</span>
+                                    {#if prDetail.isTruncated}
+                                        <Badge variant="warning">Diff Truncated</Badge>
+                                    {/if}
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                <span>Created {formatTimeAgo(prDetail.pullRequest.createdAt)}</span>
+                                <span>Updated {formatTimeAgo(prDetail.pullRequest.updatedAt)}</span>
+                                {#if prDetail.pullRequest.mergedAt}
+                                    <span class="text-foreground">Merged {formatTimeAgo(prDetail.pullRequest.mergedAt)}</span>
+                                {/if}
+                            </div>
+
+                            {#if prDetail.pullRequest.body}
+                                <div class="mt-2 rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-foreground whitespace-pre-wrap font-sans">
+                                    {prDetail.pullRequest.body}
+                                </div>
+                            {/if}
+                        </div>
+                    </Card>
+
+                    <!-- Modified Files Summary & Filter -->
+                    <Card border>
+                        <div class="space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <h4 class="font-semibold text-sm text-foreground">
+                                    Modified Files ({prDetail.fileList.length})
+                                </h4>
+                                <div class="w-64">
+                                    <InputText
+                                        placeholder="Filter files..."
+                                        bind:value={fileFilterQuery}
+                                        size="sm" />
+                                </div>
+                            </div>
+
+                            {#if filteredFileList.length === 0}
+                                <p class="text-xs text-muted-foreground py-2">No files match the filter.</p>
+                            {:else}
+                                <div class="divide-y divide-border border border-border rounded-lg overflow-hidden bg-card text-xs">
+                                    {#each filteredFileList as file (file.filename)}
+                                        <div class="flex items-center justify-between p-2.5 hover:bg-muted/40 transition-colors">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <Badge variant={statusBadgeVariant(file.status)}>
+                                                    {file.status.toUpperCase()}
+                                                </Badge>
+                                                <span class="font-mono text-xs text-foreground truncate">
+                                                    {#if file.previousFilename}
+                                                        <span class="text-muted-foreground">{file.previousFilename} &rarr; </span>
+                                                    {/if}
+                                                    {file.filename}
+                                                </span>
+                                                {#if file.isBinary}
+                                                    <Badge variant="neutral">Binary</Badge>
+                                                {/if}
+                                                {#if file.isTruncated}
+                                                    <Badge variant="warning">Large</Badge>
+                                                {/if}
+                                            </div>
+                                            <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
+                                                <span class="text-emerald-600 dark:text-emerald-400">+{file.additions}</span>
+                                                <span class="text-rose-600 dark:text-rose-400">-{file.deletions}</span>
+                                                <Button
+                                                    text
+                                                    size="sm"
+                                                    onclick={() => toggleFileCollapse(file.filename)}>
+                                                    {collapsedFiles[file.filename] ? "Expand" : "Collapse"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    </Card>
+
+                    <!-- File Diffs List -->
+                    <div class="space-y-4">
+                        {#each filteredFileList as file (file.filename)}
+                            <div class="rounded-lg border border-border bg-card overflow-hidden">
+                                <!-- File Diff Header -->
+                                <div
+                                    class="flex items-center justify-between px-3.5 py-2.5 bg-muted/40 border-b border-border cursor-pointer select-none"
+                                    onclick={() => toggleFileCollapse(file.filename)}>
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        {#if collapsedFiles[file.filename]}
+                                            <CaretRightIcon class="size-3.5 text-muted-foreground shrink-0" />
+                                        {:else}
+                                            <CaretDownIcon class="size-3.5 text-muted-foreground shrink-0" />
+                                        {/if}
+                                        <Badge variant={statusBadgeVariant(file.status)}>
+                                            {file.status.toUpperCase()}
+                                        </Badge>
+                                        <span class="font-mono text-xs font-semibold text-foreground truncate">
+                                            {#if file.previousFilename}
+                                                <span class="text-muted-foreground">{file.previousFilename} &rarr; </span>
+                                            {/if}
+                                            {file.filename}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-2.5 font-mono text-xs shrink-0">
+                                        <span class="text-emerald-600 dark:text-emerald-400">+{file.additions}</span>
+                                        <span class="text-rose-600 dark:text-rose-400">-{file.deletions}</span>
+                                    </div>
+                                </div>
+
+                                <!-- File Diff Body -->
+                                {#if !collapsedFiles[file.filename]}
+                                    {#if file.isBinary}
+                                        <div class="p-6 text-center text-xs text-muted-foreground">
+                                            Binary file not shown
+                                        </div>
+                                    {:else if file.isTruncated && !file.patch}
+                                        <div class="p-4 text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 text-center font-medium">
+                                            Diff exceeds display size limit and was truncated
+                                        </div>
+                                    {:else if !file.patch}
+                                        <div class="p-4 text-center text-xs text-muted-foreground">
+                                            No text changes to display
+                                        </div>
+                                    {:else}
+                                        <div class="overflow-x-auto font-mono text-xs">
+                                            {#each file.patch.split("\n") as line}
+                                                {#if line.startsWith("@@")}
+                                                    <div class="bg-muted/70 px-3 py-1 font-medium text-muted-foreground border-y border-border select-none">
+                                                        {line}
+                                                    </div>
+                                                {:else if line.startsWith("+")}
+                                                    <div class="bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400 border-l-2 border-emerald-500 whitespace-pre">
+                                                        {line}
+                                                    </div>
+                                                {:else if line.startsWith("-")}
+                                                    <div class="bg-rose-500/10 px-3 py-0.5 text-rose-700 dark:text-rose-400 border-l-2 border-rose-500 whitespace-pre">
+                                                        {line}
+                                                    </div>
+                                                {:else}
+                                                    <div class="px-3 py-0.5 text-foreground/80 border-l-2 border-transparent whitespace-pre">
+                                                        {line}
+                                                    </div>
+                                                {/if}
+                                            {/each}
+                                        </div>
+                                    {/if}
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+        {:else if selectedRepo}
             <!-- Pull Requests View -->
             <div class="space-y-4">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
-                        <Button text size="sm" class="gap-1" onclick={() => (selectedRepo = null)}>
+                        <Button text size="sm" class="gap-1" onclick={backToRepositories}>
                             <ArrowLeftIcon class="size-4" />
                             Repositories
                         </Button>
@@ -250,13 +566,12 @@
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-center gap-2">
                                             <span class="text-sm font-semibold text-muted-foreground">#{pr.number}</span>
-                                            <a
-                                                href={pr.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                class="truncate font-medium text-foreground hover:underline">
+                                            <button
+                                                type="button"
+                                                onclick={() => openPullRequest(pr)}
+                                                class="truncate font-medium text-foreground hover:underline text-left">
                                                 {pr.title}
-                                            </a>
+                                            </button>
                                             <Badge
                                                 variant={pr.state === "open"
                                                     ? "success"
@@ -275,16 +590,24 @@
                                             <span>Updated {formatTimeAgo(pr.updatedAt)}</span>
                                         </div>
                                     </div>
-                                    {#if pr.url}
-                                        <a
-                                            href={pr.url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            class="shrink-0 text-muted-foreground hover:text-foreground"
-                                            aria-label="Open pull request in Gitea">
-                                            <ArrowSquareOutIcon class="size-4" />
-                                        </a>
-                                    {/if}
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <Button
+                                            size="sm"
+                                            class="text-xs"
+                                            onclick={() => openPullRequest(pr)}>
+                                            View Diff
+                                        </Button>
+                                        {#if pr.url}
+                                            <a
+                                                href={pr.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                class="text-muted-foreground hover:text-foreground"
+                                                aria-label="Open pull request in Gitea">
+                                                <ArrowSquareOutIcon class="size-4" />
+                                            </a>
+                                        {/if}
+                                    </div>
                                 </div>
                             </div>
                         {/each}
@@ -358,9 +681,11 @@
                     </div>
                 </div>
 
-                <!-- Search Filter -->
+                <!-- Search Input -->
                 <div class="max-w-md">
-                    <InputText placeholder="Search repositories..." bind:value={searchQuery} />
+                    <InputText
+                        placeholder="Search repositories..."
+                        bind:value={searchQuery} />
                 </div>
 
                 <!-- Repositories Content -->
@@ -377,45 +702,50 @@
                         <FolderIcon class="mx-auto size-8 text-muted-foreground" />
                         <p class="mt-2 text-sm font-medium text-foreground">No repositories found</p>
                         <p class="text-xs text-muted-foreground">
-                            {searchQuery ? "No repositories match your search criteria." : "No repositories available in this scope."}
+                            {searchQuery ? "No repositories match your search." : "This scope has no repositories yet."}
                         </p>
                     </div>
                 {:else}
-                    <div class="space-y-3">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {#each filteredRepoList as repo (repo.id)}
-                            <div class="rounded-lg border border-border bg-card p-4 transition-colors hover:border-border-strong">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-2">
-                                            <span class="truncate font-semibold text-foreground">{repo.fullName}</span>
-                                            <Badge variant={repo.isPrivate ? "warning" : "neutral"}>
-                                                {repo.isPrivate ? "Private" : "Public"}
-                                            </Badge>
-                                            <Badge variant="neutral">{repo.defaultBranch}</Badge>
-                                            {#if repo.alreadyConnected}
-                                                <Badge variant="success">Connected</Badge>
-                                            {/if}
-                                        </div>
-                                        {#if repo.description}
-                                            <p class="mt-1 truncate text-xs text-muted-foreground">{repo.description}</p>
-                                        {/if}
-                                        <div class="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                                            <span>Owner: {repo.owner}</span>
-                                            {#if repo.url}
-                                                <a
-                                                    href={repo.url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    class="inline-flex items-center gap-0.5 hover:text-foreground hover:underline">
-                                                    Open in Gitea
-                                                    <ArrowSquareOutIcon class="size-3" />
-                                                </a>
-                                            {/if}
-                                        </div>
+                            <div class="flex flex-col justify-between rounded-lg border border-border bg-card p-4 transition-colors hover:border-border-strong">
+                                <div>
+                                    <div class="flex items-start justify-between gap-2">
+                                        <button
+                                            type="button"
+                                            class="text-left font-semibold text-foreground hover:underline truncate"
+                                            onclick={() => openRepository(repo)}>
+                                            {repo.name}
+                                        </button>
+                                        <Badge variant={repo.isPrivate ? "warning" : "neutral"}>
+                                            {repo.isPrivate ? "Private" : "Public"}
+                                        </Badge>
                                     </div>
-                                    <div class="flex shrink-0 items-center gap-2">
-                                        <Button primary size="sm" onclick={() => openRepository(repo)}>
-                                            View Pull Requests
+                                    <p class="mt-1 text-xs text-muted-foreground font-mono truncate">{repo.fullName}</p>
+                                    {#if repo.description}
+                                        <p class="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                                            {repo.description}
+                                        </p>
+                                    {/if}
+                                </div>
+
+                                <div class="mt-4 flex items-center justify-between border-t border-border pt-3">
+                                    <span class="text-xs text-muted-foreground">
+                                        Branch: <span class="font-mono">{repo.defaultBranch}</span>
+                                    </span>
+                                    <div class="flex items-center gap-2">
+                                        {#if repo.url}
+                                            <a
+                                                href={repo.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                class="text-muted-foreground hover:text-foreground"
+                                                aria-label="Open in Gitea">
+                                                <ArrowSquareOutIcon class="size-4" />
+                                            </a>
+                                        {/if}
+                                        <Button size="sm" onclick={() => openRepository(repo)}>
+                                            View PRs
                                         </Button>
                                     </div>
                                 </div>
@@ -423,7 +753,7 @@
                         {/each}
                     </div>
 
-                    <!-- Repository Pagination -->
+                    <!-- Repositories Pagination -->
                     {#if totalRepoPages > 1}
                         <div class="flex items-center justify-between pt-2">
                             <span class="text-xs text-muted-foreground">
@@ -455,4 +785,3 @@
         {/if}
     </div>
 </DefaultLayout>
-

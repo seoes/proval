@@ -324,3 +324,39 @@ export const getPagedPullRequestList = async (c: Context) => {
         return c.json({ error: "Failed to fetch pull request list", message: msg }, 500);
     }
 };
+
+export const getPullRequestDetail = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid access configuration id" }, 400);
+    }
+    const query = c.req.query();
+    const owner = String(query.owner ?? "").trim();
+    const repo = String(query.repo ?? "").trim();
+    const index = parseInt(query.index ?? "", 10);
+
+    if (!owner || !repo || !Number.isFinite(index) || index <= 0) {
+        return c.json({ error: "owner, repo and positive index parameters are required" }, 400);
+    }
+
+    try {
+        const access = await accessService.findById(id);
+        const accessToken = await accessService.getAccessToken(id);
+
+        if (access.provider !== "gitea") {
+            return c.json({ error: "Pull request detail query is only supported for Gitea" }, 400);
+        }
+
+        const provider = new GiteaProvider(access.baseUrl, accessToken, owner, repo);
+        const detail = await provider.fetchPullRequestDiffDetail(owner, repo, index);
+
+        return c.json(detail, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const status = (e as { status?: number }).status ?? 500;
+        return c.json(
+            { error: "Failed to fetch pull request detail", message: msg },
+            status >= 400 && status < 600 ? (status as any) : 500,
+        );
+    }
+};
