@@ -78,6 +78,10 @@
     }
 
     async function saveAccess() {
+        if (formProvider === "gitea") {
+            await openAlert("Gitea connection will be available in the next step.");
+            return;
+        }
         if (!formName.trim() || !formBaseUrl.trim()) {
             await openAlert("Name and base URL are required");
             return;
@@ -147,6 +151,7 @@
 
     const gitlabList = $derived(accessList.filter((a) => a.provider === "gitlab"));
     const forgejoList = $derived(accessList.filter((a) => a.provider === "forgejo"));
+    const giteaList = $derived(accessList.filter((a) => a.provider === "gitea"));
 
     function openUpdateAccessTokenModal(item: AccessResponse) {
         selectedAccessId = item.id;
@@ -161,10 +166,14 @@
     }
 
     const patchSecretTokenPlaceholder = $derived(
-        selectedAccessProvider === "forgejo" ? "Forgejo personal access token" : "glpat-xxxxxxxxxxxxxxxxxxxx",
+        selectedAccessProvider === "forgejo"
+            ? "Forgejo personal access token"
+            : selectedAccessProvider === "gitea"
+              ? "Gitea personal access token"
+              : "glpat-xxxxxxxxxxxxxxxxxxxx",
     );
     const patchSecretTokenDescription = $derived(
-        selectedAccessProvider === "forgejo"
+        selectedAccessProvider === "forgejo" || selectedAccessProvider === "gitea"
             ? "Personal access token with API scope (e.g. read_api, write_repository)"
             : "Personal access token with api scope (Not project access token)",
     );
@@ -235,6 +244,40 @@
                 {#if forgejoList.length > 0}
                     <div class="mt-8 flex items-center justify-center">
                         <Button text onclick={() => openAddModal("forgejo")}>Add Forgejo connection</Button>
+                    </div>
+                {/if}
+            </div>
+        </Card>
+
+        <Card title="Gitea" border>
+            <div class="space-y-4">
+                {#if giteaList.length > 0}
+                    <div class="divide-y divide-border">
+                        {#each giteaList as item (item.id)}
+                            <AccessItem
+                                {item}
+                                {testResult}
+                                isTesting={isTestingId === item.id}
+                                onTest={() => testAccess(item.id)}
+                                onUpdateToken={() => openUpdateAccessTokenModal(item)}
+                                onDelete={() => deleteAccess(item.id)} />
+                        {/each}
+                    </div>
+                {:else}
+                    <div class="flex flex-col items-center py-2 text-center">
+                        <p class="text-secondary-foreground">No Gitea access configurations</p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Add a Gitea access token to connect repositories
+                        </p>
+                        <Button primary onclick={() => openAddModal("gitea")} class="mt-4">
+                            Add Gitea connection
+                        </Button>
+                    </div>
+                {/if}
+
+                {#if giteaList.length > 0}
+                    <div class="mt-8 flex items-center justify-center">
+                        <Button text onclick={() => openAddModal("gitea")}>Add Gitea connection</Button>
                     </div>
                 {/if}
             </div>

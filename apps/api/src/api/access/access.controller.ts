@@ -76,6 +76,8 @@ export const testAccess = async (c: Context) => {
     } else if (access.provider === "forgejo") {
         const testResult = await accessService.testForgejo(access.baseUrl, accessToken);
         result = testResult;
+    } else if (access.provider === "gitea") {
+        return c.json({ error: "Gitea integration is not yet implemented" }, 400);
     } else {
         return c.json({ error: "Invalid provider" }, 400);
     }
@@ -99,6 +101,8 @@ export const testAccessCredentials = async (c: Context) => {
             result = await accessService.testGitLab(baseUrl, accessToken);
         } else if (provider === "forgejo") {
             result = await accessService.testForgejo(baseUrl, accessToken);
+        } else if (provider === "gitea") {
+            return c.json({ success: false, message: "Gitea integration is not yet implemented" }, 400);
         } else {
             return c.json({ error: "Invalid provider" }, 400);
         }

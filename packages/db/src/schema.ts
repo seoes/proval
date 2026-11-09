@@ -81,7 +81,7 @@ export const gitProviderAccessTable = sqliteTable(
     "git_provider_access",
     {
         id: integer().primaryKey({ autoIncrement: true }),
-        provider: text({ enum: ["gitlab", "forgejo"] }).notNull(),
+        provider: text({ enum: ["gitlab", "forgejo", "gitea"] }).notNull(),
         name: text().notNull(),
         baseUrl: text().notNull(),
         accessToken: text().notNull(),
@@ -120,7 +120,7 @@ export const repositoryTable = sqliteTable(
 
         path: text().notNull(),
         description: text(),
-        provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
+        provider: text({ enum: ["gitlab", "github", "forgejo", "gitea"] }).notNull(),
         webhookSecret: text(),
         webhookSigningToken: text(),
         language: text().notNull().default("English"),

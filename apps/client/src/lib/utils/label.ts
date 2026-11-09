@@ -16,6 +16,7 @@ const providerLabelList: Record<RepositoryProvider, string> = {
     gitlab: "GitLab",
     github: "GitHub",
     forgejo: "Forgejo",
+    gitea: "Gitea",
 };
 
 export function providerLabel(provider: RepositoryProvider): string {

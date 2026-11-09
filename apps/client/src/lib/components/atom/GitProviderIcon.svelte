@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { siForgejo, siGithub, siGitlab } from "simple-icons";
+    import { siForgejo, siGitea, siGithub, siGitlab } from "simple-icons";
     import type { SimpleIcon } from "simple-icons";
     import type { RepositoryProvider } from "@proval/types";
     import { twMerge } from "tailwind-merge";
@@ -18,6 +18,7 @@
         gitlab: siGitlab,
         github: siGithub,
         forgejo: siForgejo,
+        gitea: siGitea,
     };
 
     const icon = $derived(icons[provider]);

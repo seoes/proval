@@ -28,25 +28,55 @@
     let isTesting = $state(false);
     let testResult = $state<{ success: boolean; message: string } | null>(null);
 
-    const title = $derived(formProvider === "gitlab" ? "Add GitLab connection" : "Add Forgejo connection");
+    const title = $derived(
+        formProvider === "gitlab"
+            ? "Add GitLab connection"
+            : formProvider === "gitea"
+              ? "Add Gitea connection"
+              : "Add Forgejo connection",
+    );
 
-    const accessFormNamePlaceholder = $derived(formProvider === "gitlab" ? "Production GitLab" : "Team Forgejo");
+    const accessFormNamePlaceholder = $derived(
+        formProvider === "gitlab"
+            ? "Production GitLab"
+            : formProvider === "gitea"
+              ? "Production Gitea"
+              : "Team Forgejo",
+    );
     const accessFormBaseUrlPlaceholder = $derived(
-        formProvider === "gitlab" ? "https://gitlab.example.com" : "https://forgejo.example.com",
+        formProvider === "gitlab"
+            ? "https://gitlab.example.com"
+            : formProvider === "gitea"
+              ? "https://gitea.example.com"
+              : "https://forgejo.example.com",
     );
     const accessFormTokenPlaceholder = $derived(
-        formProvider === "gitlab" ? "glpat-xxxxxxxxxxxxxxxxxxxx" : "Forgejo personal access token",
+        formProvider === "gitlab"
+            ? "glpat-xxxxxxxxxxxxxxxxxxxx"
+            : formProvider === "gitea"
+              ? "Gitea personal access token"
+              : "Forgejo personal access token",
     );
     const accessFormTokenDescription = $derived(
         formProvider === "gitlab"
             ? "Personal access token with api scope (Not project access token)"
-            : "Personal access token with API scope (e.g. read_api, write_repository)",
+            : formProvider === "gitea"
+              ? "Personal access token with API scope (e.g. read_api, write_repository)"
+              : "Personal access token with API scope (e.g. read_api, write_repository)",
     );
     const accessFormBaseUrlDescription = $derived(
-        formProvider === "gitlab" ? "Root URL of your GitLab instance" : "Root URL of your Forgejo instance",
+        formProvider === "gitlab"
+            ? "Root URL of your GitLab instance"
+            : formProvider === "gitea"
+              ? "Root URL of your Gitea instance"
+              : "Root URL of your Forgejo instance",
     );
 
     async function testConnection() {
+        if (formProvider === "gitea") {
+            await openAlert("Gitea connection test will be available in the next step.");
+            return;
+        }
         if (!formBaseUrl.trim() || !formAccessToken.trim()) {
             await openAlert("Base URL and access token are required to test");
             return;
@@ -82,7 +112,8 @@
         bind:value={formProvider}
         options={[
             { value: "gitlab", label: "GitLab", description: "Self hosted GitLab" },
-            { value: "forgejo", label: "Forgejo", description: "Forgejo, Gitea, or Codeberg" },
+            { value: "forgejo", label: "Forgejo", description: "Forgejo or Codeberg" },
+            { value: "gitea", label: "Gitea", description: "Self hosted Gitea" },
         ]} />
     <FormField label="Name" description="A friendly label for this connection">
         {#snippet children({ id })}
