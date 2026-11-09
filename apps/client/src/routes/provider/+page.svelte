@@ -78,10 +78,6 @@
     }
 
     async function saveAccess() {
-        if (formProvider === "gitea") {
-            await openAlert("Gitea connection will be available in the next step.");
-            return;
-        }
         if (!formName.trim() || !formBaseUrl.trim()) {
             await openAlert("Name and base URL are required");
             return;

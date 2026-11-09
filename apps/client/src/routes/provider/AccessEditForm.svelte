@@ -11,6 +11,7 @@
     import SimpleSelectCard from "$lib/components/atom/SimpleSelectCard.svelte";
     import FieldTitle from "$lib/components/atom/FieldTitle.svelte";
     import Description from "$lib/components/atom/Description.svelte";
+    import PatchSecret from "$lib/components/molecule/PatchSecret.svelte";
     import fetchApi from "$lib/utils";
     import { openAlert } from "$lib/store/modal";
     import { goto } from "$app/navigation";
@@ -31,7 +32,13 @@
         modelList: ModelProviderResponse[];
     } = $props();
 
-    const webhookPath = $derived(item.provider === "gitlab" ? "/webhook/gitlab" : "/webhook/forgejo");
+    const webhookPath = $derived(
+        item.provider === "gitlab"
+            ? "/webhook/gitlab"
+            : item.provider === "gitea"
+              ? "/webhook/gitea"
+              : "/webhook/forgejo",
+    );
 
     let formName = $state("");
     let formBaseUrl = $state("");
@@ -85,7 +92,9 @@
     ];
 
     const visibleAccessLevelOptionList = $derived(
-        accessLevelOptionList.filter((option) => item.provider !== "forgejo" || !option.hideOnForgejo),
+        accessLevelOptionList.filter(
+            (option) => (item.provider !== "forgejo" && item.provider !== "gitea") || !option.hideOnForgejo,
+        ),
     );
 
     const reviewPushOptionList: { value: PrReviewOnPush; label: string; description: string }[] = [
@@ -279,11 +288,25 @@
             label="Base URL"
             description={item.provider === "gitlab"
                 ? "Root URL of your GitLab instance"
-                : "Root URL of your Forgejo instance"}>
+                : item.provider === "gitea"
+                  ? "Root URL of your Gitea instance"
+                  : "Root URL of your Forgejo instance"}>
             {#snippet children({ id })}
                 <InputText {id} bind:value={formBaseUrl} />
             {/snippet}
         </FormField>
+    </Card>
+
+    <Card title="Access Token" spaceY>
+        <PatchSecret
+            label="Update Access Token"
+            description={item.provider === "gitlab"
+                ? "Personal access token with api scope. Leave blank to keep current token."
+                : item.provider === "gitea"
+                  ? "Personal access token with API scope (e.g. repo, issue). Leave blank to keep current token."
+                  : "Personal access token with API scope (e.g. read_api, write_repository). Leave blank to keep current token."}
+            placeholder="Enter new token to replace current token"
+            patchEndpoint={`/access/${item.id}/access-token`} />
     </Card>
 
     <div class="flex items-center justify-between gap-3">
