@@ -24,7 +24,13 @@ import type {
     RepositoryUpdateInput,
 } from "@proval/types";
 
-const accessService = new GitLabAccessService();
+let accessServiceInstance: GitLabAccessService | null = null;
+function getAccessService(): GitLabAccessService {
+    if (!accessServiceInstance) {
+        accessServiceInstance = new GitLabAccessService();
+    }
+    return accessServiceInstance;
+}
 
 export class RepositoryService {
     public async findAll(): Promise<RepositoryResponse[]> {
@@ -106,8 +112,8 @@ export class RepositoryService {
             values.accessToken = null;
             values.accessTokenId = null;
 
-            const access = await accessService.findById(data.gitProviderAccessId);
-            const personalAccessToken = await accessService.getAccessToken(data.gitProviderAccessId);
+            const access = await getAccessService().findById(data.gitProviderAccessId);
+            const personalAccessToken = await getAccessService().getAccessToken(data.gitProviderAccessId);
 
             const [row] = await db.insert(repositoryTable).values(values).returning();
             let projectAccessToken: { token: string; tokenId: number } | undefined;
@@ -176,8 +182,8 @@ export class RepositoryService {
         } | null = null;
 
         if (data.provider === "gitlab" && cleanData.gitProviderRepositoryId && cleanData.gitProviderAccessId) {
-            const access = await accessService.findById(cleanData.gitProviderAccessId);
-            const personalAccessToken = await accessService.getAccessToken(cleanData.gitProviderAccessId);
+            const access = await getAccessService().findById(cleanData.gitProviderAccessId);
+            const personalAccessToken = await getAccessService().getAccessToken(cleanData.gitProviderAccessId);
 
             const [existing] = await db
                 .select({
@@ -327,7 +333,7 @@ export class RepositoryService {
             if (!accessToken) {
                 throw new Error("GitLab repository is missing access token");
             }
-            const access = await accessService.findById(repository.gitProviderAccessId);
+            const access = await getAccessService().findById(repository.gitProviderAccessId);
             return new GitLabProvider(access.baseUrl, decrypt(accessToken), repository.gitProviderRepositoryId);
         }
 
@@ -342,8 +348,8 @@ export class RepositoryService {
             }
             const owner = path.slice(0, slash);
             const repo = path.slice(slash + 1);
-            const access = await accessService.findById(repository.gitProviderAccessId);
-            const token = await accessService.getAccessToken(repository.gitProviderAccessId);
+            const access = await getAccessService().findById(repository.gitProviderAccessId);
+            const token = await getAccessService().getAccessToken(repository.gitProviderAccessId);
             return new ForgejoProvider(access.baseUrl, token, owner, repo, repository.gitProviderRepositoryId);
         }
 
@@ -427,9 +433,9 @@ export class RepositoryService {
                     throw new Error("GitLab repository is missing access or project id");
                 }
 
-                const personalAccessToken = await accessService.getAccessToken(repository.gitProviderAccessId);
+                const personalAccessToken = await getAccessService().getAccessToken(repository.gitProviderAccessId);
                 const { accessTokenId: projectAccessTokenId } = await this.getGitLabProjectAccessToken(id);
-                const access = await accessService.findById(repository.gitProviderAccessId);
+                const access = await getAccessService().findById(repository.gitProviderAccessId);
 
                 await GitLabProvider.removeProjectAccessToken(
                     access.baseUrl,

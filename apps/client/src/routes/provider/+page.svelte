@@ -137,7 +137,7 @@
         try {
             const res = await fetchApi(`/access/${id}/test`, { method: "POST" });
             const body = await res.json().catch(() => ({ success: false, message: "Unknown error" }));
-            testResult = { id, success: body.success, message: body.message };
+            testResult = { id, success: body.success, message: body.message ?? body.error ?? "Unknown error" };
         } catch {
             testResult = { id, success: false, message: "Request failed" };
         } finally {

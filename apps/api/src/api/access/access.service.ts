@@ -324,4 +324,165 @@ export class GitLabAccessService {
         }
         return { success: false, message };
     }
+
+    public async testGitea(baseUrl: string, accessToken: string, timeoutMs = 10000) {
+        let url: URL;
+        try {
+            const normalized = baseUrl.trim().replace(/\/+$/, "");
+            url = new URL(`${normalized}/api/v1/user`);
+        } catch {
+            return { success: false, message: "Invalid base URL. HTTP or HTTPS protocol required." };
+        }
+
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+            return { success: false, message: "Invalid base URL. HTTP or HTTPS protocol required." };
+        }
+
+        const trimmedToken = accessToken.trim();
+        if (!trimmedToken) {
+            return { success: false, message: "Access token is required." };
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(new Error("Connection timed out")), timeoutMs);
+
+        try {
+            const response = await fetch(url.toString(), {
+                method: "GET",
+                headers: {
+                    Authorization: `token ${trimmedToken}`,
+                    Accept: "application/json",
+                },
+                signal: controller.signal,
+            });
+
+            if (response.ok) {
+                const data = (await response.json()) as {
+                    login?: string;
+                    username?: string;
+                    full_name?: string;
+                    active?: boolean;
+                    prohibit_login?: boolean;
+                };
+
+                if (data.prohibit_login || data.active === false) {
+                    return { success: false, message: "User account is inactive or prohibited from logging in." };
+                }
+
+                const username = data.login || data.username || "authenticated user";
+                const now = new Date();
+                const testedAt = now.toISOString();
+                const timeString = `${String(now.getHours()).padStart(2, "0")}h ${String(now.getMinutes()).padStart(2, "0")}m ${String(now.getSeconds()).padStart(2, "0")}s`;
+
+                return {
+                    success: true,
+                    message: `Connected as ${username} (${timeString})`,
+                    username,
+                    testedAt,
+                };
+            }
+
+            if (response.status === 401 || response.status === 403) {
+                let detail = "";
+                try {
+                    const body = (await response.json()) as { message?: string };
+                    if (body && typeof body.message === "string" && body.message.trim()) {
+                        detail = ` (${body.message.trim()})`;
+                    }
+                } catch {
+                    // ignore json parse error
+                }
+                return { success: false, message: `Invalid or unauthorized access token${detail}` };
+            }
+
+            if (response.status === 404) {
+                return { success: false, message: "Gitea API endpoint was not found (404). Check the base URL." };
+            }
+
+            if (response.status >= 500) {
+                return { success: false, message: `Gitea server error (${response.status} ${response.statusText})` };
+            }
+
+            return {
+                success: false,
+                message: `Unexpected response from Gitea (${response.status} ${response.statusText})`,
+            };
+        } catch (error) {
+            if (isSslError(error)) {
+                return {
+                    success: false,
+                    message: "SSL certificate validation failed. Check your SSL certificates and CA configuration.",
+                };
+            }
+            if (isTimeoutError(error)) {
+                return {
+                    success: false,
+                    message: "Connection timed out after 10 seconds. Check if the instance is reachable.",
+                };
+            }
+            if (isNetworkError(error)) {
+                return {
+                    success: false,
+                    message: "Gitea instance is unreachable. Check the host and network connection.",
+                };
+            }
+            const msg = error instanceof Error ? error.message : "Unexpected error";
+            return { success: false, message: `Connection failed (${msg})` };
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+}
+
+function isSslError(err: unknown): boolean {
+    if (!err || typeof err !== "object") {
+        return false;
+    }
+    const error = err as { code?: string; message?: string; cause?: { code?: string; message?: string } };
+    const code = error.code || error.cause?.code || "";
+    const msg = `${error.message || ""} ${error.cause?.message || ""}`.toLowerCase();
+    if (
+        code.startsWith("CERT_") ||
+        code.startsWith("ERR_TLS_") ||
+        code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
+        code === "SELF_SIGNED_CERT_IN_CHAIN" ||
+        code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+    ) {
+        return true;
+    }
+    return msg.includes("certificate") || msg.includes("self signed") || msg.includes("ssl") || msg.includes("tls");
+}
+
+function isTimeoutError(err: unknown): boolean {
+    if (!err || typeof err !== "object") {
+        return false;
+    }
+    const error = err as { name?: string; message?: string };
+    const name = error.name || "";
+    const msg = (error.message || "").toLowerCase();
+    return name === "AbortError" || name === "TimeoutError" || msg.includes("timed out") || msg.includes("timeout");
+}
+
+function isNetworkError(err: unknown): boolean {
+    if (!err || typeof err !== "object") {
+        return false;
+    }
+    const error = err as { code?: string; message?: string; cause?: { code?: string; message?: string } };
+    const code = error.code || error.cause?.code || "";
+    const msg = `${error.message || ""} ${error.cause?.message || ""}`.toLowerCase();
+    if (
+        code === "ECONNREFUSED" ||
+        code === "ENOTFOUND" ||
+        code === "EHOSTUNREACH" ||
+        code === "ECONNRESET" ||
+        code === "EAI_AGAIN"
+    ) {
+        return true;
+    }
+    return (
+        msg.includes("econnrefused") ||
+        msg.includes("enotfound") ||
+        msg.includes("failed to fetch") ||
+        msg.includes("fetch failed")
+    );
 }

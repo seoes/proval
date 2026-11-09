@@ -73,10 +73,6 @@
     );
 
     async function testConnection() {
-        if (formProvider === "gitea") {
-            await openAlert("Gitea connection test will be available in the next step.");
-            return;
-        }
         if (!formBaseUrl.trim() || !formAccessToken.trim()) {
             await openAlert("Base URL and access token are required to test");
             return;
