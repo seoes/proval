@@ -145,6 +145,65 @@ export type GitProviderRepositoryListResponse = {
     alreadyConnected: boolean;
 };
 
+export type GitOrganization = {
+    id: number;
+    username: string;
+    fullName: string;
+    description: string | null;
+    avatarUrl: string | null;
+};
+
+export type GitRepositoryDetail = {
+    id: number;
+    name: string;
+    fullName: string;
+    owner: string;
+    description: string | null;
+    url: string;
+    isPrivate: boolean;
+    defaultBranch: string;
+    canAccess: boolean;
+    alreadyConnected: boolean;
+};
+
+export type GitPullRequestItem = {
+    id: number;
+    number: number;
+    title: string;
+    body: string | null;
+    author: string;
+    sourceBranch: string;
+    targetBranch: string;
+    createdAt: string;
+    updatedAt: string;
+    state: "open" | "closed" | "merged";
+    url: string;
+};
+
+export type GitPagedRepositoryResponse = {
+    repositoryList: GitRepositoryDetail[];
+    total: number;
+    page: number;
+    limit: number;
+};
+
+export type GitPagedPullRequestResponse = {
+    pullRequestList: GitPullRequestItem[];
+    total: number;
+    page: number;
+    limit: number;
+};
+
+export type GitAccessOverviewResponse = {
+    user: {
+        id: number;
+        username: string;
+        fullName: string;
+        avatarUrl: string | null;
+    };
+    organizationList: GitOrganization[];
+};
+
 export type RepositorySelectItem = {
     id: number;
     path: string;

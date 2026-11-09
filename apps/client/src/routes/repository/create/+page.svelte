@@ -50,7 +50,8 @@
                         );
                     } else if (
                         selectedProviderOption?.type === "gitlab" ||
-                        selectedProviderOption?.type === "forgejo"
+                        selectedProviderOption?.type === "forgejo" ||
+                        selectedProviderOption?.type === "gitea"
                     ) {
                         repositoryList = await loadGitAccessRepositoryList(selectedProviderOption.accessId);
                     } else {
@@ -129,7 +130,7 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="font-medium">{option.label}</div>
                                     <div class="text-sm text-muted-foreground">
-                                        {#if option.type === "gitlab" || option.type === "forgejo"}
+                                        {#if option.type === "gitlab" || option.type === "forgejo" || option.type === "gitea"}
                                             {option.type} · {option.baseUrl}
                                         {:else}
                                             GitHub · {option.type}

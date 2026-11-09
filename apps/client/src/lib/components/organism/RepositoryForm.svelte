@@ -322,7 +322,7 @@
         }
 
         if (!editRepositoryId) {
-            if (provider.type === "gitlab" || provider.type === "forgejo") {
+            if (provider.type === "gitlab" || provider.type === "forgejo" || provider.type === "gitea") {
                 const useSigningToken = provider.type === "gitlab" && webhookTokenType === "signing";
                 if (useSigningToken ? !webhookSigningToken.trim() : !webhookSecret?.trim()) {
                     await openAlert(useSigningToken ? "Signing token is required" : "Webhook secret is required");
@@ -365,7 +365,7 @@
             issueMentionOnly,
         };
 
-        if (provider.type === "gitlab" || provider.type === "forgejo") {
+        if (provider.type === "gitlab" || provider.type === "forgejo" || provider.type === "gitea") {
             body.gitProviderAccessId = provider.accessId;
             if (!editRepositoryId) {
                 // new repository
@@ -408,7 +408,7 @@
             <div class="flex min-w-0 items-center gap-2">
                 <GitProviderIcon provider={provider.type} boxed />
                 <div class="min-w-0 flex-1">
-                    {#if provider.type === "gitlab" || provider.type === "forgejo"}
+                    {#if provider.type === "gitlab" || provider.type === "forgejo" || provider.type === "gitea"}
                         <FieldTitle>{provider.label}</FieldTitle>
                         <Description class="truncate">{provider.baseUrl}</Description>
                     {:else if provider.type === "github"}
@@ -437,7 +437,7 @@
                 allowConnectedId={config.repositoryId ?? undefined} />
         {/if}
 
-        {#if provider.type === "gitlab" || provider.type === "forgejo"}
+        {#if provider.type === "gitlab" || provider.type === "forgejo" || provider.type === "gitea"}
             {#if editRepositoryId}
                 <div class="flex flex-wrap justify-end gap-2 pt-2">
                     {#if provider.type === "gitlab"}
@@ -710,7 +710,7 @@
     </div>
 </form>
 
-{#if editRepositoryId && (provider.type === "gitlab" || provider.type === "forgejo")}
+{#if editRepositoryId && (provider.type === "gitlab" || provider.type === "forgejo" || provider.type === "gitea")}
     <Modal bind:open={webhookSecretModalOpen}>
         <PatchSecret
             label="Update Webhook Secret"

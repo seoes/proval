@@ -4,6 +4,9 @@ import {
     deleteAccessById,
     getAccessById,
     getAccessList,
+    getAccessOverview,
+    getPagedPullRequestList,
+    getPagedRepositoryList,
     getRepositoryListByAccessId,
     testAccess,
     testAccessCredentials,
@@ -15,6 +18,9 @@ export const accessRouter = new Hono();
 
 accessRouter.get("/", getAccessList);
 accessRouter.get("/:id", getAccessById);
+accessRouter.get("/:id/overview", getAccessOverview);
+accessRouter.get("/:id/repository-paged", getPagedRepositoryList);
+accessRouter.get("/:id/pull-request", getPagedPullRequestList);
 accessRouter.get("/:id/repository", getRepositoryListByAccessId);
 accessRouter.post("/", createAccess);
 accessRouter.post("/test", testAccessCredentials);

@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { GitLabAccessService } from "./access.service";
 import { GitLabProvider } from "../../git-provider/gitlab";
 import { ForgejoProvider } from "../../git-provider/forgejo";
+import { GiteaProvider } from "../../git-provider/gitea";
 import { WebhookCredentialError } from "../../util/webhook-secret.js";
 import type {
     AccessInsert,
@@ -196,12 +197,14 @@ export const getRepositoryListByAccessId = async (c: Context) => {
         const accessToken = await accessService.getAccessToken(id);
         const connectedRepositoryIdList = await accessService.getConnectedGitProviderRepositoryIds(id);
 
-        let provider: GitLabProvider | ForgejoProvider | null = null;
+        let provider: GitLabProvider | ForgejoProvider | GiteaProvider | null = null;
 
         if (access.provider === "gitlab") {
             provider = new GitLabProvider(access.baseUrl, accessToken, 0);
         } else if (access.provider === "forgejo") {
             provider = new ForgejoProvider(access.baseUrl, accessToken, "", "");
+        } else if (access.provider === "gitea") {
+            provider = new GiteaProvider(access.baseUrl, accessToken, "", "");
         }
 
         if (!provider) {
@@ -217,5 +220,107 @@ export const getRepositoryListByAccessId = async (c: Context) => {
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return c.json({ error: "Failed to fetch repository list", message: msg }, 500);
+    }
+};
+
+export const getAccessOverview = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid access configuration id" }, 400);
+    }
+    try {
+        const access = await accessService.findById(id);
+        const accessToken = await accessService.getAccessToken(id);
+
+        if (access.provider !== "gitea" && access.provider !== "forgejo") {
+            return c.json({ error: "Overview is only supported for Gitea and Forgejo" }, 400);
+        }
+
+        const provider = new GiteaProvider(access.baseUrl, accessToken, "", "");
+        const [user, organizationList] = await Promise.all([
+            provider.fetchUserDetail(),
+            provider.fetchOrganizationList(),
+        ]);
+
+        return c.json({ user, organizationList }, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: "Failed to fetch access overview", message: msg }, 500);
+    }
+};
+
+export const getPagedRepositoryList = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid access configuration id" }, 400);
+    }
+    const query = c.req.query();
+    const org = query.org?.trim();
+    const page = Math.max(1, parseInt(query.page ?? "1", 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit ?? "10", 10) || 10));
+
+    try {
+        const access = await accessService.findById(id);
+        const accessToken = await accessService.getAccessToken(id);
+        const connectedRepositoryIdList = await accessService.getConnectedGitProviderRepositoryIds(id);
+
+        if (access.provider !== "gitea" && access.provider !== "forgejo") {
+            return c.json({ error: "Paged repository list is only supported for Gitea and Forgejo" }, 400);
+        }
+
+        const provider = new GiteaProvider(access.baseUrl, accessToken, "", "");
+        const result = await provider.fetchPagedRepositoryList({ org, page, limit });
+
+        const repositoryList = result.repositoryList.map((repo) => ({
+            ...repo,
+            alreadyConnected: connectedRepositoryIdList.has(repo.id),
+        }));
+
+        return c.json(
+            {
+                repositoryList,
+                total: result.total,
+                page: result.page,
+                limit: result.limit,
+            },
+            200,
+        );
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: "Failed to fetch paged repository list", message: msg }, 500);
+    }
+};
+
+export const getPagedPullRequestList = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "", 10);
+    if (!Number.isFinite(id)) {
+        return c.json({ error: "Invalid access configuration id" }, 400);
+    }
+    const query = c.req.query();
+    const owner = String(query.owner ?? "").trim();
+    const repo = String(query.repo ?? "").trim();
+    const state = (query.state as "all" | "open" | "closed" | "merged") ?? "all";
+    const page = Math.max(1, parseInt(query.page ?? "1", 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(query.limit ?? "10", 10) || 10));
+
+    if (!owner || !repo) {
+        return c.json({ error: "owner and repo parameters are required" }, 400);
+    }
+
+    try {
+        const access = await accessService.findById(id);
+        const accessToken = await accessService.getAccessToken(id);
+
+        if (access.provider !== "gitea" && access.provider !== "forgejo") {
+            return c.json({ error: "Pull requests query is only supported for Gitea and Forgejo" }, 400);
+        }
+
+        const provider = new GiteaProvider(access.baseUrl, accessToken, owner, repo);
+        const result = await provider.fetchPagedPullRequestList(owner, repo, { state, page, limit });
+
+        return c.json(result, 200);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return c.json({ error: "Failed to fetch pull request list", message: msg }, 500);
     }
 };

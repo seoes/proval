@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { GitLabAccessService } from "./access.service";
 
 describe("Gitea connection test service", () => {
@@ -34,11 +34,14 @@ describe("Gitea connection test service", () => {
         }
     });
 
-    function startMockGiteaServer() {
+    function startMockGiteaServer(customHandler?: (req: Request) => Response | Promise<Response>) {
         mockServer = Bun.serve({
             hostname: "127.0.0.1",
             port: 0,
             async fetch(req) {
+                if (customHandler) {
+                    return customHandler(req);
+                }
                 const url = new URL(req.url);
                 receivedPath = url.pathname;
                 receivedAuthHeader = req.headers.get("authorization") || "";
@@ -212,5 +215,165 @@ describe("Gitea connection test service", () => {
         const data = (await response.json()) as { success: boolean; username?: string };
         expect(data.success).toBe(true);
         expect(data.username).toBe("alice_gitea");
+    });
+
+    it("verifies getAccessOverview controller endpoint for Gitea", async () => {
+        const { Hono } = await import("hono");
+        const { getAccessOverview } = await import("./access.controller");
+
+        const baseUrl = startMockGiteaServer((req) => {
+            const url = new URL(req.url);
+            if (url.pathname === "/api/v1/user") {
+                return new Response(JSON.stringify({ id: 10, login: "marcio", full_name: "Marcio J" }));
+            }
+            if (url.pathname === "/api/v1/user/orgs") {
+                return new Response(JSON.stringify([{ id: 20, username: "acme", full_name: "ACME Corp" }]));
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 1,
+            provider: "gitea",
+            name: "Test Gitea",
+            baseUrl,
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
+
+        try {
+            const app = new Hono();
+            app.get("/:id/overview", getAccessOverview);
+
+            const res = await app.request("/1/overview");
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.user.username).toBe("marcio");
+            expect(body.organizationList.length).toBe(1);
+            expect(body.organizationList[0].username).toBe("acme");
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+        }
+    });
+
+    it("verifies getPagedRepositoryList controller endpoint for Gitea", async () => {
+        const { Hono } = await import("hono");
+        const { getPagedRepositoryList } = await import("./access.controller");
+
+        const baseUrl = startMockGiteaServer((req) => {
+            const url = new URL(req.url);
+            if (url.pathname === "/api/v1/user/repos") {
+                return new Response(
+                    JSON.stringify([
+                        {
+                            id: 100,
+                            name: "my_repo",
+                            full_name: "marcio/my_repo",
+                            owner: { login: "marcio" },
+                            private: true,
+                            default_branch: "main",
+                        },
+                    ]),
+                    { headers: { "x-total-count": "1" } },
+                );
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 1,
+            provider: "gitea",
+            name: "Test Gitea",
+            baseUrl,
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
+        const spyConnected = spyOn(GitLabAccessService.prototype, "getConnectedGitProviderRepositoryIds").mockImplementation(
+            async () => new Set([100]),
+        );
+
+        try {
+            const app = new Hono();
+            app.get("/:id/repository-paged", getPagedRepositoryList);
+
+            const res = await app.request("/1/repository-paged?page=1&limit=10");
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.repositoryList.length).toBe(1);
+            expect(body.repositoryList[0].name).toBe("my_repo");
+            expect(body.repositoryList[0].alreadyConnected).toBe(true);
+            expect(body.total).toBe(1);
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+            spyConnected.mockRestore();
+        }
+    });
+
+    it("verifies getPagedPullRequestList controller endpoint for Gitea", async () => {
+        const { Hono } = await import("hono");
+        const { getPagedPullRequestList } = await import("./access.controller");
+
+        const baseUrl = startMockGiteaServer((req) => {
+            const url = new URL(req.url);
+            if (url.pathname.includes("/pulls")) {
+                return new Response(
+                    JSON.stringify([
+                        {
+                            id: 1,
+                            number: 42,
+                            title: "Update config",
+                            user: { login: "alice" },
+                            head: { ref: "feature" },
+                            base: { ref: "main" },
+                            state: "open",
+                            merged: false,
+                            created_at: "2026-11-01T00:00:00Z",
+                            updated_at: "2026-11-02T00:00:00Z",
+                        },
+                    ]),
+                    { headers: { "x-total-count": "1" } },
+                );
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 1,
+            provider: "gitea",
+            name: "Test Gitea",
+            baseUrl,
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
+
+        try {
+            const app = new Hono();
+            app.get("/:id/pull-request", getPagedPullRequestList);
+
+            const res = await app.request("/1/pull-request?owner=marcio&repo=my_repo&state=open");
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.pullRequestList.length).toBe(1);
+            expect(body.pullRequestList[0].number).toBe(42);
+            expect(body.pullRequestList[0].author).toBe("alice");
+            expect(body.pullRequestList[0].state).toBe("open");
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+        }
     });
 });

@@ -10,6 +10,7 @@ import {
 } from "../../util/webhook-secret.js";
 import { GitLabAccessService } from "../access/access.service.js";
 import { ForgejoProvider } from "../../git-provider/forgejo.js";
+import { GiteaProvider } from "../../git-provider/gitea.js";
 import { GitHubProvider } from "../../git-provider/github.js";
 import { GitLabProvider } from "../../git-provider/gitlab.js";
 import type { GitProvider } from "../../git-provider/types.js";
@@ -351,6 +352,22 @@ export class RepositoryService {
             const access = await getAccessService().findById(repository.gitProviderAccessId);
             const token = await getAccessService().getAccessToken(repository.gitProviderAccessId);
             return new ForgejoProvider(access.baseUrl, token, owner, repo, repository.gitProviderRepositoryId);
+        }
+
+        if (repository.provider === "gitea") {
+            if (repository.gitProviderAccessId == null || repository.gitProviderRepositoryId == null) {
+                throw new Error("Gitea repository is missing access or repository id");
+            }
+            const path = repository.path.trim();
+            const slash = path.indexOf("/");
+            if (slash <= 0 || slash === path.length - 1) {
+                throw new Error("Gitea repository path must be owner/repo");
+            }
+            const owner = path.slice(0, slash);
+            const repo = path.slice(slash + 1);
+            const access = await getAccessService().findById(repository.gitProviderAccessId);
+            const token = await getAccessService().getAccessToken(repository.gitProviderAccessId);
+            return new GiteaProvider(access.baseUrl, token, owner, repo, repository.gitProviderRepositoryId);
         }
 
         if (repository.provider === "github") {

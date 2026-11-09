@@ -20,6 +20,7 @@
         github: "Open in GitHub",
         gitlab: "Open in GitLab",
         forgejo: "Open in Forgejo",
+        gitea: "Open in Gitea",
     } as const;
 
     const { data }: PageProps = $props();
