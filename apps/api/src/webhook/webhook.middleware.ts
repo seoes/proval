@@ -4,7 +4,7 @@ import { createMiddleware } from "hono/factory";
 import pc from "picocolors";
 import { ActivityService } from "../api/activity/activity.service.js";
 import { log } from "../util/log.js";
-import { resolveForgejoWebhookEvent } from "../util/webhook-controller.js";
+import { resolveForgejoWebhookEvent, resolveGiteaWebhookEvent } from "../util/webhook-controller.js";
 
 const CANCELED_MERGED_REASON = "Canceled because the pull request was merged";
 const CANCELED_CLOSED_REASON = "Canceled because the pull request was closed";
@@ -34,14 +34,19 @@ function resolveClosedPullRequest(c: Context, provider: Repository["provider"]):
     }
 
     const isForgejo = provider === "forgejo";
-    const webhookEvent = isForgejo ? resolveForgejoWebhookEvent(c) : (c.req.header("X-GitHub-Event") ?? "");
+    const isGitea = provider === "gitea";
+    const webhookEvent = isGitea
+        ? resolveGiteaWebhookEvent(c)
+        : isForgejo
+          ? resolveForgejoWebhookEvent(c)
+          : (c.req.header("X-GitHub-Event") ?? "");
     if (webhookEvent !== "pull_request" && webhookEvent !== "pull_request_sync") {
         return { kind: "not_applicable" };
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
+    const payload = c.get(isGitea ? "giteaPayload" : isForgejo ? "forgejoPayload" : "githubPayload") as any;
     const action = payload?.action ?? "";
-    if (isForgejo && action === "merged") {
+    if ((isForgejo || isGitea) && action === "merged") {
         const number = payload?.pull_request?.number ?? payload?.number;
         if (typeof number !== "number") {
             return { kind: "no_number" };
@@ -157,6 +162,47 @@ function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
     return { webhookEvent, eventType, action, number, title };
 }
 
+function parseGiteaWebhookIngress(c: Context): WebhookIngress {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const p = c.get("giteaPayload") as any;
+    const pr = p?.pull_request;
+    const issue = p?.issue;
+    const webhookEvent = resolveGiteaWebhookEvent(c);
+
+    let eventType = "UNKNOWN";
+    let action: string | undefined;
+    let number: number | undefined;
+    let title: string | undefined;
+
+    if (webhookEvent === "ping") {
+        eventType = "CONNECTIVITY CHECK";
+    } else if (webhookEvent === "pull_request" || webhookEvent === "pull_request_sync") {
+        eventType = "PULL REQUEST";
+        action = p?.action;
+        number = pr?.number ?? p?.number;
+        title = pr?.title;
+    } else if (webhookEvent === "issues") {
+        eventType = "ISSUE";
+        action = p?.action;
+        number = issue?.number;
+        title = issue?.title;
+    } else if (webhookEvent === "issue_comment") {
+        const onPullRequest =
+            p?.is_pull === true ||
+            p?.pull_request != null ||
+            (p?.issue?.pull_request != null && p?.issue?.pull_request !== undefined);
+        eventType = onPullRequest ? "NOTE ON PULL REQUEST" : "NOTE ON ISSUE";
+        action = p?.action;
+        number = pr?.number ?? issue?.number;
+    } else if (webhookEvent === "pull_request_review_comment" || webhookEvent === "pull_request_comment") {
+        eventType = "NOTE ON PULL REQUEST";
+        action = p?.action;
+        number = p?.pull_request?.number ?? p?.number ?? issue?.number;
+    }
+
+    return { webhookEvent, eventType, action, number, title };
+}
+
 /** After GitLab/Forgejo parse, verify, and loadRepository, or after `loadGitHubContext`. */
 export const logWebhookIngress = createMiddleware(async (c, next) => {
     const repository = c.get("repository") as Repository;
@@ -170,6 +216,8 @@ export const logWebhookIngress = createMiddleware(async (c, next) => {
         ingress = parseGitHubWebhook(c, false);
     } else if (repository.provider === "forgejo") {
         ingress = parseGitHubWebhook(c, true);
+    } else if (repository.provider === "gitea") {
+        ingress = parseGiteaWebhookIngress(c);
     } else {
         return c.json({ error: "Invalid repository provider" }, 400);
     }

@@ -44,3 +44,13 @@ export function resolveForgejoWebhookEvent(c: Context): string {
         "unknown";
     return event;
 }
+
+export function resolveGiteaWebhookEvent(c: Context): string {
+    const event =
+        c.req.header("X-Gitea-Event-Type") ||
+        c.req.header("X-Gitea-Event") ||
+        c.req.header("X-GitHub-Event-Type") ||
+        c.req.header("X-GitHub-Event") ||
+        "unknown";
+    return event;
+}

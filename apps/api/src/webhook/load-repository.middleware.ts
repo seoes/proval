@@ -23,7 +23,7 @@ export function originFromWebhookUrl(url: string): string {
 
 type WebhookRepositoryCreate = {
     access: Access;
-    provider: "gitlab" | "forgejo";
+    provider: "gitlab" | "forgejo" | "gitea";
     gitProviderRepositoryId: number;
     path: string;
     description?: string | null;
@@ -33,7 +33,7 @@ const repositoryService = new RepositoryService();
 
 export async function fetchWebhookContextRow(
     gitProviderRepositoryId: number,
-    provider: "gitlab" | "forgejo",
+    provider: "gitlab" | "forgejo" | "gitea",
     gitProviderAccessId?: number,
 ): Promise<WebhookRepositoryRow | null> {
     const conditionList = [

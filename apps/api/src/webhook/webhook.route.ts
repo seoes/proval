@@ -5,6 +5,8 @@ import { loadGitHubContext } from "./github/github.middleware.js";
 import { handleGitHubWebhook } from "./github/github.controller.js";
 import { parseForgejoWebhook, verifyForgejoWebhook } from "./forgejo/forgejo.middleware.js";
 import { handleForgejoWebhook } from "./forgejo/forgejo.controller.js";
+import { parseGiteaWebhook, verifyGiteaWebhook } from "./gitea/gitea.middleware.js";
+import { handleGiteaWebhook } from "./gitea/gitea.controller.js";
 import { loadRepository } from "./load-repository.middleware.js";
 import { handleClosedPullRequestReview, logWebhookIngress, logWebhookRequest } from "./webhook.middleware.js";
 
@@ -29,6 +31,16 @@ webhookRouter.post(
     logWebhookIngress,
     handleClosedPullRequestReview,
     handleForgejoWebhook,
+);
+webhookRouter.post(
+    "/gitea",
+    logWebhookRequest,
+    parseGiteaWebhook,
+    verifyGiteaWebhook,
+    loadRepository,
+    logWebhookIngress,
+    handleClosedPullRequestReview,
+    handleGiteaWebhook,
 );
 webhookRouter.post(
     "/github",

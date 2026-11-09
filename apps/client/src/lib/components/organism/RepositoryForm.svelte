@@ -488,7 +488,7 @@
                 {:else}
                     <FormField
                         label="Webhook secret"
-                        description="Must match the Secret Token in your GitLab or Forgejo webhook settings">
+                        description="Must match the Secret Token in your GitLab, Forgejo or Gitea webhook settings">
                         {#snippet children({ id })}
                             <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
                         {/snippet}
