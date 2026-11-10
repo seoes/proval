@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
     import Card from "$lib/components/layout/Card.svelte";
     import Button from "$lib/components/atom/Button.svelte";
@@ -87,63 +88,146 @@
         );
     });
 
+    let repoRequestId = 0;
+    let prRequestId = 0;
+    let prDetailRequestId = 0;
+    let repoAbortController: AbortController | null = null;
+    let prAbortController: AbortController | null = null;
+    let prDetailAbortController: AbortController | null = null;
+
+    function cancelPrRequest() {
+        prRequestId += 1;
+        prAbortController?.abort();
+        prAbortController = null;
+        isLoadingPrs = false;
+    }
+
+    function cancelPrDetailRequest() {
+        prDetailRequestId += 1;
+        prDetailAbortController?.abort();
+        prDetailAbortController = null;
+        isLoadingPrDetail = false;
+    }
+
     async function loadRepositories(scope: string, page: number) {
+        repoAbortController?.abort();
+        const controller = new AbortController();
+        repoAbortController = controller;
+        const requestId = ++repoRequestId;
+
         isLoadingRepos = true;
         repoError = null;
         try {
             const orgParam = scope === "personal" ? "" : `&org=${encodeURIComponent(scope)}`;
             const res = await fetchApi(
                 `/access/${access.id}/repository-paged?page=${page}&limit=${repoLimit}${orgParam}`,
+                { signal: controller.signal },
             );
+            if (requestId !== repoRequestId || controller.signal.aborted) {
+                return;
+            }
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
+                if (requestId !== repoRequestId || controller.signal.aborted) {
+                    return;
+                }
                 repoError = body.error ?? "Failed to load repositories";
                 repoList = [];
                 repoTotal = 0;
                 return;
             }
             const result: GitPagedRepositoryResponse = await res.json();
+            if (requestId !== repoRequestId || controller.signal.aborted || scope !== selectedScope) {
+                return;
+            }
             repoList = result.repositoryList;
             repoTotal = result.total;
             repoPage = result.page;
-        } catch {
+        } catch (error) {
+            if (
+                requestId !== repoRequestId ||
+                controller.signal.aborted ||
+                (error instanceof DOMException && error.name === "AbortError")
+            ) {
+                return;
+            }
             repoError = "Network error loading repositories";
             repoList = [];
             repoTotal = 0;
         } finally {
-            isLoadingRepos = false;
+            if (requestId === repoRequestId) {
+                isLoadingRepos = false;
+                repoAbortController = null;
+            }
         }
     }
 
     async function loadPullRequests(repo: GitRepositoryDetail, state: "all" | "open" | "closed" | "merged", page: number) {
+        prAbortController?.abort();
+        const controller = new AbortController();
+        prAbortController = controller;
+        const requestId = ++prRequestId;
+
         isLoadingPrs = true;
         prError = null;
         try {
             const res = await fetchApi(
                 `/access/${access.id}/pull-request?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&state=${state}&page=${page}&limit=${prLimit}`,
+                { signal: controller.signal },
             );
+            if (requestId !== prRequestId || controller.signal.aborted) {
+                return;
+            }
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
+                if (requestId !== prRequestId || controller.signal.aborted) {
+                    return;
+                }
                 prError = body.error ?? "Failed to load pull requests";
                 prList = [];
                 prTotal = 0;
                 return;
             }
             const result: GitPagedPullRequestResponse = await res.json();
+            if (
+                requestId !== prRequestId ||
+                controller.signal.aborted ||
+                selectedRepo?.id !== repo.id ||
+                prState !== state
+            ) {
+                return;
+            }
             prList = result.pullRequestList;
             prTotal = result.total;
             prPage = result.page;
-        } catch {
+        } catch (error) {
+            if (
+                requestId !== prRequestId ||
+                controller.signal.aborted ||
+                (error instanceof DOMException && error.name === "AbortError")
+            ) {
+                return;
+            }
             prError = "Network error loading pull requests";
             prList = [];
             prTotal = 0;
         } finally {
-            isLoadingPrs = false;
+            if (requestId === prRequestId) {
+                isLoadingPrs = false;
+                prAbortController = null;
+            }
         }
     }
 
     async function openPullRequest(pr: GitPullRequestItem) {
         if (!selectedRepo) return;
+        const repo = selectedRepo;
+
+        prDetailAbortController?.abort();
+        const controller = new AbortController();
+        prDetailAbortController = controller;
+        const requestId = ++prDetailRequestId;
+
         selectedPr = pr;
         isLoadingPrDetail = true;
         prDetailError = null;
@@ -152,51 +236,98 @@
         fileFilterQuery = "";
         try {
             const res = await fetchApi(
-                `/access/${access.id}/pull-request-detail?owner=${encodeURIComponent(selectedRepo.owner)}&repo=${encodeURIComponent(selectedRepo.name)}&index=${pr.number}`,
+                `/access/${access.id}/pull-request-detail?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&index=${pr.number}`,
+                { signal: controller.signal },
             );
+            if (requestId !== prDetailRequestId || controller.signal.aborted) {
+                return;
+            }
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
+                if (requestId !== prDetailRequestId || controller.signal.aborted) {
+                    return;
+                }
                 prDetailError = body.message ?? body.error ?? "Failed to load pull request details and diff";
                 return;
             }
-            prDetail = await res.json();
-        } catch {
+            const detail: GitPullRequestDiffResponse = await res.json();
+            if (
+                requestId !== prDetailRequestId ||
+                controller.signal.aborted ||
+                selectedRepo?.id !== repo.id ||
+                selectedPr?.number !== pr.number
+            ) {
+                return;
+            }
+            prDetail = detail;
+        } catch (error) {
+            if (
+                requestId !== prDetailRequestId ||
+                controller.signal.aborted ||
+                (error instanceof DOMException && error.name === "AbortError")
+            ) {
+                return;
+            }
             prDetailError = "Network error loading pull request details and diff";
         } finally {
-            isLoadingPrDetail = false;
+            if (requestId === prDetailRequestId) {
+                isLoadingPrDetail = false;
+                prDetailAbortController = null;
+            }
         }
     }
 
     function backToPullRequests() {
+        cancelPrDetailRequest();
         selectedPr = null;
         prDetail = null;
         prDetailError = null;
     }
 
     function backToRepositories() {
+        cancelPrDetailRequest();
+        cancelPrRequest();
         selectedPr = null;
         prDetail = null;
+        prDetailError = null;
         selectedRepo = null;
+        prList = [];
+        prTotal = 0;
+        prError = null;
     }
 
     function handleScopeChange(scope: string) {
-        selectedScope = scope;
-        repoPage = 1;
+        cancelPrDetailRequest();
+        cancelPrRequest();
         selectedRepo = null;
         selectedPr = null;
+        prDetail = null;
+        prDetailError = null;
+        prList = [];
+        prTotal = 0;
+        prError = null;
         searchQuery = "";
-        void loadRepositories(scope, 1);
+        repoPage = 1;
+        if (selectedScope === scope) {
+            void loadRepositories(scope, 1);
+            return;
+        }
+        selectedScope = scope;
     }
 
     function openRepository(repo: GitRepositoryDetail) {
+        cancelPrDetailRequest();
         selectedRepo = repo;
         selectedPr = null;
+        prDetail = null;
+        prDetailError = null;
         prPage = 1;
         prState = "all";
         void loadPullRequests(repo, "all", 1);
     }
 
     function handlePrStateChange(state: "all" | "open" | "closed" | "merged") {
+        cancelPrDetailRequest();
         prState = state;
         prPage = 1;
         if (selectedRepo) {
@@ -223,7 +354,17 @@
     }
 
     $effect(() => {
-        void loadRepositories(selectedScope, 1);
+        const currentAccessId = access.id;
+        const scope = selectedScope;
+        void currentAccessId;
+        untrack(() => {
+            void loadRepositories(scope, 1);
+        });
+        return () => {
+            repoAbortController?.abort();
+            prAbortController?.abort();
+            prDetailAbortController?.abort();
+        };
     });
 </script>
 

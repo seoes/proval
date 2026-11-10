@@ -34,9 +34,9 @@ export const createRepository: Handler = async (c) => {
         }
     }
 
-    if (body.provider === "gitlab" || body.provider === "forgejo") {
+    if (body.provider === "gitlab" || body.provider === "forgejo" || body.provider === "gitea") {
         const secret = normalizeWebhookSecret(body.webhookSecret);
-        if (body.provider === "forgejo" && !secret) {
+        if ((body.provider === "forgejo" || body.provider === "gitea") && !secret) {
             return c.json({ error: "Webhook secret is required" }, 400);
         }
         body.webhookSecret = secret;
@@ -119,8 +119,15 @@ export const updateWebhookSecret: Handler = async (c) => {
     } catch {
         return c.json({ error: "Repository not found" }, 404);
     }
-    if (repository.provider !== "gitlab" && repository.provider !== "forgejo") {
-        return c.json({ error: "Webhook secret is only configurable for GitLab and Forgejo repositories" }, 400);
+    if (
+        repository.provider !== "gitlab" &&
+        repository.provider !== "forgejo" &&
+        repository.provider !== "gitea"
+    ) {
+        return c.json(
+            { error: "Webhook secret is only configurable for GitLab, Forgejo, and Gitea repositories" },
+            400,
+        );
     }
 
     await repositoryService.updateWebhookSecret(parseInt(repositoryId), secret);

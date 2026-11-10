@@ -55,7 +55,9 @@
         </div>
     </div>
     <div class="mt-2 flex justify-end gap-2">
-        <Button text size="sm" href="/provider/{item.id}">Browse</Button>
+        {#if item.provider === "gitea" || item.provider === "forgejo"}
+            <Button text size="sm" href="/provider/{item.id}">Browse</Button>
+        {/if}
         <Button text size="sm" onclick={onTest} disabled={isTesting}>
             {isTesting ? "Testing..." : "Test Connection"}
         </Button>

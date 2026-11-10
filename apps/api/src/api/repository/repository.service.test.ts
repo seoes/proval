@@ -66,6 +66,9 @@ mock.module("../access/access.service.js", () => ({
     GitLabAccessService: class {
         findById = findByIdMock;
         getAccessToken = getAccessTokenMock;
+        async findForAutoCreate() {
+            return null;
+        }
     },
 }));
 
@@ -324,4 +327,71 @@ describe("Update GitLab Repository", () => {
             "Invalid reasoning effort",
         );
     });
+});
+
+describe("Create Gitea and Forgejo Repository Webhook Secret Validation", () => {
+    const repositoryService = new RepositoryService();
+
+    beforeEach(() => {
+        insertMock.mockClear();
+        insertValuesMock.mockClear();
+        insertReturningMock.mockClear();
+    });
+
+    for (const provider of ["gitea", "forgejo"] as const) {
+        it(`creates a ${provider} repository when a valid webhookSecret is provided`, async () => {
+            insertReturningMock.mockImplementation(() =>
+                Promise.resolve([
+                    makeRepositoryRow({
+                        provider,
+                        path: "acme/service",
+                        webhookSecret: "encrypted-secret",
+                        accessToken: null,
+                        accessTokenId: null,
+                    }),
+                ]),
+            );
+
+            const result = await repositoryService.create({
+                path: "acme/service",
+                provider,
+                webhookSecret: "  my-webhook-secret  ",
+                gitProviderAccessId: 2,
+                gitProviderRepositoryId: 55,
+                language: "English",
+                modelName: "test-model",
+            });
+
+            expect(insertValuesMock).toHaveBeenCalledTimes(1);
+            const insertValues = insertValuesMock.mock.calls[0][0] as {
+                provider: string;
+                webhookSecret: string;
+                accessToken: null;
+                accessTokenId: null;
+            };
+            expect(insertValues.provider).toBe(provider);
+            expect(insertValues.accessToken).toBeNull();
+            expect(insertValues.accessTokenId).toBeNull();
+            expect(decrypt(insertValues.webhookSecret)).toBe("my-webhook-secret");
+            expect(result.provider).toBe(provider);
+            expect(result).not.toHaveProperty("webhookSecret");
+        });
+
+        it(`rejects creating a ${provider} repository when webhookSecret is missing or empty`, async () => {
+            for (const invalidSecret of [undefined, null, "", "   "]) {
+                await expect(
+                    repositoryService.create({
+                        path: "acme/service",
+                        provider,
+                        webhookSecret: invalidSecret as unknown as string,
+                        gitProviderAccessId: 2,
+                        gitProviderRepositoryId: 55,
+                        language: "English",
+                        modelName: "test-model",
+                    }),
+                ).rejects.toThrow("Webhook secret is required");
+            }
+            expect(insertValuesMock).not.toHaveBeenCalled();
+        });
+    }
 });

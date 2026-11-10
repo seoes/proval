@@ -291,7 +291,9 @@
     ];
 
     const visibleAccessLevelOptionList = $derived(
-        accessLevelOptionList.filter((option) => provider.type !== "forgejo" || !option.hideOnForgejo),
+        accessLevelOptionList.filter(
+            (option) => (provider.type !== "forgejo" && provider.type !== "gitea") || !option.hideOnForgejo,
+        ),
     );
 
     const modelProviderSelectOptionList = $derived(

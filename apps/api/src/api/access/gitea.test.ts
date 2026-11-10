@@ -453,4 +453,118 @@ describe("Gitea connection test service", () => {
             spyGetToken.mockRestore();
         }
     });
+
+    it("verifies getPullRequestDetail controller endpoint for Forgejo", async () => {
+        const { Hono } = await import("hono");
+        const { getPullRequestDetail } = await import("./access.controller");
+
+        const baseUrl = startMockGiteaServer((req) => {
+            const url = new URL(req.url);
+            if (url.pathname === "/api/v1/repos/forgejo_org/forgejo_repo/pulls/7") {
+                return new Response(
+                    JSON.stringify({
+                        id: 200,
+                        number: 7,
+                        title: "Forgejo PR detail",
+                        body: "Forgejo description",
+                        state: "open",
+                        merged: false,
+                        user: { login: "bob" },
+                        head: { ref: "feature/forgejo", sha: "forgejo_head_sha" },
+                        base: { ref: "main", sha: "forgejo_base_sha" },
+                        created_at: "2026-11-01T00:00:00Z",
+                        updated_at: "2026-11-02T00:00:00Z",
+                        additions: 5,
+                        deletions: 1,
+                        changed_files: 1,
+                    }),
+                    { headers: { "Content-Type": "application/json" } },
+                );
+            }
+            if (url.pathname === "/api/v1/repos/forgejo_org/forgejo_repo/pulls/7/files") {
+                return new Response(
+                    JSON.stringify([
+                        {
+                            filename: "src/forgejo.ts",
+                            status: "modified",
+                            additions: 5,
+                            deletions: 1,
+                            changes: 6,
+                            patch: "@@ -1,1 +1,5 @@\n-old\n+forgejo",
+                        },
+                    ]),
+                    { headers: { "Content-Type": "application/json", "x-total-count": "1" } },
+                );
+            }
+            return new Response("Not found", { status: 404 });
+        });
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 2,
+            provider: "forgejo",
+            name: "Test Forgejo",
+            baseUrl,
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(
+            async () => "mock_forgejo_token",
+        );
+
+        try {
+            const app = new Hono();
+            app.get("/:id/pull-request-detail", getPullRequestDetail);
+
+            const res = await app.request(
+                "/2/pull-request-detail?owner=forgejo_org&repo=forgejo_repo&index=7",
+            );
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.pullRequest.number).toBe(7);
+            expect(body.pullRequest.title).toBe("Forgejo PR detail");
+            expect(body.pullRequest.headSha).toBe("forgejo_head_sha");
+            expect(body.fileList.length).toBe(1);
+            expect(body.fileList[0].filename).toBe("src/forgejo.ts");
+            expect(body.fileList[0].patch).toContain("+forgejo");
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+        }
+    });
+
+    it("rejects unsupported provider in getPullRequestDetail controller endpoint", async () => {
+        const { Hono } = await import("hono");
+        const { getPullRequestDetail } = await import("./access.controller");
+
+        const spyFindById = spyOn(GitLabAccessService.prototype, "findById").mockImplementation(async () => ({
+            id: 3,
+            provider: "gitlab",
+            name: "Test GitLab",
+            baseUrl: "https://gitlab.example.com",
+            autoCreateEnabled: false,
+            defaultWebhookSecret: null,
+            defaultWebhookSigningToken: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        } as any));
+        const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(
+            async () => "mock_gitlab_token",
+        );
+
+        try {
+            const app = new Hono();
+            app.get("/:id/pull-request-detail", getPullRequestDetail);
+
+            const res = await app.request("/3/pull-request-detail?owner=group&repo=project&index=1");
+            expect(res.status).toBe(400);
+            const body = (await res.json()) as any;
+            expect(body.error).toBe("Pull request detail query is only supported for Gitea and Forgejo");
+        } finally {
+            spyFindById.mockRestore();
+            spyGetToken.mockRestore();
+        }
+    });
 });

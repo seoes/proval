@@ -472,6 +472,7 @@ function isNetworkError(err: unknown): boolean {
     const msg = `${error.message || ""} ${error.cause?.message || ""}`.toLowerCase();
     if (
         code === "ECONNREFUSED" ||
+        code === "ConnectionRefused" ||
         code === "ENOTFOUND" ||
         code === "EHOSTUNREACH" ||
         code === "ECONNRESET" ||
@@ -483,6 +484,7 @@ function isNetworkError(err: unknown): boolean {
         msg.includes("econnrefused") ||
         msg.includes("enotfound") ||
         msg.includes("failed to fetch") ||
-        msg.includes("fetch failed")
+        msg.includes("fetch failed") ||
+        msg.includes("unable to connect")
     );
 }

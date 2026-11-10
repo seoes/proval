@@ -343,8 +343,8 @@ export const getPullRequestDetail = async (c: Context) => {
         const access = await accessService.findById(id);
         const accessToken = await accessService.getAccessToken(id);
 
-        if (access.provider !== "gitea") {
-            return c.json({ error: "Pull request detail query is only supported for Gitea" }, 400);
+        if (access.provider !== "gitea" && access.provider !== "forgejo") {
+            return c.json({ error: "Pull request detail query is only supported for Gitea and Forgejo" }, 400);
         }
 
         const provider = new GiteaProvider(access.baseUrl, accessToken, owner, repo);

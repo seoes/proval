@@ -98,7 +98,7 @@ export class RepositoryService {
         if (data.provider === "gitlab" && !secret && !signingToken) {
             throw new WebhookCredentialError("Webhook secret or signing token is required");
         }
-        if (data.provider === "forgejo" && !secret) {
+        if ((data.provider === "forgejo" || data.provider === "gitea") && !secret) {
             throw new WebhookCredentialError("Webhook secret is required");
         }
         const values = {

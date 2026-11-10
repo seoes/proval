@@ -1011,13 +1011,22 @@ export class GiteaProvider implements GitProvider {
             throw new Error("Gitea inline comment requires newLine or oldLine in position");
         }
         const filePath = newPos === 0 && oldPos > 0 && position.oldPath ? position.oldPath : position.newPath;
-        this.reviewBuffer.push({
-            path: filePath,
-            body,
-            old_position: oldPos,
-            new_position: newPos,
-        });
-        this.reviewBufferSeq += 1;
+        const existingIndex = this.reviewBuffer.findIndex(
+            (item) =>
+                item.path === filePath &&
+                item.body === body &&
+                item.old_position === oldPos &&
+                item.new_position === newPos,
+        );
+        if (existingIndex === -1) {
+            this.reviewBuffer.push({
+                path: filePath,
+                body,
+                old_position: oldPos,
+                new_position: newPos,
+            });
+            this.reviewBufferSeq += 1;
+        }
 
         return {
             id: -this.reviewBufferSeq,
@@ -1070,13 +1079,22 @@ export class GiteaProvider implements GitProvider {
         }
 
         const filePath = newPos === 0 && oldPos > 0 && position.oldPath ? position.oldPath : position.newPath;
-        this.reviewBuffer.push({
-            path: filePath,
-            body: text,
-            old_position: oldPos,
-            new_position: newPos,
-        });
-        this.reviewBufferSeq += 1;
+        const existingIndex = this.reviewBuffer.findIndex(
+            (item) =>
+                item.path === filePath &&
+                item.body === text &&
+                item.old_position === oldPos &&
+                item.new_position === newPos,
+        );
+        if (existingIndex === -1) {
+            this.reviewBuffer.push({
+                path: filePath,
+                body: text,
+                old_position: oldPos,
+                new_position: newPos,
+            });
+            this.reviewBufferSeq += 1;
+        }
 
         return {
             id: -this.reviewBufferSeq,
@@ -1429,84 +1447,93 @@ export class GiteaProvider implements GitProvider {
             this.reviewBufferPrIid = null;
             this.reviewBufferCommitId = null;
             this.reviewBufferSeq = 0;
+            if (summaryBody === "") {
+                return {
+                    id: 0,
+                    body: "",
+                    author: "",
+                    createdAt: new Date().toISOString(),
+                };
+            }
         }
 
         let commitId = this.reviewBufferCommitId;
         if (!commitId) {
             try {
                 commitId = (await this.fetchPullRequestVersion(prIid)).headSha;
-            } catch {
+                if (this.reviewBuffer.length > 0) {
+                    this.reviewBufferCommitId = commitId;
+                }
+            } catch (error) {
+                if (this.reviewBuffer.length > 0) {
+                    throw error;
+                }
                 commitId = "";
             }
         }
 
-        const commentDraftList = [...this.reviewBuffer];
+        const commentDraftList = this.reviewBuffer.map((c) => ({
+            path: c.path,
+            body: c.body,
+            old_position: c.old_position,
+            new_position: c.new_position,
+        }));
         const expectedCount = commentDraftList.length;
+
+        const reviewPayload: Record<string, unknown> = {
+            event: "COMMENT",
+            body: summaryBody,
+            comments: commentDraftList,
+        };
+        if (commitId) {
+            reviewPayload.commit_id = commitId;
+        }
+
+        const review = await this.requestJson<{
+            id: number;
+            body?: string;
+            user?: { login: string } | null;
+            submitted_at?: string;
+        }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`, {
+            method: "POST",
+            body: JSON.stringify(reviewPayload),
+        });
 
         this.reviewBuffer = [];
         this.reviewBufferPrIid = null;
         this.reviewBufferCommitId = null;
         this.reviewBufferSeq = 0;
 
-        try {
-            const reviewPayload: Record<string, unknown> = {
-                event: "COMMENT",
-                body: summaryBody,
-                comments: commentDraftList.map((c) => ({
-                    path: c.path,
-                    body: c.body,
-                    old_position: c.old_position,
-                    new_position: c.new_position,
-                })),
-            };
-            if (commitId) {
-                reviewPayload.commit_id = commitId;
-            }
+        if (expectedCount > 0) {
+            try {
+                const commentList = await this.requestJson<
+                    Array<{
+                        id: number;
+                        body: string;
+                        user: { login: string } | null;
+                        created_at: string;
+                    }>
+                >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
 
-            const review = await this.requestJson<{
-                id: number;
-                body?: string;
-                user?: { login: string } | null;
-                submitted_at?: string;
-            }>(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`, {
-                method: "POST",
-                body: JSON.stringify(reviewPayload),
-            });
-
-            if (expectedCount > 0) {
-                try {
-                    const commentList = await this.requestJson<
-                        Array<{
-                            id: number;
-                            body: string;
-                            user: { login: string } | null;
-                            created_at: string;
-                        }>
-                    >(`/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`);
-
-                    if (Array.isArray(commentList)) {
-                        this.flushedInlineCommentList = commentList.map((comment) => ({
-                            id: comment.id,
-                            body: comment.body,
-                            author: comment.user?.login ?? "",
-                            createdAt: comment.created_at,
-                        }));
-                    }
-                } catch {
-                    log("Failed to fetch published inline review comments from Gitea", "Gitea");
+                if (Array.isArray(commentList)) {
+                    this.flushedInlineCommentList = commentList.map((comment) => ({
+                        id: comment.id,
+                        body: comment.body,
+                        author: comment.user?.login ?? "",
+                        createdAt: comment.created_at,
+                    }));
                 }
+            } catch {
+                log("Failed to fetch published inline review comments from Gitea", "Gitea");
             }
-
-            return {
-                id: review.id,
-                body: review.body ?? summaryBody,
-                author: review.user?.login ?? "",
-                createdAt: review.submitted_at ?? new Date().toISOString(),
-            };
-        } catch (error) {
-            log("Review submission via reviews endpoint failed, falling back to issue comment", "Gitea");
-            return await this.createIssueComment(prIid, summaryBody);
         }
+
+        return {
+            id: review.id,
+            body: review.body ?? summaryBody,
+            author: review.user?.login ?? "",
+            createdAt: review.submitted_at ?? new Date().toISOString(),
+        };
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {

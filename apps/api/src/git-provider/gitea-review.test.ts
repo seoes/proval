@@ -261,7 +261,7 @@ describe("Gitea Code Review Execution & Publication", () => {
         expect((reviewPayload.comments as unknown[]).length).toBe(0);
     });
 
-    it("falls back to issue comment when Gitea reviews API fails", async () => {
+    it("rejects and does not fall back to issue comment when Gitea reviews API returns HTTP error", async () => {
         const baseUrl = startMockServer((req, url) => {
             if (url.pathname.endsWith("/reviews") && req.method === "POST") {
                 return new Response(JSON.stringify({ message: "Invalid diff position" }), {
@@ -280,22 +280,154 @@ describe("Gitea Code Review Execution & Publication", () => {
             startSha: "start789sha",
             oldPath: "src/main.ts",
             newPath: "src/main.ts",
-            newLine: 9999, // faulty line
+            newLine: 42,
         };
-        await provider.createCommentToSingleLine(1, "Comment with faulty line", pos);
+        await provider.createCommentToSingleLine(1, "Inline comment to preserve", pos);
 
-        const summary = "Review with fallback";
-        const result = await provider.createPullRequestComment(1, summary);
-
-        // Verification: issue comment fallback was executed
-        expect(result.id).toBe(701);
-        expect(result.body).toBe(summary);
+        await expect(provider.createPullRequestComment(1, "Review that fails with 422")).rejects.toThrow(
+            "Gitea request failed /repos/acme/project/pulls/1/reviews: 422",
+        );
 
         const issueCommentReq = receivedRequestList.find(
             (r) => r.method === "POST" && r.url === "/api/v1/repos/acme/project/issues/1/comments",
         );
-        expect(issueCommentReq).toBeDefined();
-        expect((issueCommentReq?.body as Record<string, unknown>)?.body).toBe(summary);
+        expect(issueCommentReq).toBeUndefined();
+    });
+
+    it("rejects and preserves reviewBuffer on timeout or network error", async () => {
+        const provider = new GiteaProvider("http://127.0.0.1:1", "test_token", "acme", "project", 42);
+
+        const pos: GitDiffSingleLine = {
+            baseSha: "base456sha",
+            headSha: "abc123headsha",
+            startSha: "start789sha",
+            oldPath: "src/network.ts",
+            newPath: "src/network.ts",
+            newLine: 15,
+        };
+        await provider.createCommentToSingleLine(1, "Inline comment before network failure", pos);
+
+        const originalFetch = globalThis.fetch;
+        globalThis.fetch = (async () => {
+            const timeoutError = new Error("The operation was aborted due to timeout");
+            timeoutError.name = "TimeoutError";
+            throw timeoutError;
+        }) as unknown as typeof fetch;
+
+        try {
+            await expect(provider.createPullRequestComment(1, "Summary during timeout")).rejects.toThrow(
+                "The operation was aborted due to timeout",
+            );
+        } finally {
+            globalThis.fetch = originalFetch;
+        }
+
+        // Verify buffer and metadata were preserved after timeout
+        const internal = provider as unknown as {
+            reviewBuffer: Array<{ path: string; body: string; old_position: number; new_position: number }>;
+            reviewBufferPrIid: number | null;
+            reviewBufferCommitId: string | null;
+            reviewBufferSeq: number;
+        };
+        expect(internal.reviewBuffer.length).toBe(1);
+        expect(internal.reviewBuffer[0].path).toBe("src/network.ts");
+        expect(internal.reviewBuffer[0].body).toBe("Inline comment before network failure");
+        expect(internal.reviewBufferPrIid).toBe(1);
+        expect(internal.reviewBufferCommitId).toBe("abc123headsha");
+        expect(internal.reviewBufferSeq).toBe(1);
+    });
+
+    it("preserves reviewBuffer after failure and publishes buffered inline comments on retry without duplication", async () => {
+        let shouldFailReviewPost = true;
+        const baseUrl = startMockServer((req, url) => {
+            if (url.pathname.endsWith("/reviews") && req.method === "POST" && shouldFailReviewPost) {
+                return new Response(JSON.stringify({ message: "Temporary gateway error" }), {
+                    status: 502,
+                    headers: { "Content-Type": "application/json" },
+                });
+            }
+            return null;
+        });
+
+        const provider = new GiteaProvider(baseUrl, "test_token", "acme", "project", 42);
+
+        const pos: GitDiffSingleLine = {
+            baseSha: "base456sha",
+            headSha: "abc123headsha",
+            startSha: "start789sha",
+            oldPath: "src/retry.ts",
+            newPath: "src/retry.ts",
+            newLine: 18,
+        };
+        await provider.createCommentToSingleLine(1, "Inline comment preserved across retry", pos);
+
+        // First attempt fails with 502
+        await expect(provider.createPullRequestComment(1, "Review summary")).rejects.toThrow(
+            "Gitea request failed /repos/acme/project/pulls/1/reviews: 502",
+        );
+
+        // Re-buffering the exact same comment on retry must not duplicate it in the buffer
+        await provider.createCommentToSingleLine(1, "Inline comment preserved across retry", pos);
+
+        // Second attempt succeeds
+        shouldFailReviewPost = false;
+        const published = await provider.createPullRequestComment(1, "Review summary");
+        expect(published.id).toBe(501);
+
+        const reviewPostList = receivedRequestList.filter(
+            (r) => r.method === "POST" && r.url === "/api/v1/repos/acme/project/pulls/1/reviews",
+        );
+        expect(reviewPostList.length).toBe(2);
+
+        const retryPayload = reviewPostList[1].body as Record<string, unknown>;
+        expect(retryPayload.commit_id).toBe("abc123headsha");
+        const retryComments = retryPayload.comments as Array<{
+            path: string;
+            body: string;
+            old_position: number;
+            new_position: number;
+        }>;
+        expect(retryComments.length).toBe(1);
+        expect(retryComments[0].path).toBe("src/retry.ts");
+        expect(retryComments[0].body).toBe("Inline comment preserved across retry");
+        expect(retryComments[0].new_position).toBe(18);
+    });
+
+    it("clears reviewBuffer and metadata after successful review submission", async () => {
+        const baseUrl = startMockServer();
+        const provider = new GiteaProvider(baseUrl, "test_token", "acme", "project", 42);
+
+        const pos: GitDiffSingleLine = {
+            baseSha: "base456sha",
+            headSha: "abc123headsha",
+            startSha: "start789sha",
+            oldPath: "src/clean.ts",
+            newPath: "src/clean.ts",
+            newLine: 10,
+        };
+        await provider.createCommentToSingleLine(1, "First review inline comment", pos);
+
+        await provider.createPullRequestComment(1, "First review summary");
+
+        const internal = provider as unknown as {
+            reviewBuffer: unknown[];
+            reviewBufferPrIid: number | null;
+            reviewBufferCommitId: string | null;
+            reviewBufferSeq: number;
+        };
+        expect(internal.reviewBuffer).toEqual([]);
+        expect(internal.reviewBufferPrIid).toBeNull();
+        expect(internal.reviewBufferCommitId).toBeNull();
+        expect(internal.reviewBufferSeq).toBe(0);
+
+        // Subsequent summary-only submission must not re-send previous inline comments
+        await provider.createPullRequestComment(1, "Second review summary");
+        const reviewPostList = receivedRequestList.filter(
+            (r) => r.method === "POST" && r.url === "/api/v1/repos/acme/project/pulls/1/reviews",
+        );
+        expect(reviewPostList.length).toBe(2);
+        const secondPayload = reviewPostList[1].body as Record<string, unknown>;
+        expect(secondPayload.comments).toEqual([]);
     });
 
     it("supports approving a pull request via native review endpoint", async () => {

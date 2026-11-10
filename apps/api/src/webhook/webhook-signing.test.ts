@@ -311,7 +311,7 @@ if (process.env.PROVAL_WEBHOOK_TEST_CHILD !== "1") {
             ).toBe(404);
         });
 
-        for (const provider of ["github", "forgejo"] as const) {
+        for (const provider of ["github", "forgejo", "gitea"] as const) {
             it(`rejects signing credentials for ${provider}`, async () => {
                 const body = {
                     path: "group/repo",
