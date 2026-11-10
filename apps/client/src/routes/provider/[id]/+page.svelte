@@ -15,7 +15,6 @@
         FolderIcon,
         CaretDownIcon,
         CaretRightIcon,
-        FileCodeIcon,
         GitCommitIcon,
         GitBranchIcon,
     } from "phosphor-svelte";
@@ -25,7 +24,6 @@
         GitPagedPullRequestResponse,
         GitPagedRepositoryResponse,
         GitPullRequestDiffResponse,
-        GitPullRequestFile,
         GitPullRequestItem,
         GitRepositoryDetail,
     } from "@proval/types";
@@ -84,7 +82,7 @@
         return prDetail.fileList.filter(
             (f) =>
                 f.filename.toLowerCase().includes(query) ||
-                (f.previousFilename && f.previousFilename.toLowerCase().includes(query)),
+                f.previousFilename?.toLowerCase().includes(query),
         );
     });
 

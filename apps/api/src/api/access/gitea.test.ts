@@ -242,7 +242,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
 
         try {
@@ -251,7 +251,10 @@ describe("Gitea connection test service", () => {
 
             const res = await app.request("/1/overview");
             expect(res.status).toBe(200);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as {
+                user: { username: string };
+                organizationList: Array<{ username: string }>;
+            };
             expect(body.user.username).toBe("marcio");
             expect(body.organizationList.length).toBe(1);
             expect(body.organizationList[0].username).toBe("acme");
@@ -295,7 +298,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
         const spyConnected = spyOn(GitLabAccessService.prototype, "getConnectedGitProviderRepositoryIds").mockImplementation(
             async () => new Set([100]),
@@ -307,7 +310,10 @@ describe("Gitea connection test service", () => {
 
             const res = await app.request("/1/repository-paged?page=1&limit=10");
             expect(res.status).toBe(200);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as {
+                repositoryList: Array<{ name: string; alreadyConnected: boolean }>;
+                total: number;
+            };
             expect(body.repositoryList.length).toBe(1);
             expect(body.repositoryList[0].name).toBe("my_repo");
             expect(body.repositoryList[0].alreadyConnected).toBe(true);
@@ -357,7 +363,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
 
         try {
@@ -366,7 +372,9 @@ describe("Gitea connection test service", () => {
 
             const res = await app.request("/1/pull-request?owner=marcio&repo=my_repo&state=open");
             expect(res.status).toBe(200);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as {
+                pullRequestList: Array<{ number: number; author: string; state: string }>;
+            };
             expect(body.pullRequestList.length).toBe(1);
             expect(body.pullRequestList[0].number).toBe(42);
             expect(body.pullRequestList[0].author).toBe("alice");
@@ -432,7 +440,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(async () => "mock_token");
 
         try {
@@ -441,7 +449,10 @@ describe("Gitea connection test service", () => {
 
             const res = await app.request("/1/pull-request-detail?owner=marcio&repo=my_repo&index=42");
             expect(res.status).toBe(200);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as {
+                pullRequest: { number: number; title: string; headSha: string };
+                fileList: Array<{ filename: string; patch: string }>;
+            };
             expect(body.pullRequest.number).toBe(42);
             expect(body.pullRequest.title).toBe("Feature branch update");
             expect(body.pullRequest.headSha).toBe("sha_head_123");
@@ -509,7 +520,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(
             async () => "mock_forgejo_token",
         );
@@ -522,7 +533,10 @@ describe("Gitea connection test service", () => {
                 "/2/pull-request-detail?owner=forgejo_org&repo=forgejo_repo&index=7",
             );
             expect(res.status).toBe(200);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as {
+                pullRequest: { number: number; title: string; headSha: string };
+                fileList: Array<{ filename: string; patch: string }>;
+            };
             expect(body.pullRequest.number).toBe(7);
             expect(body.pullRequest.title).toBe("Forgejo PR detail");
             expect(body.pullRequest.headSha).toBe("forgejo_head_sha");
@@ -549,7 +563,7 @@ describe("Gitea connection test service", () => {
             defaultWebhookSigningToken: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-        } as any));
+        }) as unknown as Awaited<ReturnType<GitLabAccessService["findById"]>>);
         const spyGetToken = spyOn(GitLabAccessService.prototype, "getAccessToken").mockImplementation(
             async () => "mock_gitlab_token",
         );
@@ -560,7 +574,7 @@ describe("Gitea connection test service", () => {
 
             const res = await app.request("/3/pull-request-detail?owner=group&repo=project&index=1");
             expect(res.status).toBe(400);
-            const body = (await res.json()) as any;
+            const body = (await res.json()) as { error: string };
             expect(body.error).toBe("Pull request detail query is only supported for Gitea and Forgejo");
         } finally {
             spyFindById.mockRestore();

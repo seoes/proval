@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { GitLabAccessService } from "./access.service";
 import { GitLabProvider } from "../../git-provider/gitlab";
 import { ForgejoProvider } from "../../git-provider/forgejo";
@@ -356,7 +357,7 @@ export const getPullRequestDetail = async (c: Context) => {
         const status = (e as { status?: number }).status ?? 500;
         return c.json(
             { error: "Failed to fetch pull request detail", message: msg },
-            status >= 400 && status < 600 ? (status as any) : 500,
+            status >= 400 && status < 600 ? (status as ContentfulStatusCode) : 500,
         );
     }
 };

@@ -306,6 +306,12 @@ function makePrDiffResponse(pr: GitPullRequestItem): GitPullRequestDiffResponse 
     };
 }
 
+function shiftPending(queue: DeferredResponse[]): DeferredResponse {
+    const next = queue.shift();
+    assert.ok(next, "Expected a pending request in queue");
+    return next;
+}
+
 describe("AccessItem Browse button visibility", () => {
     test("renders Browse button only when item.provider is gitea or forgejo and preserves other actions", () => {
         assert.match(
@@ -334,7 +340,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
             page: 1,
             limit: 15,
         };
-        harness.pendingQueue.shift()!.resolve(createJsonResponse(initialPayload));
+        shiftPending(harness.pendingQueue).resolve(createJsonResponse(initialPayload));
         await new Promise((r) => setTimeout(r, 0));
 
         assert.equal(harness.getState().isLoadingRepos, false);
@@ -353,7 +359,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
             page: 1,
             limit: 15,
         };
-        harness.pendingQueue.shift()!.resolve(createJsonResponse(orgAPayload));
+        shiftPending(harness.pendingQueue).resolve(createJsonResponse(orgAPayload));
         await new Promise((r) => setTimeout(r, 0));
 
         assert.equal(harness.getState().isLoadingRepos, false);
@@ -364,7 +370,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         const harness = createProviderPageHarness(7);
 
         // Resolve initial personal load
-        harness.pendingQueue.shift()!.resolve(
+        shiftPending(harness.pendingQueue).resolve(
             createJsonResponse({
                 repositoryList: [sampleRepoPersonal],
                 total: 1,
@@ -377,13 +383,13 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         // Rapidly switch from personal -> org-a -> org-b
         harness.handleScopeChange("org-a");
         assert.equal(harness.pendingQueue.length, 1);
-        const orgARequest = harness.pendingQueue.shift()!;
+        const orgARequest = shiftPending(harness.pendingQueue);
         assert.equal(orgARequest.signal?.aborted, false);
 
         harness.handleScopeChange("org-b");
         assert.equal(orgARequest.signal?.aborted, true);
         assert.equal(harness.pendingQueue.length, 1);
-        const orgBRequest = harness.pendingQueue.shift()!;
+        const orgBRequest = shiftPending(harness.pendingQueue);
         assert.equal(orgBRequest.signal?.aborted, false);
 
         // Stale org-a response arrives first while org-b is still in flight
@@ -421,7 +427,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         const harness = createProviderPageHarness(7);
 
         // Finish initial repo load
-        harness.pendingQueue.shift()!.resolve(
+        shiftPending(harness.pendingQueue).resolve(
             createJsonResponse({
                 repositoryList: [sampleRepoPersonal],
                 total: 1,
@@ -434,7 +440,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         // Open repository and resolve PR list
         harness.openRepository(sampleRepoPersonal);
         assert.equal(harness.pendingQueue.length, 1);
-        harness.pendingQueue.shift()!.resolve(
+        shiftPending(harness.pendingQueue).resolve(
             createJsonResponse({
                 pullRequestList: [samplePr1, samplePr2],
                 total: 2,
@@ -449,7 +455,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         const openPr1Promise = harness.openPullRequest(samplePr1);
         assert.equal(harness.getState().isLoadingPrDetail, true);
         assert.equal(harness.pendingQueue.length, 1);
-        const pr1RequestA = harness.pendingQueue.shift()!;
+        const pr1RequestA = shiftPending(harness.pendingQueue);
 
         harness.backToPullRequests();
         assert.equal(pr1RequestA.signal?.aborted, true);
@@ -464,9 +470,9 @@ describe("Provider browser page concurrency and request lifecycle", () => {
 
         // Flow B: Open PR #1, and while PR #1 is still loading, open PR #2
         const pendingPr1 = harness.openPullRequest(samplePr1);
-        const pr1RequestB = harness.pendingQueue.shift()!;
+        const pr1RequestB = shiftPending(harness.pendingQueue);
         const pendingPr2 = harness.openPullRequest(samplePr2);
-        const pr2RequestB = harness.pendingQueue.shift()!;
+        const pr2RequestB = shiftPending(harness.pendingQueue);
 
         assert.equal(pr1RequestB.signal?.aborted, true);
         assert.equal(pr2RequestB.signal?.aborted, false);
@@ -495,7 +501,7 @@ describe("Provider browser page concurrency and request lifecycle", () => {
         const harness = createProviderPageHarness(7);
 
         // Resolve page 1 of repositories
-        harness.pendingQueue.shift()!.resolve(
+        shiftPending(harness.pendingQueue).resolve(
             createJsonResponse({
                 repositoryList: [sampleRepoPersonal],
                 total: 30,
@@ -507,9 +513,9 @@ describe("Provider browser page concurrency and request lifecycle", () => {
 
         // Navigate to page 2, then quickly to page 3
         const page2Promise = harness.loadRepositories("personal", 2);
-        const page2Req = harness.pendingQueue.shift()!;
+        const page2Req = shiftPending(harness.pendingQueue);
         const page3Promise = harness.loadRepositories("personal", 3);
-        const page3Req = harness.pendingQueue.shift()!;
+        const page3Req = shiftPending(harness.pendingQueue);
 
         assert.equal(page2Req.signal?.aborted, true);
         assert.equal(page3Req.signal?.aborted, false);

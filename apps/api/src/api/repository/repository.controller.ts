@@ -2,7 +2,6 @@ import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
 import type { RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
 import { validateAllowedBranchList } from "../../util/allowed-target-branch.js";
-import { log } from "../../util/log.js";
 import { normalizeWebhookSecret, WebhookCredentialError } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {
