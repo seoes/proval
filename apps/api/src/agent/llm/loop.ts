@@ -1,4 +1,6 @@
 import { ActivityService } from "../../api/activity/activity.service.js";
+import { ModelProviderService } from "../../api/model/model.service.js";
+import { decrypt } from "../../util/encrypt.js";
 import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
 import type { ActivityTokenUsage, ReasoningEffort } from "@proval/types";
 import {
@@ -67,6 +69,16 @@ export type AgentLoopEvent =
           toolCallCount: Record<string, number>;
           elapsedMs: number;
       };
+
+export class ProviderRateLimitError extends Error {
+    constructor(
+        public readonly providerId: number,
+        public readonly resetAt: Date,
+    ) {
+        super(`Provider rate limit reached for provider ${providerId}. Resume after ${resetAt.toISOString()}.`);
+        this.name = "ProviderRateLimitError";
+    }
+}
 
 export async function runAgentLoop(
     sender: LlmSender,
@@ -423,6 +435,32 @@ export async function runAgentLoop(
     } catch (error: unknown) {
         if (error instanceof JobCanceledError) {
             throw error;
+        }
+        try {
+            const activity = await activityService.findById(activityId);
+            if (activity?.modelProviderId != null) {
+                const modelProviderService = new ModelProviderService();
+                const provider = await modelProviderService.findById(activity.modelProviderId);
+                if (provider.apiKey) {
+                    const quota = await modelProviderService.getQuotaFromUrl(
+                        provider.baseUrl,
+                        decrypt(provider.apiKey),
+                    );
+                    if (
+                        quota &&
+                        (quota.fiveHour >= 100 || quota.weekly >= 100 || quota.monthly >= 100) &&
+                        quota.resetAt &&
+                        quota.resetAt > new Date()
+                    ) {
+                        const message = `Quota is exhausted until ${quota.resetAt.toISOString()}`;
+                        await modelProviderService.setRateLimit(provider.id, quota.resetAt, message);
+                        await activityService.requeueByModelProviderId(provider.id, message);
+                        throw new ProviderRateLimitError(provider.id, quota.resetAt);
+                    }
+                }
+            }
+        } catch (quotaError) {
+            if (quotaError instanceof ProviderRateLimitError) throw quotaError;
         }
         logAgentError(activityId, "agent loop failed", error, label);
         throw error;

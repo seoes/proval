@@ -4,6 +4,7 @@ import type { ActivityStartInput } from "./activity.service.js";
 import { ActivityService } from "./activity.service.js";
 import db from "../../db/index.js";
 import { logError } from "../../util/log.js";
+import { ModelProviderService } from "../model/model.service.js";
 
 function isUniqueConstraintError(error: unknown): boolean {
     return error instanceof Error && error.message.includes("UNIQUE constraint failed");
@@ -152,6 +153,8 @@ class ActivityQueue {
     }
 
     private async drainLoop(): Promise<void> {
+        const modelProviderService = new ModelProviderService();
+        await modelProviderService.checkAllAndRemoveRateLimitIfReset();
         try {
             while (!this.isQueueStoppedForShutdown) {
                 this.hasPendingDrain = false;
@@ -192,10 +195,14 @@ class ActivityQueue {
             .select({
                 id: modelProviderTable.id,
                 activityConcurrency: modelProviderTable.activityConcurrency,
+                rateLimitResetAt: modelProviderTable.rateLimitResetAt,
             })
             .from(modelProviderTable);
         const activityConcurrencyByProviderId = new Map(
             modelProviderList.map((modelProvider) => [modelProvider.id, modelProvider.activityConcurrency]),
+        );
+        const rateLimitResetAtByProviderId = new Map(
+            modelProviderList.map((modelProvider) => [modelProvider.id, modelProvider.rateLimitResetAt]),
         );
 
         const runningActivityList = await db
@@ -225,6 +232,8 @@ class ActivityQueue {
         const executableQueuedActivityList = [];
         for (const queuedActivity of queuedActivityList) {
             if (queuedActivity.modelProviderId == null) continue;
+            const rateLimitResetAt = rateLimitResetAtByProviderId.get(queuedActivity.modelProviderId);
+            if (rateLimitResetAt && rateLimitResetAt > new Date()) continue;
             const activityConcurrency = activityConcurrencyByProviderId.get(queuedActivity.modelProviderId);
             const runningActivityCount = runningCountByProviderId.get(queuedActivity.modelProviderId) ?? 0;
             if (activityConcurrency != null && runningActivityCount >= activityConcurrency) continue;
