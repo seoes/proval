@@ -1124,23 +1124,26 @@ export class GiteaProvider implements GitProvider {
         let path: string;
         switch (target.type) {
             case "pull_request":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions`;
                 break;
             case "issue":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions`;
                 break;
             case "pull_request_comment":
             case "issue_comment":
             case "inline_review_comment":
-                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions`;
                 break;
         }
 
         try {
-            await this.requestJson(path, { method: "DELETE" });
+            await this.requestJson(path, {
+                method: "DELETE",
+                body: JSON.stringify({ content }),
+            });
         } catch (error) {
             const status = (error as { status?: number }).status;
-            if (status === 404) return;
+            if (status === 404 || status === 422) return;
             throw error;
         }
     }

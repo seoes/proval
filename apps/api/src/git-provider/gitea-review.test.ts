@@ -361,6 +361,19 @@ describe("Gitea Code Review Execution & Publication", () => {
         expect((reactionReq?.body as Record<string, unknown>)?.content).toBe("+1");
     });
 
+    it("supports removing 👀 reaction with DELETE and body payload", async () => {
+        const baseUrl = startMockServer();
+        const provider = new GiteaProvider(baseUrl, "test_token", "acme", "project", 42);
+
+        await provider.removeEmoji({ type: "pull_request", prIid: 1 }, "👀");
+
+        const reactionReq = receivedRequestList.find(
+            (r) => r.method === "DELETE" && r.url === "/api/v1/repos/acme/project/issues/1/reactions",
+        );
+        expect(reactionReq).toBeDefined();
+        expect((reactionReq?.body as Record<string, unknown>)?.content).toBe("eyes");
+    });
+
     it("fetches and builds inline reviews with conversation threads", async () => {
         const baseUrl = startMockServer((req, url) => {
             if (url.pathname.endsWith("/reviews") && req.method === "GET") {

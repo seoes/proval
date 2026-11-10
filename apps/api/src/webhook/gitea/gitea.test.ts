@@ -10,6 +10,7 @@ import { handleClosedPullRequestReview } from "../webhook.middleware.js";
 import { GiteaProvider } from "../../git-provider/gitea.js";
 import { activityQueue } from "../../api/activity/activity.queue.js";
 import { ActivityService } from "../../api/activity/activity.service.js";
+import { CommentService } from "../../api/comment/comment.service.js";
 import * as loadRepositoryModule from "../load-repository.middleware.js";
 import { GitLabAccessService } from "../../api/access/access.service.js";
 import { encrypt } from "../../util/encrypt.js";
@@ -762,5 +763,257 @@ describe("Gitea Closed and Merged Pull Request Handling", () => {
         const data = await response.json();
         expect(data.message).toBe("Skipped: continue after close");
         expect(cancelSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe("Gitea Issues and Comments Webhook Processing", () => {
+    let activityQueuePushSpy: ReturnType<typeof spyOn>;
+    let activityQueueDrainSpy: ReturnType<typeof spyOn>;
+    let fetchCurrentUserSpy: ReturnType<typeof spyOn>;
+    let commentFindSpy: ReturnType<typeof spyOn>;
+    let resolvePrReplyTargetSpy: ReturnType<typeof spyOn>;
+    let resolveReviewedPrReplyTargetSpy: ReturnType<typeof spyOn>;
+    let permissionSpy: ReturnType<typeof spyOn>;
+
+    const defaultRepository: Repository = {
+        id: 1,
+        path: "owner/repo",
+        provider: "gitea",
+        prEnabled: true,
+        prReplyEnabled: true,
+        prMentionOnly: false,
+        prMinAccessLevel: 0,
+        issueEnabled: true,
+        issueCommentOnOpenEnabled: true,
+        issueReplyEnabled: true,
+        issueMentionOnly: false,
+        issueMinAccessLevel: 0,
+        modelName: "test-model",
+        gitProviderRepositoryId: 42,
+    } as Repository;
+
+    const defaultModelProvider: ModelProvider = {
+        id: 10,
+        label: "OpenAI",
+    } as ModelProvider;
+
+    const defaultAccess: Access = {
+        id: 5,
+        baseUrl: "https://gitea.example.com",
+        accessToken: "decrypted_token",
+    } as Access;
+
+    beforeEach(() => {
+        activityQueuePushSpy = spyOn(activityQueue, "push").mockResolvedValue(99);
+        activityQueueDrainSpy = spyOn(activityQueue, "drain").mockImplementation(() => {});
+        fetchCurrentUserSpy = spyOn(GiteaProvider.prototype, "fetchCurrentUser").mockResolvedValue({
+            username: "proval-bot",
+        });
+        commentFindSpy = spyOn(CommentService.prototype, "find").mockResolvedValue(null);
+        resolvePrReplyTargetSpy = spyOn(GiteaProvider.prototype, "resolvePrReplyTarget").mockResolvedValue({
+            commentId: 10,
+            inlineReviewId: null,
+        });
+        resolveReviewedPrReplyTargetSpy = spyOn(GiteaProvider.prototype, "resolveReviewedPrReplyTarget").mockResolvedValue({
+            commentId: 10,
+            inlineReviewId: "5",
+        });
+        permissionSpy = spyOn(GiteaProvider.prototype, "fetchUserPermission").mockResolvedValue(4);
+    });
+
+    afterEach(() => {
+        activityQueuePushSpy.mockRestore();
+        activityQueueDrainSpy.mockRestore();
+        fetchCurrentUserSpy.mockRestore();
+        commentFindSpy.mockRestore();
+        resolvePrReplyTargetSpy.mockRestore();
+        resolveReviewedPrReplyTargetSpy.mockRestore();
+        permissionSpy.mockRestore();
+    });
+
+    function createApp(repoOverrides: Partial<Repository> = {}) {
+        const repo = { ...defaultRepository, ...repoOverrides };
+        const app = new Hono<{
+            Variables: {
+                repository: Repository;
+                modelProvider: ModelProvider;
+                access: Access;
+                giteaPayload: unknown;
+            };
+        }>();
+
+        app.post("/webhook/gitea", async (c, next) => {
+            const rawBody = await c.req.raw.text();
+            c.set("repository", repo);
+            c.set("modelProvider", defaultModelProvider);
+            c.set("access", defaultAccess);
+            c.set("giteaPayload", JSON.parse(rawBody));
+            await next();
+        }, handleGiteaWebhook);
+
+        return app;
+    }
+
+    it("queues issue comment when issue is opened", async () => {
+        const app = createApp();
+        const payload = {
+            action: "opened",
+            issue: { number: 5, title: "Test Issue", body: "Hello" },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "issues",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(202);
+        const data = await response.json();
+        expect(data.message).toBe("Issue comment queued");
+        expect(activityQueuePushSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: "issue_open",
+            targetIid: 5,
+        }));
+    });
+
+    it("skips issue comment when issueCommentOnOpenEnabled is false", async () => {
+        const app = createApp({ issueCommentOnOpenEnabled: false });
+        const payload = {
+            action: "opened",
+            issue: { number: 5, title: "Test Issue", body: "Hello" },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "issues",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.message).toBe("Skipped: issue comment on open is off");
+        expect(activityQueuePushSpy).not.toHaveBeenCalled();
+    });
+
+    it("queues pull request reply on pull_request_comment event", async () => {
+        const app = createApp();
+        const payload = {
+            action: "created",
+            pull_request: { number: 10 },
+            comment: { id: 123, body: "@proval-bot what do you think?", user: { login: "alice" } },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "pull_request_comment",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(202);
+        const data = await response.json();
+        expect(data.message).toBe("Reply queued");
+        expect(activityQueuePushSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: "pr_reply",
+            targetIid: 10,
+            targetCommentId: 10,
+        }));
+    });
+
+    it("skips pull request reply when bot is not mentioned and prMentionOnly is true", async () => {
+        const app = createApp({ prMentionOnly: true });
+        const payload = {
+            action: "created",
+            pull_request: { number: 10 },
+            comment: { id: 123, body: "just talking to bob", user: { login: "alice" } },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "pull_request_comment",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.message).toBe("Skipped: bot not mentioned");
+        expect(activityQueuePushSpy).not.toHaveBeenCalled();
+    });
+
+    it("queues PR reply on reviewed action", async () => {
+        const app = createApp();
+        const payload = {
+            action: "reviewed",
+            pull_request: { number: 10 },
+            review: {
+                type: "comment",
+                body: "@proval-bot review feedback",
+                comments: [{ id: 456, body: "fix this", user: { login: "alice" } }],
+            },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+            sender: { login: "alice" },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "pull_request_review_comment",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(202);
+        const data = await response.json();
+        expect(data.message).toBe("Reply queued");
+        expect(activityQueuePushSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: "pr_reply",
+            targetIid: 10,
+            targetCommentId: 10,
+            targetInlineReviewId: "5",
+        }));
+    });
+
+    it("queues issue reply on issue_comment event", async () => {
+        const app = createApp({ issueReplyEnabled: true, issueMentionOnly: false });
+        const payload = {
+            action: "created",
+            issue: { number: 7 },
+            comment: { id: 789, body: "here is a reply", user: { login: "bob" } },
+            repository: { id: 1, full_name: "owner/repo", name: "repo", owner: { login: "owner" } },
+        };
+
+        const response = await app.request("/webhook/gitea", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Gitea-Event": "issue_comment",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        expect(response.status).toBe(202);
+        const data = await response.json();
+        expect(data.message).toBe("Issue reply queued");
+        expect(activityQueuePushSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: "issue_reply",
+            targetIid: 7,
+            targetCommentId: 789,
+        }));
     });
 });
