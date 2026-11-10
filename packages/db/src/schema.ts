@@ -204,7 +204,7 @@ export const activityTable = sqliteTable(
         id: integer().primaryKey({ autoIncrement: true }),
         repositoryId: integer().references(() => repositoryTable.id, { onDelete: "set null" }),
         repositoryPath: text().notNull(),
-        provider: text({ enum: ["gitlab", "github", "forgejo"] }).notNull(),
+        provider: text({ enum: ["gitlab", "github", "forgejo", "gitea"] }).notNull(),
         modelProviderId: integer().references(() => modelProviderTable.id, { onDelete: "set null" }),
         modelName: text().notNull(),
         reasoningEffort: text({ enum: reasoningEffortValueList }),

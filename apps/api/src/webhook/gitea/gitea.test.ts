@@ -255,18 +255,18 @@ describe("Gitea Webhook Controller & Pull Request Processing", () => {
         prMinAccessLevel: 0,
         modelName: "test-model",
         gitProviderRepositoryId: 42,
-    } as Repository;
+    } as unknown as Repository;
 
     const defaultModelProvider: ModelProvider = {
         id: 10,
         label: "OpenAI",
-    } as ModelProvider;
+    } as unknown as ModelProvider;
 
     const defaultAccess: Access = {
         id: 5,
         baseUrl: "https://gitea.example.com",
         accessToken: "decrypted_token",
-    } as Access;
+    } as unknown as Access;
 
     beforeEach(() => {
         activityQueuePushSpy = spyOn(activityQueue, "push").mockResolvedValue(99);
@@ -275,6 +275,7 @@ describe("Gitea Webhook Controller & Pull Request Processing", () => {
         fetchVersionSpy = spyOn(GiteaProvider.prototype, "fetchPullRequestVersion").mockResolvedValue({
             headSha: "head_sha_123",
             baseSha: "base_sha_456",
+            startSha: "base_sha_456",
         });
         permissionSpy = spyOn(GiteaProvider.prototype, "fetchUserPermission").mockResolvedValue(4);
         findLastReviewedHeadShaSpy = spyOn(ActivityService.prototype, "findLastReviewedHeadSha").mockResolvedValue(null);
@@ -662,7 +663,9 @@ describe("Gitea Closed and Merged Pull Request Handling", () => {
     beforeEach(() => {
         cancelSpy = spyOn(ActivityService.prototype, "cancel").mockResolvedValue(true as unknown as void);
         findInFlightSpy = spyOn(ActivityService.prototype, "findInFlightPullRequestReviewList").mockResolvedValue([
-            { id: 101, status: "queued" } as unknown as { id: number; status: string },
+            { id: 101, status: "queued" } as unknown as Awaited<
+                ReturnType<ActivityService["findInFlightPullRequestReviewList"]>
+            >[number],
         ]);
     });
 
@@ -809,7 +812,9 @@ describe("Gitea Issues and Comments Webhook Processing", () => {
         fetchCurrentUserSpy = spyOn(GiteaProvider.prototype, "fetchCurrentUser").mockResolvedValue({
             username: "proval-bot",
         });
-        commentFindSpy = spyOn(CommentService.prototype, "find").mockResolvedValue(null);
+        commentFindSpy = spyOn(CommentService.prototype, "find").mockResolvedValue(
+            null as unknown as Awaited<ReturnType<CommentService["find"]>>,
+        );
         resolvePrReplyTargetSpy = spyOn(GiteaProvider.prototype, "resolvePrReplyTarget").mockResolvedValue({
             commentId: 10,
             inlineReviewId: null,

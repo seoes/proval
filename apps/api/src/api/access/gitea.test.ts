@@ -119,11 +119,11 @@ describe("Gitea connection test service", () => {
         // Test helper that simulates SSL error handling
         const originalFetch = globalThis.fetch;
         try {
-            globalThis.fetch = async () => {
+            globalThis.fetch = (async () => {
                 const sslError = new Error("self signed certificate in certificate chain");
                 (sslError as unknown as { code: string }).code = "SELF_SIGNED_CERT_IN_CHAIN";
                 throw sslError;
-            };
+            }) as unknown as typeof fetch;
 
             const result = await accessService.testGitea("https://gitea.selfsigned.local", "token");
             expect(result.success).toBe(false);

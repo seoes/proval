@@ -339,13 +339,13 @@
         collapsedFiles[filename] = !collapsedFiles[filename];
     }
 
-    function statusBadgeVariant(status: string): "success" | "neutral" | "destructive" | "warning" {
+    function statusBadgeVariant(status: string): "success" | "neutral" | "danger" | "warning" {
         switch (status.toLowerCase()) {
             case "added":
                 return "success";
             case "deleted":
             case "removed":
-                return "destructive";
+                return "danger";
             case "renamed":
                 return "warning";
             default:
@@ -419,7 +419,7 @@
                                 ? "success"
                                 : selectedPr.state === "merged"
                                   ? "neutral"
-                                  : "destructive"}>
+                                  : "danger"}>
                             {selectedPr.state.toUpperCase()}
                         </Badge>
                     </div>
@@ -487,10 +487,10 @@
                             </div>
 
                             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                <span>Created {formatTimeAgo(prDetail.pullRequest.createdAt)}</span>
-                                <span>Updated {formatTimeAgo(prDetail.pullRequest.updatedAt)}</span>
+                                <span>Created {formatTimeAgo(new Date(prDetail.pullRequest.createdAt))}</span>
+                                <span>Updated {formatTimeAgo(new Date(prDetail.pullRequest.updatedAt))}</span>
                                 {#if prDetail.pullRequest.mergedAt}
-                                    <span class="text-foreground">Merged {formatTimeAgo(prDetail.pullRequest.mergedAt)}</span>
+                                    <span class="text-foreground">Merged {formatTimeAgo(new Date(prDetail.pullRequest.mergedAt))}</span>
                                 {/if}
                             </div>
 
@@ -512,8 +512,7 @@
                                 <div class="w-64">
                                     <InputText
                                         placeholder="Filter files..."
-                                        bind:value={fileFilterQuery}
-                                        size="sm" />
+                                        bind:value={fileFilterQuery} />
                                 </div>
                             </div>
 
@@ -718,7 +717,7 @@
                                                     ? "success"
                                                     : pr.state === "merged"
                                                       ? "neutral"
-                                                      : "destructive"}>
+                                                      : "danger"}>
                                                 {pr.state.toUpperCase()}
                                             </Badge>
                                         </div>
@@ -727,8 +726,8 @@
                                             <span>
                                                 {pr.sourceBranch} &rarr; {pr.targetBranch}
                                             </span>
-                                            <span>Created {formatTimeAgo(pr.createdAt)}</span>
-                                            <span>Updated {formatTimeAgo(pr.updatedAt)}</span>
+                                            <span>Created {formatTimeAgo(new Date(pr.createdAt))}</span>
+                                            <span>Updated {formatTimeAgo(new Date(pr.updatedAt))}</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 shrink-0">

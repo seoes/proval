@@ -103,6 +103,7 @@ const VIEW_IN_PROVIDER_LABEL = {
     github: "Open in GitHub",
     gitlab: "Open in GitLab",
     forgejo: "Open in Forgejo",
+    gitea: "Open in Gitea",
 } as const;
 
 export function viewInProviderLabel(provider: ActivityResponse["provider"]): string {

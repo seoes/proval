@@ -43,7 +43,7 @@ describe("GiteaProvider", () => {
                 });
             },
         });
-        mockServerPort = mockServer.port;
+        mockServerPort = mockServer.port ?? 0;
         return `http://127.0.0.1:${mockServerPort}`;
     }
 
