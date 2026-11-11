@@ -293,7 +293,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
     describe("OpenCode quota", () => {
         it("reads percent from the inference usage response", async () => {
             const quotaRequestList: { url: string; authorization: string | null }[] = [];
-            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input, init) => {
                 quotaRequestList.push({
                     url: String(input),
                     authorization: new Headers(init?.headers).get("authorization"),
@@ -305,7 +305,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                         monthly: { status: "ok", percent: 90, resetsAt: "2026-11-13T04:26:29.000Z" },
                     },
                 });
-            });
+            }) as typeof fetch);
             try {
                 const quota = await new ModelProviderService().getQuotaFromUrl(
                     "https://opencode.ai/inference/go/v1",
@@ -385,11 +385,11 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                 },
             ];
             let callCount = 0;
-            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async () => {
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () => {
                 const body = bodyList[callCount] ?? bodyList[0];
                 callCount += 1;
                 return Response.json(body);
-            });
+            }) as unknown as typeof fetch);
             try {
                 const service = new ModelProviderService();
                 expect(await service.getQuotaFromUrl("https://api.z.ai/api/paas/v4", "zai-key")).toEqual({
