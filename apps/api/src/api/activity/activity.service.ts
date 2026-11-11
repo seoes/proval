@@ -525,9 +525,9 @@ export class ActivityService {
         return rows[0] ?? null;
     }
 
-    public async isCanceled(id: number): Promise<boolean> {
+    public async isCanceledOrFailed(id: number): Promise<boolean> {
         const activity = await this.findById(id);
-        return activity?.status === "canceled";
+        return activity?.status === "canceled" || activity?.status === "failed";
     }
 
     public async findLastReviewedHeadSha(repositoryId: number, targetIid: number): Promise<string | null> {

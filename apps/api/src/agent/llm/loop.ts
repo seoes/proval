@@ -112,15 +112,17 @@ export async function runAgentLoop(
     let maximumContextLength = 1_000_000;
     const compressRatio = 0.5;
 
-    async function stopIfCanceled(): Promise<void> {
-        if (!(await activityService.isCanceled(activityId))) {
+    async function stopIfCanceledOrFailed(): Promise<void> {
+        if (!(await activityService.isCanceledOrFailed(activityId))) {
             return;
         }
         const activity = await activityService.findById(activityId);
         const detail = activity?.errorMessage?.trim();
-        const message = detail
-            ? `Job canceled by user. Stopping agent loop. ${detail}`
-            : "Job canceled by user. Stopping agent loop.";
+        const reason =
+            activity?.status === "failed"
+                ? "Job failed. Stopping agent loop."
+                : "Job canceled by user. Stopping agent loop.";
+        const message = detail ? `${reason} ${detail}` : reason;
         logAgent(activityId, message, label);
         throw new JobCanceledError();
     }
@@ -163,7 +165,7 @@ export async function runAgentLoop(
             stepCount++;
             const remainingSteps = maxSteps - step;
 
-            await stopIfCanceled();
+            await stopIfCanceledOrFailed();
 
             const compressThreshold = maximumContextLength * compressRatio;
 
@@ -195,7 +197,7 @@ export async function runAgentLoop(
             let response: LlmResponse | null = null;
             let lastError: unknown;
             for (let i = 0; i < 3; i++) {
-                await stopIfCanceled();
+                await stopIfCanceledOrFailed();
                 try {
                     response = await sender.send(messagesWithStepInfo, toolList);
                     break;
@@ -335,7 +337,7 @@ export async function runAgentLoop(
 
             logAgent(activityId, `step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`, label);
 
-            await stopIfCanceled();
+            await stopIfCanceledOrFailed();
 
             const results = await Promise.all(
                 response.message.toolCalls.map(async (tc) => {

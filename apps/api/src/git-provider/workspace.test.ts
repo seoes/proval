@@ -208,7 +208,7 @@ if (process.env.PROVAL_WORKSPACE_TEST_CHILD !== "1") {
                     const { ActivityService } = await import("../api/activity/activity.service.js");
                     const { CommentService } = await import("../api/comment/comment.service.js");
                     const { runPullRequestReview } = await import("../agent/pull-request/review/index.js");
-                    const canceledSpy = spyOn(ActivityService.prototype, "isCanceled").mockResolvedValue(false);
+                    const canceledSpy = spyOn(ActivityService.prototype, "isCanceledOrFailed").mockResolvedValue(false);
                     const commentSpy = spyOn(CommentService.prototype, "create").mockResolvedValue(undefined);
                     const loadSpy = spyOn(workspace, "loadAgentInstructionList");
                     try {
