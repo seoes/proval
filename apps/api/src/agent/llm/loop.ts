@@ -451,12 +451,20 @@ export async function runAgentLoop(
                     if (quota) {
                         const now = new Date();
                         let resetAt: Date | null = null;
-                        for (const window of [quota.fiveHour, quota.weekly, quota.monthly]) {
-                            if (!window || window.usage < 100 || window.resetAt <= now) continue;
-                            if (resetAt == null || window.resetAt > resetAt) resetAt = window.resetAt;
+                        let windowName = "";
+                        for (const item of [
+                            { window: quota.fiveHour, name: "5 hour" },
+                            { window: quota.weekly, name: "Weekly" },
+                            { window: quota.monthly, name: "Monthly" },
+                        ]) {
+                            if (!item.window || item.window.usage < 100 || item.window.resetAt <= now) continue;
+                            if (resetAt == null || item.window.resetAt > resetAt) {
+                                resetAt = item.window.resetAt;
+                                windowName = item.name;
+                            }
                         }
                         if (resetAt) {
-                            const message = `Quota is exhausted until ${resetAt.toISOString()}`;
+                            const message = `${windowName} quota is exhausted`;
                             await modelProviderService.setRateLimit(provider.id, resetAt, message);
                             await activityService.requeueByModelProviderId(provider.id, message);
                             throw new ProviderRateLimitError(provider.id, resetAt);

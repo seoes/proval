@@ -141,6 +141,8 @@ export class ModelProviderService {
             activityConcurrency,
             authMethod,
             oauthStatus,
+            rateLimitResetAt,
+            rateLimitDescription,
             createdAt,
             updatedAt,
         } = modelProvider;
@@ -155,6 +157,8 @@ export class ModelProviderService {
             activityConcurrency,
             authMethod,
             oauthStatus,
+            rateLimitResetAt,
+            rateLimitDescription,
             createdAt,
             updatedAt,
         };

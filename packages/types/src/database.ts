@@ -63,6 +63,8 @@ export type ModelProviderResponse = Pick<
     | "activityConcurrency"
     | "authMethod"
     | "oauthStatus"
+    | "rateLimitResetAt"
+    | "rateLimitDescription"
     | "createdAt"
     | "updatedAt"
 >;

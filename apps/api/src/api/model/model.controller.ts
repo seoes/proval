@@ -195,3 +195,13 @@ export const verifyModelProviderConfig: Handler = async (c: Context) => {
         return c.json({ success: false, message }, 401);
     }
 };
+
+export const resetModelProviderQuota: Handler = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "");
+    if (!id) {
+        return c.json({ error: "Invalid model provider ID" }, 400);
+    }
+    const modelProviderService = new ModelProviderService();
+    await modelProviderService.resetRateLimit(id);
+    return c.json({ message: "Quota reset" }, 200);
+};
