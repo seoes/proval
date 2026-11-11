@@ -289,4 +289,49 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
             });
         });
     });
+
+    describe("OpenCode quota", () => {
+        it("reads percent from the inference usage response", async () => {
+            const quotaRequestList: { url: string; authorization: string | null }[] = [];
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+                quotaRequestList.push({
+                    url: String(input),
+                    authorization: new Headers(init?.headers).get("authorization"),
+                });
+                return Response.json({
+                    usage: {
+                        rolling: { status: "ok", percent: 0, resetsAt: "2026-11-11T08:03:29.000Z" },
+                        weekly: { status: "ok", percent: 5, resetsAt: "2026-11-16T00:00:00.000Z" },
+                        monthly: { status: "ok", percent: 90, resetsAt: "2026-11-13T04:26:29.000Z" },
+                    },
+                });
+            });
+            try {
+                const quota = await new ModelProviderService().getQuotaFromUrl(
+                    "https://opencode.ai/inference/go/v1",
+                    "test-key",
+                );
+                expect(quota).toEqual({
+                    fiveHour: { usage: 0, resetAt: new Date("2026-11-11T08:03:29.000Z") },
+                    weekly: { usage: 5, resetAt: new Date("2026-11-16T00:00:00.000Z") },
+                    monthly: { usage: 90, resetAt: new Date("2026-11-13T04:26:29.000Z") },
+                });
+                expect(quotaRequestList).toEqual([
+                    {
+                        url: "https://opencode.ai/inference/go/v1/usage",
+                        authorization: "Bearer test-key",
+                    },
+                ]);
+                expect(
+                    await new ModelProviderService().getQuotaFromUrl(
+                        "https://opencode.ai/inference/google/v1beta/models/gemini-4-argon",
+                        "test-key",
+                    ),
+                ).toBeNull();
+                expect(quotaRequestList).toHaveLength(1);
+            } finally {
+                fetchSpy.mockRestore();
+            }
+        });
+    });
 }

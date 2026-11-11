@@ -25,10 +25,9 @@ const labelSchema = z.string().trim().min(1).max(200);
 const baseUrlSchema = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol));
 
 interface ModelProviderQuotaUsage {
-    fiveHour: number;
-    weekly: number;
-    monthly: number;
-    resetAt: Date | null;
+    fiveHour?: { usage: number; resetAt: Date };
+    weekly?: { usage: number; resetAt: Date };
+    monthly?: { usage: number; resetAt: Date };
 }
 
 export function createModelProviderSender(
@@ -302,8 +301,7 @@ export class ModelProviderService {
                 : null;
         if (limits == null) throw new Error("z.ai quota list is missing");
 
-        const usage: ModelProviderQuotaUsage = { fiveHour: 0, weekly: 0, monthly: 0, resetAt: null };
-        const now = new Date();
+        const usage: ModelProviderQuotaUsage = {};
         for (const row of limits) {
             if (!row || typeof row !== "object") continue;
             const record = row as {
@@ -316,23 +314,19 @@ export class ModelProviderService {
             if (record.type !== "TOKENS_LIMIT") continue;
             const percentage = Number(record.percentage);
             if (!Number.isFinite(percentage)) continue;
+            const resetAt = typeof record.nextResetTime === "number" ? new Date(record.nextResetTime) : null;
+            if (!resetAt || Number.isNaN(resetAt.getTime())) continue;
             const unit = Number(record.unit);
             const windowSize = Number(record.number);
-            if (unit === 3 && windowSize === 5) usage.fiveHour = percentage;
-            else if (unit === 6 && windowSize === 1) usage.weekly = percentage;
-            else continue;
-            if (percentage < 100) continue;
-            const resetAt = typeof record.nextResetTime === "number" ? new Date(record.nextResetTime) : null;
-            if (!resetAt || Number.isNaN(resetAt.getTime()) || resetAt <= now) {
-                throw new Error("z.ai quota reset time is missing");
-            }
-            if (usage.resetAt == null || resetAt > usage.resetAt) usage.resetAt = resetAt;
+            const window = { usage: percentage, resetAt };
+            if (unit === 3 && windowSize === 5) usage.fiveHour = window;
+            else if (unit === 6 && windowSize === 1) usage.weekly = window;
         }
         return usage;
     }
 
     private async getOpenCodeQuota(baseUrl: string, apiKey: string): Promise<ModelProviderQuotaUsage> {
-        const response = await fetch(new URL("/zen/go/v1/usage", new URL(baseUrl).origin), {
+        const response = await fetch(new URL("/inference/go/v1/usage", new URL(baseUrl).origin), {
             headers: { Authorization: `Bearer ${apiKey}` },
             signal: AbortSignal.timeout(10_000),
         });
@@ -340,38 +334,24 @@ export class ModelProviderService {
         const usagePayload = ((await response.json()) as { usage?: Record<string, unknown> }).usage;
         if (!usagePayload) throw new Error("OpenCode usage is missing");
 
-        const readWindow = (window: unknown): { usage: number; resetAt: Date | null } => {
-            if (!window || typeof window !== "object") return { usage: 0, resetAt: null };
-            const record = window as Record<string, unknown>;
-            let usage = 0;
-            if (typeof record.percentage === "number") usage = record.percentage;
-            else if (typeof record.used === "number" && typeof record.limit === "number" && record.limit > 0) {
-                usage = (record.used / record.limit) * 100;
-            } else if (record.status === "rate-limited") usage = 100;
-            const raw = record.resetsAt ?? record.resetAt;
-            const resetAt = typeof raw === "string" || typeof raw === "number" ? new Date(raw) : null;
-            return {
-                usage,
-                resetAt: resetAt && !Number.isNaN(resetAt.getTime()) ? resetAt : null,
-            };
+        const readWindow = (window: unknown): { usage: number; resetAt: Date } | null => {
+            if (!window || typeof window !== "object") return null;
+            const record = window as { status?: unknown; percent?: unknown; resetsAt?: unknown };
+            let usage = typeof record.percent === "number" ? record.percent : 0;
+            if (record.status === "rate-limited") usage = 100;
+            const resetAt = typeof record.resetsAt === "string" ? new Date(record.resetsAt) : null;
+            if (!resetAt || Number.isNaN(resetAt.getTime())) return null;
+            return { usage, resetAt };
         };
 
-        const rolling = readWindow(usagePayload.rolling);
+        const fiveHour = readWindow(usagePayload.rolling);
         const weekly = readWindow(usagePayload.weekly);
         const monthly = readWindow(usagePayload.monthly);
-        const usage: ModelProviderQuotaUsage = {
-            fiveHour: rolling.usage,
-            weekly: weekly.usage,
-            monthly: monthly.usage,
-            resetAt: null,
+        return {
+            ...(fiveHour ? { fiveHour } : {}),
+            ...(weekly ? { weekly } : {}),
+            ...(monthly ? { monthly } : {}),
         };
-        const now = new Date();
-        for (const window of [rolling, weekly, monthly]) {
-            if (window.usage < 100) continue;
-            if (!window.resetAt || window.resetAt <= now) throw new Error("OpenCode quota reset time is missing");
-            if (usage.resetAt == null || window.resetAt > usage.resetAt) usage.resetAt = window.resetAt;
-        }
-        return usage;
     }
 
     public async getQuotaFromUrl(baseUrl: string, apiKey: string): Promise<ModelProviderQuotaUsage | null> {
@@ -380,7 +360,8 @@ export class ModelProviderService {
             if (url.hostname === "api.z.ai") {
                 return await this.getZaiQuota(apiKey);
             }
-            if (url.hostname === "opencode.ai" && url.pathname.includes("/zen/go")) {
+            const isOpenCodeGo = url.pathname.startsWith("/inference/go") || url.pathname.startsWith("/zen/go");
+            if (url.hostname === "opencode.ai" && isOpenCodeGo) {
                 return await this.getOpenCodeQuota(baseUrl, apiKey);
             }
             return null;

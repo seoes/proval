@@ -446,16 +446,19 @@ export async function runAgentLoop(
                         provider.baseUrl,
                         decrypt(provider.apiKey),
                     );
-                    if (
-                        quota &&
-                        (quota.fiveHour >= 100 || quota.weekly >= 100 || quota.monthly >= 100) &&
-                        quota.resetAt &&
-                        quota.resetAt > new Date()
-                    ) {
-                        const message = `Quota is exhausted until ${quota.resetAt.toISOString()}`;
-                        await modelProviderService.setRateLimit(provider.id, quota.resetAt, message);
-                        await activityService.requeueByModelProviderId(provider.id, message);
-                        throw new ProviderRateLimitError(provider.id, quota.resetAt);
+                    if (quota) {
+                        const now = new Date();
+                        let resetAt: Date | null = null;
+                        for (const window of [quota.fiveHour, quota.weekly, quota.monthly]) {
+                            if (!window || window.usage < 100 || window.resetAt <= now) continue;
+                            if (resetAt == null || window.resetAt > resetAt) resetAt = window.resetAt;
+                        }
+                        if (resetAt) {
+                            const message = `Quota is exhausted until ${resetAt.toISOString()}`;
+                            await modelProviderService.setRateLimit(provider.id, resetAt, message);
+                            await activityService.requeueByModelProviderId(provider.id, message);
+                            throw new ProviderRateLimitError(provider.id, resetAt);
+                        }
                     }
                 }
             }
