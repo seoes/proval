@@ -311,16 +311,17 @@ export class ModelProviderService {
                 percentage?: unknown;
                 nextResetTime?: unknown;
             };
-            if (record.type !== "TOKENS_LIMIT") continue;
+            if (record.type !== "TOKENS_LIMIT" && record.type !== "CREDIT_LIMIT") continue;
             const percentage = Number(record.percentage);
             if (!Number.isFinite(percentage)) continue;
             const resetAt = typeof record.nextResetTime === "number" ? new Date(record.nextResetTime) : null;
             if (!resetAt || Number.isNaN(resetAt.getTime())) continue;
             const unit = Number(record.unit);
             const windowSize = Number(record.number);
+            const hasWindowSize = Number.isFinite(windowSize);
             const window = { usage: percentage, resetAt };
-            if (unit === 3 && windowSize === 5) usage.fiveHour = window;
-            else if (unit === 6 && windowSize === 1) usage.weekly = window;
+            if (unit === 3 && (!hasWindowSize || windowSize === 5)) usage.fiveHour = window;
+            else if (unit === 6 && (!hasWindowSize || windowSize === 1 || windowSize === 7)) usage.weekly = window;
         }
         return usage;
     }
@@ -360,7 +361,11 @@ export class ModelProviderService {
             if (url.hostname === "api.z.ai") {
                 return await this.getZaiQuota(apiKey);
             }
-            const isOpenCodeGo = url.pathname.startsWith("/inference/go") || url.pathname.startsWith("/zen/go");
+            const isOpenCodeGo =
+                url.pathname === "/inference/go" ||
+                url.pathname.startsWith("/inference/go/") ||
+                url.pathname === "/zen/go" ||
+                url.pathname.startsWith("/zen/go/");
             if (url.hostname === "opencode.ai" && isOpenCodeGo) {
                 return await this.getOpenCodeQuota(baseUrl, apiKey);
             }

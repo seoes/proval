@@ -334,4 +334,75 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
             }
         });
     });
+
+    describe("z.ai quota", () => {
+        it("reads credit and token windows without dropping a sibling", async () => {
+            const resetAt = new Date(1_786_624_439_633);
+            const bodyList = [
+                {
+                    success: true,
+                    data: {
+                        limits: [
+                            {
+                                type: "CREDIT_LIMIT",
+                                unit: 3,
+                                number: 5,
+                                percentage: 40,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            {
+                                type: "CREDIT_LIMIT",
+                                unit: 6,
+                                number: 1,
+                                percentage: 12,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            {
+                                type: "TIME_LIMIT",
+                                unit: 5,
+                                number: 1,
+                                percentage: 99,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                        ],
+                    },
+                },
+                {
+                    success: true,
+                    data: {
+                        limits: [
+                            { type: "TOKENS_LIMIT", unit: 3, percentage: 16, nextResetTime: resetAt.getTime() },
+                            {
+                                type: "TOKENS_LIMIT",
+                                unit: 6,
+                                number: 7,
+                                percentage: 22,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            { type: "CREDIT_LIMIT", unit: 3, number: 5, percentage: 100 },
+                        ],
+                    },
+                },
+            ];
+            let callCount = 0;
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async () => {
+                const body = bodyList[callCount] ?? bodyList[0];
+                callCount += 1;
+                return Response.json(body);
+            });
+            try {
+                const service = new ModelProviderService();
+                expect(await service.getQuotaFromUrl("https://api.z.ai/api/paas/v4", "zai-key")).toEqual({
+                    fiveHour: { usage: 40, resetAt },
+                    weekly: { usage: 12, resetAt },
+                });
+                expect(await service.getQuotaFromUrl("https://api.z.ai/api/paas/v4", "zai-key")).toEqual({
+                    fiveHour: { usage: 16, resetAt },
+                    weekly: { usage: 22, resetAt },
+                });
+            } finally {
+                fetchSpy.mockRestore();
+            }
+        });
+    });
 }

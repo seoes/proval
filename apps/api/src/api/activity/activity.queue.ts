@@ -154,8 +154,10 @@ class ActivityQueue {
 
     private async drainLoop(): Promise<void> {
         const modelProviderService = new ModelProviderService();
-        await modelProviderService.checkAllAndRemoveRateLimitIfReset();
+        let didCheckRateLimit = false;
         try {
+            await modelProviderService.checkAllAndRemoveRateLimitIfReset();
+            didCheckRateLimit = true;
             while (!this.isQueueStoppedForShutdown) {
                 this.hasPendingDrain = false;
                 const executableQueuedActivityList = await this.findExecutableQueuedActivity();
@@ -172,9 +174,11 @@ class ActivityQueue {
                 }
                 if (!isActivityStarted && !this.hasPendingDrain) break;
             }
+        } catch (error) {
+            logError("Activity queue drain failed", error);
         } finally {
             this.isDraining = false;
-            if (this.hasPendingDrain) this.drain();
+            if (didCheckRateLimit && this.hasPendingDrain) this.drain();
         }
     }
 
