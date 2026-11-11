@@ -5,12 +5,43 @@
     import Modal from "$lib/components/atom/Modal.svelte";
     import { KeyIcon, PlusIcon } from "phosphor-svelte";
     import { modelProviderLabel, truncateUrl } from "$lib/utils/label";
+    import { openAlert, openConfirm } from "$lib/store/modal";
+    import fetchApi from "$lib/utils";
+    import { formatLocalDateTime } from "$lib/utils/date.js";
+    import type { ModelProviderResponse } from "@proval/types";
     import type { PageProps } from "./$types";
     import DefaultLayout from "$lib/components/layout/DefaultLayout.svelte";
 
     const { data }: PageProps = $props();
 
     let addModelProviderModalOpen = $state(false);
+    let modelProviderList = $state(data.modelProviderList);
+
+    $effect(() => {
+        modelProviderList = data.modelProviderList;
+    });
+
+    async function onResetRateLimit(modelProvider: ModelProviderResponse) {
+        const confirmed = await openConfirm(
+            "Are you sure? This only clears the hold inside Proval. Check the actual LLM API usage before you continue.",
+            { title: "Reset rate limit", confirmText: "Reset" },
+        );
+        if (!confirmed) return;
+
+        const response = await fetchApi(`/model-provider/${modelProvider.id}/rate-limit/reset`, {
+            method: "POST",
+        });
+        if (!response.ok) {
+            const body = (await response.json().catch(() => ({}))) as { error?: string };
+            await openAlert(body.error ?? "Failed to reset rate limit");
+            return;
+        }
+
+        await openAlert("The hold was cleared.");
+        modelProviderList = modelProviderList.map((item) =>
+            item.id === modelProvider.id ? { ...item, rateLimitResetAt: null, rateLimitDescription: null } : item,
+        );
+    }
 </script>
 
 {#snippet addModelProviderAction()}
@@ -24,7 +55,7 @@
 {/snippet}
 
 <DefaultLayout title="Model Provider" actions={addModelProviderAction}>
-    {#if data.modelProviderList.length === 0}
+    {#if modelProviderList.length === 0}
         <div class="rounded-lg border border-border bg-card px-6 py-14 text-center">
             <p class="text-sm text-muted-foreground">No model providers connected yet.</p>
             <Button primary onclick={() => (addModelProviderModalOpen = true)} size="sm" class="mt-4 gap-1.5">
@@ -34,7 +65,7 @@
         </div>
     {:else}
         <div class="space-y-3">
-            {#each data.modelProviderList as modelProvider (modelProvider.id)}
+            {#each modelProviderList as modelProvider (modelProvider.id)}
                 {#snippet header()}
                     <div class="ml-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                         <span class="truncate text-sm text-foreground">{modelProvider.label}</span>
@@ -52,8 +83,28 @@
                                 : "Authorized"}</Badge>
                     {/if}
                     <Badge variant="neutral">{truncateUrl(modelProvider.baseUrl)}</Badge>
+                    {#if modelProvider.rateLimitResetAt}
+                        <p class="w-full text-xs text-destructive">
+                            {modelProvider.rateLimitDescription ?? "Quota is exhausted"}. Resets at {formatLocalDateTime(
+                                new Date(modelProvider.rateLimitResetAt),
+                            )}
+                        </p>
+                    {/if}
                 {/snippet}
-                <ResourceCard href="/model-provider/{modelProvider.id}" {header} {badge} />
+                <div class="relative">
+                    <ResourceCard
+                        href="/model-provider/{modelProvider.id}"
+                        class={modelProvider.rateLimitResetAt
+                            ? "border-destructive/40 bg-destructive-muted pr-24 hover:border-destructive/50 hover:bg-destructive-muted"
+                            : undefined}
+                        {header}
+                        {badge} />
+                    {#if modelProvider.rateLimitResetAt}
+                        <div class="absolute top-1/2 right-4 z-10 -translate-y-1/2">
+                            <Button size="sm" secondary onclick={() => onResetRateLimit(modelProvider)}>Reset</Button>
+                        </div>
+                    {/if}
+                </div>
             {/each}
         </div>
     {/if}

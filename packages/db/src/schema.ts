@@ -58,6 +58,9 @@ export const modelProviderTable = sqliteTable("model_provider", {
     timeoutSecond: integer().notNull().default(600),
     requestConcurrency: integer("request_concurrency"),
     activityConcurrency: integer("activity_concurrency"),
+    rateLimitResetAt: integer({ mode: "timestamp" }),
+    rateLimitDescription: text(),
+
     ...timeStamp,
 });
 
@@ -220,6 +223,9 @@ export const activityTable = sqliteTable(
         errorMessage: text(),
         logVersion: text({ enum: ["1"] }),
         logs: text({ mode: "json" }).$type<ActivityLogEntryJson[]>().notNull().default([]),
+        queuedAt: integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`),
         startedAt: integer({ mode: "timestamp" }),
         completedAt: integer({ mode: "timestamp" }),
         ...timeStamp,

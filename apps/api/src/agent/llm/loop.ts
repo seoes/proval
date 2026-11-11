@@ -1,4 +1,6 @@
 import { ActivityService } from "../../api/activity/activity.service.js";
+import { ModelProviderService } from "../../api/model/model.service.js";
+import { decrypt } from "../../util/encrypt.js";
 import { logAgent, logAgentError, logAgentResult, logAgentTool } from "../../util/log.js";
 import type { ActivityTokenUsage, ReasoningEffort } from "@proval/types";
 import {
@@ -68,6 +70,16 @@ export type AgentLoopEvent =
           elapsedMs: number;
       };
 
+export class ProviderRateLimitError extends Error {
+    constructor(
+        public readonly providerId: number,
+        public readonly resetAt: Date,
+    ) {
+        super(`Provider rate limit reached for provider ${providerId}. Resume after ${resetAt.toISOString()}.`);
+        this.name = "ProviderRateLimitError";
+    }
+}
+
 export async function runAgentLoop(
     sender: LlmSender,
     system: string,
@@ -100,15 +112,17 @@ export async function runAgentLoop(
     let maximumContextLength = 1_000_000;
     const compressRatio = 0.5;
 
-    async function stopIfCanceled(): Promise<void> {
-        if (!(await activityService.isCanceled(activityId))) {
+    async function stopIfCanceledOrFailed(): Promise<void> {
+        if (!(await activityService.isCanceledOrFailed(activityId))) {
             return;
         }
         const activity = await activityService.findById(activityId);
         const detail = activity?.errorMessage?.trim();
-        const message = detail
-            ? `Job canceled by user. Stopping agent loop. ${detail}`
-            : "Job canceled by user. Stopping agent loop.";
+        const reason =
+            activity?.status === "failed"
+                ? "Job failed. Stopping agent loop."
+                : "Job canceled by user. Stopping agent loop.";
+        const message = detail ? `${reason} ${detail}` : reason;
         logAgent(activityId, message, label);
         throw new JobCanceledError();
     }
@@ -151,7 +165,7 @@ export async function runAgentLoop(
             stepCount++;
             const remainingSteps = maxSteps - step;
 
-            await stopIfCanceled();
+            await stopIfCanceledOrFailed();
 
             const compressThreshold = maximumContextLength * compressRatio;
 
@@ -183,7 +197,7 @@ export async function runAgentLoop(
             let response: LlmResponse | null = null;
             let lastError: unknown;
             for (let i = 0; i < 3; i++) {
-                await stopIfCanceled();
+                await stopIfCanceledOrFailed();
                 try {
                     response = await sender.send(messagesWithStepInfo, toolList);
                     break;
@@ -323,7 +337,7 @@ export async function runAgentLoop(
 
             logAgent(activityId, `step ${stepCount}: ${response.message.toolCalls.length} tool call(s)`, label);
 
-            await stopIfCanceled();
+            await stopIfCanceledOrFailed();
 
             const results = await Promise.all(
                 response.message.toolCalls.map(async (tc) => {
@@ -423,6 +437,43 @@ export async function runAgentLoop(
     } catch (error: unknown) {
         if (error instanceof JobCanceledError) {
             throw error;
+        }
+        try {
+            const activity = await activityService.findById(activityId);
+            if (activity?.modelProviderId != null) {
+                const modelProviderService = new ModelProviderService();
+                const provider = await modelProviderService.findById(activity.modelProviderId);
+                if (provider.apiKey) {
+                    const quota = await modelProviderService.getQuotaFromUrl(
+                        provider.baseUrl,
+                        decrypt(provider.apiKey),
+                    );
+                    if (quota) {
+                        const now = new Date();
+                        let resetAt: Date | null = null;
+                        let windowName = "";
+                        for (const item of [
+                            { window: quota.fiveHour, name: "5 hour" },
+                            { window: quota.weekly, name: "Weekly" },
+                            { window: quota.monthly, name: "Monthly" },
+                        ]) {
+                            if (!item.window || item.window.usage < 100 || item.window.resetAt <= now) continue;
+                            if (resetAt == null || item.window.resetAt > resetAt) {
+                                resetAt = item.window.resetAt;
+                                windowName = item.name;
+                            }
+                        }
+                        if (resetAt) {
+                            const message = `${windowName} quota is exhausted`;
+                            await modelProviderService.setRateLimit(provider.id, resetAt, message);
+                            await activityService.requeueByModelProviderId(provider.id, message);
+                            throw new ProviderRateLimitError(provider.id, resetAt);
+                        }
+                    }
+                }
+            }
+        } catch (quotaError) {
+            if (quotaError instanceof ProviderRateLimitError) throw quotaError;
         }
         logAgentError(activityId, "agent loop failed", error, label);
         throw error;

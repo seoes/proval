@@ -525,9 +525,9 @@ export class ActivityService {
         return rows[0] ?? null;
     }
 
-    public async isCanceled(id: number): Promise<boolean> {
+    public async isCanceledOrFailed(id: number): Promise<boolean> {
         const activity = await this.findById(id);
-        return activity?.status === "canceled";
+        return activity?.status === "canceled" || activity?.status === "failed";
     }
 
     public async findLastReviewedHeadSha(repositoryId: number, targetIid: number): Promise<string | null> {
@@ -976,5 +976,57 @@ export class ActivityService {
             headSha: activity.headSha,
         });
         activityQueue.drain();
+    }
+
+    public async requeueByModelProviderId(modelProviderId: number, message: string): Promise<void> {
+        const activityList = await db
+            .select()
+            .from(activityTable)
+            .where(and(eq(activityTable.modelProviderId, modelProviderId), eq(activityTable.status, "started")));
+
+        for (const activity of activityList) {
+            try {
+                await this.fail(activity.id, message);
+            } catch (error) {
+                if (!(error instanceof Error) || error.message !== "Activity not found") throw error;
+                continue;
+            }
+            if (activity.repositoryId == null || activity.modelProviderId == null) continue;
+            try {
+                const [created] = await db
+                    .insert(activityTable)
+                    .values({
+                        repositoryId: activity.repositoryId,
+                        repositoryPath: activity.repositoryPath,
+                        provider: activity.provider,
+                        modelProviderId: activity.modelProviderId,
+                        modelName: activity.modelName,
+                        reasoningEffort: activity.reasoningEffort,
+                        type: activity.type,
+                        status: "queued",
+                        targetIid: activity.targetIid,
+                        targetCommentId: activity.targetCommentId,
+                        targetInlineReviewId: activity.targetInlineReviewId,
+                        headSha: activity.headSha,
+                        logVersion: "1",
+                        queuedAt: activity.queuedAt,
+                    })
+                    .returning({ id: activityTable.id });
+                await this.addEyesEmoji(created.id);
+            } catch (error) {
+                if (!(error instanceof Error) || !error.message.includes("UNIQUE constraint failed")) throw error;
+                await db
+                    .update(activityTable)
+                    .set({ queuedAt: activity.queuedAt })
+                    .where(
+                        and(
+                            eq(activityTable.repositoryId, activity.repositoryId),
+                            eq(activityTable.targetIid, activity.targetIid),
+                            eq(activityTable.type, activity.type),
+                            eq(activityTable.status, "queued"),
+                        ),
+                    );
+            }
+        }
     }
 }

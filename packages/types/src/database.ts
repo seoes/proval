@@ -63,6 +63,8 @@ export type ModelProviderResponse = Pick<
     | "activityConcurrency"
     | "authMethod"
     | "oauthStatus"
+    | "rateLimitResetAt"
+    | "rateLimitDescription"
     | "createdAt"
     | "updatedAt"
 >;
@@ -113,7 +115,10 @@ export type RepositoryUpdateInput = Partial<
     Omit<RepositoryInsert, "webhookSecret" | "webhookSigningToken" | "createdAt" | "updatedAt">
 >;
 export type ModelProviderUpdateInput = Partial<
-    Pick<ModelProvider, "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency">
+    Pick<
+        ModelProvider,
+        "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency"
+    >
 >;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;
 export type GitHubAppUpdateInput = Partial<

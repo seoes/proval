@@ -22,6 +22,7 @@ import {
     getXaiOAuth,
     cancelXaiOAuth,
     verifySavedModelProvider,
+    resetModelProviderQuota,
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
 import { accessRouter } from "./access/index.js";
@@ -66,6 +67,7 @@ apiRouter.post("/model-provider/verify", verifyModelProviderConfig);
 apiRouter.delete("/model-provider/:id", removeModelProvider);
 apiRouter.put("/model-provider/:id", updateModelProvider);
 apiRouter.patch("/model-provider/:id/api-key", updateModelProviderApiKey);
+apiRouter.post("/model-provider/:id/rate-limit/reset", resetModelProviderQuota);
 
 // Repository routes
 apiRouter.get("/repository", findAllRepositoryController);

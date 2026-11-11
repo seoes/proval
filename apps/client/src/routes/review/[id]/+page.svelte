@@ -39,7 +39,7 @@
     const isSameSecond = (a: Date | string, b: Date | string) =>
         Math.abs(Math.trunc(new Date(a).getTime() / 1000) - Math.trunc(new Date(b).getTime() / 1000)) <= 5;
     const showQueuedAtBeforeStarted = $derived(
-        review.startedAt != null && !isSameSecond(review.createdAt, review.startedAt),
+        review.startedAt != null && !isSameSecond(review.queuedAt, review.startedAt),
     );
 
     let runningClockMs = $state(Date.now());
@@ -312,7 +312,7 @@
                 {#if review.status === "queued"}
                     <div>
                         <span class="text-muted-foreground">Queued at</span>
-                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
+                        <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.queuedAt)}</span>
                     </div>
                 {:else if review.status === "started"}
                     {#if review.startedAt}
@@ -320,7 +320,7 @@
                             <div>
                                 <span class="text-muted-foreground">Queued at</span>
                                 <span class="ml-1.5 text-secondary-foreground"
-                                    >{formatDetailTime(review.createdAt)}</span>
+                                    >{formatDetailTime(review.queuedAt)}</span>
                             </div>
                         {/if}
                         <div>
@@ -340,7 +340,7 @@
                             <div>
                                 <span class="text-muted-foreground">Queued at</span>
                                 <span class="ml-1.5 text-secondary-foreground"
-                                    >{formatDetailTime(review.createdAt)}</span>
+                                    >{formatDetailTime(review.queuedAt)}</span>
                             </div>
                         {/if}
                         <div>
@@ -350,7 +350,7 @@
                     {:else}
                         <div>
                             <span class="text-muted-foreground">Queued at</span>
-                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.createdAt)}</span>
+                            <span class="ml-1.5 text-secondary-foreground">{formatDetailTime(review.queuedAt)}</span>
                         </div>
                     {/if}
                     {#if finishedDurationLabel}
