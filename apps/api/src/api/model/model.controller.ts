@@ -5,6 +5,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { XaiOAuthError, xaiOAuthService } from "./xai-oauth.service.js";
 import { ZodError } from "zod";
 import { SESSION_COOKIE_NAME } from "../auth/auth.service.js";
+import { activityQueue } from "../activity/activity.queue.js";
 
 function inputError(c: Context, error: unknown) {
     return c.json(
@@ -203,5 +204,6 @@ export const resetModelProviderQuota: Handler = async (c: Context) => {
     }
     const modelProviderService = new ModelProviderService();
     await modelProviderService.resetRateLimit(id);
+    activityQueue.drain();
     return c.json({ message: "Quota reset" }, 200);
 };
