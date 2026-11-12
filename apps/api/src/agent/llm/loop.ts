@@ -8,6 +8,7 @@ import {
     wrapUntrustedToolContent,
 } from "../shared/prompt/untrusted-warning.prompt.js";
 import { compressMessages, isContextLengthExceeded } from "./compress.js";
+import { CatalogService } from "../../api/catalog/catalog.service.js";
 
 export interface AgentTool {
     name: string;
@@ -109,7 +110,12 @@ export async function runAgentLoop(
     const activityId = options.activityId;
     const activityService = new ActivityService();
 
-    let maximumContextLength = 1_000_000;
+    const { model: modelId } = sender.getModel();
+
+    const catalogService = new CatalogService();
+    const metadata = await catalogService.matchModel(modelId);
+
+    let maximumContextLength = metadata?.limit.context ?? 1_000_000;
     const compressRatio = 0.5;
 
     async function stopIfCanceledOrFailed(): Promise<void> {

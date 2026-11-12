@@ -38,6 +38,7 @@ import {
 import { authRouter, settingsRouter } from "./auth/index.js";
 import { findUserList, removeUser } from "./auth/auth.controller.js";
 import { checkIfAdmin, resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
+import { findCatalogModel } from "./catalog/catalog.controller.js";
 
 export const apiRouter = new Hono<{ Variables: AuthVariables }>();
 
@@ -68,6 +69,8 @@ apiRouter.delete("/model-provider/:id", removeModelProvider);
 apiRouter.put("/model-provider/:id", updateModelProvider);
 apiRouter.patch("/model-provider/:id/api-key", updateModelProviderApiKey);
 apiRouter.post("/model-provider/:id/rate-limit/reset", resetModelProviderQuota);
+
+apiRouter.get("/catalog/model", findCatalogModel);
 
 // Repository routes
 apiRouter.get("/repository", findAllRepositoryController);

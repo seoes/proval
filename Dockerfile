@@ -20,6 +20,7 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 
 RUN bun run --filter api generate
+RUN bun run --filter api load:model
 RUN bun run --filter @proval/db build
 RUN bun run --filter @proval/types build
 RUN bun run --filter @proval/brand generate
@@ -44,6 +45,7 @@ RUN apk add --no-cache wget ripgrep git ca-certificates
 
 COPY --from=builder /build/server ./server
 COPY --from=builder /build/packages/db/src/migration ./migration
+COPY --from=builder /build/apps/api/src/api/catalog/models.json ./catalog/models.json
 COPY --from=builder /build/apps/client/dist ./public
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7900/api/health || exit 1

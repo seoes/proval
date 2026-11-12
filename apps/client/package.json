@@ -16,7 +16,8 @@
         "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "lint": "prettier --check . && eslint .",
         "format": "prettier --write .",
-        "test": "bun test"
+        "test": "bun test",
+        "load:model": "bun scripts/load-model.ts"
     },
     "dependencies": {
         "@proval/brand": "workspace:*",

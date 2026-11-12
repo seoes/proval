@@ -13,6 +13,7 @@
         "generate": "drizzle-kit generate",
         "migrate": "drizzle-kit migrate",
         "studio": "drizzle-kit studio",
+        "load:model": "bun scripts/load-model.ts",
         "lint": "prettier --check . && eslint .",
         "format": "prettier --write ."
     },
