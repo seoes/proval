@@ -111,12 +111,13 @@
     const isXaiOauth = $derived(
         modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod === "xai_oauth",
     );
+    let catalogReasoningEffortList = $state<(typeof reasoningEffortValueList)[number][] | null>(null);
     const reasoningEffortSelectOptionList = $derived([
         {
             value: "",
             label: "Default",
         },
-        ...reasoningEffortValueList
+        ...(catalogReasoningEffortList ?? reasoningEffortValueList)
             .filter((value) => !isXaiOauth || ["low", "medium", "high", "xhigh"].includes(value))
             .map((value) => ({
                 value,
@@ -126,6 +127,12 @@
     $effect(() => {
         if (isXaiOauth && reasoningEffort && !["low", "medium", "high", "xhigh"].includes(reasoningEffort))
             reasoningEffort = "";
+    });
+    $effect(() => {
+        const id = modelName.trim();
+        catalogReasoningEffortList = null;
+        if (!id) return;
+        void loadCatalogReasoningEffort(id);
     });
     let availableModels = $state<{ id: string }[]>([]);
     let isLoadingModels = $state(false);
@@ -210,6 +217,22 @@
             if (id === selectedModelProviderId) availableModels = [];
         } finally {
             if (id === selectedModelProviderId) isLoadingModels = false;
+        }
+    }
+
+    async function loadCatalogReasoningEffort(id: string) {
+        try {
+            const res = await fetchApi(`/catalog/model?id=${encodeURIComponent(id)}`);
+            if (id !== modelName.trim() || !res.ok) return;
+            const body = (await res.json()) as { reasoningEffort?: unknown };
+            if (id !== modelName.trim() || !Array.isArray(body.reasoningEffort)) return;
+            const effortList = body.reasoningEffort.filter(
+                (value): value is (typeof reasoningEffortValueList)[number] =>
+                    typeof value === "string" && (reasoningEffortValueList as readonly string[]).includes(value),
+            );
+            if (effortList.length > 0) catalogReasoningEffortList = effortList;
+        } catch {
+            return;
         }
     }
 
