@@ -13,6 +13,7 @@
         "tunnel": "cloudflared tunnel run proval-dev",
         "tunnel:tmp": "cloudflared tunnel --url http://localhost:7901",
         "studio": "bun run --filter 'api' studio",
+        "load:model": "bun run --filter client load:model",
         "generate": "bun run --filter 'api' generate",
         "migrate": "bun run --filter 'api' migrate",
         "agent:review": "bun run --filter 'api' agent:review",
