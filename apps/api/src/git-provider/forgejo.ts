@@ -20,7 +20,7 @@ import {
     type GitEmojiTarget,
     type ListPaginationOptions,
 } from "./types.js";
-import { log } from "../util/log.js";
+import { log, logError } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -44,6 +44,9 @@ export class ForgejoProvider implements GitProvider {
     private reviewBufferSeq = 0;
     private flushedInlineCommentList: GitComment[] = [];
 
+    private instanceType: "gitea" | "forgejo" | null = null;
+    private instanceTypeRequest: Promise<Response> | null = null;
+
     constructor(
         private readonly baseUrl: string,
         private readonly token: string,
@@ -51,6 +54,38 @@ export class ForgejoProvider implements GitProvider {
         private readonly repo: string,
         private readonly repositoryId = 0,
     ) {}
+
+    private async getInstanceType(): Promise<"gitea" | "forgejo"> {
+        if (this.instanceType !== null) {
+            return this.instanceType;
+        }
+
+        const url = new URL("/api/forgejo/v1/version", this.baseUrl);
+
+        if (url.hostname.includes("codeberg.org")) {
+            this.instanceType = "forgejo";
+            return this.instanceType;
+        }
+        if (url.hostname.includes("gitea.com")) {
+            this.instanceType = "gitea";
+            return this.instanceType;
+        }
+
+        this.instanceTypeRequest ??= fetch(url.toString());
+
+        try {
+            const response = await this.instanceTypeRequest;
+            const type = response.status < 400 ? "forgejo" : "gitea";
+            this.instanceType = type;
+            return type;
+        } catch (error) {
+            logError(
+                `Failed to determine instance type (fetch to ${url.toString()} failed, defaulting to Forgejo instance): ${error instanceof Error ? error.message : String(error)}`,
+            );
+            this.instanceType = "forgejo";
+            return "forgejo";
+        }
+    }
 
     public async fetchCurrentUser(): Promise<GitUser> {
         const user = await this.requestJson<{
@@ -251,9 +286,7 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    private async fetchRepositoryLabelRecordList(): Promise<
-        Array<{ id: number; name: string; description?: string }>
-    > {
+    private async fetchRepositoryLabelRecordList(): Promise<Array<{ id: number; name: string; description?: string }>> {
         const labelList: Array<{ id: number; name: string; description?: string }> = [];
         for (let page = 1; ; page++) {
             const pageList = await this.requestJson<Array<{ id: number; name: string; description?: string }>>(
