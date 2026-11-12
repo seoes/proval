@@ -10,6 +10,7 @@ This guide covers how to fill in the model provider form in the dashboard. For r
 
 - [OpenRouter](/docs/openrouter): cloud models through one API key
 - [llama.cpp](/docs/llama-cpp): local or on-prem inference
+- [OpenLLM](/docs/openllm): one endpoint for API keys, subscription accounts, and local models
 
 ## Prerequisites
 
@@ -27,7 +28,7 @@ In **Model Provider → Add model provider**, pick the provider that matches you
 | **OpenAI**         | Chat Completions API | OpenRouter, llama.cpp, Ollama, vLLM, or any OpenAI-compatible server |
 | **Anthropic**      | Messages API         | Anthropic directly, or a proxy that speaks the Messages API          |
 
-Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch to **Anthropic** only when your endpoint expects the Messages API.
+Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch to **Anthropic** only when your endpoint expects the Messages API. For OpenLLM, pick the **OpenLLM** entry under Add model provider: it prefills an **OpenAI** provider with the OpenLLM base URL.
 
 ---
 

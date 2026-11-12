@@ -37,3 +37,4 @@ Proval connects to your Git provider via webhooks, runs a lightweight agent loop
 - Set LLM: https://proval.app/docs/set-llm
 - llama.cpp: https://proval.app/docs/llama-cpp
 - OpenRouter: https://proval.app/docs/openrouter
+- OpenLLM: https://proval.app/docs/openllm
