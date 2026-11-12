@@ -23,11 +23,18 @@ export interface ModelMetadata {
 let modelList: ModelMetadata[] | undefined;
 
 export class CatalogService {
+    private getCatalogFilePath(): string {
+        if (process.env.NODE_ENV === "production") {
+            return resolve(process.cwd(), "catalog/models.json");
+        }
+        return resolve(import.meta.dir, "models.json");
+    }
+
     private async loadModelList(): Promise<ModelMetadata[]> {
         if (modelList !== undefined) {
             return modelList;
         }
-        const file = Bun.file(resolve(import.meta.dir, "models.json"));
+        const file = Bun.file(this.getCatalogFilePath());
         if (!(await file.exists())) {
             modelList = [];
             return modelList;
