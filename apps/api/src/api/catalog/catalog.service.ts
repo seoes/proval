@@ -20,34 +20,34 @@ export interface ModelMetadata {
     reasoningEffort?: string[];
 }
 
-export class CatalogService {
-    private modelList: ModelMetadata[] | undefined;
+let modelList: ModelMetadata[] | undefined;
 
+export class CatalogService {
     private async loadModelList(): Promise<ModelMetadata[]> {
-        if (this.modelList !== undefined) {
-            return this.modelList;
+        if (modelList !== undefined) {
+            return modelList;
         }
         const file = Bun.file(resolve(import.meta.dir, "models.json"));
         if (!(await file.exists())) {
-            this.modelList = [];
-            return this.modelList;
+            modelList = [];
+            return modelList;
         }
         try {
             const parsed: unknown = await file.json();
             if (!Array.isArray(parsed)) {
-                this.modelList = [];
-                return this.modelList;
+                modelList = [];
+                return modelList;
             }
-            this.modelList = parsed as ModelMetadata[];
-            return this.modelList;
+            modelList = parsed as ModelMetadata[];
+            return modelList;
         } catch {
-            this.modelList = [];
-            return this.modelList;
+            modelList = [];
+            return modelList;
         }
     }
     public async matchModel(modelId: string): Promise<ModelMetadata | undefined> {
         await this.loadModelList();
-        return this.modelList?.find((model) => model.id === modelId);
+        return modelList?.find((model) => model.id === modelId);
     }
     public async calculateModelCost(
         modelId: string,
