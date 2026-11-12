@@ -444,7 +444,7 @@
                 {repositoryList}
                 allowConnectedId={config.repositoryId ?? undefined} />
         {/if}
-        {#if provider.type === "gitlab"}
+        {#if provider.type === "gitlab" && !editRepositoryId}
             <FormField label="Webhook token type" linkLabelToControl={false}>
                 {#snippet children({ id })}
                     <div {id} class="mt-4 ml-1 flex flex-wrap gap-x-8 gap-y-3" role="radiogroup">
@@ -461,6 +461,14 @@
                         <InputText {id} password placeholder="whsec_..." bind:value={webhookSigningToken} required />
                     {/snippet}
                 </FormField>
+            {:else}
+                <FormField
+                    label="Webhook secret"
+                    description="Must match the Secret Token in your GitLab webhook settings">
+                    {#snippet children({ id })}
+                        <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
+                    {/snippet}
+                </FormField>
             {/if}
         {:else if provider.type === "forgejo"}
             <!-- forgejo -->
@@ -472,7 +480,11 @@
                 {/snippet}
             </FormField>
         {/if}
-        <FormField label="Webhook URL" description="Your webhook URL">
+        <FormField
+            label="Webhook URL"
+            description="You MUST configure webhook in your {provider.type === 'gitlab'
+                ? 'GitLab'
+                : 'Forgejo'} settings.">
             {#snippet children({ id })}
                 <InputText
                     {id}
