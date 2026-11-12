@@ -564,13 +564,48 @@ export class ForgejoProvider implements GitProvider {
                 },
             );
         } else {
-            comment = await this.requestJson<InlineReplyResponse>(
-                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({ body }),
-                },
-            );
+            try {
+                comment = await this.requestJson<InlineReplyResponse>(
+                    `/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({ body }),
+                    },
+                );
+            } catch (error) {
+                const status = (error as { status?: number }).status;
+                if (status !== 404 && status !== 405) {
+                    throw error;
+                }
+                const commitId = (await this.fetchPullRequestVersion(prIid)).headSha;
+                const review = await this.requestJson<{ id: number }>(
+                    `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            event: "COMMENT",
+                            body: "",
+                            commit_id: commitId,
+                            comments: [
+                                {
+                                    path: root.path,
+                                    body,
+                                    old_position: root.originalLine ?? 0,
+                                    new_position: root.line ?? 0,
+                                },
+                            ],
+                        }),
+                    },
+                );
+                const commentList = await this.requestJson<InlineReplyResponse[]>(
+                    `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`,
+                );
+                const picked = commentList.filter((item) => item.body === body).at(-1) ?? commentList.at(-1);
+                if (!picked) {
+                    throw new Error("Gitea inline review reply did not return a comment");
+                }
+                comment = picked;
+            }
         }
         return {
             id: comment.id,
