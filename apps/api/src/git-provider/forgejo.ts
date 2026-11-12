@@ -535,22 +535,43 @@ export class ForgejoProvider implements GitProvider {
         if (!root) {
             throw new Error(`Forgejo inline review comment not found: ${rootId}`);
         }
-        const replyPath = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${root.reviewId}/comments`;
 
-        const comment = await this.requestJson<{
+        const instanceType = await this.getInstanceType();
+
+        type InlineReplyResponse = {
             id: number;
             body: string;
             user: { login: string } | null;
             created_at: string;
-        }>(replyPath, {
-            method: "POST",
-            body: JSON.stringify({
-                body,
-                path: root.path,
-                old_position: root.originalLine ?? 0,
-                new_position: root.line ?? 0,
-            }),
-        });
+        };
+
+        let comment: InlineReplyResponse;
+
+        if (instanceType === "forgejo") {
+            if (root.reviewId == null) {
+                throw new Error(`Forgejo inline review comment missing reviewId: ${rootId}`);
+            }
+            comment = await this.requestJson<InlineReplyResponse>(
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${root.reviewId}/comments`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        body,
+                        path: root.path,
+                        old_position: root.originalLine ?? 0,
+                        new_position: root.line ?? 0,
+                    }),
+                },
+            );
+        } else {
+            comment = await this.requestJson<InlineReplyResponse>(
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ body }),
+                },
+            );
+        }
         return {
             id: comment.id,
             body: comment.body,
@@ -691,23 +712,35 @@ export class ForgejoProvider implements GitProvider {
         let path: string;
         switch (target.type) {
             case "pull_request":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions`;
                 break;
             case "issue":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions`;
                 break;
             case "pull_request_comment":
             case "issue_comment":
             case "inline_review_comment":
-                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions`;
                 break;
         }
 
         try {
-            await this.requestJson(path, { method: "DELETE" });
+            await this.requestJson(path, {
+                method: "DELETE",
+                body: JSON.stringify({ content }),
+            });
         } catch (error) {
             const status = (error as { status?: number }).status;
             if (status === 404) return;
+            if ((await this.getInstanceType()) === "forgejo" && (status === 400 || status === 422)) {
+                try {
+                    await this.requestJson(`${path}?content=${encodeURIComponent(content)}`, { method: "DELETE" });
+                    return;
+                } catch (fallbackError) {
+                    const fallbackStatus = (fallbackError as { status?: number }).status;
+                    if (fallbackStatus === 404) return;
+                }
+            }
             throw error;
         }
     }
@@ -717,7 +750,7 @@ export class ForgejoProvider implements GitProvider {
             method: "POST",
             body: JSON.stringify({
                 body: "",
-                event: "APPROVE",
+                event: "APPROVED",
             }),
         });
     }
@@ -788,41 +821,78 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async searchIssueList(query: string): Promise<GitRelatedItem[]> {
-        const issues = await this.requestJson<
-            Array<{
-                number: number;
-                title: string;
-                body: string | null;
-                state: string;
-                user: { login: string } | null;
-                html_url?: string;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/issues?state=all&search=${encodeURIComponent(query)}`);
+        const instanceType = await this.getInstanceType();
+        const encoded = encodeURIComponent(query);
 
-        return issues
-            .filter((issue) => !issue.html_url?.includes("/pulls/"))
-            .map((issue) => ({
-                number: issue.number,
-                title: issue.title,
-                description: issue.body,
-                state: issue.state === "closed" ? "closed" : "opened",
-                author: issue.user?.login ?? "",
-                url: issue.html_url ?? "",
-            }));
+        type IssueRow = {
+            number: number;
+            title: string;
+            body: string | null;
+            state: string;
+            user: { login: string } | null;
+            html_url?: string;
+        };
+
+        let issues: IssueRow[];
+
+        if (instanceType === "gitea") {
+            issues = await this.requestJson<IssueRow[]>(
+                `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=issues`,
+            );
+        } else {
+            try {
+                issues = await this.requestJson<IssueRow[]>(
+                    `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=issues`,
+                );
+            } catch (error) {
+                const list = await this.requestJson<IssueRow[]>(
+                    `/repos/${this.owner}/${this.repo}/issues?state=all&search=${encoded}`,
+                );
+                issues = list.filter((issue) => !issue.html_url?.includes("/pulls/"));
+            }
+        }
+
+        return issues.map((issue) => ({
+            number: issue.number,
+            title: issue.title,
+            description: issue.body,
+            state: issue.state === "closed" ? "closed" : "opened",
+            author: issue.user?.login ?? "",
+            url: issue.html_url ?? "",
+        }));
     }
 
     public async searchPullRequestList(query: string): Promise<GitRelatedItem[]> {
-        const prs = await this.requestJson<
-            Array<{
-                number: number;
-                title: string;
-                body: string | null;
-                state: string;
-                user: { login: string } | null;
-                html_url?: string;
-                merged?: boolean;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/pulls?state=all&search=${encodeURIComponent(query)}`);
+        const instanceType = await this.getInstanceType();
+        const encoded = encodeURIComponent(query);
+
+        type PullRow = {
+            number: number;
+            title: string;
+            body: string | null;
+            state: string;
+            user: { login: string } | null;
+            html_url?: string;
+            merged?: boolean;
+        };
+
+        let prs: PullRow[];
+
+        if (instanceType === "gitea") {
+            prs = await this.requestJson<PullRow[]>(
+                `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=pulls`,
+            );
+        } else {
+            try {
+                prs = await this.requestJson<PullRow[]>(
+                    `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=pulls`,
+                );
+            } catch (error) {
+                prs = await this.requestJson<PullRow[]>(
+                    `/repos/${this.owner}/${this.repo}/pulls?state=all&search=${encoded}`,
+                );
+            }
+        }
 
         return prs.map((pr) => ({
             number: pr.number,
