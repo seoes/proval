@@ -22,6 +22,7 @@ import {
     getXaiOAuth,
     cancelXaiOAuth,
     verifySavedModelProvider,
+    resetModelProviderQuota,
 } from "./model/model.controller.js";
 import { githubRouter } from "./github/index.js";
 import { accessRouter } from "./access/index.js";
@@ -38,6 +39,7 @@ import { authRouter, settingsRouter } from "./auth/index.js";
 import { apiTokenRouter } from "./api-token/index.js";
 import { findUserList, removeUser } from "./auth/auth.controller.js";
 import { checkIfAdmin, resolveAuth, type AuthVariables } from "./auth/auth.middleware.js";
+import { findCatalogModel } from "./catalog/catalog.controller.js";
 
 export const apiRouter = new Hono<{ Variables: AuthVariables }>();
 
@@ -68,6 +70,9 @@ apiRouter.post("/model-provider/verify", verifyModelProviderConfig);
 apiRouter.delete("/model-provider/:id", removeModelProvider);
 apiRouter.put("/model-provider/:id", updateModelProvider);
 apiRouter.patch("/model-provider/:id/api-key", updateModelProviderApiKey);
+apiRouter.post("/model-provider/:id/rate-limit/reset", resetModelProviderQuota);
+
+apiRouter.get("/catalog/model", findCatalogModel);
 
 // Repository routes
 apiRouter.get("/repository", findAllRepositoryController);
