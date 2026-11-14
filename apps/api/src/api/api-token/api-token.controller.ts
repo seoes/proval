@@ -1,9 +1,8 @@
 import type { Context } from "hono";
 import type { ApiTokenCreateInput } from "@proval/types";
 import { apiScopeValueList } from "@proval/types";
-import { apiTokenService, isScopeListValid } from "./api-token.service.js";
+import { apiTokenService } from "./api-token.service.js";
 import type { AuthVariables } from "../auth/auth.middleware.js";
-import { validateExpiresInDay } from "./api-token.validation.js";
 
 type AppContext = Context<{ Variables: AuthVariables }>;
 
@@ -33,20 +32,23 @@ export async function createApiToken(c: AppContext) {
     if (!body || typeof body.name !== "string" || body.name.trim().length === 0) {
         return c.json({ error: "name is required" }, 400);
     }
-    if (!Array.isArray(body.scopeList) || !isScopeListValid(body.scopeList)) {
+    if (!Array.isArray(body.scopeList) || !apiTokenService.isScopeListValid(body.scopeList)) {
         return c.json({ error: `scopeList must be a non empty subset of ${apiScopeValueList.join(", ")}` }, 400);
     }
-    const expiryError = validateExpiresInDay(body.expiresInDay);
-    if (expiryError) {
-        return c.json({ error: expiryError }, 400);
+    try {
+        const created = await apiTokenService.create(user.id, {
+            name: body.name.trim(),
+            scopeList: body.scopeList,
+            expiresInDay: body.expiresInDay ?? null,
+        });
+        return c.json(created, 201);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.startsWith("expiresInDay must be")) {
+            return c.json({ error: msg }, 400);
+        }
+        throw e;
     }
-
-    const created = await apiTokenService.create(user.id, {
-        name: body.name.trim(),
-        scopeList: body.scopeList,
-        expiresInDay: body.expiresInDay ?? null,
-    });
-    return c.json(created, 201);
 }
 
 export async function removeApiToken(c: AppContext) {

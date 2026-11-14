@@ -11,35 +11,34 @@ import db from "../../db/index.js";
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const SESSION_COOKIE_NAME = "proval_session";
-
-function toUserResponse(user: typeof userTable.$inferSelect): UserResponse {
-    return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        lastActiveAt: user.lastActiveAt,
-    };
-}
-
 const LAST_ACTIVE_INTERVAL_MS = 5 * 60 * 1000;
 
-async function refreshLastActiveAt(userId: string, previous: Date | null): Promise<Date> {
-    const now = new Date();
-    if (previous && now.getTime() - previous.getTime() < LAST_ACTIVE_INTERVAL_MS) {
-        return previous;
-    }
-    await db.update(userTable).set({ lastActiveAt: now }).where(eq(userTable.id, userId));
-    return now;
-}
-
-function createSessionToken(): string {
-    const bytes = crypto.getRandomValues(new Uint8Array(32));
-    return Buffer.from(bytes).toString("base64url");
-}
-
 export class AuthService {
+    private toUserResponse(user: typeof userTable.$inferSelect): UserResponse {
+        return {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            lastActiveAt: user.lastActiveAt,
+        };
+    }
+
+    private async refreshLastActiveAt(userId: string, previous: Date | null): Promise<Date> {
+        const now = new Date();
+        if (previous && now.getTime() - previous.getTime() < LAST_ACTIVE_INTERVAL_MS) {
+            return previous;
+        }
+        await db.update(userTable).set({ lastActiveAt: now }).where(eq(userTable.id, userId));
+        return now;
+    }
+
+    private createSessionToken(): string {
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        return Buffer.from(bytes).toString("base64url");
+    }
+
     async getOrCreateInstanceSetting() {
         const inserted = await db
             .insert(instanceSettingTable)
@@ -105,19 +104,19 @@ export class AuthService {
             return null;
         }
         const user = rowList[0].user;
-        user.lastActiveAt = await refreshLastActiveAt(user.id, user.lastActiveAt);
-        return toUserResponse(user);
+        user.lastActiveAt = await this.refreshLastActiveAt(user.id, user.lastActiveAt);
+        return this.toUserResponse(user);
     }
 
     async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
-        const token = createSessionToken();
+        const token = this.createSessionToken();
         const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
         await db.insert(sessionTable).values({
             token,
             userId,
             expiresAt,
         });
-        await refreshLastActiveAt(userId, null);
+        await this.refreshLastActiveAt(userId, null);
         return { token, expiresAt };
     }
 
@@ -174,7 +173,7 @@ export class AuthService {
             algorithm: "argon2id",
         });
         const id = Bun.randomUUIDv7();
-        const token = createSessionToken();
+        const token = this.createSessionToken();
         const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
         await this.getOrCreateInstanceSetting();
@@ -215,7 +214,7 @@ export class AuthService {
                         .run();
 
                     return {
-                        user: toUserResponse(user),
+                        user: this.toUserResponse(user),
                         token,
                         expiresAt,
                     };
@@ -247,7 +246,7 @@ export class AuthService {
         const user = await this.createUser(input, "user");
         const session = await this.createSession(user.id);
         return {
-            user: toUserResponse(user),
+            user: this.toUserResponse(user),
             token: session.token,
             expiresAt: session.expiresAt,
         };
@@ -271,7 +270,7 @@ export class AuthService {
 
         const session = await this.createSession(user.id);
         return {
-            user: toUserResponse(user),
+            user: this.toUserResponse(user),
             token: session.token,
             expiresAt: session.expiresAt,
         };
@@ -279,7 +278,7 @@ export class AuthService {
 
     async findUserList(): Promise<UserResponse[]> {
         const rowList = await db.select().from(userTable).orderBy(asc(userTable.email));
-        return rowList.map(toUserResponse);
+        return rowList.map((row) => this.toUserResponse(row));
     }
 
     async removeUser(id: string, actorId: string): Promise<void> {

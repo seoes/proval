@@ -3,7 +3,7 @@ import { getCookie } from "hono/cookie";
 import type { ApiScope, UserResponse } from "@proval/types";
 import { authService, SESSION_COOKIE_NAME } from "./auth.service.js";
 import { apiTokenService } from "../api-token/api-token.service.js";
-import { findRequiredScope, isTokenPublicPath } from "../api-token/scope.js";
+import { findRequiredScope, isTokenPublicPath } from "../api-token/api-token.scope.js";
 
 export type AuthVariables = {
     user: UserResponse | null;
@@ -11,58 +11,29 @@ export type AuthVariables = {
     apiScopeList: ApiScope[] | null;
 };
 
-function readBearerToken(header: string | undefined): string | null {
-    if (!header) {
-        return null;
-    }
-    const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-    const secret = match?.[1];
-    return secret ? secret.trim() : null;
-}
-
-function getRequestPath(path: string): string {
-    // apiRouter is mounted at /api, so c.req.path may be /auth/me or /api/auth/me depending on version
-    if (path.startsWith("/api/")) {
-        return path.slice(4);
-    }
-    return path;
-}
-
-function isPublicAuthPath(
-    path: string,
-    method: string,
-    isSetupRequired: boolean,
-    isAuthEnabled: boolean,
-    isRegistrationEnabled: boolean,
-): boolean {
-    if (path === "/health" && (method === "GET" || method === "HEAD")) {
-        return true;
-    }
-    if (path === "/auth/me" && method === "GET") {
-        return true;
-    }
-    if (path === "/auth/login" && method === "POST") {
-        return true;
-    }
-    if (path === "/auth/logout" && method === "POST") {
-        return true;
-    }
-    if (path === "/auth/setup" && method === "POST" && isSetupRequired) {
-        return true;
-    }
-    if (path === "/auth/register" && method === "POST" && isAuthEnabled && isRegistrationEnabled) {
-        return true;
-    }
-    return false;
-}
-
 export const resolveAuth = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-    const path = getRequestPath(c.req.path);
+    // apiRouter is mounted at /api so c.req.path may omit or include that prefix.
+    const path = c.req.path.startsWith("/api/") ? c.req.path.slice(4) : c.req.path;
     const method = c.req.method;
 
-    const bearer = readBearerToken(c.req.header("Authorization"));
-    if (bearer) {
-        const authenticated = await apiTokenService.authenticate(bearer);
+    const publicPathList = [
+        { method: "GET", path: "/health" },
+        { method: "HEAD", path: "/health" },
+        { method: "GET", path: "/auth/me" },
+        { method: "POST", path: "/auth/login" },
+        { method: "POST", path: "/auth/logout" },
+    ];
+    const isPublic = publicPathList.some((item) => item.method === method && item.path === path);
+
+    // Parse api token from authorization header
+    const authHeaderStr = c.req.header("Authorization");
+    const bearerTokenArray = authHeaderStr ? /^Bearer\s+(.+)$/i.exec(authHeaderStr.trim()) : null;
+    const apiToken = bearerTokenArray?.[1]?.trim();
+    const isApiToken = apiToken !== undefined;
+
+    // Pass for api token authentication
+    if (isApiToken) {
+        const authenticated = await apiTokenService.authenticate(apiToken);
         if (!authenticated) {
             return c.json({ error: "Invalid api token" }, 401);
         }
@@ -83,30 +54,53 @@ export const resolveAuth = createMiddleware<{ Variables: AuthVariables }>(async 
         return;
     }
 
-    const token = getCookie(c, SESSION_COOKIE_NAME);
-    let user: UserResponse | null = null;
-    if (token) {
-        user = await authService.findUserBySessionToken(token);
+    // Pass for public paths
+    if (isPublic) {
+        const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
+        const user = sessionToken ? await authService.findUserBySessionToken(sessionToken) : null;
+        c.set("user", user);
+        c.set("apiScopeList", null);
+        await next();
+        return;
     }
-    c.set("user", user);
-    c.set("apiScopeList", null);
 
-    const setting = await authService.getOrCreateInstanceSetting();
     const isSetupRequired = await authService.isSetupRequired();
-    const isAuthEnabled = setting.authEnabled;
-    const isRegistrationEnabled = setting.registrationEnabled;
-    const isLoginRequired = isSetupRequired || isAuthEnabled;
-
-    const isPublic = isPublicAuthPath(path, method, isSetupRequired, isAuthEnabled, isRegistrationEnabled);
-
-    if (isSetupRequired && !isPublic) {
+    // If setup is required, only allow setup path
+    if (isSetupRequired) {
+        // Pass for setup
+        if (path === "/auth/setup" && method === "POST") {
+            await next();
+            return;
+        }
+        // Block all other paths
         return c.json({ error: "Initial setup required", code: "setup_required" }, 403);
     }
 
-    if (isLoginRequired && !user && !isPublic) {
+    const settings = await authService.getOrCreateInstanceSetting();
+
+    // Pass for registration if enabled
+    if (settings.authEnabled && settings.registrationEnabled && path === "/auth/register" && method === "POST") {
+        await next();
+        return;
+    }
+
+    const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
+    const user = sessionToken ? await authService.findUserBySessionToken(sessionToken) : null;
+    c.set("user", user);
+    c.set("apiScopeList", null);
+
+    // Pass if auth is disabled
+    if (!settings.authEnabled) {
+        await next();
+        return;
+    }
+
+    // Block if auth is enabled but not authenticated
+    if (!user) {
         return c.json({ error: "Unauthorized" }, 401);
     }
 
+    // Pass if auth is enabled and authenticated
     await next();
 });
 
