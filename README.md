@@ -6,7 +6,7 @@ A Self-hosted LLM code review agent. Connect it to your Git host, bring your own
 
 Try **[Quick Demo](https://demo.proval.app)**
 
-[Website](https://proval.app) | [Docs](https://proval.app/docs)
+[Website](https://proval.app) | [Docs](https://proval.app/docs) | [Benchmark](https://github.com/seoes/proval-benchmark-result)
 
 https://github.com/user-attachments/assets/5afc0bba-d89e-43cd-b4d7-d5e7b022eeb1
 

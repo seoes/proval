@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ccd678af-002d-4045-b583-f804a601b6e4",
+  "id": "70bbcaaa-85f3-4b13-ad9a-72e7d10fd0b1",
   "prevId": "67b0cc34-9842-423a-a2c0-e8e9e7091527",
   "tables": {
     "activity": {
@@ -141,6 +141,14 @@
           "autoincrement": false,
           "default": "'[]'"
         },
+        "queued_at": {
+          "name": "queued_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
         "started_at": {
           "name": "started_at",
           "type": "integer",
@@ -170,13 +178,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch())"
-        },
-        "triage": {
-          "name": "triage",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1156,14 +1157,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch())"
-        },
-        "pr_triage_enabled": {
-          "name": "pr_triage_enabled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         }
       },
       "indexes": {

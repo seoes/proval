@@ -103,10 +103,20 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                     });
                 }
                 if (url.endsWith("/chat/completions")) {
-                    return Response.json({
-                        id: "chat_test",
-                        choices: [{ message: { role: "assistant", content: "OK" }, finish_reason: "stop" }],
-                    });
+                    const frame = (choice: Record<string, unknown>) =>
+                        `data: ${JSON.stringify({
+                            id: "chat_test",
+                            object: "chat.completion.chunk",
+                            created: 0,
+                            model: "test-model",
+                            choices: [choice],
+                        })}\n\n`;
+                    return new Response(
+                        frame({ index: 0, delta: { role: "assistant", content: "OK" }, finish_reason: null }) +
+                            frame({ index: 0, delta: {}, finish_reason: "stop" }) +
+                            "data: [DONE]\n\n",
+                        { headers: { "content-type": "text/event-stream" } },
+                    );
                 }
                 if (url.endsWith("/messages")) {
                     return Response.json({
@@ -277,6 +287,122 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                 body: { model: "test-model", max_tokens: 1 },
                 timeoutSecond: "30",
             });
+        });
+    });
+
+    describe("OpenCode quota", () => {
+        it("reads percent from the inference usage response", async () => {
+            const quotaRequestList: { url: string; authorization: string | null }[] = [];
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (input, init) => {
+                quotaRequestList.push({
+                    url: String(input),
+                    authorization: new Headers(init?.headers).get("authorization"),
+                });
+                return Response.json({
+                    usage: {
+                        rolling: { status: "ok", percent: 0, resetsAt: "2026-11-11T08:03:29.000Z" },
+                        weekly: { status: "ok", percent: 5, resetsAt: "2026-11-16T00:00:00.000Z" },
+                        monthly: { status: "ok", percent: 90, resetsAt: "2026-11-13T04:26:29.000Z" },
+                    },
+                });
+            }) as typeof fetch);
+            try {
+                const quota = await new ModelProviderService().getQuotaFromUrl(
+                    "https://opencode.ai/inference/go/v1",
+                    "test-key",
+                );
+                expect(quota).toEqual({
+                    fiveHour: { usage: 0, resetAt: new Date("2026-11-11T08:03:29.000Z") },
+                    weekly: { usage: 5, resetAt: new Date("2026-11-16T00:00:00.000Z") },
+                    monthly: { usage: 90, resetAt: new Date("2026-11-13T04:26:29.000Z") },
+                });
+                expect(quotaRequestList).toEqual([
+                    {
+                        url: "https://opencode.ai/inference/go/v1/usage",
+                        authorization: "Bearer test-key",
+                    },
+                ]);
+                expect(
+                    await new ModelProviderService().getQuotaFromUrl(
+                        "https://opencode.ai/inference/google/v1beta/models/gemini-4-argon",
+                        "test-key",
+                    ),
+                ).toBeNull();
+                expect(quotaRequestList).toHaveLength(1);
+            } finally {
+                fetchSpy.mockRestore();
+            }
+        });
+    });
+
+    describe("z.ai quota", () => {
+        it("reads credit and token windows without dropping a sibling", async () => {
+            const resetAt = new Date(1_786_624_439_633);
+            const bodyList = [
+                {
+                    success: true,
+                    data: {
+                        limits: [
+                            {
+                                type: "CREDIT_LIMIT",
+                                unit: 3,
+                                number: 5,
+                                percentage: 40,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            {
+                                type: "CREDIT_LIMIT",
+                                unit: 6,
+                                number: 1,
+                                percentage: 12,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            {
+                                type: "TIME_LIMIT",
+                                unit: 5,
+                                number: 1,
+                                percentage: 99,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                        ],
+                    },
+                },
+                {
+                    success: true,
+                    data: {
+                        limits: [
+                            { type: "TOKENS_LIMIT", unit: 3, percentage: 16, nextResetTime: resetAt.getTime() },
+                            {
+                                type: "TOKENS_LIMIT",
+                                unit: 6,
+                                number: 7,
+                                percentage: 22,
+                                nextResetTime: resetAt.getTime(),
+                            },
+                            { type: "CREDIT_LIMIT", unit: 3, number: 5, percentage: 100 },
+                        ],
+                    },
+                },
+            ];
+            let callCount = 0;
+            const fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () => {
+                const body = bodyList[callCount] ?? bodyList[0];
+                callCount += 1;
+                return Response.json(body);
+            }) as unknown as typeof fetch);
+            try {
+                const service = new ModelProviderService();
+                expect(await service.getQuotaFromUrl("https://api.z.ai/api/paas/v4", "zai-key")).toEqual({
+                    fiveHour: { usage: 40, resetAt },
+                    weekly: { usage: 12, resetAt },
+                });
+                expect(await service.getQuotaFromUrl("https://api.z.ai/api/paas/v4", "zai-key")).toEqual({
+                    fiveHour: { usage: 16, resetAt },
+                    weekly: { usage: 22, resetAt },
+                });
+            } finally {
+                fetchSpy.mockRestore();
+            }
         });
     });
 }

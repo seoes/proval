@@ -8,9 +8,9 @@ import type {
     ReasoningEffort,
 } from "@proval/types";
 import db from "../../db/index.js";
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
 import OpenAI from "openai";
-import { log } from "../../util/log.js";
+import { log, logError } from "../../util/log.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
 import { createSender } from "../../agent/llm/factory.js";
 import type { LlmSender } from "../../agent/llm/loop.js";
@@ -23,6 +23,12 @@ const timeoutSchema = z.number().int().min(10).max(7200);
 const concurrencySchema = z.number().int().min(1).nullable().optional();
 const labelSchema = z.string().trim().min(1).max(200);
 const baseUrlSchema = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol));
+
+interface ModelProviderQuotaUsage {
+    fiveHour?: { usage: number; resetAt: Date };
+    weekly?: { usage: number; resetAt: Date };
+    monthly?: { usage: number; resetAt: Date };
+}
 
 export function createModelProviderSender(
     modelProvider: ModelProvider,
@@ -135,6 +141,8 @@ export class ModelProviderService {
             activityConcurrency,
             authMethod,
             oauthStatus,
+            rateLimitResetAt,
+            rateLimitDescription,
             createdAt,
             updatedAt,
         } = modelProvider;
@@ -149,6 +157,8 @@ export class ModelProviderService {
             activityConcurrency,
             authMethod,
             oauthStatus,
+            rateLimitResetAt,
+            rateLimitDescription,
             createdAt,
             updatedAt,
         };
@@ -167,12 +177,7 @@ export class ModelProviderService {
         const [openActivityCount] = await db
             .select({ total: count() })
             .from(activityTable)
-            .where(
-                and(
-                    eq(activityTable.modelProviderId, id),
-                    inArray(activityTable.status, ["queued", "started"]),
-                ),
-            );
+            .where(and(eq(activityTable.modelProviderId, id), inArray(activityTable.status, ["queued", "started"])));
         if (openActivityCount.total > 0) {
             throw new Error(
                 `There are ${openActivityCount.total} queued or running activities using this model provider. Cancel them first.`,
@@ -243,5 +248,135 @@ export class ModelProviderService {
         });
         await sender.send([{ role: "user", content: "Hello" }], []);
         log("API key is valid", "Model Provider API Verification");
+    }
+
+    public async checkAllAndRemoveRateLimitIfReset(): Promise<ModelProvider[]> {
+        const modelProviderList = await this.findAllWithRateLimit();
+
+        const filteredModelProviderList = modelProviderList.filter(
+            ({ rateLimitResetAt }) => rateLimitResetAt !== null && rateLimitResetAt <= new Date(),
+        );
+
+        if (filteredModelProviderList.length === 0) return [];
+
+        const updatedModelProviderList = await db
+            .update(modelProviderTable)
+            .set({ rateLimitResetAt: null, rateLimitDescription: null })
+            .where(
+                inArray(
+                    modelProviderTable.id,
+                    filteredModelProviderList.map(({ id }) => id),
+                ),
+            )
+            .returning();
+
+        return updatedModelProviderList;
+    }
+
+    public async findAllWithRateLimit(): Promise<ModelProvider[]> {
+        return db.select().from(modelProviderTable).where(isNotNull(modelProviderTable.rateLimitResetAt));
+    }
+
+    public async setRateLimit(modelProviderId: number, resetTime: Date, description: string): Promise<void> {
+        await db
+            .update(modelProviderTable)
+            .set({ rateLimitResetAt: resetTime, rateLimitDescription: description })
+            .where(eq(modelProviderTable.id, modelProviderId));
+    }
+
+    public async resetRateLimit(modelProviderId: number) {
+        await db
+            .update(modelProviderTable)
+            .set({ rateLimitResetAt: null, rateLimitDescription: null })
+            .where(eq(modelProviderTable.id, modelProviderId));
+    }
+
+    private async getZaiQuota(apiKey: string): Promise<ModelProviderQuotaUsage> {
+        const response = await fetch("https://api.z.ai/api/monitor/usage/quota/limit", {
+            headers: { Authorization: apiKey },
+            signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`z.ai quota request failed with ${response.status}`);
+        const body = (await response.json()) as { success?: unknown; data?: unknown };
+        if (body.success !== true) throw new Error("z.ai quota response is not success");
+        const limits =
+            body.data && typeof body.data === "object" && Array.isArray((body.data as { limits?: unknown }).limits)
+                ? (body.data as { limits: unknown[] }).limits
+                : null;
+        if (limits == null) throw new Error("z.ai quota list is missing");
+
+        const usage: ModelProviderQuotaUsage = {};
+        for (const row of limits) {
+            if (!row || typeof row !== "object") continue;
+            const record = row as {
+                type?: unknown;
+                unit?: unknown;
+                number?: unknown;
+                percentage?: unknown;
+                nextResetTime?: unknown;
+            };
+            if (record.type !== "TOKENS_LIMIT" && record.type !== "CREDIT_LIMIT") continue;
+            const percentage = Number(record.percentage);
+            if (!Number.isFinite(percentage)) continue;
+            const resetAt = typeof record.nextResetTime === "number" ? new Date(record.nextResetTime) : null;
+            if (!resetAt || Number.isNaN(resetAt.getTime())) continue;
+            const unit = Number(record.unit);
+            const windowSize = Number(record.number);
+            const hasWindowSize = Number.isFinite(windowSize);
+            const window = { usage: percentage, resetAt };
+            if (unit === 3 && (!hasWindowSize || windowSize === 5)) usage.fiveHour = window;
+            else if (unit === 6 && (!hasWindowSize || windowSize === 1 || windowSize === 7)) usage.weekly = window;
+        }
+        return usage;
+    }
+
+    private async getOpenCodeQuota(baseUrl: string, apiKey: string): Promise<ModelProviderQuotaUsage> {
+        const response = await fetch(new URL("/inference/go/v1/usage", new URL(baseUrl).origin), {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) throw new Error(`OpenCode quota request failed with ${response.status}`);
+        const usagePayload = ((await response.json()) as { usage?: Record<string, unknown> }).usage;
+        if (!usagePayload) throw new Error("OpenCode usage is missing");
+
+        const readWindow = (window: unknown): { usage: number; resetAt: Date } | null => {
+            if (!window || typeof window !== "object") return null;
+            const record = window as { status?: unknown; percent?: unknown; resetsAt?: unknown };
+            let usage = typeof record.percent === "number" ? record.percent : 0;
+            if (record.status === "rate-limited") usage = 100;
+            const resetAt = typeof record.resetsAt === "string" ? new Date(record.resetsAt) : null;
+            if (!resetAt || Number.isNaN(resetAt.getTime())) return null;
+            return { usage, resetAt };
+        };
+
+        const fiveHour = readWindow(usagePayload.rolling);
+        const weekly = readWindow(usagePayload.weekly);
+        const monthly = readWindow(usagePayload.monthly);
+        return {
+            ...(fiveHour ? { fiveHour } : {}),
+            ...(weekly ? { weekly } : {}),
+            ...(monthly ? { monthly } : {}),
+        };
+    }
+
+    public async getQuotaFromUrl(baseUrl: string, apiKey: string): Promise<ModelProviderQuotaUsage | null> {
+        try {
+            const url = new URL(baseUrl);
+            if (url.hostname === "api.z.ai") {
+                return await this.getZaiQuota(apiKey);
+            }
+            const isOpenCodeGo =
+                url.pathname === "/inference/go" ||
+                url.pathname.startsWith("/inference/go/") ||
+                url.pathname === "/zen/go" ||
+                url.pathname.startsWith("/zen/go/");
+            if (url.hostname === "opencode.ai" && isOpenCodeGo) {
+                return await this.getOpenCodeQuota(baseUrl, apiKey);
+            }
+            return null;
+        } catch (error) {
+            logError("Quota probe failed", error);
+            return null;
+        }
     }
 }

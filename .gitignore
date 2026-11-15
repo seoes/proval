@@ -18,6 +18,8 @@ node_modules
 dist
 build
 
+apps/api/src/api/catalog/models.json
+
 workspaces/
 apps/api/review/data/
 apps/api/review/result/
