@@ -9,6 +9,7 @@ import {
 } from "../shared/prompt/untrusted-warning.prompt.js";
 import { compressMessages, isContextLengthExceeded } from "./compress.js";
 import { CatalogService } from "../../api/catalog/catalog.service.js";
+import { classifyModelError } from "./retryable-error.js";
 
 export interface AgentTool {
     name: string;
@@ -104,6 +105,8 @@ export async function runAgentLoop(
         onUsage?: (usage: ActivityTokenUsage) => Promise<void>;
         /** Optional diagnostic event sink. Production calls omit it and keep their behavior. */
         onEvent?: (event: AgentLoopEvent) => void;
+        /** Base delay before a model call is retried. Tests shorten it; production omits it. */
+        retryBaseDelayMs?: number;
     },
 ): Promise<AgentRunResult> {
     const startedAt = performance.now();
@@ -202,7 +205,7 @@ export async function runAgentLoop(
 
             let response: LlmResponse | null = null;
             let lastError: unknown;
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 4; i++) {
                 await stopIfCanceledOrFailed();
                 try {
                     response = await sender.send(messagesWithStepInfo, toolList);
@@ -245,9 +248,13 @@ export async function runAgentLoop(
                         continue;
                     }
 
-                    const isRetryable = typeof status === "number" && (status === 429 || status === 400);
-
-                    if (!isRetryable || i > 3) {
+                    // A rate failure keeps its three attempts. A transient one (timeout, reset
+                    // socket, 5xx) gets four, spaced further apart, because the provider
+                    // usually recovers within a minute and failing here throws away every
+                    // token the review has spent so far.
+                    const kind = classifyModelError(error);
+                    const attemptLimit = kind === "transient" ? 4 : 3;
+                    if (kind === null || i + 1 >= attemptLimit) {
                         throw error;
                     }
 
@@ -257,9 +264,11 @@ export async function runAgentLoop(
                         status: typeof status === "number" ? status : null,
                     });
                     logAgentError(activityId, "agent loop failed", error, label);
-                    logAgent(activityId, `→ retrying… ${i + 1}/3`, label);
+                    logAgent(activityId, `→ retrying (${kind})… ${i + 1}/${attemptLimit - 1}`, label);
 
-                    await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i));
+                    const baseDelayMs = options.retryBaseDelayMs ?? 1000;
+                    const delayMs = kind === "transient" ? baseDelayMs * 5 * 3 ** i : baseDelayMs * 2 ** i;
+                    await new Promise((resolve) => setTimeout(resolve, delayMs));
                 }
             }
 

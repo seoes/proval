@@ -30,7 +30,19 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 },
             }));
 
-            const signal = AbortSignal.timeout(config.timeoutSecond * 1000);
+            // Two deadlines. The provider's timeout bounds the whole call, as before. The
+            // idle timeout bounds the silence between stream chunks: a stream that has
+            // stopped sending is dead, and waiting out the full call timeout on it (ten
+            // minutes here) only delays the retry that would succeed.
+            const idle = new AbortController();
+            const idleMs = modelIdleTimeoutMs(config.timeoutSecond);
+            let idleTimer: ReturnType<typeof setTimeout> | null = null;
+            const touch = () => {
+                if (idleTimer) clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => idle.abort(), idleMs);
+            };
+            touch();
+            const signal = AbortSignal.any([AbortSignal.timeout(config.timeoutSecond * 1000), idle.signal]);
             try {
                 const stream = await client.chat.completions.create(
                     {
@@ -49,7 +61,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                     },
                     { signal },
                 );
-                const accumulated = await accumulateChatCompletionStream(stream);
+                const accumulated = await accumulateChatCompletionStream(stream, touch);
                 if (accumulated.finishReason === null) {
                     throw new Error("The model stream ended without a finish reason");
                 }
@@ -70,7 +82,11 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 };
             } catch (error) {
                 if (signal.aborted) {
-                    throw new OpenAI.APIConnectionTimeoutError();
+                    throw new OpenAI.APIConnectionTimeoutError({
+                        message: idle.signal.aborted
+                            ? `Request timed out: no stream data for ${Math.round(idleMs / 1000)}s.`
+                            : undefined,
+                    });
                 }
                 if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
                     const result = openRouterErrorSchema.safeParse({ error: error.error });
@@ -79,6 +95,8 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                     }
                 }
                 throw error;
+            } finally {
+                if (idleTimer) clearTimeout(idleTimer);
             }
         },
         getModel() {
@@ -102,8 +120,23 @@ type AccumulatedChatCompletion = {
     cachedInputTokens: number;
 };
 
+/**
+ * The most silence allowed between stream chunks, from PROVAL_MODEL_IDLE_TIMEOUT_SECOND,
+ * default 240 seconds. Never longer than the call timeout itself. A reasoning model can
+ * think for a couple of minutes before its first chunk, so this stays well above that.
+ */
+export function modelIdleTimeoutMs(
+    callTimeoutSecond: number,
+    env: Record<string, string | undefined> = process.env,
+): number {
+    const parsed = Number.parseInt((env.PROVAL_MODEL_IDLE_TIMEOUT_SECOND ?? "").trim(), 10);
+    const idleSecond = Number.isFinite(parsed) && parsed > 0 ? parsed : 240;
+    return Math.min(idleSecond, callTimeoutSecond) * 1000;
+}
+
 export async function accumulateChatCompletionStream(
     stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
+    onChunk?: () => void,
 ): Promise<AccumulatedChatCompletion> {
     let id: string | null = null;
     let content = "";
@@ -114,6 +147,7 @@ export async function accumulateChatCompletionStream(
     const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
     for await (const chunk of stream) {
+        onChunk?.();
         if (chunk.id) id = chunk.id;
         if (chunk.usage) {
             promptTokens = chunk.usage.prompt_tokens ?? promptTokens;
