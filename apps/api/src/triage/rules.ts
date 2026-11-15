@@ -21,6 +21,7 @@ export type TriageRule =
     | "rebase-only"
     | "docs-only"
     | "tests-only"
+    | "generated-only"
     | "small-change"
     | "mechanical-author"
     | "mechanical-title"
@@ -67,7 +68,7 @@ export interface TriageRecord {
 }
 
 export const DEFAULT_TRIAGE_SETTINGS: TriageSettings = {
-    smallDeltaLineCount: 60,
+    smallDeltaLineCount: 150,
     allowSkip: true,
     mechanicalAuthorList: ["renovate", "renovate-bot", "dependabot", "dependabot[bot]", "github-actions[bot]"],
 };
@@ -77,6 +78,56 @@ const DOC_DIRECTORY_LIST = ["docs/", "doc/", "documentation/"];
 const TEST_PATH_HINT_LIST = ["test", "spec", "__tests__", "__snapshots__", "fixtures"];
 const MECHANICAL_TITLE_PATTERN =
     /^(chore|build|ci)\((deps|dependencies|release|vendor)\)|^(bump|re-?vendor|update dependenc|release v?\d)/i;
+
+/**
+ * Files a reviewer reads past: lockfiles, changelogs and changesets written by release
+ * tooling, images and fonts, build output and snapshots. They are left out when the
+ * rules classify a change, so a merge request whose real change is one module is not
+ * treated as wide because it also moved a lockfile, a changelog and three SVGs.
+ */
+const GENERATED_BASENAME_LIST = [
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "bun.lock",
+    "bun.lockb",
+    "composer.lock",
+    "gemfile.lock",
+    "cargo.lock",
+    "poetry.lock",
+    "uv.lock",
+    "go.sum",
+];
+const GENERATED_EXTENSION_LIST = [
+    ".svg",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".map",
+    ".min.js",
+    ".min.css",
+    ".snap",
+];
+const GENERATED_DIRECTORY_LIST = [".changeset/", "dist/", "vendor/", "node_modules/", "__snapshots__/"];
+
+export function isGeneratedPath(path: string): boolean {
+    const lower = path.toLowerCase();
+    const basename = lower.slice(lower.lastIndexOf("/") + 1);
+    return (
+        GENERATED_BASENAME_LIST.includes(basename) ||
+        /^changelog(\.[a-z]+)?$/.test(basename) ||
+        GENERATED_EXTENSION_LIST.some((ext) => lower.endsWith(ext)) ||
+        GENERATED_DIRECTORY_LIST.some((dir) => lower.startsWith(dir) || lower.includes("/" + dir))
+    );
+}
 
 function isDocPath(path: string): boolean {
     const lower = path.toLowerCase();
@@ -119,8 +170,19 @@ export function triagePullRequest(input: TriageInput): TriageRecord {
     // Rules 2 to 6 need something to look at. An empty file list is "normal", never a
     // confident decision, because it usually means the provider gave us nothing.
     if (filePathList.length > 0) {
+        // Generated files do not count towards what the change is.
+        const authoredPathList = filePathList.filter((path) => !isGeneratedPath(path));
+        if (authoredPathList.length === 0) {
+            return decide(
+                "light",
+                "generated-only",
+                hadDelta
+                    ? "every file changed since the last review is generated: lockfiles, changelogs, assets or build output"
+                    : "every changed file is generated: lockfiles, changelogs, assets or build output",
+            );
+        }
         // 2. Only documentation.
-        if (filePathList.every(isDocPath)) {
+        if (authoredPathList.every(isDocPath)) {
             return decide(
                 "light",
                 "docs-only",
@@ -130,7 +192,7 @@ export function triagePullRequest(input: TriageInput): TriageRecord {
             );
         }
         // 3. Only tests.
-        if (filePathList.every(isTestPath)) {
+        if (authoredPathList.every(isTestPath)) {
             return decide(
                 "light",
                 "tests-only",

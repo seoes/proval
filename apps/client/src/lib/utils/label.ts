@@ -47,6 +47,7 @@ const triageRuleLabelList: Record<string, string> = {
     "rebase-only": "nothing changed since the last review",
     "docs-only": "documentation only",
     "tests-only": "tests only",
+    "generated-only": "generated files only",
     "small-change": "small change",
     "mechanical-author": "mechanical author",
     "mechanical-title": "mechanical by title",

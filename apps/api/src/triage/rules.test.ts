@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_TRIAGE_SETTINGS, triagePullRequest, type TriageInput } from "./rules.js";
+import { DEFAULT_TRIAGE_SETTINGS, isGeneratedPath, triagePullRequest, type TriageInput } from "./rules.js";
 
 const base: TriageInput = {
     title: "feat: add the thing",
@@ -114,3 +114,58 @@ describe("triagePullRequest", () => {
         expect(record.depth).toBe("normal");
     });
 });
+
+describe("generated files", () => {
+    test("lockfiles, changelogs, changesets, assets and build output are generated", () => {
+        for (const path of [
+            "package-lock.json",
+            "packages/core/pnpm-lock.yaml",
+            "composer.lock",
+            "packages/core/CHANGELOG.md",
+            "CHANGELOG",
+            ".changeset/core-on-nuxt-4.md",
+            "packages/core/banner.svg",
+            "dist/index.js",
+            "src/__snapshots__/a.test.ts.snap",
+        ]) {
+            expect(isGeneratedPath(path)).toBe(true);
+        }
+    });
+
+    test("source, config and ordinary docs are not generated", () => {
+        for (const path of ["src/module.ts", "package.json", "README.md", "docs/changes.md", ".gitlab-ci.yml"]) {
+            expect(isGeneratedPath(path)).toBe(false);
+        }
+    });
+
+    test("a change of only generated files is light", () => {
+        const record = triagePullRequest({
+            ...base,
+            filePathList: ["pnpm-lock.yaml", "packages/core/CHANGELOG.md", ".changeset/a.md"],
+            additions: 900,
+            deletions: 400,
+        });
+        expect(record.depth).toBe("light");
+        expect(record.rule).toBe("generated-only");
+    });
+
+    test("generated files do not stop a docs-only change from being docs-only", () => {
+        const record = triagePullRequest({
+            ...base,
+            filePathList: ["README.md", "packages/core/CHANGELOG.md", "pnpm-lock.yaml"],
+            additions: 400,
+            deletions: 0,
+        });
+        expect(record.rule).toBe("docs-only");
+    });
+
+    test("generated files do not hide real code", () => {
+        const record = triagePullRequest({ ...base, filePathList: ["src/thing.ts", "pnpm-lock.yaml"] });
+        expect(record.depth).toBe("normal");
+    });
+
+    test("the default small change threshold is 150 lines", () => {
+        expect(DEFAULT_TRIAGE_SETTINGS.smallDeltaLineCount).toBe(150);
+    });
+});
+

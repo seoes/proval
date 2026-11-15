@@ -65,7 +65,7 @@ export async function runReviewPlanAgent(
         isFollowUpReview ? getPullRequestCommentTool(provider, prIid) : null,
         isFollowUpReview ? getPullRequestInlineReviewListTool(provider, prIid) : null,
         isFollowUpReview ? getPullRequestInlineReviewCommentTool(provider, prIid) : null,
-        appendReviewUnitTool(reviewUnitList),
+        appendReviewUnitTool(reviewUnitList, unitBudget),
         skipFileTool(skippedFileList),
     ];
 

@@ -31,7 +31,7 @@ function fakeProvider(opts: { summary?: object; delta?: VersionDelta | null; thr
             return {
                 headSha: "abc",
                 filePathList: ["src/a.ts"],
-                additions: 100,
+                additions: 300,
                 deletions: 5,
                 ...(opts.summary ?? {}),
             };
