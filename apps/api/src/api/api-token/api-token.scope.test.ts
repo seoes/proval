@@ -19,7 +19,7 @@ describe("findRequiredScope", () => {
     });
 
     test("covers every access route, so a scoped token is not denied one by omission", () => {
-        // Each of these is registered in access/index.ts. A missing rule here
+        // Each of these is registered in access/access.routes.ts. A missing rule here
         // does not fail open, it fails closed with a 403 that looks like a
         // permission problem rather than a gap in this table.
         expect(findRequiredScope("GET", "/access")).toBe("access:read");

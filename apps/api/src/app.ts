@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { apiRouter } from "./api/index.js";
+import { apiRouter } from "./api/routes.js";
 import { cors } from "hono/cors";
 import { logError } from "./util/log.js";
 import { webhookRouter } from "./webhook/webhook.route.js";
