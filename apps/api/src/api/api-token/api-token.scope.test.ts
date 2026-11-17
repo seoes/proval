@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { apiScopeValueList } from "@proval/types";
-import { findRequiredScope, isTokenPublicPath } from "./scope.js";
+import { findRequiredScope, isTokenPublicPath } from "./api-token.scope.js";
 
 describe("findRequiredScope", () => {
     test("maps read and write on the same resource to different scope", () => {
