@@ -118,11 +118,18 @@ export class ApiClient {
     }
 
     const text = await response.text();
-    const parsed: unknown = text.length > 0 ? safeParse(text) : null;
     if (!response.ok) {
+      const parsed: unknown = text.length > 0 ? safeParse(text) : null;
       throw describeFailure(response.status, parsed);
     }
-    return parsed as T;
+    if (text.length === 0) {
+      return null as T;
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ApiError(response.status, "Expected JSON from the API", text.slice(0, 200));
+    }
   }
 
   get<T>(path: string, query?: Record<string, QueryValue>) {

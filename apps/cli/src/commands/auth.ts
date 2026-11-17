@@ -33,7 +33,7 @@ export async function runAuthCommand(input: AuthCommandInput): Promise<void> {
         // Verify before writing, so a typo fails here rather than on the next
         // command with a confusing error about something unrelated.
         const client = new ApiClient({ url, token });
-        await client.get("/settings");
+        await client.get("/auth/me");
         const path = await writeStoredCredentials({ url, token }, input.env);
         input.write(renderOne(input.mode, { url, token: maskToken(token), storedAt: path }));
         return;
@@ -47,7 +47,7 @@ export async function runAuthCommand(input: AuthCommandInput): Promise<void> {
         }
         let reachable = true;
         try {
-            await new ApiClient(resolved.credentials).get("/settings");
+            await new ApiClient(resolved.credentials).get("/auth/me");
         } catch {
             reachable = false;
         }

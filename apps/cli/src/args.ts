@@ -14,7 +14,11 @@ export interface ParsedCommandLine {
  * dependency is one more thing a maintainer has to accept.
  *
  * "--" ends flag parsing, so a value that looks like a flag can still be passed.
+ * Only flags that take a value consume the next token. A switch such as --json
+ * or --yes would otherwise swallow the following command or id.
  */
+const valueFlagSet = new Set(["url", "token", "match", "status", "limit"]);
+
 export function parseCommandLine(argvList: string[]): ParsedCommandLine {
     const pathList: string[] = [];
     const flagMap: Record<string, string | boolean> = {};
@@ -38,9 +42,7 @@ export function parseCommandLine(argvList: string[]): ParsedCommandLine {
                 continue;
             }
             const next = argvList[index + 1];
-            // A flag followed by something that is not another flag takes it as
-            // a value. Otherwise it is a boolean switch.
-            if (next !== undefined && !next.startsWith("-")) {
+            if (valueFlagSet.has(body) && next !== undefined && !next.startsWith("-")) {
                 flagMap[body] = next;
                 index++;
             } else {

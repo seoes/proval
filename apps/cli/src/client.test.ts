@@ -78,7 +78,7 @@ describe("ApiClient", () => {
 
     test("turns a failure status into an ApiError rather than returning a body", async () => {
         const client = new ApiClient(credentials, async () => responseOf(403, { error: "nope" }, false));
-        expect(client.get("/repository")).rejects.toThrow(ApiError);
+        await expect(client.get("/repository")).rejects.toThrow(ApiError);
     });
 
     test("reports an unreachable instance by name, not as 'fetch failed'", async () => {
@@ -104,6 +104,13 @@ describe("ApiClient", () => {
         const client = new ApiClient(credentials, async () =>
             ({ ok: false, status: 502, text: async () => "<html>bad gateway</html>" }) as unknown as Response,
         );
-        expect(client.get("/repository")).rejects.toThrow(ApiError);
+        await expect(client.get("/repository")).rejects.toThrow(ApiError);
+    });
+
+    test("rejects a success body that is not json", async () => {
+        const client = new ApiClient(credentials, async () =>
+            ({ ok: true, status: 200, text: async () => "<!doctype html>" }) as unknown as Response,
+        );
+        await expect(client.get("/settings")).rejects.toThrow(ApiError);
     });
 });

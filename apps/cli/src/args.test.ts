@@ -19,6 +19,18 @@ describe("parseCommandLine", () => {
         expect(parsed.pathList).toEqual(["activity", "cancel", "7"]);
     });
 
+    test("does not swallow a command after a boolean flag", () => {
+        const parsed = parseCommandLine(["--json", "repo", "list"]);
+        expect(parsed.mode).toBe("json");
+        expect(parsed.pathList).toEqual(["repo", "list"]);
+    });
+
+    test("does not swallow an id after --yes", () => {
+        const parsed = parseCommandLine(["activity", "cancel", "--yes", "7"]);
+        expect(flagBoolean(parsed.flagMap, "yes")).toBe(true);
+        expect(parsed.pathList).toEqual(["activity", "cancel", "7"]);
+    });
+
     test("does not swallow the next flag as a value", () => {
         const parsed = parseCommandLine(["--force", "--json"]);
         expect(flagBoolean(parsed.flagMap, "force")).toBe(true);

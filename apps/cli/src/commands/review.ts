@@ -45,10 +45,14 @@ export async function runReviewCommand(context: CommandContext): Promise<void> {
         });
     } catch (error) {
         // The endpoint is the one piece of this client that is not yet in the
-        // API. Say that plainly rather than reporting a bare 404, which reads
-        // as "no such repository" and sends the reader looking in the wrong
-        // place entirely.
-        if (error instanceof ApiError && error.status === 404) {
+        // API. Token auth answers 403 when no scope rule covers the path, so a
+        // missing route never reaches Hono's 404. Session auth would 404. Both
+        // mean the trigger is not available yet, not that the repository is missing.
+        if (
+            error instanceof ApiError &&
+            (error.status === 404 ||
+                (error.status === 403 && error.message === "This route is not available to api token"))
+        ) {
             throw new UsageError(
                 `This instance has no review trigger endpoint, so 'review trigger' cannot run against it yet. ` +
                     "It arrives with POST /api/repository/:id/review, the endpoint proposed in issue #67.",
