@@ -1,0 +1,145 @@
+name: Benchmark
+
+run-name: Benchmark ${{ github.ref_name }} by ${{ github.actor }}
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    actions: write
+
+env:
+    LLM_BASE_URL: ${{ secrets.LLM_BASE_URL || vars.LLM_BASE_URL }}
+    LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+    LLM_MODEL: ${{ secrets.LLM_MODEL || vars.LLM_MODEL }}
+    LLM_PROVIDER: ${{ secrets.LLM_PROVIDER || vars.LLM_PROVIDER }}
+
+jobs:
+    gate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        concurrency:
+            group: benchmark-gate-${{ github.actor == github.repository_owner && github.run_id || 'public' }}
+            cancel-in-progress: false
+        steps:
+            - name: Require benchmark credentials
+              run: |
+                  set -euo pipefail
+                  missing=0
+                  if [ -z "${LLM_BASE_URL:-}" ]; then
+                      echo "Missing LLM_BASE_URL"
+                      missing=1
+                  fi
+                  if [ -z "${LLM_API_KEY:-}" ]; then
+                      echo "Missing LLM_API_KEY"
+                      missing=1
+                  fi
+                  if [ -z "${LLM_MODEL:-}" ]; then
+                      echo "Missing LLM_MODEL"
+                      missing=1
+                  fi
+                  if [ "$missing" -ne 0 ]; then
+                      {
+                          echo "## Benchmark was not started"
+                          echo
+                          echo "Set LLM_BASE_URL, LLM_API_KEY and LLM_MODEL as repository secrets or variables."
+                      } >> "$GITHUB_STEP_SUMMARY"
+                      exit 1
+                  fi
+
+            - name: Limit non owner runs to one per 24 hours
+              if: github.actor != github.repository_owner
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  OWNER: ${{ github.repository_owner }}
+                  RUN_ID: ${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+                  since=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+                  if ! rows=$(gh api --paginate \
+                      "/repos/${GITHUB_REPOSITORY}/actions/workflows/benchmark.yml/runs?per_page=100&created=%3E%3D${since}" \
+                      --jq '.workflow_runs[] | [.id, (.actor.login // ""), .html_url] | @tsv'); then
+                      {
+                          echo "## Benchmark was not started"
+                          echo
+                          echo "Could not read recent workflow runs."
+                      } >> "$GITHUB_STEP_SUMMARY"
+                      exit 1
+                  fi
+                  if [ -z "$rows" ]; then
+                      exit 0
+                  fi
+                  while IFS=$'\t' read -r id login url; do
+                      if [ -z "$id" ] || [ "$id" = "$RUN_ID" ] || [ "$login" = "$OWNER" ]; then
+                          continue
+                      fi
+                      if ! blocking=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs" \
+                          --jq '.jobs[] | select(.name == "benchmark" and (.started_at != null or .status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending")) | .html_url'); then
+                          {
+                              echo "## Benchmark was not started"
+                              echo
+                              echo "Could not read jobs for run ${id}."
+                          } >> "$GITHUB_STEP_SUMMARY"
+                          exit 1
+                      fi
+                      if [ -n "$blocking" ]; then
+                          {
+                              echo "## Benchmark was not started"
+                              echo
+                              echo "A non owner run already started within the last 24 hours."
+                              echo
+                              echo "Blocking run ${url}"
+                          } >> "$GITHUB_STEP_SUMMARY"
+                          echo "Blocked by ${url}"
+                          exit 1
+                      fi
+                  done <<< "$rows"
+
+    # This job name is what the rate limit check looks for. Keep it stable.
+    benchmark:
+        name: benchmark
+        needs: gate
+        runs-on: ubuntu-latest
+        timeout-minutes: 240
+        concurrency:
+            group: benchmark
+            cancel-in-progress: false
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
+            - run: bun run benchmark ready
+
+            - run: bun run benchmark run quick --repeat 3
+
+            - name: Publish report
+              if: always()
+              run: |
+                  set +e
+                  report=""
+                  if [ -d apps/api/benchmark/data/output ]; then
+                      report=$(find apps/api/benchmark/data/output -name report.md -printf '%T@ %p\n' | sort -n | tail -n 1 | cut -d' ' -f2-)
+                  fi
+                  if [ -n "$report" ] && [ -f "$report" ]; then
+                      cat "$report" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo "No report was written." >> "$GITHUB_STEP_SUMMARY"
+                  fi
+                  exit 0
+
+            - uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: benchmark-report
+                  path: apps/api/benchmark/data/output
+                  if-no-files-found: ignore
+                  retention-days: 90

@@ -9,7 +9,6 @@
         "timeoutSecond": 600
     },
     "quick": {
-        "repeatCount": 1,
         "seed": 42,
         "caseIdList": [
             "cal_dot_com__10967",
@@ -20,7 +19,6 @@
         ]
     },
     "full": {
-        "repeatCount": 3,
         "seed": 42,
         "caseIdList": null
     }

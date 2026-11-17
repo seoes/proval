@@ -3,7 +3,7 @@ import { getCookie } from "hono/cookie";
 import type { ApiScope, UserResponse } from "@proval/types";
 import { authService, SESSION_COOKIE_NAME } from "./auth.service.js";
 import { apiTokenService } from "../api-token/api-token.service.js";
-import { findRequiredScope, isTokenPublicPath } from "../api-token/scope.js";
+import { findRequiredScope, isTokenPublicPath } from "../api-token/api-token.scope.js";
 
 export type AuthVariables = {
     user: UserResponse | null;

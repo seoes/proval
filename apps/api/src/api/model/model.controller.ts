@@ -5,6 +5,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import { XaiOAuthError, xaiOAuthService } from "./xai-oauth.service.js";
 import { ZodError } from "zod";
 import { SESSION_COOKIE_NAME } from "../auth/auth.service.js";
+import { activityQueue } from "../activity/activity.queue.js";
 
 function inputError(c: Context, error: unknown) {
     return c.json(
@@ -194,4 +195,15 @@ export const verifyModelProviderConfig: Handler = async (c: Context) => {
         const message = error instanceof Error ? error.message : "Connection failed";
         return c.json({ success: false, message }, 401);
     }
+};
+
+export const resetModelProviderQuota: Handler = async (c: Context) => {
+    const id = parseInt(c.req.param("id") ?? "");
+    if (!id) {
+        return c.json({ error: "Invalid model provider ID" }, 400);
+    }
+    const modelProviderService = new ModelProviderService();
+    await modelProviderService.resetRateLimit(id);
+    activityQueue.drain();
+    return c.json({ message: "Quota reset" }, 200);
 };

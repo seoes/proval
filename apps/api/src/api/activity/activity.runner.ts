@@ -1,5 +1,5 @@
 import type { ActivityTokenUsage } from "@proval/types";
-import { JobCanceledError } from "../../agent/llm/loop.js";
+import { JobCanceledError, ProviderRateLimitError } from "../../agent/llm/loop.js";
 import { ActivityService } from "./activity.service.js";
 import { logError } from "../../util/log.js";
 
@@ -12,7 +12,7 @@ export async function runWithActivity(
         const tokenUsage = await run(activityId);
         await activityService.complete(activityId, tokenUsage);
     } catch (error) {
-        if (error instanceof JobCanceledError) {
+        if (error instanceof JobCanceledError || error instanceof ProviderRateLimitError) {
             return;
         }
         const errorMessage = error instanceof Error ? error.message : String(error);

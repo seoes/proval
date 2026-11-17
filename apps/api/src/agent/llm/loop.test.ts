@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 
 mock.module("../../api/activity/activity.service.js", () => ({
     ActivityService: class {
-        async isCanceled() {
+        async isCanceledOrFailed() {
             return false;
         }
     },
@@ -229,6 +229,7 @@ describe("runAgentLoop ending once the required tools have been called", () => {
         const sent: number[] = [];
         const calls: string[] = [];
         const sender: LlmSender = {
+            getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
             async send() {
                 sent.push(sent.length);
                 if (sent.length === 1) {
@@ -236,7 +237,7 @@ describe("runAgentLoop ending once the required tools have been called", () => {
                 }
                 return assistantDone("this turn should never be requested");
             },
-        } as unknown as LlmSender;
+        };
 
         const result = await runAgentLoop(sender, "sys", "prompt", "label", {
             requiredToolList: [recordingTool("submit", calls)],
@@ -255,6 +256,7 @@ describe("runAgentLoop ending once the required tools have been called", () => {
         const sent: number[] = [];
         const calls: string[] = [];
         const sender: LlmSender = {
+            getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
             async send() {
                 sent.push(sent.length);
                 if (sent.length === 1) {
@@ -262,7 +264,7 @@ describe("runAgentLoop ending once the required tools have been called", () => {
                 }
                 return assistantDone("done");
             },
-        } as unknown as LlmSender;
+        };
 
         const result = await runAgentLoop(sender, "sys", "prompt", "label", {
             requiredToolList: [recordingTool("submit", calls)],
@@ -277,13 +279,14 @@ describe("runAgentLoop ending once the required tools have been called", () => {
         const sent: number[] = [];
         const calls: string[] = [];
         const sender: LlmSender = {
+            getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
             async send() {
                 sent.push(sent.length);
                 if (sent.length === 1) return assistantWithNamedTool("first", "tc1");
                 if (sent.length === 2) return assistantWithNamedTool("second", "tc2");
                 return assistantDone("this turn should never be requested");
             },
-        } as unknown as LlmSender;
+        };
 
         const result = await runAgentLoop(sender, "sys", "prompt", "label", {
             requiredToolList: [recordingTool("first", calls), recordingTool("second", calls)],
@@ -300,13 +303,14 @@ describe("runAgentLoop ending once the required tools have been called", () => {
         const sent: number[] = [];
         const calls: string[] = [];
         const sender: LlmSender = {
+            getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
             async send() {
                 sent.push(sent.length);
                 if (sent.length === 1) return assistantWithNamedTool("noop", "tc1");
                 if (sent.length === 2) return assistantWithNamedTool("submit", "tc2");
                 return assistantDone("this turn should never be requested");
             },
-        } as unknown as LlmSender;
+        };
 
         await runAgentLoop(sender, "sys", "prompt", "label", {
             toolList: [recordingTool("noop", calls)],
@@ -322,12 +326,13 @@ describe("runAgentLoop ending once the required tools have been called", () => {
     it("leaves an agent with no required tool unaffected", async () => {
         const sent: number[] = [];
         const sender: LlmSender = {
+            getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
             async send() {
                 sent.push(sent.length);
                 if (sent.length === 1) return assistantWithTool();
                 return assistantDone("finished");
             },
-        } as unknown as LlmSender;
+        };
 
         const result = await runAgentLoop(sender, "sys", "prompt", "label", {
             toolList: [noopTool],

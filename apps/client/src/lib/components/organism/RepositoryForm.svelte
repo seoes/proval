@@ -111,12 +111,13 @@
     const isXaiOauth = $derived(
         modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod === "xai_oauth",
     );
+    let catalogReasoningEffortList = $state<(typeof reasoningEffortValueList)[number][] | null>(null);
     const reasoningEffortSelectOptionList = $derived([
         {
             value: "",
             label: "Default",
         },
-        ...reasoningEffortValueList
+        ...(catalogReasoningEffortList ?? reasoningEffortValueList)
             .filter((value) => !isXaiOauth || ["low", "medium", "high", "xhigh"].includes(value))
             .map((value) => ({
                 value,
@@ -126,6 +127,12 @@
     $effect(() => {
         if (isXaiOauth && reasoningEffort && !["low", "medium", "high", "xhigh"].includes(reasoningEffort))
             reasoningEffort = "";
+    });
+    $effect(() => {
+        const id = modelName.trim();
+        catalogReasoningEffortList = null;
+        if (!id) return;
+        void loadCatalogReasoningEffort(id);
     });
     let availableModels = $state<{ id: string }[]>([]);
     let isLoadingModels = $state(false);
@@ -150,6 +157,13 @@
     const isRepositoryConnected = $derived(
         selectedRepositoryId ? repositoryList.find((r) => r.id === Number(selectedRepositoryId))?.isConnected : false,
     );
+    const webhookSettingUrl = $derived.by(() => {
+        if ((provider.type !== "gitlab" && provider.type !== "forgejo") || !path) return null;
+        const base = provider.baseUrl.replace(/\/$/, "");
+        const repoPath = path.replace(/^\//, "");
+        if (!repoPath) return null;
+        return provider.type === "gitlab" ? `${base}/${repoPath}/-/hooks` : `${base}/${repoPath}/settings/hooks`;
+    });
 
     let description = $state<string>(config.description ?? "");
     let language = $state<string>(config.language ?? "English");
@@ -206,6 +220,22 @@
         }
     }
 
+    async function loadCatalogReasoningEffort(id: string) {
+        try {
+            const res = await fetchApi(`/catalog/model?id=${encodeURIComponent(id)}`);
+            if (id !== modelName.trim() || !res.ok) return;
+            const body = (await res.json()) as { reasoningEffort?: unknown };
+            if (id !== modelName.trim() || !Array.isArray(body.reasoningEffort)) return;
+            const effortList = body.reasoningEffort.filter(
+                (value): value is (typeof reasoningEffortValueList)[number] =>
+                    typeof value === "string" && (reasoningEffortValueList as readonly string[]).includes(value),
+            );
+            if (effortList.length > 0) catalogReasoningEffortList = effortList;
+        } catch {
+            return;
+        }
+    }
+
     function openModelModal() {
         if (!selectedModelProviderId) return;
         modelNameDraft = modelName;
@@ -251,7 +281,8 @@
         {
             value: "continue_if_started",
             label: "Continue if already started",
-            description: "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
+            description:
+                "If a review has started, finish every review for that pull request. Otherwise cancel reviews that are still waiting.",
         },
         { value: "cancel", label: "Cancel", description: "Cancel the review" },
     ];
@@ -436,66 +467,93 @@
                 {repositoryList}
                 allowConnectedId={config.repositoryId ?? undefined} />
         {/if}
-
-        {#if provider.type === "gitlab" || provider.type === "forgejo"}
+        {#if provider.type === "gitlab" && !editRepositoryId}
+            <FormField label="Webhook token type" linkLabelToControl={false}>
+                {#snippet children({ id })}
+                    <div {id} class="mt-4 ml-1 flex flex-wrap gap-x-8 gap-y-3" role="radiogroup">
+                        <Radio name="{id}-token" bind:group={webhookTokenType} value="secret" label="Secret token" />
+                        <Radio name="{id}-token" bind:group={webhookTokenType} value="signing" label="Signing token" />
+                    </div>
+                {/snippet}
+            </FormField>
+            {#if webhookTokenType === "signing"}
+                <FormField
+                    label="Signing token"
+                    description="Paste the signing token generated in your GitLab webhook settings">
+                    {#snippet children({ id })}
+                        <InputText {id} password placeholder="whsec_..." bind:value={webhookSigningToken} required />
+                    {/snippet}
+                </FormField>
+            {:else}
+                <FormField
+                    label="Webhook secret"
+                    description="Must match the Secret Token in your GitLab webhook settings">
+                    {#snippet children({ id })}
+                        <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
+                    {/snippet}
+                </FormField>
+            {/if}
+        {:else if provider.type === "forgejo"}
+            <!-- forgejo -->
+            <FormField
+                label="Webhook secret"
+                description="Must match the Secret Token in your GitLab or Forgejo webhook settings">
+                {#snippet children({ id })}
+                    <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
+                {/snippet}
+            </FormField>
+        {/if}
+        <FormField
+            label="Webhook URL"
+            description="You MUST configure webhook in your {provider.type === 'gitlab'
+                ? 'GitLab'
+                : 'Forgejo'} settings.">
+            {#snippet children({ id })}
+                <InputText
+                    {id}
+                    disabled
+                    class="font-mono"
+                    placeholder={`<your-ip-or-url-7902>/webhook/${provider.type}`} />
+            {/snippet}
+        </FormField>
+        <div>
             {#if editRepositoryId}
-                <div class="flex flex-wrap justify-end gap-2 pt-2">
+                <div>
                     {#if provider.type === "gitlab"}
+                        <div class="flex flex-wrap justify-end">
+                            <Button
+                                text
+                                onclick={() => (webhookSigningTokenModalOpen = true)}
+                                type="button"
+                                class="w-auto text-xs">
+                                Update Signing Token
+                            </Button>
+                        </div>
+                    {/if}
+                    <div class="flex flex-wrap justify-end">
                         <Button
                             text
-                            onclick={() => (webhookSigningTokenModalOpen = true)}
+                            onclick={() => (webhookSecretModalOpen = true)}
                             type="button"
                             class="w-auto text-xs">
-                            Update Signing Token
+                            Update Webhook Secret
                         </Button>
-                    {/if}
-                    <Button text onclick={() => (webhookSecretModalOpen = true)} type="button" class="w-auto text-xs">
-                        Update Webhook Secret
+                    </div>
+                </div>
+            {/if}
+            {#if webhookSettingUrl}
+                <div class="flex flex-wrap justify-end">
+                    <Button
+                        text
+                        href={webhookSettingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="w-auto text-xs">
+                        Open webhook settings in {provider.type === "gitlab" ? "GitLab" : "Forgejo"}
                     </Button>
                 </div>
-            {:else}
-                {#if provider.type === "gitlab"}
-                    <FormField label="Webhook token type" linkLabelToControl={false}>
-                        {#snippet children({ id })}
-                            <div {id} class="mt-4 ml-1 flex flex-wrap gap-x-8 gap-y-3" role="radiogroup">
-                                <Radio
-                                    name="{id}-token"
-                                    bind:group={webhookTokenType}
-                                    value="secret"
-                                    label="Secret token" />
-                                <Radio
-                                    name="{id}-token"
-                                    bind:group={webhookTokenType}
-                                    value="signing"
-                                    label="Signing token" />
-                            </div>
-                        {/snippet}
-                    </FormField>
-                {/if}
-                {#if provider.type === "gitlab" && webhookTokenType === "signing"}
-                    <FormField
-                        label="Signing token"
-                        description="Paste the signing token generated in your GitLab webhook settings">
-                        {#snippet children({ id })}
-                            <InputText
-                                {id}
-                                password
-                                placeholder="whsec_..."
-                                bind:value={webhookSigningToken}
-                                required />
-                        {/snippet}
-                    </FormField>
-                {:else}
-                    <FormField
-                        label="Webhook secret"
-                        description="Must match the Secret Token in your GitLab or Forgejo webhook settings">
-                        {#snippet children({ id })}
-                            <InputText {id} password placeholder="secret" bind:value={webhookSecret} required />
-                        {/snippet}
-                    </FormField>
-                {/if}
             {/if}
-        {/if}
+        </div>
     </Card>
     <Card title="Review Agent" spaceY>
         <FormField label="Description" description="Optional note for your team (not shown on the Git host)">
@@ -539,7 +597,11 @@
         <div>
             <FormField label="Language" description="Default language for code review">
                 {#snippet children({ id })}
-                    <InputCombobox {id} placeholder="English" bind:value={language} suggestionList={repositoryLanguageList} />
+                    <InputCombobox
+                        {id}
+                        placeholder="English"
+                        bind:value={language}
+                        suggestionList={repositoryLanguageList} />
                 {/snippet}
             </FormField>
         </div>
