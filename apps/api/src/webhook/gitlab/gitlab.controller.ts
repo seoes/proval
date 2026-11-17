@@ -1,6 +1,5 @@
 import type {
     DiscussionNoteSchema,
-    MergeRequestNoteSchema,
     WebhookBaseNoteEventSchema,
     WebhookIssueEventSchema,
     WebhookIssueNoteEventSchema,
@@ -242,8 +241,8 @@ const handleGitLabPullRequestNoteWebhook: HandleGitLabPullRequestNoteWebhook = a
         });
     }
 
-    const action = (payload.object_attributes as unknown as MergeRequestNoteSchema).action;
-    if (!action || action !== "create") {
+    const action = (payload.object_attributes as unknown as { action?: string }).action;
+    if (action && action !== "create") {
         log(`Skipped: action '${action}'`);
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
@@ -384,8 +383,8 @@ const handleGitLabIssueNoteWebhook: HandleGitLabIssueNoteWebhook = async (
         });
     }
 
-    const action = (payload.object_attributes as unknown as MergeRequestNoteSchema).action;
-    if (!action || action !== "create") {
+    const action = (payload.object_attributes as unknown as { action?: string }).action;
+    if (action && action !== "create") {
         return new Response(JSON.stringify({ message: `Skipped: action '${action}'` }), {
             status: 200,
         });

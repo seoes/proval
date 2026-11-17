@@ -20,7 +20,7 @@ import {
     type GitEmojiTarget,
     type ListPaginationOptions,
 } from "./types.js";
-import { log } from "../util/log.js";
+import { log, logError } from "../util/log.js";
 import {
     buildInlineReviewList,
     findInlineReviewById,
@@ -44,6 +44,9 @@ export class ForgejoProvider implements GitProvider {
     private reviewBufferSeq = 0;
     private flushedInlineCommentList: GitComment[] = [];
 
+    private instanceType: "gitea" | "forgejo" | null = null;
+    private instanceTypeRequest: Promise<Response> | null = null;
+
     constructor(
         private readonly baseUrl: string,
         private readonly token: string,
@@ -51,6 +54,61 @@ export class ForgejoProvider implements GitProvider {
         private readonly repo: string,
         private readonly repositoryId = 0,
     ) {}
+
+    private buildUrl(path: string): URL {
+        const base = this.baseUrl.replace(/\/+$/, "");
+        const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+        return new URL(`${base}${normalizedPath}`);
+    }
+
+    private async getInstanceType(): Promise<"gitea" | "forgejo"> {
+        if (this.instanceType !== null) {
+            return this.instanceType;
+        }
+
+        const url = this.buildUrl("/api/forgejo/v1/version");
+        const hostname = url.hostname.toLowerCase();
+
+        if (hostname === "codeberg.org" || hostname.endsWith(".codeberg.org")) {
+            this.instanceType = "forgejo";
+            return this.instanceType;
+        }
+        if (hostname === "gitea.com" || hostname.endsWith(".gitea.com")) {
+            this.instanceType = "gitea";
+            return this.instanceType;
+        }
+
+        const headerRecord: Record<string, string> = {};
+        if (this.token) {
+            headerRecord.Authorization = `token ${this.token}`;
+        }
+
+        this.instanceTypeRequest ??= fetch(url.toString(), {
+            headers: headerRecord,
+            signal: AbortSignal.timeout(5000),
+        });
+
+        try {
+            const response = await this.instanceTypeRequest;
+            if (response.status < 400) {
+                this.instanceType = "forgejo";
+                return "forgejo";
+            }
+            if (response.status === 404 || response.status === 405) {
+                this.instanceType = "gitea";
+                return "gitea";
+            }
+            log(`Determining instance type returned status ${response.status}, defaulting to Forgejo`, "Forgejo");
+            this.instanceTypeRequest = null;
+            return "forgejo";
+        } catch (error) {
+            logError(
+                `Failed to determine instance type (fetch to ${url.toString()} failed, defaulting to Forgejo instance): ${error instanceof Error ? error.message : String(error)}`,
+            );
+            this.instanceTypeRequest = null;
+            return "forgejo";
+        }
+    }
 
     public async fetchCurrentUser(): Promise<GitUser> {
         const user = await this.requestJson<{
@@ -251,9 +309,7 @@ export class ForgejoProvider implements GitProvider {
         };
     }
 
-    private async fetchRepositoryLabelRecordList(): Promise<
-        Array<{ id: number; name: string; description?: string }>
-    > {
+    private async fetchRepositoryLabelRecordList(): Promise<Array<{ id: number; name: string; description?: string }>> {
         const labelList: Array<{ id: number; name: string; description?: string }> = [];
         for (let page = 1; ; page++) {
             const pageList = await this.requestJson<Array<{ id: number; name: string; description?: string }>>(
@@ -502,28 +558,111 @@ export class ForgejoProvider implements GitProvider {
         if (!root) {
             throw new Error(`Forgejo inline review comment not found: ${rootId}`);
         }
-        const replyPath = `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${root.reviewId}/comments`;
 
-        const comment = await this.requestJson<{
+        const instanceType = await this.getInstanceType();
+
+        type InlineReplyResponse = {
             id: number;
             body: string;
             user: { login: string } | null;
             created_at: string;
-        }>(replyPath, {
-            method: "POST",
-            body: JSON.stringify({
-                body,
-                path: root.path,
-                old_position: root.originalLine ?? 0,
-                new_position: root.line ?? 0,
-            }),
-        });
+        };
+
+        let comment: InlineReplyResponse;
+
+        if (instanceType === "forgejo") {
+            if (root.reviewId == null) {
+                throw new Error(`Forgejo inline review comment missing reviewId: ${rootId}`);
+            }
+            try {
+                comment = await this.requestJson<InlineReplyResponse>(
+                    `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${root.reviewId}/comments`,
+                    {
+                        method: "POST",
+                        body: JSON.stringify({
+                            body,
+                            path: root.path ?? "",
+                            old_position: root.originalLine ?? 0,
+                            new_position: root.line ?? 0,
+                        }),
+                    },
+                );
+            } catch (error) {
+                const status = (error as { status?: number }).status;
+                if (status !== 404 && status !== 405) {
+                    throw error;
+                }
+                comment = await this.replyToPullRequestInlineReviewViaGitea(prIid, rootId, root, body);
+            }
+        } else {
+            comment = await this.replyToPullRequestInlineReviewViaGitea(prIid, rootId, root, body);
+        }
         return {
             id: comment.id,
             body: comment.body,
             author: comment.user?.login ?? "",
             createdAt: comment.created_at,
         };
+    }
+
+    private async replyToPullRequestInlineReviewViaGitea(
+        prIid: number,
+        rootId: number,
+        root: InlineReviewComment,
+        body: string,
+    ): Promise<{ id: number; body: string; user: { login: string } | null; created_at: string }> {
+        type InlineReplyResponse = {
+            id: number;
+            body: string;
+            user: { login: string } | null;
+            created_at: string;
+        };
+
+        try {
+            return await this.requestJson<InlineReplyResponse>(
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/comments/${rootId}/replies`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({ body }),
+                },
+            );
+        } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (status !== 404 && status !== 405) {
+                throw error;
+            }
+            // Fallback for older Gitea instances without /comments/{id}/replies.
+            // Note: POST /reviews creates a new top-level review comment without in_reply_to,
+            // so Proval will observe this comment as a separate inline review thread root.
+            const commitId = (await this.fetchPullRequestVersion(prIid)).headSha;
+            const review = await this.requestJson<{ id: number }>(
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        event: "COMMENT",
+                        body: "",
+                        commit_id: commitId,
+                        comments: [
+                            {
+                                path: root.path ?? "",
+                                body,
+                                old_position: root.originalLine ?? 0,
+                                new_position: root.line ?? 0,
+                            },
+                        ],
+                    }),
+                },
+            );
+            const commentList = await this.requestJson<InlineReplyResponse[]>(
+                `/repos/${this.owner}/${this.repo}/pulls/${prIid}/reviews/${review.id}/comments`,
+            );
+            const picked = commentList.filter((item) => item.body === body).at(-1) ?? commentList.at(-1);
+            if (!picked) {
+                throw new Error("Gitea inline review reply did not return a comment");
+            }
+            return picked;
+        }
     }
 
     public async createCommentToSingleLine(
@@ -658,23 +797,35 @@ export class ForgejoProvider implements GitProvider {
         let path: string;
         switch (target.type) {
             case "pull_request":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.prIid}/reactions`;
                 break;
             case "issue":
-                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/${target.issueIid}/reactions`;
                 break;
             case "pull_request_comment":
             case "issue_comment":
             case "inline_review_comment":
-                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions?content=${encodeURIComponent(content)}`;
+                path = `/repos/${this.owner}/${this.repo}/issues/comments/${target.commentId}/reactions`;
                 break;
         }
 
         try {
-            await this.requestJson(path, { method: "DELETE" });
+            await this.requestJson(path, {
+                method: "DELETE",
+                body: JSON.stringify({ content }),
+            });
         } catch (error) {
             const status = (error as { status?: number }).status;
             if (status === 404) return;
+            if ((await this.getInstanceType()) === "forgejo" && (status === 400 || status === 422)) {
+                try {
+                    await this.requestJson(`${path}?content=${encodeURIComponent(content)}`, { method: "DELETE" });
+                    return;
+                } catch (fallbackError) {
+                    const fallbackStatus = (fallbackError as { status?: number }).status;
+                    if (fallbackStatus === 404) return;
+                }
+            }
             throw error;
         }
     }
@@ -684,7 +835,7 @@ export class ForgejoProvider implements GitProvider {
             method: "POST",
             body: JSON.stringify({
                 body: "",
-                event: "APPROVE",
+                event: "APPROVED",
             }),
         });
     }
@@ -755,50 +906,91 @@ export class ForgejoProvider implements GitProvider {
     }
 
     public async searchIssueList(query: string): Promise<GitRelatedItem[]> {
-        const issues = await this.requestJson<
-            Array<{
-                number: number;
-                title: string;
-                body: string | null;
-                state: string;
-                user: { login: string } | null;
-                html_url?: string;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/issues?state=all&search=${encodeURIComponent(query)}`);
+        const instanceType = await this.getInstanceType();
+        const encoded = encodeURIComponent(query);
 
-        return issues
-            .filter((issue) => !issue.html_url?.includes("/pulls/"))
-            .map((issue) => ({
-                number: issue.number,
-                title: issue.title,
-                description: issue.body,
-                state: issue.state === "closed" ? "closed" : "opened",
-                author: issue.user?.login ?? "",
-                url: issue.html_url ?? "",
-            }));
+        type IssueRow = {
+            number: number;
+            title: string;
+            body: string | null;
+            state: string;
+            user: { login: string } | null;
+            html_url?: string;
+        };
+
+        let issueList: IssueRow[];
+
+        try {
+            issueList = await this.requestJson<IssueRow[]>(
+                `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=issues`,
+            );
+        } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (instanceType === "forgejo" && (status === 400 || status === 404 || status === 422)) {
+                const list = await this.requestJson<IssueRow[]>(
+                    `/repos/${this.owner}/${this.repo}/issues?state=all&search=${encoded}`,
+                );
+                issueList = list.filter((issue) => !issue.html_url?.includes("/pulls/"));
+            } else {
+                throw error;
+            }
+        }
+
+        return issueList.map((issue) => ({
+            number: issue.number,
+            title: issue.title,
+            description: issue.body,
+            state: issue.state === "closed" ? "closed" : "opened",
+            author: issue.user?.login ?? "",
+            url: issue.html_url ?? "",
+        }));
     }
 
     public async searchPullRequestList(query: string): Promise<GitRelatedItem[]> {
-        const prs = await this.requestJson<
-            Array<{
-                number: number;
-                title: string;
-                body: string | null;
-                state: string;
-                user: { login: string } | null;
-                html_url?: string;
-                merged?: boolean;
-            }>
-        >(`/repos/${this.owner}/${this.repo}/pulls?state=all&search=${encodeURIComponent(query)}`);
+        const instanceType = await this.getInstanceType();
+        const encoded = encodeURIComponent(query);
 
-        return prs.map((pr) => ({
-            number: pr.number,
-            title: pr.title,
-            description: pr.body,
-            state: pr.merged ? "merged" : pr.state === "closed" ? "closed" : "opened",
-            author: pr.user?.login ?? "",
-            url: pr.html_url ?? "",
-        }));
+        type PullRow = {
+            number: number;
+            title: string;
+            body: string | null;
+            state: string;
+            user: { login: string } | null;
+            html_url?: string;
+            merged?: boolean;
+            pull_request?: {
+                merged?: boolean;
+            } | null;
+        };
+
+        let pullRequestList: PullRow[];
+
+        try {
+            pullRequestList = await this.requestJson<PullRow[]>(
+                `/repos/${this.owner}/${this.repo}/issues?state=all&q=${encoded}&type=pulls`,
+            );
+        } catch (error) {
+            const status = (error as { status?: number }).status;
+            if (instanceType === "forgejo" && (status === 400 || status === 404 || status === 422)) {
+                pullRequestList = await this.requestJson<PullRow[]>(
+                    `/repos/${this.owner}/${this.repo}/pulls?state=all&search=${encoded}`,
+                );
+            } else {
+                throw error;
+            }
+        }
+
+        return pullRequestList.map((pr) => {
+            const isMerged = Boolean(pr.merged ?? pr.pull_request?.merged);
+            return {
+                number: pr.number,
+                title: pr.title,
+                description: pr.body,
+                state: isMerged ? "merged" : pr.state === "closed" ? "closed" : "opened",
+                author: pr.user?.login ?? "",
+                url: pr.html_url ?? "",
+            };
+        });
     }
 
     public isCodeSearchSupported(): boolean {
@@ -1003,7 +1195,7 @@ export class ForgejoProvider implements GitProvider {
     }
 
     private async requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-        const url = new URL(`/api/v1${path}`, this.baseUrl);
+        const url = this.buildUrl(`/api/v1${path}`);
         const response = await fetch(url, {
             ...init,
             headers: {
