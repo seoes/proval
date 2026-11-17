@@ -84,10 +84,9 @@ export const resolveAuth = createMiddleware<{ Variables: AuthVariables }>(async 
     }
 
     const token = getCookie(c, SESSION_COOKIE_NAME);
-    let user: UserResponse | null = null;
-    if (token) {
-        user = await authService.findUserBySessionToken(token);
-    }
+
+    const user = token ? await authService.findUserBySessionToken(token) : null;
+
     c.set("user", user);
     c.set("apiScopeList", null);
 
