@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmSender, Message } from "./loop.js";
-import type { SenderSDKConfig } from "./factory.js";
+import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
 
 export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
     const client = new Anthropic({
@@ -32,56 +32,73 @@ export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
                 }
             }
 
-            const completion = await client.messages.create({
-                model: config.model,
-                system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
-                messages: chatMessages,
-                tools: anthropicTools.length > 0 ? anthropicTools : undefined,
-                max_tokens: config.maxOutputToken ?? 8192,
-                cache_control: {
-                    type: "ephemeral",
-                },
-                ...(config.reasoningEffort
-                    ? {
-                          output_config: {
-                              effort: config.reasoningEffort as NonNullable<
-                                  Anthropic.Messages.MessageCreateParams["output_config"]
-                              >["effort"],
-                          },
-                      }
-                    : {}),
-            });
+            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
+            try {
+                const stream = client.messages.stream(
+                    {
+                        model: config.model,
+                        system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
+                        messages: chatMessages,
+                        tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+                        max_tokens: config.maxOutputToken ?? 8192,
+                        cache_control: {
+                            type: "ephemeral",
+                        },
+                        ...(config.reasoningEffort
+                            ? {
+                                  output_config: {
+                                      effort: config.reasoningEffort as NonNullable<
+                                          Anthropic.Messages.MessageCreateParams["output_config"]
+                                      >["effort"],
+                                  },
+                              }
+                            : {}),
+                    },
+                    { signal },
+                );
+                stream.on("streamEvent", touch);
 
-            // Extract text content and tool calls from content blocks
-            const textParts: string[] = [];
-            const toolCalls: { id: string; name: string; arguments: string }[] = [];
+                const completion = await stream.finalMessage();
 
-            for (const block of completion.content) {
-                if (block.type === "text") {
-                    textParts.push(block.text);
-                } else if (block.type === "tool_use") {
-                    toolCalls.push({
-                        id: block.id,
-                        name: block.name,
-                        arguments: JSON.stringify(block.input),
+                const textParts: string[] = [];
+                const toolCalls: { id: string; name: string; arguments: string }[] = [];
+
+                for (const block of completion.content) {
+                    if (block.type === "text") {
+                        textParts.push(block.text);
+                    } else if (block.type === "tool_use") {
+                        toolCalls.push({
+                            id: block.id,
+                            name: block.name,
+                            arguments: JSON.stringify(block.input),
+                        });
+                    }
+                }
+
+                return {
+                    message: {
+                        role: "assistant",
+                        content: textParts.length > 0 ? textParts.join("\n") : null,
+                        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+                    },
+                    finishReason: completion.stop_reason === "end_turn" ? "stop" : (completion.stop_reason ?? "stop"),
+                    requestId: completion.id ?? null,
+                    usage: {
+                        inputToken: completion.usage?.input_tokens ?? 0,
+                        outputToken: completion.usage?.output_tokens ?? 0,
+                        cachedInputToken: completion.usage?.cache_read_input_tokens ?? 0,
+                    },
+                };
+            } catch (error) {
+                if (signal.aborted) {
+                    throw new Anthropic.APIConnectionTimeoutError({
+                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
                     });
                 }
+                throw error;
+            } finally {
+                clear();
             }
-
-            return {
-                message: {
-                    role: "assistant",
-                    content: textParts.length > 0 ? textParts.join("\n") : null,
-                    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                },
-                finishReason: completion.stop_reason === "end_turn" ? "stop" : (completion.stop_reason ?? "stop"),
-                requestId: completion.id ?? null,
-                usage: {
-                    inputToken: completion.usage?.input_tokens ?? 0,
-                    outputToken: completion.usage?.output_tokens ?? 0,
-                    cachedInputToken: completion.usage?.cache_read_input_tokens ?? 0,
-                },
-            };
         },
         getModel() {
             return {

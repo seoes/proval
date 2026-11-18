@@ -24,6 +24,18 @@ export type SenderSDKConfig = Omit<SenderConfig, "provider" | "modelProviderId" 
     fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 };
 
+// Aborts a streamed model call once it has sent nothing for timeoutSecond. Call touch on every stream event.
+export function createStreamTimeout(timeoutSecond: number) {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const touch = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => controller.abort(), timeoutSecond * 1000);
+    };
+    touch();
+    return { signal: controller.signal, touch, clear: () => clearTimeout(timer) };
+}
+
 // Bun applies a socket idle limit that fires while a slow model is still thinking.
 // Disable it and let the SDK deadline own the timeout.
 function createLLMFetch() {

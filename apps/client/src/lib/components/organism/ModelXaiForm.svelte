@@ -362,8 +362,8 @@
         </FormField>
 
         <FormField
-            label="Request Timeout"
-            description="Maximum wait time for LLM responses in seconds. Increase for slow local models.">
+            label="Response Timeout"
+            description="Seconds to wait with no data from the model before the request is stopped and retried. Local models send nothing while reading a long prompt, so keep this generous on slow hardware.">
             {#snippet children({ id })}
                 <InputText {id} placeholder="600" bind:value={timeoutSecond} disabled={oauthLocked} />
             {/snippet}

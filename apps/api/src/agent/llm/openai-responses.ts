@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { LlmResponse, LlmSender, Message, ToolCall } from "./loop.js";
-import type { SenderSDKConfig } from "./factory.js";
+import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
 
 export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender {
     const client = new OpenAI({
@@ -13,7 +13,7 @@ export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender 
 
     return {
         async send(messageList, toolList) {
-            const signal = AbortSignal.timeout(config.timeoutSecond * 1000);
+            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
             try {
                 const stream = await client.responses.create(
                     {
@@ -53,6 +53,7 @@ export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender 
                 );
 
                 for await (const event of stream) {
+                    touch();
                     if (event.type === "response.completed") {
                         return convertFromOpenAiResponse(event.response);
                     }
@@ -83,9 +84,13 @@ export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender 
                 throw new Error("OpenAI Responses stream ended before completion");
             } catch (error) {
                 if (signal.aborted) {
-                    throw new OpenAI.APIConnectionTimeoutError();
+                    throw new OpenAI.APIConnectionTimeoutError({
+                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
+                    });
                 }
                 throw error;
+            } finally {
+                clear();
             }
         },
         getModel() {

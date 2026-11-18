@@ -119,12 +119,39 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
                     );
                 }
                 if (url.endsWith("/messages")) {
-                    return Response.json({
+                    const message = {
                         id: "msg_test",
-                        content: [{ type: "text", text: "OK" }],
-                        stop_reason: "end_turn",
-                        usage: { input_tokens: 10, output_tokens: 2 },
-                    });
+                        type: "message",
+                        role: "assistant",
+                        model: "test-model",
+                        content: [],
+                        stop_reason: null,
+                        stop_sequence: null,
+                        usage: { input_tokens: 10, output_tokens: 0 },
+                    };
+                    const sse = (payload: Record<string, unknown>) =>
+                        `event: ${payload.type}\ndata: ${JSON.stringify(payload)}\n\n`;
+                    return new Response(
+                        sse({ type: "message_start", message }) +
+                            sse({
+                                type: "content_block_start",
+                                index: 0,
+                                content_block: { type: "text", text: "" },
+                            }) +
+                            sse({
+                                type: "content_block_delta",
+                                index: 0,
+                                delta: { type: "text_delta", text: "OK" },
+                            }) +
+                            sse({ type: "content_block_stop", index: 0 }) +
+                            sse({
+                                type: "message_delta",
+                                delta: { stop_reason: "end_turn", stop_sequence: null },
+                                usage: { output_tokens: 2 },
+                            }) +
+                            sse({ type: "message_stop" }),
+                        { headers: { "content-type": "text/event-stream" } },
+                    );
                 }
                 if (url.endsWith("/models")) {
                     return Response.json({ object: "list", data: [{ id: "test-model" }] });

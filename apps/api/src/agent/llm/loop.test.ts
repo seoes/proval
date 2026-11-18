@@ -344,3 +344,56 @@ describe("runAgentLoop ending once the required tools have been called", () => {
         expect(result.finalMessage).toBe("finished");
     });
 });
+
+describe("model call retries", () => {
+    const sender = (failures: unknown[]): { sender: LlmSender; calls: () => number } => {
+        let count = 0;
+        return {
+            calls: () => count,
+            sender: {
+                getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
+                async send() {
+                    count++;
+                    const failure = failures.shift();
+                    if (failure !== undefined) throw failure;
+                    return assistantDone("done");
+                },
+            },
+        };
+    };
+
+    it("retries a timed out call instead of failing the loop", async () => {
+        const timeout = Object.assign(new Error("Request timed out."), { name: "APIConnectionTimeoutError" });
+        const reset = Object.assign(new Error("socket closed"), { code: "ECONNRESET" });
+        const s = sender([timeout, reset, timeout]);
+        const result = await runAgentLoop(s.sender, "system", "prompt", "test", { activityId: 9001, retryBaseDelayMs: 1 });
+        expect(result.finalMessage).toBe("done");
+        expect(s.calls()).toBe(4);
+    });
+
+    it("gives up after four transient failures", async () => {
+        const timeout = Object.assign(new Error("Request timed out."), { name: "APIConnectionTimeoutError" });
+        const s = sender([timeout, timeout, timeout, timeout]);
+        await expect(
+            runAgentLoop(s.sender, "system", "prompt", "test", { activityId: 9002, retryBaseDelayMs: 1 }),
+        ).rejects.toThrow("Request timed out.");
+        expect(s.calls()).toBe(4);
+    });
+
+    it("does not retry an authentication failure", async () => {
+        const s = sender([Object.assign(new Error("unauthorized"), { status: 401 })]);
+        await expect(
+            runAgentLoop(s.sender, "system", "prompt", "test", { activityId: 9003, retryBaseDelayMs: 1 }),
+        ).rejects.toThrow("unauthorized");
+        expect(s.calls()).toBe(1);
+    });
+
+    it("keeps three attempts for a rate limit", async () => {
+        const limited = Object.assign(new Error("slow down"), { status: 429 });
+        const s = sender([limited, limited, limited]);
+        await expect(
+            runAgentLoop(s.sender, "system", "prompt", "test", { activityId: 9004, retryBaseDelayMs: 1 }),
+        ).rejects.toThrow("slow down");
+        expect(s.calls()).toBe(3);
+    });
+});

@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { LlmSender, Message } from "./loop.js";
-import type { SenderSDKConfig } from "./factory.js";
+import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
 import z from "zod";
 
 const openRouterErrorSchema = z.object({
@@ -30,7 +30,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 },
             }));
 
-            const signal = AbortSignal.timeout(config.timeoutSecond * 1000);
+            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
             try {
                 const stream = await client.chat.completions.create(
                     {
@@ -49,7 +49,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                     },
                     { signal },
                 );
-                const accumulated = await accumulateChatCompletionStream(stream);
+                const accumulated = await accumulateChatCompletionStream(stream, touch);
                 if (accumulated.finishReason === null) {
                     throw new Error("The model stream ended without a finish reason");
                 }
@@ -70,7 +70,9 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 };
             } catch (error) {
                 if (signal.aborted) {
-                    throw new OpenAI.APIConnectionTimeoutError();
+                    throw new OpenAI.APIConnectionTimeoutError({
+                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
+                    });
                 }
                 if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
                     const result = openRouterErrorSchema.safeParse({ error: error.error });
@@ -79,6 +81,8 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                     }
                 }
                 throw error;
+            } finally {
+                clear();
             }
         },
         getModel() {
@@ -104,6 +108,7 @@ type AccumulatedChatCompletion = {
 
 export async function accumulateChatCompletionStream(
     stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
+    onChunk?: () => void,
 ): Promise<AccumulatedChatCompletion> {
     let id: string | null = null;
     let content = "";
@@ -114,6 +119,7 @@ export async function accumulateChatCompletionStream(
     const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
     for await (const chunk of stream) {
+        onChunk?.();
         if (chunk.id) id = chunk.id;
         if (chunk.usage) {
             promptTokens = chunk.usage.prompt_tokens ?? promptTokens;
