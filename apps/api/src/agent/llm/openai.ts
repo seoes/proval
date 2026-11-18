@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { LlmSender, Message } from "./loop.js";
-import type { SenderSDKConfig } from "./factory.js";
+import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
 import z from "zod";
 
 const openRouterErrorSchema = z.object({
@@ -30,19 +30,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 },
             }));
 
-            // Two deadlines. The provider's timeout bounds the whole call, as before. The
-            // idle timeout bounds the silence between stream chunks: a stream that has
-            // stopped sending is dead, and waiting out the full call timeout on it (ten
-            // minutes here) only delays the retry that would succeed.
-            const idle = new AbortController();
-            const idleMs = modelIdleTimeoutMs(config.timeoutSecond);
-            let idleTimer: ReturnType<typeof setTimeout> | null = null;
-            const touch = () => {
-                if (idleTimer) clearTimeout(idleTimer);
-                idleTimer = setTimeout(() => idle.abort(), idleMs);
-            };
-            touch();
-            const signal = AbortSignal.any([AbortSignal.timeout(config.timeoutSecond * 1000), idle.signal]);
+            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
             try {
                 const stream = await client.chat.completions.create(
                     {
@@ -83,9 +71,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
             } catch (error) {
                 if (signal.aborted) {
                     throw new OpenAI.APIConnectionTimeoutError({
-                        message: idle.signal.aborted
-                            ? `Request timed out: no stream data for ${Math.round(idleMs / 1000)}s.`
-                            : undefined,
+                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
                     });
                 }
                 if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
@@ -96,7 +82,7 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
                 }
                 throw error;
             } finally {
-                if (idleTimer) clearTimeout(idleTimer);
+                clear();
             }
         },
         getModel() {
@@ -119,20 +105,6 @@ type AccumulatedChatCompletion = {
     completionTokens: number;
     cachedInputTokens: number;
 };
-
-/**
- * The most silence allowed between stream chunks, from PROVAL_MODEL_IDLE_TIMEOUT_SECOND,
- * default 240 seconds. Never longer than the call timeout itself. A reasoning model can
- * think for a couple of minutes before its first chunk, so this stays well above that.
- */
-export function modelIdleTimeoutMs(
-    callTimeoutSecond: number,
-    env: Record<string, string | undefined> = process.env,
-): number {
-    const parsed = Number.parseInt((env.PROVAL_MODEL_IDLE_TIMEOUT_SECOND ?? "").trim(), 10);
-    const idleSecond = Number.isFinite(parsed) && parsed > 0 ? parsed : 240;
-    return Math.min(idleSecond, callTimeoutSecond) * 1000;
-}
 
 export async function accumulateChatCompletionStream(
     stream: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
