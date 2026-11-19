@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 /**
  * Proval agent benchmark runner.
  *

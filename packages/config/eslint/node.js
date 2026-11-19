@@ -21,6 +21,7 @@ export function createNodeConfig({ gitignorePath, ignores = [], tsconfigRootDir 
         {
             languageOptions: {
                 globals: globals.node,
+                parserOptions: { tsconfigRootDir },
             },
         },
         {
