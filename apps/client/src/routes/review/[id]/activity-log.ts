@@ -52,8 +52,7 @@ export function serializeActivityLogList(logList: readonly ActivityLogEntry[]): 
         if (entry.type === "tool-result") continue;
 
         const result = entry.type === "tool-call" ? resultByCallId.get(entry.toolCallId) : undefined;
-        const matchedResult =
-            entry.type === "tool-call" && result?.toolName === entry.toolName ? result : undefined;
+        const matchedResult = entry.type === "tool-call" && result?.toolName === entry.toolName ? result : undefined;
         let filePath: string | undefined;
         if (entry.type === "tool-call" && entry.toolName === "get_file_content") {
             try {

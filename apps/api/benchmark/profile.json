@@ -10,13 +10,7 @@
     },
     "quick": {
         "seed": 42,
-        "caseIdList": [
-            "cal_dot_com__10967",
-            "discourse__8",
-            "grafana__106778",
-            "keycloak__37634",
-            "sentry__2"
-        ]
+        "caseIdList": ["cal_dot_com__10967", "discourse__8", "grafana__106778", "keycloak__37634", "sentry__2"]
     },
     "full": {
         "seed": 42,

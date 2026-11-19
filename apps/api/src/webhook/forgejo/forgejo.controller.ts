@@ -510,9 +510,6 @@ async function startForgejoPrReply(
     });
     activityQueue.drain();
 
-    log(
-        `PR reply queued (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`,
-        "Forgejo",
-    );
+    log(`PR reply queued (#${prNumber} comment ${commentId} ${inlineReviewId ? "inline" : "conversation"})`, "Forgejo");
     return new Response(JSON.stringify({ message: "Reply queued" }), { status: 202 });
 }

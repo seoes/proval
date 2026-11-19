@@ -41,10 +41,7 @@ export class Limiter {
                 this.active++;
                 resolve();
             });
-            debug(
-                `queued active ${this.active} max ${formatMax(this.max)} waiting ${this.queue.length}`,
-                "Limiter",
-            );
+            debug(`queued active ${this.active} max ${formatMax(this.max)} waiting ${this.queue.length}`, "Limiter");
         });
     }
 

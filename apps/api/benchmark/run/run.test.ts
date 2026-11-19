@@ -246,7 +246,14 @@ describe("batch resume with fake sender", () => {
         });
         const run = async (argList: string[], extra: Record<string, string> = {}) => {
             const proc = Bun.spawn(
-                [process.execPath, resolve(import.meta.dir, "../index.ts"), "run", ...argList, "--batch", "resume-batch"],
+                [
+                    process.execPath,
+                    resolve(import.meta.dir, "../index.ts"),
+                    "run",
+                    ...argList,
+                    "--batch",
+                    "resume-batch",
+                ],
                 { stdout: "pipe", stderr: "pipe", env: { ...env, ...extra } },
             );
             const [stdout, stderr, exitCode] = await Promise.all([
@@ -343,7 +350,14 @@ describe("batch resume with fake sender", () => {
         const env = childEnv({ BENCHMARK_FAKE_SENDER: "scripted" });
         const run = async (argList: string[]) => {
             const proc = Bun.spawn(
-                [process.execPath, resolve(import.meta.dir, "../index.ts"), "run", ...argList, "--batch", "repeat-batch"],
+                [
+                    process.execPath,
+                    resolve(import.meta.dir, "../index.ts"),
+                    "run",
+                    ...argList,
+                    "--batch",
+                    "repeat-batch",
+                ],
                 { stdout: "pipe", stderr: "pipe", env },
             );
             const [stdout, stderr, exitCode] = await Promise.all([

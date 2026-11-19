@@ -136,9 +136,7 @@
 {#if competitor.sectionList?.length}
     {#each competitor.sectionList as section, index (section.heading)}
         <section
-            class="border-t border-neutral-200/80 py-16 md:py-20 {index % 2 === 0
-                ? 'bg-neutral-50/40'
-                : ''}"
+            class="border-t border-neutral-200/80 py-16 md:py-20 {index % 2 === 0 ? 'bg-neutral-50/40' : ''}"
             aria-labelledby="content-section-{index}">
             <Container>
                 <h2

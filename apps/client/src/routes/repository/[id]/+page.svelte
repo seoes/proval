@@ -167,10 +167,9 @@
                 </span>
             </p>
             {#if (isFailed || isCanceled) && activity.errorMessage}
-                <p
-                    class="mt-0.5 truncate text-xs {isFailed
-                        ? 'text-destructive'
-                        : 'text-secondary-foreground'}">{activity.errorMessage}</p>
+                <p class="mt-0.5 truncate text-xs {isFailed ? 'text-destructive' : 'text-secondary-foreground'}">
+                    {activity.errorMessage}
+                </p>
             {/if}
         </div>
     {/snippet}

@@ -1,24 +1,24 @@
 import {
-	ArrowBendUpLeftIcon,
-	ChatCircleTextIcon,
-	ChatsCircleIcon,
-	CheckCircleIcon,
-	FileCodeIcon,
-	FileMagnifyingGlassIcon,
-	FilesIcon,
-	FileXIcon,
-	FolderOpenIcon,
-	GitDiffIcon,
-	GitPullRequestIcon,
-	InfoIcon,
-	MagnifyingGlassIcon,
-	NotePencilIcon,
-	PaperPlaneTiltIcon,
-	ScalesIcon,
-	StackPlusIcon,
-	TagIcon,
-	WrenchIcon,
-	XCircleIcon,
+    ArrowBendUpLeftIcon,
+    ChatCircleTextIcon,
+    ChatsCircleIcon,
+    CheckCircleIcon,
+    FileCodeIcon,
+    FileMagnifyingGlassIcon,
+    FilesIcon,
+    FileXIcon,
+    FolderOpenIcon,
+    GitDiffIcon,
+    GitPullRequestIcon,
+    InfoIcon,
+    MagnifyingGlassIcon,
+    NotePencilIcon,
+    PaperPlaneTiltIcon,
+    ScalesIcon,
+    StackPlusIcon,
+    TagIcon,
+    WrenchIcon,
+    XCircleIcon,
 } from "phosphor-svelte";
 
 export const toolIconRecord: Record<string, typeof WrenchIcon> = {
@@ -60,15 +60,15 @@ export const toolIconRecord: Record<string, typeof WrenchIcon> = {
  * Transform tool name from snake_case to human readable form
  */
 export function transformToolName(snakeCasedToolName: string): string {
-	const words = snakeCasedToolName.split("_");
-	const parts: string[] = [];
+    const words = snakeCasedToolName.split("_");
+    const parts: string[] = [];
 
-	for(const word of words) {
-		if(word.length === 0) continue;
+    for (const word of words) {
+        if (word.length === 0) continue;
 
-		const firstChar = word[0].toUpperCase();
-		parts.push(firstChar + word.substring(1));
-	}
+        const firstChar = word[0].toUpperCase();
+        parts.push(firstChar + word.substring(1));
+    }
 
-	return parts.join(" ");
+    return parts.join(" ");
 }

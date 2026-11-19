@@ -143,7 +143,7 @@
             <div class="rounded-md border border-warning bg-warning-muted p-4">
                 <FieldTitle class="mb-1">Copy this token now</FieldTitle>
                 <Description placement="below">It is shown once and cannot be retrieved again.</Description>
-                <p class="mt-3 break-all rounded bg-background px-3 py-2 font-mono text-xs text-foreground">
+                <p class="mt-3 rounded bg-background px-3 py-2 font-mono text-xs break-all text-foreground">
                     {newSecret}
                 </p>
                 <div class="mt-3 flex gap-2">

@@ -43,16 +43,21 @@ if (process.env.PROVAL_CLOSED_PR_REVIEW_TEST_CHILD !== "1") {
             modelProvider: { id: number };
         };
     }>();
-    app.post("/hook", async (c, next) => {
-        const payload = await c.req.json();
-        c.set("gitlabPayload", payload);
-        c.set("repository", repository);
-        c.set("modelProvider", { id: modelProviderId });
-        await next();
-    }, handleClosedPullRequestReview, async (c) => {
-        controllerReached = true;
-        return c.json({ controller: true });
-    });
+    app.post(
+        "/hook",
+        async (c, next) => {
+            const payload = await c.req.json();
+            c.set("gitlabPayload", payload);
+            c.set("repository", repository);
+            c.set("modelProvider", { id: modelProviderId });
+            await next();
+        },
+        handleClosedPullRequestReview,
+        async (c) => {
+            controllerReached = true;
+            return c.json({ controller: true });
+        },
+    );
 
     async function insertRepository(prReviewOnClose: RepositoryRow["prReviewOnClose"]) {
         fixtureCounter++;
@@ -160,7 +165,10 @@ if (process.env.PROVAL_CLOSED_PR_REVIEW_TEST_CHILD !== "1") {
     });
 
     it("skips cancel when policy is continue", async () => {
-        await db.update(repositoryTable).set({ prReviewOnClose: "continue" }).where(eq(repositoryTable.id, repository.id));
+        await db
+            .update(repositoryTable)
+            .set({ prReviewOnClose: "continue" })
+            .where(eq(repositoryTable.id, repository.id));
         repository = { ...repository, prReviewOnClose: "continue" };
         const response = await postGitLabMergeRequest({
             object_attributes: { action: "close", iid: 2 },
