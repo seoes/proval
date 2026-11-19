@@ -26,9 +26,8 @@
     const POLL_MS = 1000;
 
     const { data }: PageProps = $props();
-    let review = $state<ActivityResponse>(data.review);
-    let log = $state<ActivityLogResponse>(data.log);
-    let logCount = data.log.logs.length;
+    let review = $derived<ActivityResponse>(data.review);
+    let log = $derived<ActivityLogResponse>(data.log);
     let pollInFlight = false;
     let pollAgain = false;
     const status = $derived(activityStatusBadge(review.status));
@@ -207,7 +206,7 @@
         return `${stripe} hover:bg-accent/80`;
     }
 
-    const logRowList = $derived(serializeActivityLogList(log.logs));
+    const logRowList = $derived(serializeActivityLogList(log.entryList));
     const labelList = $derived([...new Set(logRowList.map((row) => row.entry.label))]);
     const visibleLogList = $derived(logRowList.filter((row) => !selectedLabel || row.entry.label === selectedLabel));
 
@@ -224,7 +223,7 @@
         try {
             do {
                 pollAgain = false;
-                const from = logCount;
+                const from = log.entryList.length;
                 const [logResponse, statusResponse] = await Promise.all([
                     fetchApi(`/activity/${id}/log?from=${from}`),
                     fetchApi(`/activity/${id}/status`),
@@ -232,9 +231,8 @@
                 if (id !== review.id) return;
                 if (logResponse.ok) {
                     const delta = (await logResponse.json()) as ActivityLogResponse;
-                    if (delta.from === logCount && delta.logs.length > 0) {
-                        log = { ...log, status: delta.status, logs: [...log.logs, ...delta.logs] };
-                        logCount += delta.logs.length;
+                    if (delta.from === log.entryList.length && delta.entryList.length > 0) {
+                        log = { ...log, status: delta.status, entryList: [...log.entryList, ...delta.entryList] };
                     }
                 }
                 if (id !== review.id) return;
@@ -247,16 +245,6 @@
             pollInFlight = false;
         }
     }
-
-    $effect(() => {
-        const nextReview = data.review;
-        const nextLog = data.log;
-        untrack(() => {
-            review = nextReview;
-            log = nextLog;
-            logCount = nextLog.logs.length;
-        });
-    });
 
     $effect(() => {
         const id = data.review.id;
@@ -366,7 +354,7 @@
         {#if showStatusMessage}
             <div class="mt-3 rounded-md px-3 py-2 {review.status === 'failed' ? 'bg-destructive-muted' : 'bg-muted'}">
                 <p
-                    class="line-clamp-5 text-sm break-words whitespace-pre-wrap {review.status === 'failed'
+                    class="line-clamp-5 text-sm wrap-break-word whitespace-pre-wrap {review.status === 'failed'
                         ? 'text-destructive'
                         : 'text-secondary-foreground'}">
                     {review.errorMessage}
@@ -448,12 +436,12 @@
                     {/each}
                 </div>
             {/if}
-            <div class="overflow-hidden rounded-md border border-border bg-background font-code [&_*]:font-code">
+            <div class="overflow-hidden rounded-md border border-border bg-background font-code **:font-code">
                 {#if visibleLogList.length === 0}
                     <p class="px-3 py-8 text-center text-xs text-muted-foreground">No log entries yet.</p>
                 {:else}
                     {#key review.id}
-                        <ul class="max-h-[32rem] overflow-y-auto py-1 text-xs leading-5 tracking-tight">
+                        <ul class="max-h-128 overflow-y-auto py-1 text-xs leading-5 tracking-tight">
                             {#each visibleLogList as row, index (row.key)}
                                 {@const entry = row.entry}
                                 <li class={logRowClass(entry.level, index)}>
@@ -471,7 +459,9 @@
                                                     class="mt-0.5 shrink-0 text-muted-foreground"
                                                     aria-hidden="true" />
                                                 <span
-                                                    class="min-w-0 flex-1 break-words {logLevelTextColor(entry.level)}">
+                                                    class="min-w-0 flex-1 wrap-break-word {logLevelTextColor(
+                                                        entry.level,
+                                                    )}">
                                                     <span class="block">
                                                         {transformToolName(entry.toolName)}<span
                                                             class="pointer-events-none ml-2 inline-block font-normal text-muted-foreground opacity-0 transition-opacity select-none group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -489,7 +479,7 @@
                                             <div class="mx-2 pb-2">
                                                 {#if row.result}
                                                     <div
-                                                        class="group min-w-0 break-words {logLevelTextColor(
+                                                        class="group min-w-0 wrap-break-word {logLevelTextColor(
                                                             row.result.level,
                                                         )}">
                                                         <!-- <span class="block font-semibold">Result</span> -->
@@ -515,7 +505,8 @@
                                         <div class="group flex gap-2.5 px-2 py-0.5">
                                             <span class="hidden shrink-0 text-muted-foreground md:inline"
                                                 >[{logStageLabel(entry.label)}]</span>
-                                            <span class="min-w-0 flex-1 break-words {logLevelTextColor(entry.level)}">
+                                            <span
+                                                class="min-w-0 flex-1 wrap-break-word {logLevelTextColor(entry.level)}">
                                                 {#if entry.type === "tool-error"}
                                                     <span class="block font-semibold">Error · {entry.toolName}</span>
                                                 {/if}
@@ -541,7 +532,7 @@
             {review.status === "canceled" ? "Canceled" : "Error"}
         </h3>
         <pre
-            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md px-3 py-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap {review.status ===
+            class="max-h-[min(28rem,70vh)] overflow-auto rounded-md px-3 py-2 font-mono text-xs leading-5 wrap-break-word whitespace-pre-wrap {review.status ===
             'canceled'
                 ? 'bg-muted text-secondary-foreground'
                 : 'bg-destructive-muted text-destructive'}">{review.errorMessage}</pre>

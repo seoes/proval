@@ -37,7 +37,7 @@ export type ActivityLogResponse = {
     logVersion: "1";
     /** Present when the caller asked for a tail. Entries before this index are omitted. */
     from?: number;
-    logs: ActivityLogEntry[];
+    entryList: ActivityLogEntry[];
 };
 
 /** Fields that change while a review is running. The detail poll reads only these. */

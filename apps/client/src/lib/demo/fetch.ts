@@ -211,7 +211,7 @@ function routeGet(pathname: string, searchParams: URLSearchParams): Response {
             return jsonResponse({ error: "Invalid from" }, 400);
         }
         const from = Number(fromQuery);
-        return jsonResponse({ ...log, from, logs: log.logs.slice(from) });
+        return jsonResponse({ ...log, from, entryList: log.entryList.slice(from) });
     }
 
     const activityMatch = pathname.match(/^\/activity\/(\d+)$/);

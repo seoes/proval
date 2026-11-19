@@ -83,7 +83,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
     async function readToolLogList() {
         const response = await service.findLogListById(activityId);
         if (!response) throw new Error("Activity not found");
-        return response.logs.filter((entry) => entry.type !== "common");
+        return response.entryList.filter((entry) => entry.type !== "common");
     }
 
     describe("activity log compatibility", () => {
@@ -115,14 +115,14 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             const body = (await response.json()) as ActivityLogResponse;
             expect(body.status).toBe("started");
             expect(body.logVersion).toBe("1");
-            expect(body.logs.map((entry) => entry.label)).toEqual(["Current", "Plan", "log", "log"]);
-            expect(body.logs.every((entry) => entry.type === "common" && entry.message === base.message)).toBe(true);
+            expect(body.entryList.map((entry) => entry.label)).toEqual(["Current", "Plan", "log", "log"]);
+            expect(body.entryList.every((entry) => entry.type === "common" && entry.message === base.message)).toBe(true);
             const saved = db
                 .select({ logs: activityTable.logs, logVersion: activityTable.logVersion })
                 .from(activityTable)
                 .where(eq(activityTable.id, activityId))
                 .get();
-            expect(saved?.logs).toEqual(body.logs);
+            expect(saved?.logs).toEqual(body.entryList);
             expect(saved?.logVersion).toBe("1");
             expect(saved?.logs.every((entry) => entry.timestamp === base.timestamp && entry.level === base.level)).toBe(
                 true,
@@ -158,13 +158,13 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
                 .where(eq(activityTable.id, activityId));
 
             const response = await service.findLogListById(activityId);
-            expect(response?.logs).toEqual([{ ...base, type: "common" }, ...toolLogList]);
+            expect(response?.entryList).toEqual([{ ...base, type: "common" }, ...toolLogList]);
             const saved = db
                 .select({ logs: activityTable.logs })
                 .from(activityTable)
                 .where(eq(activityTable.id, activityId))
                 .get();
-            expect(saved?.logs).toEqual(response?.logs);
+            expect(saved?.logs).toEqual(response?.entryList);
         });
 
         it("preserves a concurrent append and avoids duplicate migration writes", async () => {
@@ -195,8 +195,8 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             ]);
 
             const expected: ActivityLogEntry[] = [{ ...base, type: "common" }, appended];
-            expect(first?.logs).toEqual(expected);
-            expect(second?.logs).toEqual(expected);
+            expect(first?.entryList).toEqual(expected);
+            expect(second?.entryList).toEqual(expected);
             const saved = db
                 .select({ logs: activityTable.logs })
                 .from(activityTable)
@@ -207,7 +207,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
         });
 
         it("returns an empty list for a new activity and 404 for a missing activity", async () => {
-            expect(await service.findLogListById(activityId)).toEqual({ status: "started", logVersion: "1", logs: [] });
+            expect(await service.findLogListById(activityId)).toEqual({ status: "started", logVersion: "1", entryList: [] });
             const response = await app.request("/activity/0/log");
             expect(response.status).toBe(404);
         });
@@ -218,7 +218,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             const before = changeCount.get();
             const first = await service.findLogListById(activityId);
             const second = await service.findLogListById(activityId);
-            expect(first).toEqual({ status: "started", logVersion: "1", logs: [] });
+            expect(first).toEqual({ status: "started", logVersion: "1", entryList: [] });
             expect(second).toEqual(first);
             expect(changeCount.get()?.count).toBe((before?.count ?? 0) + 1);
             const saved = db
@@ -258,7 +258,7 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             expect(saved?.logVersion).toBe("1");
             const changeCount = db.$client.query("SELECT total_changes() AS count");
             const before = changeCount.get();
-            expect(await service.findLogListById(id)).toEqual({ status: "started", logVersion: "1", logs: [] });
+            expect(await service.findLogListById(id)).toEqual({ status: "started", logVersion: "1", entryList: [] });
             expect(changeCount.get()).toEqual(before);
         });
 
@@ -303,15 +303,15 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             const full = await app.request(`/activity/${activityId}/log`);
             const fullBody = (await full.json()) as ActivityLogResponse;
             expect(fullBody.from).toBeUndefined();
-            expect(fullBody.logs.map((item) => item.message)).toEqual(["one", "two"]);
+            expect(fullBody.entryList.map((item) => item.message)).toEqual(["one", "two"]);
 
             const tail = await app.request(`/activity/${activityId}/log?from=1`);
             const tailBody = (await tail.json()) as ActivityLogResponse;
             expect(tailBody.from).toBe(1);
-            expect(tailBody.logs.map((item) => item.message)).toEqual(["two"]);
+            expect(tailBody.entryList.map((item) => item.message)).toEqual(["two"]);
 
             const past = await app.request(`/activity/${activityId}/log?from=9`);
-            expect(await past.json()).toEqual({ status: "completed", logVersion: "1", from: 9, logs: [] });
+            expect(await past.json()).toEqual({ status: "completed", logVersion: "1", from: 9, entryList: [] });
 
             const invalid = await app.request(`/activity/${activityId}/log?from=nope`);
             expect(invalid.status).toBe(400);
@@ -328,13 +328,13 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             const beforeRead = changeCount.get();
             const response = await app.request(`/activity/${activityId}/log`);
             const body = (await response.json()) as ActivityLogResponse;
-            expect(body.logs[0]).toMatchObject({ type: "common", level: "info", message: "starting" });
-            expect(body.logs[1]).toMatchObject({ type: "common", level: "error" });
-            const toolLogList = body.logs.filter((entry) => entry.type !== "common");
+            expect(body.entryList[0]).toMatchObject({ type: "common", level: "info", message: "starting" });
+            expect(body.entryList[1]).toMatchObject({ type: "common", level: "error" });
+            const toolLogList = body.entryList.filter((entry) => entry.type !== "common");
             expect(toolLogList.map((entry) => entry.type)).toEqual(["tool-call", "tool-result"]);
             expect(toolLogList[0]).toMatchObject({ toolName: "read", message: call.arguments });
             expect(toolLogList[1]).toMatchObject({ toolCallId: toolLogList[0].toolCallId, message: '{"value":7}' });
-            expect(body.logs.every((entry) => Number.isFinite(Date.parse(entry.timestamp)))).toBe(true);
+            expect(body.entryList.every((entry) => Number.isFinite(Date.parse(entry.timestamp)))).toBe(true);
             expect(changeCount.get()).toEqual(beforeRead);
         });
     });

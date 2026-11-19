@@ -1071,7 +1071,7 @@ export function getActivityLogsById(id: number): ActivityLogResponse | undefined
         });
     }
 
-    return { status: activity.status, logVersion: "1", logs: sample };
+    return { status: activity.status, logVersion: "1", entryList: sample };
 }
 
 export function getGitHubInstallationById(id: number): GitHubInstallationResponse | undefined {

@@ -627,9 +627,9 @@ export class ActivityService {
 
     public async findLogListById(id: number, from?: number): Promise<ActivityLogResponse | null> {
         // ponytail: logs live in one JSON column, so a tail read still loads the whole value. A log table is the upgrade if poll CPU matters.
-        const respond = (status: Activity["status"], logs: ActivityLogEntry[]): ActivityLogResponse => {
-            if (from == null) return { status, logVersion: "1", logs };
-            return { status, logVersion: "1", from, logs: logs.slice(from) };
+        const respond = (status: Activity["status"], entryList: ActivityLogEntry[]): ActivityLogResponse => {
+            if (from == null) return { status, logVersion: "1", entryList };
+            return { status, logVersion: "1", from, entryList: entryList.slice(from) };
         };
 
         const rows = await db
