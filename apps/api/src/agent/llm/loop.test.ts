@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 
 mock.module("../../api/activity/activity.service.js", () => ({
     ActivityService: class {
-        async isCanceledOrFailed() {
+        public async isCanceledOrFailed() {
             return false;
         }
     },

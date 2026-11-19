@@ -53,15 +53,15 @@ export class MockProvider implements GitProvider {
 
     constructor(private readonly input: MockInput) {}
 
-    async fetchCurrentUser(): Promise<GitUser> {
+    public async fetchCurrentUser(): Promise<GitUser> {
         return this.input.currentUser ?? { username: "test_bot" };
     }
 
-    async fetchUserPermission(_identity: GitUserPermissionIdentity): Promise<number> {
+    public async fetchUserPermission(_identity: GitUserPermissionIdentity): Promise<number> {
         return this.input.permissionLevel ?? 5;
     }
 
-    async fetchRepositoryDetail(): Promise<GitRepository> {
+    public async fetchRepositoryDetail(): Promise<GitRepository> {
         return {
             id: 1,
             name: "mock-repo",
@@ -70,7 +70,7 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async fetchRepositoryPath(): Promise<string> {
+    public async fetchRepositoryPath(): Promise<string> {
         return "mock-org/mock-repo";
     }
 
@@ -82,23 +82,23 @@ export class MockProvider implements GitProvider {
         return "Authorization: Bearer mock";
     }
 
-    getPullRequestHeadFetchRef(prIid: number): string {
+    public getPullRequestHeadFetchRef(prIid: number): string {
         return `refs/pull/${prIid}/head`;
     }
 
-    getBranchFetchRef(branch: string): string {
+    public getBranchFetchRef(branch: string): string {
         return `refs/heads/${branch}`;
     }
 
-    async fetchPullRequestDetail(_prIid: number): Promise<GitPullRequest> {
+    public async fetchPullRequestDetail(_prIid: number): Promise<GitPullRequest> {
         return this.input.detail;
     }
 
-    async fetchPullRequestChangedFileCount(_prIid: number): Promise<number> {
+    public async fetchPullRequestChangedFileCount(_prIid: number): Promise<number> {
         return this.input.diffs.length;
     }
 
-    async fetchPullRequestCommentList(_prIid: number, options?: ListPaginationOptions) {
+    public async fetchPullRequestCommentList(_prIid: number, options?: ListPaginationOptions) {
         const commentList = [...(this.input.commentList ?? [])].sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
@@ -109,11 +109,11 @@ export class MockProvider implements GitProvider {
         return commentList.slice(start, start + options.limit);
     }
 
-    async fetchPullRequestReviewerList(_prIid: number): Promise<string[]> {
+    public async fetchPullRequestReviewerList(_prIid: number): Promise<string[]> {
         return this.input.reviewers ?? [];
     }
 
-    async fetchIssueDetail(_issueIid: number): Promise<GitIssue> {
+    public async fetchIssueDetail(_issueIid: number): Promise<GitIssue> {
         return {
             title: this.input.detail.title,
             description: this.input.detail.description,
@@ -123,16 +123,16 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
+    public async fetchRepositoryLabelList(): Promise<GitRepositoryLabel[]> {
         return [
             { name: "bug", description: "Something is not working" },
             { name: "enhancement", description: "New feature or request" },
         ];
     }
 
-    async addIssueLabel(_issueIid: number, _label: string): Promise<void> {}
+    public async addIssueLabel(_issueIid: number, _label: string): Promise<void> {}
 
-    async fetchIssueComment(_issueIid: number, commentId: number): Promise<GitComment> {
+    public async fetchIssueComment(_issueIid: number, commentId: number): Promise<GitComment> {
         const comment = (this.input.commentList ?? []).find((item) => item.id === commentId);
         if (comment) {
             return comment;
@@ -145,7 +145,7 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async fetchIssueCommentList(_issueIid: number, options?: ListPaginationOptions) {
+    public async fetchIssueCommentList(_issueIid: number, options?: ListPaginationOptions) {
         const commentList = [...(this.input.commentList ?? [])].sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
@@ -156,27 +156,27 @@ export class MockProvider implements GitProvider {
         return commentList.slice(start, start + options.limit);
     }
 
-    async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
+    public async createIssueComment(issueIid: number, body: string): Promise<GitComment> {
         return this.createPullRequestComment(issueIid, body);
     }
 
-    async searchIssueList(_query: string): Promise<GitRelatedItem[]> {
+    public async searchIssueList(_query: string): Promise<GitRelatedItem[]> {
         return [];
     }
 
-    async searchPullRequestList(_query: string): Promise<GitRelatedItem[]> {
+    public async searchPullRequestList(_query: string): Promise<GitRelatedItem[]> {
         return [];
     }
 
-    async searchCodeList(_query: string, _ref: string): Promise<GitCodeSearchResult[]> {
+    public async searchCodeList(_query: string, _ref: string): Promise<GitCodeSearchResult[]> {
         return [];
     }
 
-    isCodeSearchSupported(): boolean {
+    public isCodeSearchSupported(): boolean {
         return true;
     }
 
-    async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
+    public async searchLineByKeyword(keyword: string, filePath: string, ref: string): Promise<GitCodeSearchResult[]> {
         const content = await this.fetchFileContent(filePath, ref);
         const results: GitCodeSearchResult[] = [];
         const lines = content.split("\n");
@@ -191,15 +191,18 @@ export class MockProvider implements GitProvider {
         return results;
     }
 
-    async fetchDirectoryTree(_filePath: string, _ref: string, _recursive?: boolean): Promise<GitTree[]> {
+    public async fetchDirectoryTree(_filePath: string, _ref: string, _recursive?: boolean): Promise<GitTree[]> {
         return this.input.tree ?? [];
     }
 
-    async fetchFileContent(filePath: string, _ref?: string): Promise<string> {
+    public async fetchFileContent(filePath: string, _ref?: string): Promise<string> {
         return this.input.files?.[filePath] ?? `// file not found: ${filePath}`;
     }
 
-    async fetchPullRequestInlineReview(prIid: number, inlineReviewId: string): Promise<GitPullRequestInlineReview> {
+    public async fetchPullRequestInlineReview(
+        prIid: number,
+        inlineReviewId: string,
+    ): Promise<GitPullRequestInlineReview> {
         const review = (this.input.inlineReviewList ?? []).find((item) => item.id === inlineReviewId);
         if (review) {
             return review;
@@ -215,7 +218,7 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async fetchPullRequestInlineReviewList(_prIid: number, options?: ListPaginationOptions) {
+    public async fetchPullRequestInlineReviewList(_prIid: number, options?: ListPaginationOptions) {
         const inlineReviewList = [...(this.input.inlineReviewList ?? [])].sort(
             (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
@@ -226,7 +229,7 @@ export class MockProvider implements GitProvider {
         return inlineReviewList.slice(start, start + options.limit);
     }
 
-    async fetchPullRequestInlineReviewComment(_prIid: number, commentId: number): Promise<GitComment> {
+    public async fetchPullRequestInlineReviewComment(_prIid: number, commentId: number): Promise<GitComment> {
         for (const review of this.input.inlineReviewList ?? []) {
             const comment = review.commentList.find((c) => c.id === commentId);
             if (comment) {
@@ -241,7 +244,11 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async replyToPullRequestInlineReview(_prIid: number, _inlineReviewId: string, body: string): Promise<GitComment> {
+    public async replyToPullRequestInlineReview(
+        _prIid: number,
+        _inlineReviewId: string,
+        body: string,
+    ): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -251,15 +258,15 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
+    public async fetchRepositoryList(): Promise<GitRepositoryListItem[]> {
         return [];
     }
 
-    async fetchPullRequestVersion(_prIid: number): Promise<GitPullRequestVersion> {
+    public async fetchPullRequestVersion(_prIid: number): Promise<GitPullRequestVersion> {
         return this.input.version ?? defaultVersion;
     }
 
-    async createPullRequestComment(_prIid: number, body: string): Promise<GitComment> {
+    public async createPullRequestComment(_prIid: number, body: string): Promise<GitComment> {
         this.posted.push({ type: "comment", body });
         return {
             id: Date.now(),
@@ -269,11 +276,11 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    takeFlushedInlineCommentList(): GitComment[] {
+    public takeFlushedInlineCommentList(): GitComment[] {
         return [];
     }
 
-    async fetchPullRequestComment(_prIid: number, _commentId: number): Promise<GitComment> {
+    public async fetchPullRequestComment(_prIid: number, _commentId: number): Promise<GitComment> {
         return {
             id: _commentId,
             body: "test_body",
@@ -282,7 +289,11 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async createCommentToSingleLine(_prIid: number, body: string, _position: GitDiffSingleLine): Promise<GitComment> {
+    public async createCommentToSingleLine(
+        _prIid: number,
+        body: string,
+        _position: GitDiffSingleLine,
+    ): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -292,7 +303,11 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async createCommentToMultiLine(_prIid: number, body: string, _position: GitDiffMultiLine): Promise<GitComment> {
+    public async createCommentToMultiLine(
+        _prIid: number,
+        body: string,
+        _position: GitDiffMultiLine,
+    ): Promise<GitComment> {
         this.posted.push({ type: "inline", body });
         return {
             id: Date.now(),
@@ -302,21 +317,21 @@ export class MockProvider implements GitProvider {
         };
     }
 
-    async approvePullRequest(_prIid: number): Promise<void> {
+    public async approvePullRequest(_prIid: number): Promise<void> {
         this.posted.push({ type: "approve", body: "" });
     }
 
-    async unapprovePullRequest(_prIid: number): Promise<void> {
+    public async unapprovePullRequest(_prIid: number): Promise<void> {
         this.posted.push({ type: "unapprove", body: "" });
     }
 
-    async assignPullRequestReviewer(_prIid: number): Promise<void> {
+    public async assignPullRequestReviewer(_prIid: number): Promise<void> {
         // Webhook-only; no-op for demo
     }
 
-    async addEmoji(target: GitEmojiTarget, emoji: GitEmoji): Promise<void> {
+    public async addEmoji(target: GitEmojiTarget, emoji: GitEmoji): Promise<void> {
         this.emojiList.push({ target, emoji });
     }
 
-    async removeEmoji(_target: GitEmojiTarget, _emoji: GitEmoji): Promise<void> {}
+    public async removeEmoji(_target: GitEmojiTarget, _emoji: GitEmoji): Promise<void> {}
 }

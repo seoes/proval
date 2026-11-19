@@ -64,8 +64,8 @@ mock.module("../../db/index.js", () => ({
 
 mock.module("../access/access.service.js", () => ({
     GitLabAccessService: class {
-        findById = findByIdMock;
-        getAccessToken = getAccessTokenMock;
+        public findById = findByIdMock;
+        public getAccessToken = getAccessTokenMock;
     },
 }));
 
@@ -78,9 +78,9 @@ const removeProjectAccessTokenMock = mock(async () => undefined);
 
 mock.module("../../git-provider/gitlab.js", () => ({
     GitLabProvider: class {
-        static createProjectAccessToken = createProjectAccessTokenMock;
-        static removeProjectAccessToken = removeProjectAccessTokenMock;
-        static rotateProjectAccessToken = mock(async () => ({ token: "rotated", tokenId: 43 }));
+        public static createProjectAccessToken = createProjectAccessTokenMock;
+        public static removeProjectAccessToken = removeProjectAccessTokenMock;
+        public static rotateProjectAccessToken = mock(async () => ({ token: "rotated", tokenId: 43 }));
     },
 }));
 

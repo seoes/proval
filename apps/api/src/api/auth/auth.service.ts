@@ -40,7 +40,7 @@ function createSessionToken(): string {
 }
 
 export class AuthService {
-    async getOrCreateInstanceSetting() {
+    public async getOrCreateInstanceSetting() {
         const inserted = await db
             .insert(instanceSettingTable)
             .values({
@@ -60,12 +60,12 @@ export class AuthService {
         return existing[0];
     }
 
-    async getUserCount(): Promise<number> {
+    private async getUserCount(): Promise<number> {
         const result = await db.select({ value: count() }).from(userTable);
         return result[0]?.value ?? 0;
     }
 
-    async isSetupRequired(): Promise<boolean> {
+    public async isSetupRequired(): Promise<boolean> {
         return (await this.getUserCount()) === 0;
     }
 
@@ -78,7 +78,7 @@ export class AuthService {
         };
     }
 
-    async getMe(user: UserResponse | null): Promise<AuthMeResponse> {
+    public async getMe(user: UserResponse | null): Promise<AuthMeResponse> {
         const setting = await this.getOrCreateInstanceSetting();
         const isSetupRequired = await this.isSetupRequired();
         return {
@@ -89,7 +89,7 @@ export class AuthService {
         };
     }
 
-    async findUserBySessionToken(token: string): Promise<UserResponse | null> {
+    public async findUserBySessionToken(token: string): Promise<UserResponse | null> {
         const now = new Date();
         const rowList = await db
             .select({
@@ -109,7 +109,7 @@ export class AuthService {
         return toUserResponse(user);
     }
 
-    async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
+    private async createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
         const token = createSessionToken();
         const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
         await db.insert(sessionTable).values({
@@ -121,7 +121,7 @@ export class AuthService {
         return { token, expiresAt };
     }
 
-    async deleteSession(token: string): Promise<void> {
+    public async deleteSession(token: string): Promise<void> {
         await db.delete(sessionTable).where(eq(sessionTable.token, token));
     }
 
@@ -159,7 +159,7 @@ export class AuthService {
         }
     }
 
-    async createInitialAdmin(
+    public async createInitialAdmin(
         input: AuthCredentialInput,
     ): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
         const email = input.email.trim().toLowerCase();
@@ -231,7 +231,9 @@ export class AuthService {
         }
     }
 
-    async registerUser(input: AuthCredentialInput): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
+    public async registerUser(
+        input: AuthCredentialInput,
+    ): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
         const setting = await this.getOrCreateInstanceSetting();
         const isSetupRequired = await this.isSetupRequired();
         if (isSetupRequired) {
@@ -253,7 +255,7 @@ export class AuthService {
         };
     }
 
-    async login(input: AuthCredentialInput): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
+    public async login(input: AuthCredentialInput): Promise<{ user: UserResponse; token: string; expiresAt: Date }> {
         const email = input.email.trim().toLowerCase();
         if (!email || !input.password) {
             throw new Error("Email and password are required");
@@ -277,12 +279,12 @@ export class AuthService {
         };
     }
 
-    async findUserList(): Promise<UserResponse[]> {
+    public async findUserList(): Promise<UserResponse[]> {
         const rowList = await db.select().from(userTable).orderBy(asc(userTable.email));
         return rowList.map(toUserResponse);
     }
 
-    async removeUser(id: string, actorId: string): Promise<void> {
+    public async removeUser(id: string, actorId: string): Promise<void> {
         if (id === actorId) {
             throw new Error("Cannot delete the signed-in user");
         }
@@ -301,7 +303,7 @@ export class AuthService {
         await db.delete(userTable).where(eq(userTable.id, id));
     }
 
-    async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
+    public async updateInstanceSetting(input: InstanceSettingUpdateInput): Promise<InstanceSettingResponse> {
         if (
             typeof input.isAuthEnabled !== "boolean" ||
             typeof input.isRegistrationEnabled !== "boolean" ||

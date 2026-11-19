@@ -21,7 +21,6 @@ export function createNodeConfig({ gitignorePath, ignores = [], tsconfigRootDir 
         {
             languageOptions: {
                 globals: globals.node,
-                parserOptions: { tsconfigRootDir },
             },
         },
         {
@@ -34,7 +33,13 @@ export function createNodeConfig({ gitignorePath, ignores = [], tsconfigRootDir 
                     tsconfigRootDir,
                 },
             },
-            rules: typedRules,
+            rules: {
+                ...typedRules,
+                "@typescript-eslint/explicit-member-accessibility": [
+                    "error",
+                    { accessibility: "explicit", overrides: { constructors: "no-public" } },
+                ],
+            },
         },
         {
             files: ["**/*.{js,mjs,cjs}"],

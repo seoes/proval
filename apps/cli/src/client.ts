@@ -5,9 +5,9 @@ export type QueryValue = string | number | boolean | undefined | null;
 /** Thrown for anything the user can act on: a bad token, a missing scope, a 404. */
 export class ApiError extends Error {
     constructor(
-        readonly status: number,
+        public readonly status: number,
         message: string,
-        readonly hint?: string,
+        public readonly hint?: string,
     ) {
         super(message);
         this.name = "ApiError";
@@ -73,7 +73,7 @@ export class ApiClient {
         private readonly fetchImpl: FetchLike = fetch,
     ) {}
 
-    async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+    private async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
         const url = buildUrl(this.credentials.url, path, options.query);
         const headers: Record<string, string> = {
             Authorization: `Bearer ${this.credentials.token}`,
@@ -115,16 +115,16 @@ export class ApiClient {
         }
     }
 
-    get<T>(path: string, query?: Record<string, QueryValue>) {
+    public get<T>(path: string, query?: Record<string, QueryValue>) {
         return this.request<T>("GET", path, { query });
     }
-    post<T>(path: string, body?: unknown) {
+    public post<T>(path: string, body?: unknown) {
         return this.request<T>("POST", path, { body });
     }
-    put<T>(path: string, body: unknown) {
+    public put<T>(path: string, body: unknown) {
         return this.request<T>("PUT", path, { body });
     }
-    delete<T>(path: string) {
+    public delete<T>(path: string) {
         return this.request<T>("DELETE", path);
     }
 }

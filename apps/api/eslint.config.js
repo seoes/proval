@@ -11,6 +11,6 @@ export default [
     }),
     {
         files: ["benchmark/**"],
-        rules: { "no-console": "off" },
+        rules: { "no-console": "off", "@typescript-eslint/no-non-null-assertion": "off" },
     },
 ];

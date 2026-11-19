@@ -14,7 +14,7 @@ type ManifestConversionResult = {
 };
 
 export class GitHubAppService {
-    async get(): Promise<GitHubAppResponse[]> {
+    public async get(): Promise<GitHubAppResponse[]> {
         const appList = await db.select().from(githubAppTable).limit(1);
         if (appList.length === 0) {
             return [];
@@ -28,7 +28,7 @@ export class GitHubAppService {
         }));
     }
 
-    async verifyCredentials(
+    public async verifyCredentials(
         appId: number,
         privateKey: string,
     ): Promise<{ success: boolean; message: string; slug?: string }> {
@@ -51,7 +51,7 @@ export class GitHubAppService {
         }
     }
 
-    async create(input: GitHubAppCreateInput): Promise<{ id: number; slug: string }> {
+    public async create(input: GitHubAppCreateInput): Promise<{ id: number; slug: string }> {
         const existingAppList = await db.select().from(githubAppTable).limit(1);
         if (existingAppList.length > 0) {
             throw new Error("App already exists. Only one app per instance.");
@@ -76,7 +76,7 @@ export class GitHubAppService {
         return { id: inserted[0].id, slug };
     }
 
-    async createFromManifest(code: string): Promise<{ id: number; slug: string }> {
+    public async createFromManifest(code: string): Promise<{ id: number; slug: string }> {
         const existingAppList = await db.select().from(githubAppTable).limit(1);
         if (existingAppList.length > 0) {
             throw new Error("App already exists. Only one app per instance.");
@@ -110,7 +110,7 @@ export class GitHubAppService {
         return { id: inserted[0].id, slug: result.slug };
     }
 
-    async delete(): Promise<void> {
+    public async delete(): Promise<void> {
         const appList = await db.select().from(githubAppTable).limit(1);
         if (appList.length === 0) {
             throw new Error("No app to delete");
@@ -118,7 +118,7 @@ export class GitHubAppService {
         await db.delete(githubAppTable).where(eq(githubAppTable.id, appList[0].id));
     }
 
-    async getInstallationToken(installationId: number): Promise<Octokit> {
+    public async getInstallationToken(installationId: number): Promise<Octokit> {
         const appList = await db.select().from(githubAppTable).limit(1);
         if (appList.length === 0) {
             throw new Error("No GitHub App configured");
@@ -139,7 +139,7 @@ export class GitHubAppService {
         return octokit;
     }
 
-    getAppRecord() {
+    public getAppRecord() {
         return db.select().from(githubAppTable).limit(1);
     }
 }
