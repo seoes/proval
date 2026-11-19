@@ -31,7 +31,7 @@ export const baseConfigs = [
         },
     },
     {
-        files: ["**/*.test.ts"],
+        files: ["**/*.test.ts", "benchmark/**/*.ts"],
         rules: { "@typescript-eslint/no-non-null-assertion": "off" },
     },
 ];

@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+
+/* eslint-disable no-console */
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
