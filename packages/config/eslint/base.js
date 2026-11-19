@@ -29,4 +29,8 @@ export const baseConfigs = [
             "@typescript-eslint/no-non-null-assertion": "warn",
         },
     },
+    {
+        files: ["**/*.test.ts"],
+        rules: { "@typescript-eslint/no-non-null-assertion": "off" },
+    },
 ];
