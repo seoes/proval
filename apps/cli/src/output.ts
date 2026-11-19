@@ -40,7 +40,10 @@ export function renderTable<T>(rowList: T[], columnList: Column<T>[]): string {
 
     const lineList: string[] = [];
     lineList.push(
-        columnList.map((column, index) => pad(column.header, widthList[index]!, false)).join("  ").trimEnd(),
+        columnList
+            .map((column, index) => pad(column.header, widthList[index]!, false))
+            .join("  ")
+            .trimEnd(),
     );
     for (const cells of cellMatrix) {
         lineList.push(

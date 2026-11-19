@@ -17,6 +17,7 @@
         "@proval/types": "workspace:*"
     },
     "devDependencies": {
+        "@proval/config": "workspace:*",
         "@types/bun": "^1.3.11",
         "eslint": "^9.39.2",
         "prettier": "^3.8.1",
