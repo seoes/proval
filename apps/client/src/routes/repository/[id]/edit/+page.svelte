@@ -123,6 +123,7 @@
             prReviewOnPush: data.repository.prReviewOnPush,
             prReviewOnClose: data.repository.prReviewOnClose,
             prIgnoreDraft: data.repository.prIgnoreDraft,
+            prTriageEnabled: data.repository.prTriageEnabled,
             prAllowedTargetBranchList: data.repository.prAllowedTargetBranchList,
             userPrompt: data.repository.userPrompt,
             prReplyEnabled: data.repository.prReplyEnabled,

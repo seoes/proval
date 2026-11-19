@@ -43,6 +43,21 @@ export function activityTypeLabel(type: ActivityResponse["type"]): string {
     return activityTypeLabelList[type] ?? type;
 }
 
+const triageRuleLabelList: Record<string, string> = {
+    "rebase-only": "nothing changed since the last review",
+    "docs-only": "documentation only",
+    "tests-only": "tests only",
+    "generated-only": "generated files only",
+    "small-change": "small change",
+    "mechanical-author": "mechanical author",
+    "mechanical-title": "mechanical by title",
+    default: "no rule matched",
+};
+
+export function triageRuleLabel(rule: string): string {
+    return triageRuleLabelList[rule] ?? rule;
+}
+
 export function activityStatusBadge(status: ActivityResponse["status"]): OptionBadge {
     if (status === "queued") return { variant: "warning", label: "Queued" };
     if (status === "completed") return { variant: "success", label: "Completed" };

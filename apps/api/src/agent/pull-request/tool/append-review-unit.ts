@@ -1,7 +1,14 @@
 import type { AgentTool } from "../../llm/loop.js";
 import { reviewUnitAppendSchema, type ReviewUnit } from "../review/plan.schema.js";
 
-export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
+/**
+ * maxUnitCount is the unit budget triage set. The planner is told the budget in its
+ * prompt, but a prompt is a request: one 86 file merge request was planned as 7 units
+ * under a cap of 6. So the tool enforces it. Once the plan is full, a further unit is
+ * merged into the last one instead of being dropped, so every file the planner placed
+ * is still reviewed, and the planner is told to stop adding units.
+ */
+export function appendReviewUnitTool(reviewUnitList: ReviewUnit[], maxUnitCount: number | null = null): AgentTool {
     return {
         name: "append_review_unit",
         description: [
@@ -19,6 +26,21 @@ export function appendReviewUnitTool(reviewUnitList: ReviewUnit[]): AgentTool {
         parameters: reviewUnitAppendSchema.toJSONSchema(),
         execute: async (args) => {
             const parsed = reviewUnitAppendSchema.parse(args);
+            const last = reviewUnitList[reviewUnitList.length - 1];
+            if (maxUnitCount !== null && maxUnitCount > 0 && last && reviewUnitList.length >= maxUnitCount) {
+                last.files = [...new Set([...last.files, ...parsed.files])];
+                last.name = `${last.name} + ${parsed.name}`;
+                last.description = `${last.description}\n\n${parsed.name}: ${parsed.description}`;
+                const seen = new Set(last.references.map((r) => r.path));
+                last.references = [...last.references, ...parsed.references.filter((r) => !seen.has(r.path))];
+                return {
+                    ok: true,
+                    merged: true,
+                    mergedInto: last.id,
+                    total: reviewUnitList.length,
+                    note: `The plan already has ${maxUnitCount} unit(s), the most this review allows, so these files were merged into unit ${last.id}. Do not append more units: place any remaining files in the existing units' scope or skip them, then finish.`,
+                };
+            }
             const unit: ReviewUnit = {
                 id: reviewUnitList.length + 1,
                 files: parsed.files,
