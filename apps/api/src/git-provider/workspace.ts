@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { join, posix, resolve, sep } from "node:path";
 import { log, logAgent, logAgentError, logError } from "../util/log.js";
