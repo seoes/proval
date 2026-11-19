@@ -38,7 +38,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
         runIssueReply: runIssueReplyMock,
     }));
 
-    const { and, asc, eq } = await import("drizzle-orm");
+    const { and, eq } = await import("drizzle-orm");
     const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
     const { default: db } = await import("../../db/index.js");
     const { activityTable, gitProviderAccessTable, modelProviderTable, repositoryTable } = await import("@proval/db");

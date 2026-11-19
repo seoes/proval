@@ -2,17 +2,17 @@ import matter from "gray-matter";
 import { marked, type Tokens } from "marked";
 import type { BlogPost, BlogPostMeta, DocHeading, DocMeta, DocPage } from "./types";
 
-const blogModules = import.meta.glob("../../content/blog/*.md", {
+const blogModules = import.meta.glob<string>("../../content/blog/*.md", {
     eager: true,
     query: "?raw",
     import: "default",
-}) as Record<string, string>;
+});
 
-const docModules = import.meta.glob("../../content/docs/**/*.md", {
+const docModules = import.meta.glob<string>("../../content/docs/**/*.md", {
     eager: true,
     query: "?raw",
     import: "default",
-}) as Record<string, string>;
+});
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -38,7 +38,7 @@ function slugifyHeading(text: string): string {
 }
 
 function parseMarkdown(content: string): string {
-    return marked.parse(content, { async: false }) as string;
+    return marked.parse(content, { async: false });
 }
 
 function parseDocMarkdown(content: string): { html: string; headingList: DocHeading[] } {
@@ -61,13 +61,13 @@ function parseDocMarkdown(content: string): { html: string; headingList: DocHead
             suffix += 1;
         }
         usedIdList.add(id);
-        headingList.push({ id, text, level: token.depth as 2 | 3 });
+        headingList.push({ id, text, level: token.depth });
 
         const inner = this.parser.parseInline(token.tokens);
         return `<h${token.depth} id="${id}"><a href="#${id}" class="doc-anchor">${inner}</a></h${token.depth}>\n`;
     };
 
-    const html = marked.parse(content, { async: false, renderer }) as string;
+    const html = marked.parse(content, { async: false, renderer });
     return { html, headingList };
 }
 

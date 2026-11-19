@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { GITHUB_URL, DEMO_URL } from "../constants";
-
     const year = new Date().getFullYear();
 
     const product = [
@@ -9,12 +7,6 @@
         { href: "/alternatives", label: "Alternatives" },
         { href: "/docs/gitlab", label: "GitLab" },
         { href: "/docs/set-llm", label: "Set LLM" },
-    ];
-
-    const connect = [
-        { href: DEMO_URL, label: "Demo", external: true },
-        { href: GITHUB_URL, label: "GitHub", external: true },
-        { href: "mailto:me@dowonseo.com", label: "me@dowonseo.com", external: false },
     ];
 </script>
 

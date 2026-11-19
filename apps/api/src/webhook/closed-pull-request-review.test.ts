@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterEach, beforeEach, expect, it, spyOn } from "bun:test";
 import { resolve } from "node:path";
 
 if (process.env.PROVAL_CLOSED_PR_REVIEW_TEST_CHILD !== "1") {

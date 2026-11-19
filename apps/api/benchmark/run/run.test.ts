@@ -151,7 +151,7 @@ function childEnv(extra: Record<string, string> = {}): Record<string, string> {
         LLM_API_KEY: "fake",
         LLM_MODEL: "fake-model",
         ...extra,
-    } as Record<string, string>;
+    };
 }
 
 function spawnWorkerChild(env: Record<string, string>, attemptIndex: number, tag: string) {
@@ -428,7 +428,7 @@ describe("run worker with fake sender", () => {
         expect(record.evaluation).toBe("good");
         expect(record.reviewUnitCount).toBe(2);
 
-        const timing = record.timing as PhaseTiming;
+        const timing = record.timing;
         // Phase durations partition the review and preparation stays outside.
         expect(timing.prepareMs).toBeGreaterThanOrEqual(0);
         for (const key of ["setupMs", "planMs", "subWallMs", "writingMs", "finalizeMs"] as const) {

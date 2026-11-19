@@ -11,6 +11,13 @@
         "jsxImportSource": "hono/jsx",
         "outDir": "./dist"
     },
-    "include": ["src/**/*.ts", "review/**/*.ts", "benchmark/**/*.ts", "mock/provider.ts"],
+    "include": [
+        "src/**/*.ts",
+        "review/**/*.ts",
+        "benchmark/**/*.ts",
+        "scripts/**/*.ts",
+        "mock/provider.ts",
+        "bruno-script.ts"
+    ],
     "exclude": ["node_modules", "benchmark/data"]
 }

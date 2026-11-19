@@ -2,7 +2,6 @@ import type { Handler } from "hono";
 import { RepositoryService } from "./repository.service.js";
 import type { RepositoryInsert, RepositoryUpdateInput, SecretInput } from "@proval/types";
 import { validateAllowedBranchList } from "../../util/allowed-target-branch.js";
-import { log } from "../../util/log.js";
 import { normalizeWebhookSecret, WebhookCredentialError } from "../../util/webhook-secret.js";
 
 export const findAllRepositoryController: Handler = async (c) => {
@@ -49,7 +48,7 @@ export const createRepository: Handler = async (c) => {
             return c.json({ error: "GitHub repository ID is required" }, 400);
         }
         try {
-            const repository = await repositoryService.create(githubBody as RepositoryInsert);
+            const repository = await repositoryService.create(githubBody);
             return c.json(repository, 201);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

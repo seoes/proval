@@ -11,7 +11,7 @@ function slugify(str: string): string {
     return (
         str
             .replace(/^\//, "")
-            .replace(/[\/:{}]/g, "-")
+            .replace(/[/:{}]/g, "-")
             .replace(/-+/g, "-") || "root"
     );
 }
