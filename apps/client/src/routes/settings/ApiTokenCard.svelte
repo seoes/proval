@@ -17,13 +17,9 @@
 
     let { tokenList }: Props = $props();
 
-    let list = $state<ApiTokenResponse[]>([]);
-
     // Seeded from the loader and resynced if the page reloads. Create and revoke
     // update it in place so the list does not need a round trip.
-    $effect(() => {
-        list = tokenList;
-    });
+    let list = $derived(tokenList);
     let isCreating = $state(false);
     let isBusy = $state(false);
     let name = $state("");

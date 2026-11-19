@@ -137,7 +137,7 @@ describe("serializeActivityLogList", () => {
         const [row] = serializeActivityLogList([call, { ...toolResult(call), message: '{"ok":true,"count":2}' }]);
         assert.match(row?.resultHtml ?? "", /hljs-attr/);
         assert.match(row?.resultHtml ?? "", /&quot;count&quot;/);
-        assert.match(row?.resultHtml ?? "", /\n    <span class="hljs-attr">/);
+        assert.match(row?.resultHtml ?? "", /\n {4}<span class="hljs-attr">/);
 
         const [cut] = serializeActivityLogList([call, { ...toolResult(call), message: '{"ok":true…' }]);
         assert.equal(cut?.resultHtml, undefined);

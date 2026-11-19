@@ -10,6 +10,7 @@
         class?: string;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- ESLint cannot see the Svelte generic, svelte-check needs the cast
     let { group = $bindable("" as Value), value, label, name, disabled = false, class: className }: Props = $props();
 </script>
 

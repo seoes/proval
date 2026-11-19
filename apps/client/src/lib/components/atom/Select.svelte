@@ -26,6 +26,7 @@
         upper = false,
         linkLabelToControl = true,
         options,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- ESLint cannot see the Svelte generic, svelte-check needs the cast
         value = $bindable("" as Value),
         placeholder = "Select",
         disabled = false,

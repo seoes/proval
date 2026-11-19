@@ -10,7 +10,8 @@
         "build": "bun build src/index.ts --outdir dist --target bun",
         "compile": "bun build src/index.ts --compile --outfile ./proval",
         "test": "bun test",
-        "lint": "prettier --check . && eslint .",
+        "lint": "eslint .",
+        "format:check": "prettier --check .",
         "format": "prettier --write ."
     },
     "dependencies": {

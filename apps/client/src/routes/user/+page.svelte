@@ -10,18 +10,15 @@
     import fetchApi, { formatTimeAgo } from "$lib/utils";
     import { formatLocalDateOnly } from "$lib/utils/date.js";
     import type { UserResponse } from "@proval/types";
+    import { SvelteSet } from "svelte/reactivity";
     import type { PageProps } from "./$types";
 
     let { data }: PageProps = $props();
 
-    let userList = $state<UserResponse[]>(data.userList);
-    let deletingIdSet = $state(new Set<string>());
+    let userList = $derived(data.userList);
+    const deletingIdSet = new SvelteSet<string>();
     let selectedUser = $state<UserResponse | null>(null);
     let detailModalOpen = $state(false);
-
-    $effect(() => {
-        userList = data.userList;
-    });
 
     const adminCount = $derived(userList.filter((user) => user.role === "admin").length);
 
@@ -64,7 +61,7 @@
         if (!confirmed) {
             return;
         }
-        deletingIdSet = new Set(deletingIdSet).add(user.id);
+        deletingIdSet.add(user.id);
         try {
             const response = await fetchApi(`/user/${user.id}`, { method: "DELETE" });
             if (!response.ok) {
@@ -78,9 +75,7 @@
                 closeUserDetail();
             }
         } finally {
-            const next = new Set(deletingIdSet);
-            next.delete(user.id);
-            deletingIdSet = next;
+            deletingIdSet.delete(user.id);
         }
     }
 </script>

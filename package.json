@@ -10,6 +10,7 @@
         "test": "bun run --filter api test && bun run --filter client test",
         "lint": "bun run --parallel --filter '*' --filter '!@proval/config' lint",
         "format": "bun run --parallel --filter '*' --filter '!@proval/config' format",
+        "format:check": "bun run --parallel --filter '*' --filter '!@proval/config' format:check",
         "tunnel": "cloudflared tunnel run proval-dev",
         "tunnel:tmp": "cloudflared tunnel --url http://localhost:7901",
         "studio": "bun run --filter 'api' studio",
