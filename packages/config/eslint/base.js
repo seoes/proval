@@ -6,6 +6,7 @@ export const typedRules = {
     "@typescript-eslint/switch-exhaustiveness-check": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
 };
 
 /** @type {import('eslint').Linter.Config[]} */

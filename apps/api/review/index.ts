@@ -168,7 +168,7 @@ async function buildDiffList(mergeBase: string, headSha: string, cloneDir: strin
 
     for (const line of nsOutput.split("\n").filter(Boolean)) {
         const tab = line.split("\t");
-        const code = tab[0]!;
+        const code = tab[0];
         if (code === "C" || code.startsWith("C")) {
             continue;
         }
@@ -177,8 +177,8 @@ async function buildDiffList(mergeBase: string, headSha: string, cloneDir: strin
         const isDelete = code === "D";
         const isAdd = code === "A";
 
-        const oldPath = isRename ? tab[1]! : isDelete ? tab[1]! : isAdd ? "" : tab[1]!;
-        const newPath = isRename ? tab[2]! : tab[1]!;
+        const oldPath = isRename ? tab[1] : isDelete ? tab[1] : isAdd ? "" : tab[1];
+        const newPath = isRename ? tab[2] : tab[1];
         const pathList =
             isRename && oldPath && oldPath !== newPath ? [oldPath, newPath] : [isDelete ? oldPath : newPath];
 

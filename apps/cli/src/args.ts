@@ -25,7 +25,7 @@ export function parseCommandLine(argvList: string[]): ParsedCommandLine {
     let literal = false;
 
     for (let index = 0; index < argvList.length; index++) {
-        const argument = argvList[index]!;
+        const argument = argvList[index];
         if (literal) {
             pathList.push(argument);
             continue;

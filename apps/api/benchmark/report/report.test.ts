@@ -149,14 +149,14 @@ describe("summarizeBatch", () => {
                 tokenUsage: { inputToken: 700, outputToken: 70, cachedInputToken: 0 },
                 sender: { requestCount: 9, inputToken: 900, outputToken: 90, cachedInputToken: 100 },
             }),
-        ])[0]!;
+        ])[0];
         expect(summary.medianInputToken).toBe(900);
         expect(summary.medianOutputToken).toBe(90);
         expect(summary.medianCachedInputToken).toBe(100);
     });
 
     test("falls back to recorded token usage when sender totals are unavailable", () => {
-        const summary = summarizeBatch([record({ caseId: "legacy__1", repeatIndex: 1 })])[0]!;
+        const summary = summarizeBatch([record({ caseId: "legacy__1", repeatIndex: 1 })])[0];
         expect(summary.medianInputToken).toBe(1000);
         expect(summary.medianOutputToken).toBe(100);
         expect(summary.medianCachedInputToken).toBe(50);

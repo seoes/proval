@@ -141,7 +141,7 @@ async function createActivityRow(entry: ManifestCase, modelName: string): Promis
             logVersion: "1",
         })
         .returning({ id: activityTable.id });
-    return row!.id;
+    return row.id;
 }
 
 async function main(): Promise<void> {

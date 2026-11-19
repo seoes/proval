@@ -72,8 +72,8 @@ describe("ApiClient", () => {
         });
         await client.get("/repository");
         await client.put("/repository/1", { prReviewEnabled: false });
-        expect(seen[0]!["Content-Type"]).toBeUndefined();
-        expect(seen[1]!["Content-Type"]).toBe("application/json");
+        expect(seen[0]["Content-Type"]).toBeUndefined();
+        expect(seen[1]["Content-Type"]).toBe("application/json");
     });
 
     test("turns a failure status into an ApiError rather than returning a body", async () => {

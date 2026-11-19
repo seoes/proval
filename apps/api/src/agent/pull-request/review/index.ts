@@ -241,7 +241,7 @@ export const runPullRequestReview: PullRequestReview = async (params) => {
             subAgentList: subAgentResultList.map((result, index) => ({
                 index: index + 1,
                 total,
-                reviewUnit: planResult.reviewUnitList[index]!,
+                reviewUnit: planResult.reviewUnitList[index],
                 handoff: result.handoff,
                 inputToken: result.inputToken,
                 outputToken: result.outputToken,
