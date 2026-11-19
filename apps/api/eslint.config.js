@@ -5,6 +5,6 @@ const gitignorePath = path.resolve(import.meta.dirname, ".gitignore");
 
 export default createNodeConfig({
     gitignorePath,
-    ignores: ["dist/**"],
+    ignores: ["dist/**", "benchmark/data/**"],
     tsconfigRootDir: import.meta.dirname,
 });
