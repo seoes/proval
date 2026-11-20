@@ -119,6 +119,16 @@ export class MeasureCollector {
         return total;
     }
 
+    public toolCallCountByName(): Record<string, number> {
+        const countByName: Record<string, number> = {};
+        for (const loopEnd of this.loopEndByAgent.values()) {
+            for (const [name, count] of Object.entries(loopEnd.toolCallCount)) {
+                countByName[name] = (countByName[name] ?? 0) + count;
+            }
+        }
+        return countByName;
+    }
+
     public aggregateRetryCount(): number {
         return this.retryCount;
     }

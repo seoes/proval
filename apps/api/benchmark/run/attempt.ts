@@ -89,6 +89,7 @@ type RunRecord = {
     sender: unknown;
     loopStepCount: number | null;
     toolCallCount: number | null;
+    toolCallCountByName: Record<string, number> | null;
     reviewUnitCount: number | null;
     subAgentList: SubAgentMeasure[];
     changedFileCount: number;
@@ -188,6 +189,7 @@ async function main(): Promise<void> {
         sender: null,
         loopStepCount: null,
         toolCallCount: null,
+        toolCallCountByName: null,
         reviewUnitCount: null,
         subAgentList: [],
         changedFileCount: entry.changedFileCount,
@@ -347,6 +349,7 @@ async function runAttempt(
     };
     record.loopStepCount = collector.loopStepCountTotal();
     record.toolCallCount = collector.toolCallCountTotal();
+    record.toolCallCountByName = collector.toolCallCountByName();
 
     const postedCommentCount = provider.posted.filter(
         (posted) => posted.type === "comment" && !posted.body.startsWith("## Debug"),

@@ -1,11 +1,11 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { closeSync, existsSync, openSync, writeSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { OUTPUT_DIR } from "../load/git.js";
 import { loadManifest, MANIFEST_PATH } from "../load/manifest.js";
-import type { Manifest, BenchmarkRunProfile, ResultLine, RunOptions } from "../types.js";
+import type { AttemptRecord, Manifest, BenchmarkRunProfile, ResultLine, RunOptions } from "../types.js";
 import {
     collectSourceState,
     hashFileContent,
@@ -87,6 +87,8 @@ function attemptKey(caseId: string, repeatIndex: number): string {
 }
 
 let activeChild: { kill: (signal?: number | NodeJS.Signals) => void } | null = null;
+/** Compact CI output. Child logs go to attempt/<runId>/full.log and error.log without color. */
+const benchmarkMode = process.env.BENCHMARK_MODE !== "false";
 
 export async function runBatch(option: RunOptions): Promise<void> {
     const manifest = await loadManifest();
@@ -210,6 +212,7 @@ export async function runBatch(option: RunOptions): Promise<void> {
 
     let planned = 0;
     let skipped = 0;
+    const total = caseIdList.length * repeatCount;
     try {
         await reportBatch(batchId);
         for (let round = 1; round <= repeatCount; round++) {
@@ -219,6 +222,9 @@ export async function runBatch(option: RunOptions): Promise<void> {
                 const key = attemptKey(caseId, round);
                 if (doneKeySet.has(key)) {
                     skipped++;
+                    if (benchmarkMode) {
+                        console.log(`[benchmark] ${planned + skipped}/${total} skip  ${caseId} r${round}`);
+                    }
                     continue;
                 }
                 const attemptIndex = (priorCountByKey.get(key) ?? 0) + 1;
@@ -232,7 +238,13 @@ export async function runBatch(option: RunOptions): Promise<void> {
                     attemptIndex,
                     startedAt: new Date().toISOString(),
                 });
-                console.log(`[run] ${caseId} repeat ${round} attempt ${attemptIndex} (${runId})`);
+                const progress = `${planned + skipped}/${total}`;
+                console.log(
+                    benchmarkMode
+                        ? `[benchmark] ${progress} start ${caseId} r${round}a${attemptIndex}`
+                        : `[run] ${caseId} repeat ${round} attempt ${attemptIndex} (${runId})`,
+                );
+                const attemptStartedAt = Date.now();
 
                 const exitCode = await spawnAttempt(batchId, caseId, round, attemptIndex, runId);
                 activeChild = null;
@@ -274,7 +286,52 @@ export async function runBatch(option: RunOptions): Promise<void> {
                 priorCountByKey.set(key, attemptIndex);
                 const lineList = await readResultLineList(batchDir);
                 const last = [...lineList].reverse().find((line) => line.type === "result");
-                console.log(`[done] ${caseId} repeat ${round} -> ${last?.status ?? "unknown"}`);
+                if (benchmarkMode) {
+                    const elapsedSec = Math.round((Date.now() - attemptStartedAt) / 1000);
+                    const elapsed = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
+                    const tokenUsage = last?.tokenUsage as AttemptRecord["tokenUsage"];
+                    const tokens = tokenUsage
+                        ? `input token ${tokenUsage.inputToken}, cached input token ${tokenUsage.cachedInputToken}, output token ${tokenUsage.outputToken}`
+                        : "token none";
+                    // Counts come from sub agent handoffs, before the writing agent filters them
+                    const reviewPath = join(batchDir, "attempt", runId, "review.json");
+                    const handoffList = existsSync(reviewPath)
+                        ? (
+                              (
+                                  JSON.parse(await readFile(reviewPath, "utf-8")) as {
+                                      subAgentList:
+                                          | {
+                                                handoff?: {
+                                                    findingList: { severity: string }[];
+                                                    goodPointList: unknown[];
+                                                };
+                                            }[]
+                                          | null;
+                                  }
+                              ).subAgentList ?? []
+                          ).flatMap((sub) => (sub.handoff ? [sub.handoff] : []))
+                        : [];
+                    const findingList = handoffList.flatMap((handoff) => handoff.findingList);
+                    const goodPointCount = handoffList.reduce((sum, handoff) => sum + handoff.goodPointList.length, 0);
+                    const problemCount = findingList.filter((finding) => finding.severity === "problem").length;
+                    const criticalCount = findingList.filter((finding) => finding.severity === "critical").length;
+                    const toolEntryList = Object.entries((last?.toolCallCountByName ?? {}) as Record<string, number>);
+                    const tools =
+                        toolEntryList.length === 0
+                            ? "none"
+                            : toolEntryList.map(([name, n]) => `${name}:${n}`).join(",");
+                    const reason = last?.statusReason ? ` reason=${String(last.statusReason)}` : "";
+                    console.log(
+                        [
+                            `[benchmark] ${progress} done  ${caseId} r${round}a${attemptIndex} ${last?.status ?? "unknown"}${reason} ${elapsed}`,
+                            `            ${tokens}`,
+                            `            good point ${goodPointCount}, problem ${problemCount}, critical ${criticalCount}`,
+                            `            tools ${tools}`,
+                        ].join("\n"),
+                    );
+                } else {
+                    console.log(`[done] ${caseId} repeat ${round} -> ${last?.status ?? "unknown"}`);
+                }
                 await reportBatch(batchId);
             }
             if (cancelRequested) break;
@@ -292,31 +349,46 @@ export async function runBatch(option: RunOptions): Promise<void> {
     console.log(`Markdown report saved to ${join(batchDir, "report.md")}`);
 }
 
-function spawnAttempt(
+async function spawnAttempt(
     batchId: string,
     caseId: string,
     repeatIndex: number,
     attemptIndex: number,
     runId: string,
 ): Promise<number> {
-    const proc = Bun.spawn(
-        [
-            process.execPath,
-            resolve(import.meta.dir, "attempt.ts"),
-            "--batch",
-            batchId,
-            "--case",
-            caseId,
-            "--repeat",
-            String(repeatIndex),
-            "--attempt",
-            String(attemptIndex),
-            "--run-id",
-            runId,
-        ],
-        { stdout: "inherit", stderr: "inherit", env: process.env },
-    );
+    const command = [
+        process.execPath,
+        resolve(import.meta.dir, "attempt.ts"),
+        "--batch",
+        batchId,
+        "--case",
+        caseId,
+        "--repeat",
+        String(repeatIndex),
+        "--attempt",
+        String(attemptIndex),
+        "--run-id",
+        runId,
+    ];
+    if (!benchmarkMode) {
+        const proc = Bun.spawn(command, { stdout: "inherit", stderr: "inherit", env: process.env });
+        activeChild = proc;
+        return proc.exited;
+    }
+
+    const attemptDir = join(OUTPUT_DIR, batchId, "attempt", runId);
+    await mkdir(attemptDir, { recursive: true });
+    const fullFd = openSync(join(attemptDir, "full.log"), "a");
+    const errorFd = openSync(join(attemptDir, "error.log"), "a");
+    const proc = Bun.spawn(command, { stdout: fullFd, stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
     activeChild = proc;
+    // stderr goes to both files so full.log keeps errors in context
+    for await (const chunk of proc.stderr) {
+        writeSync(fullFd, chunk);
+        writeSync(errorFd, chunk);
+    }
+    closeSync(fullFd);
+    closeSync(errorFd);
     return proc.exited;
 }
 
