@@ -15,5 +15,7 @@ export async function cleanupAttempt(repoUrl: string, runId: string, batchDir: s
         await rm(join(WORK_DIR, runId), { recursive: true, force: true }).catch(() => {});
     }
     await rm(join(batchDir, "tmp", `${runId}.db`), { force: true }).catch(() => {});
-    await rm(join(batchDir, "tmp", `${runId}.db-journal`), { force: true }).catch(() => {});
+    for (const suffix of ["-journal", "-wal", "-shm"]) {
+        await rm(join(batchDir, "tmp", `${runId}.db${suffix}`), { force: true }).catch(() => {});
+    }
 }

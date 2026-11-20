@@ -31,6 +31,9 @@ lerna-debug.log*
 
 local.db
 *.db
+*.db-shm
+*.db-wal
+*.db.bak
 
 public
 

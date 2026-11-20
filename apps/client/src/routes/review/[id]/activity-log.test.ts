@@ -133,14 +133,17 @@ describe("serializeActivityLogList", () => {
     });
 
     test("pretty prints JSON tool results and skips truncated JSON", () => {
-        const call = toolCall("json-result");
-        const [row] = serializeActivityLogList([call, { ...toolResult(call), message: '{"ok":true,"count":2}' }]);
-        assert.match(row?.resultHtml ?? "", /hljs-attr/);
-        assert.match(row?.resultHtml ?? "", /&quot;count&quot;/);
-        assert.match(row?.resultHtml ?? "", /\n {4}<span class="hljs-attr">/);
+        const html = messageHtml('{"ok":true,"count":2}');
+        assert.match(html ?? "", /hljs-attr/);
+        assert.match(html ?? "", /&quot;count&quot;/);
+        assert.match(html ?? "", /\n {4}<span class="hljs-attr">/);
+        assert.equal(messageHtml('{"ok":true…'), undefined);
+    });
 
-        const [cut] = serializeActivityLogList([call, { ...toolResult(call), message: '{"ok":true…' }]);
-        assert.equal(cut?.resultHtml, undefined);
+    test("keeps get_file_content filePath for lazy result highlighting", () => {
+        const call = { ...toolCall("file"), toolName: "get_file_content", message: '{"filePath":"src/app.ts"}' };
+        const [row] = serializeActivityLogList([call, toolResult(call)]);
+        assert.equal(row?.filePath, "src/app.ts");
     });
 
     test("messageHtml highlights get_file_content source from filePath", () => {

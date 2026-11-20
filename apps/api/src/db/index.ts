@@ -4,6 +4,8 @@ import * as schema from "@proval/db";
 
 const database = new Database(process.env.DB_FILE_NAME ?? "local.db");
 database.run("PRAGMA foreign_keys = ON");
+database.run("PRAGMA journal_mode = WAL");
+database.run("PRAGMA synchronous = NORMAL");
 const db = drizzle({
     client: database,
     schema,
