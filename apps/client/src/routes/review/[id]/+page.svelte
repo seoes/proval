@@ -6,6 +6,7 @@
     import Button from "$lib/components/atom/Button.svelte";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import Modal from "$lib/components/atom/Modal.svelte";
+    import Spinner from "$lib/components/atom/Spinner.svelte";
     import { activityModelLabel, activityStatusBadge, activityTargetLabel, activityTypeLabel } from "$lib/utils/label";
     import { formatDuration, formatTimeAgo } from "$lib/utils";
     import fetchApi from "$lib/utils";
@@ -19,15 +20,17 @@
     import type { PageProps } from "./$types";
     import { readReviewListBackHref } from "../filterQuery.js";
     import { untrack } from "svelte";
+    import { SvelteSet } from "svelte/reactivity";
     import { CaretRightIcon, WrenchIcon } from "phosphor-svelte";
-    import { CODE_HIGHLIGHT_CLASS, serializeActivityLogList } from "./activity-log.js";
+    import { CODE_HIGHLIGHT_CLASS, messageHtml, serializeActivityLogList } from "./activity-log.js";
     import { toolIconRecord, transformToolName } from "$lib/utils/tool.js";
 
     const POLL_MS = 1000;
 
     const { data }: PageProps = $props();
     let review = $derived<ActivityResponse>(data.review);
-    let log = $derived<ActivityLogResponse>(data.log);
+    let log = $state<ActivityLogResponse | null>(null);
+    const openRowKeySet = new SvelteSet<number>();
     let pollInFlight = false;
     let pollAgain = false;
     const status = $derived(activityStatusBadge(review.status));
@@ -147,7 +150,7 @@
                 await openAlert(body?.error ?? "Failed to cancel activity");
                 return;
             }
-            await refreshWhileRunning(review.id);
+            await refreshWhileRunning();
         } finally {
             isCanceling = false;
         }
@@ -205,7 +208,7 @@
         return `${stripe} hover:bg-accent/80`;
     }
 
-    const logRowList = $derived(serializeActivityLogList(log.entryList));
+    const logRowList = $derived(log ? serializeActivityLogList(log.entryList) : []);
     const labelList = $derived([...new Set(logRowList.map((row) => row.entry.label))]);
     const visibleLogList = $derived(logRowList.filter((row) => !selectedLabel || row.entry.label === selectedLabel));
 
@@ -213,7 +216,7 @@
         return label.split("] ").at(-1) ?? label;
     }
 
-    async function refreshWhileRunning(id: number): Promise<void> {
+    async function refreshWhileRunning(): Promise<void> {
         if (pollInFlight) {
             pollAgain = true;
             return;
@@ -222,19 +225,24 @@
         try {
             do {
                 pollAgain = false;
-                const from = log.entryList.length;
+                const id = review.id;
                 const [logResponse, statusResponse] = await Promise.all([
-                    fetchApi(`/activity/${id}/log?from=${from}`),
+                    fetchApi(log ? `/activity/${id}/log?from=${log.entryList.length}` : `/activity/${id}/log`),
                     fetchApi(`/activity/${id}/status`),
                 ]);
-                if (id !== review.id) return;
+                // Navigated to another review mid request, the effect has set pollAgain to load the new one
+                if (id !== review.id) continue;
                 if (logResponse.ok) {
                     const delta = (await logResponse.json()) as ActivityLogResponse;
-                    if (delta.from === log.entryList.length && delta.entryList.length > 0) {
+                    if (!log) {
+                        log = delta;
+                    } else if (delta.from === log.entryList.length && delta.entryList.length > 0) {
                         log = { ...log, status: delta.status, entryList: [...log.entryList, ...delta.entryList] };
                     }
+                } else if (!log) {
+                    log = { status: review.status, logVersion: "1", entryList: [] };
                 }
-                if (id !== review.id) return;
+                if (id !== review.id) continue;
                 if (statusResponse.ok) {
                     const nextStatus = (await statusResponse.json()) as ActivityStatusResponse;
                     review = { ...review, ...nextStatus };
@@ -246,16 +254,20 @@
     }
 
     $effect(() => {
-        const id = data.review.id;
+        void data.review.id;
+        untrack(() => {
+            log = null;
+            openRowKeySet.clear();
+            void refreshWhileRunning();
+        });
+    });
+
+    $effect(() => {
         if (!isQueuedOrStarted) {
             return;
         }
-
-        untrack(() => {
-            void refreshWhileRunning(id);
-        });
         const timer = setInterval(() => {
-            void refreshWhileRunning(id);
+            void refreshWhileRunning();
         }, POLL_MS);
         return () => clearInterval(timer);
     });
@@ -436,7 +448,9 @@
                 </div>
             {/if}
             <div class="overflow-hidden rounded-md border border-border bg-background font-code **:font-code">
-                {#if visibleLogList.length === 0}
+                {#if !log}
+                    <div class="flex justify-center py-8"><Spinner /></div>
+                {:else if visibleLogList.length === 0}
                     <p class="px-3 py-8 text-center text-xs text-muted-foreground">No log entries yet.</p>
                 {:else}
                     {#key review.id}
@@ -448,7 +462,12 @@
                                         {@const ToolIcon = Object.hasOwn(toolIconRecord, entry.toolName)
                                             ? toolIconRecord[entry.toolName]
                                             : WrenchIcon}
-                                        <details class="group/tool">
+                                        <details
+                                            class="group/tool"
+                                            ontoggle={(event) =>
+                                                event.currentTarget.open
+                                                    ? openRowKeySet.add(row.key)
+                                                    : openRowKeySet.delete(row.key)}>
                                             <summary
                                                 class="group flex cursor-pointer list-none gap-2.5 px-2 py-0.5 [&::-webkit-details-marker]:hidden">
                                                 <span class="hidden shrink-0 text-muted-foreground md:inline"
@@ -476,7 +495,10 @@
                                                     aria-hidden="true" />
                                             </summary>
                                             <div class="mx-2 pb-2">
-                                                {#if row.result}
+                                                {#if !openRowKeySet.has(row.key)}
+                                                    <!-- Results render only while open to keep large tool outputs out of the DOM -->
+                                                {:else if row.result}
+                                                    {@const resultHtml = messageHtml(row.result.message, row.filePath)}
                                                     <div
                                                         class="group min-w-0 wrap-break-word {logLevelTextColor(
                                                             row.result.level,
@@ -484,10 +506,10 @@
                                                         <!-- <span class="block font-semibold">Result</span> -->
                                                         <div
                                                             class="rounded-sm border border-border bg-card px-2 py-1.5 text-secondary-foreground">
-                                                            {#if row.resultHtml}
+                                                            {#if resultHtml}
                                                                 <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes text before adding markup -->
                                                                 <code class={CODE_HIGHLIGHT_CLASS}
-                                                                    >{@html row.resultHtml}</code>
+                                                                    >{@html resultHtml}</code>
                                                                 <!-- eslint-enable svelte/no-at-html-tags -->
                                                             {:else}
                                                                 <span class="whitespace-pre-wrap"

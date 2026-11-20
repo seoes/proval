@@ -36,7 +36,7 @@ export interface ActivityLogRow {
     entry: Exclude<ActivityLogEntry, ToolResultLogEntry>;
     result?: ToolResultLogEntry;
     argumentHtml: string;
-    resultHtml?: string;
+    filePath?: string;
 }
 
 export function serializeActivityLogList(logList: readonly ActivityLogEntry[]): ActivityLogRow[] {
@@ -71,7 +71,7 @@ export function serializeActivityLogList(logList: readonly ActivityLogEntry[]): 
                 entry.type === "tool-call"
                     ? hljs.highlight(entry.message, { language: "json", ignoreIllegals: true }).value
                     : "",
-            resultHtml: matchedResult ? messageHtml(matchedResult.message, filePath) : undefined,
+            filePath,
         });
     }
     return rowList;
