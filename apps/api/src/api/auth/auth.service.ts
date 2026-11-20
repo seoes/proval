@@ -41,6 +41,12 @@ function createSessionToken(): string {
 
 export class AuthService {
     public async getOrCreateInstanceSetting() {
+        // Read first so the per request auth check stays a read and only the first ever call writes
+        const existing = await db.select().from(instanceSettingTable).where(eq(instanceSettingTable.id, 1)).limit(1);
+        if (existing.length > 0) {
+            return existing[0];
+        }
+
         const inserted = await db
             .insert(instanceSettingTable)
             .values({
@@ -55,18 +61,15 @@ export class AuthService {
             return inserted[0];
         }
 
-        const existing = await db.select().from(instanceSettingTable).where(eq(instanceSettingTable.id, 1)).limit(1);
-
-        return existing[0];
-    }
-
-    private async getUserCount(): Promise<number> {
-        const result = await db.select({ value: count() }).from(userTable);
-        return result[0]?.value ?? 0;
+        // Another request inserted the row between our read and insert
+        const [created] = await db.select().from(instanceSettingTable).where(eq(instanceSettingTable.id, 1)).limit(1);
+        return created;
     }
 
     public async isSetupRequired(): Promise<boolean> {
-        return (await this.getUserCount()) === 0;
+        // Check if there are any users in the database
+        const userList = await db.select({ id: userTable.id }).from(userTable).limit(1);
+        return userList.length === 0;
     }
 
     public toInstanceSettingResponse(setting: typeof instanceSettingTable.$inferSelect): InstanceSettingResponse {
