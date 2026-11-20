@@ -15,7 +15,9 @@ export const load: PageLoad = async ({ params }) => {
         : { status: review.status, logVersion: "1", entryList: [] };
 
     let provider: ProviderOption | null = null;
-    if (review.repositoryId != null) {
+
+    // GitHub web URLs need no provider option, so skip the installation lookup that calls the GitHub API
+    if (review.repositoryId != null && review.provider !== "github") {
         provider = await loadRepositoryProvider(review.repositoryId);
     }
 
