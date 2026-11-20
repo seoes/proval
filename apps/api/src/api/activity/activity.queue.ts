@@ -3,6 +3,7 @@ import { activityTable, modelProviderTable } from "@proval/db";
 import type { ActivityStartInput } from "./activity.service.js";
 import { ActivityService } from "./activity.service.js";
 import db from "../../db/index.js";
+import { decrypt } from "../../util/encrypt.js";
 import { logError } from "../../util/log.js";
 import { ModelProviderService } from "../model/model.service.js";
 
@@ -15,6 +16,7 @@ class ActivityQueue {
     private hasPendingDrain = false;
     private isMerging = false;
     private isQueueStoppedForShutdown = false;
+    private earlyLimitCache = new Map<number, { isEarlyLimitReached: boolean; expiresAt: number }>();
 
     public stopQueueForShutdown(): void {
         this.isQueueStoppedForShutdown = true;
@@ -200,8 +202,14 @@ class ActivityQueue {
                 id: modelProviderTable.id,
                 activityConcurrency: modelProviderTable.activityConcurrency,
                 rateLimitResetAt: modelProviderTable.rateLimitResetAt,
+                baseUrl: modelProviderTable.baseUrl,
+                apiKey: modelProviderTable.apiKey,
+                earlyLimitFiveHourPercent: modelProviderTable.earlyLimitFiveHourPercent,
+                earlyLimitWeeklyPercent: modelProviderTable.earlyLimitWeeklyPercent,
+                earlyLimitMonthlyPercent: modelProviderTable.earlyLimitMonthlyPercent,
             })
             .from(modelProviderTable);
+        const modelProviderById = new Map(modelProviderList.map((modelProvider) => [modelProvider.id, modelProvider]));
         const activityConcurrencyByProviderId = new Map(
             modelProviderList.map((modelProvider) => [modelProvider.id, modelProvider.activityConcurrency]),
         );
@@ -238,6 +246,33 @@ class ActivityQueue {
             if (queuedActivity.modelProviderId == null) continue;
             const rateLimitResetAt = rateLimitResetAtByProviderId.get(queuedActivity.modelProviderId);
             if (rateLimitResetAt && rateLimitResetAt > new Date()) continue;
+            const modelProvider = modelProviderById.get(queuedActivity.modelProviderId);
+            const earlyLimitList = [
+                ["fiveHour", modelProvider?.earlyLimitFiveHourPercent],
+                ["weekly", modelProvider?.earlyLimitWeeklyPercent],
+                ["monthly", modelProvider?.earlyLimitMonthlyPercent],
+            ] as const;
+            if (
+                queuedActivity.type === "pr_review" &&
+                modelProvider?.apiKey &&
+                earlyLimitList.some(([, percent]) => percent != null)
+            ) {
+                let earlyLimit = this.earlyLimitCache.get(modelProvider.id);
+                if (!earlyLimit || earlyLimit.expiresAt <= Date.now()) {
+                    const quota = await new ModelProviderService().getQuotaFromUrl(
+                        modelProvider.baseUrl,
+                        decrypt(modelProvider.apiKey),
+                    );
+                    const now = new Date();
+                    const isEarlyLimitReached = earlyLimitList.some(([windowName, percent]) => {
+                        const window = quota?.[windowName];
+                        return window != null && percent != null && window.resetAt > now && window.usage >= percent;
+                    });
+                    earlyLimit = { isEarlyLimitReached, expiresAt: Date.now() + 30_000 };
+                    this.earlyLimitCache.set(modelProvider.id, earlyLimit);
+                }
+                if (earlyLimit.isEarlyLimitReached) continue;
+            }
             const activityConcurrency = activityConcurrencyByProviderId.get(queuedActivity.modelProviderId);
             const runningActivityCount = runningCountByProviderId.get(queuedActivity.modelProviderId) ?? 0;
             if (activityConcurrency != null && runningActivityCount >= activityConcurrency) continue;

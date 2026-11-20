@@ -62,6 +62,9 @@ export type ModelProviderResponse = Pick<
     | "timeoutSecond"
     | "requestConcurrency"
     | "activityConcurrency"
+    | "earlyLimitFiveHourPercent"
+    | "earlyLimitWeeklyPercent"
+    | "earlyLimitMonthlyPercent"
     | "authMethod"
     | "oauthStatus"
     | "rateLimitResetAt"
@@ -74,6 +77,9 @@ export type ModelProviderCreateInput = Pick<ModelProvider, "provider" | "label" 
     timeoutSecond?: number;
     requestConcurrency?: number | null;
     activityConcurrency?: number | null;
+    earlyLimitFiveHourPercent?: number | null;
+    earlyLimitWeeklyPercent?: number | null;
+    earlyLimitMonthlyPercent?: number | null;
 };
 export type XaiOAuthAttemptInput = Pick<ModelProvider, "label" | "timeoutSecond"> & {
     modelProviderId?: number;
@@ -118,7 +124,15 @@ export type RepositoryUpdateInput = Partial<
 export type ModelProviderUpdateInput = Partial<
     Pick<
         ModelProvider,
-        "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency"
+        | "provider"
+        | "label"
+        | "baseUrl"
+        | "timeoutSecond"
+        | "requestConcurrency"
+        | "activityConcurrency"
+        | "earlyLimitFiveHourPercent"
+        | "earlyLimitWeeklyPercent"
+        | "earlyLimitMonthlyPercent"
     >
 >;
 export type AccessUpdateInput = Partial<Omit<AccessInsert, "accessToken" | "createdAt" | "updatedAt">>;

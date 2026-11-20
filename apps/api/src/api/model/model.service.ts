@@ -21,6 +21,7 @@ import { z } from "zod";
 const providerSchema = z.enum(["openai", "openai_responses", "anthropic"]);
 const timeoutSchema = z.number().int().min(10).max(7200);
 const concurrencySchema = z.number().int().min(1).nullable().optional();
+const earlyLimitPercentSchema = z.number().int().min(1).max(100).nullable().optional();
 const labelSchema = z.string().trim().min(1).max(200);
 const baseUrlSchema = z.url().refine((value) => ["http:", "https:"].includes(new URL(value).protocol));
 
@@ -83,6 +84,9 @@ export class ModelProviderService {
                 timeoutSecond: timeoutSchema.optional(),
                 requestConcurrency: concurrencySchema,
                 activityConcurrency: concurrencySchema,
+                earlyLimitFiveHourPercent: earlyLimitPercentSchema,
+                earlyLimitWeeklyPercent: earlyLimitPercentSchema,
+                earlyLimitMonthlyPercent: earlyLimitPercentSchema,
             })
             .strict()
             .parse(data);
@@ -100,6 +104,9 @@ export class ModelProviderService {
             timeoutSecond: timeoutSchema.optional(),
             requestConcurrency: concurrencySchema,
             activityConcurrency: concurrencySchema,
+            earlyLimitFiveHourPercent: earlyLimitPercentSchema,
+            earlyLimitWeeklyPercent: earlyLimitPercentSchema,
+            earlyLimitMonthlyPercent: earlyLimitPercentSchema,
         };
         const cleanData =
             current.authMethod === "xai_oauth"
@@ -139,6 +146,9 @@ export class ModelProviderService {
             timeoutSecond,
             requestConcurrency,
             activityConcurrency,
+            earlyLimitFiveHourPercent,
+            earlyLimitWeeklyPercent,
+            earlyLimitMonthlyPercent,
             authMethod,
             oauthStatus,
             rateLimitResetAt,
@@ -155,6 +165,9 @@ export class ModelProviderService {
             timeoutSecond,
             requestConcurrency,
             activityConcurrency,
+            earlyLimitFiveHourPercent,
+            earlyLimitWeeklyPercent,
+            earlyLimitMonthlyPercent,
             authMethod,
             oauthStatus,
             rateLimitResetAt,

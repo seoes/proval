@@ -22,7 +22,15 @@
         modelProviderId?: number;
         initialData?: Pick<
             ModelProviderResponse,
-            "provider" | "label" | "baseUrl" | "timeoutSecond" | "requestConcurrency" | "activityConcurrency"
+            | "provider"
+            | "label"
+            | "baseUrl"
+            | "timeoutSecond"
+            | "requestConcurrency"
+            | "activityConcurrency"
+            | "earlyLimitFiveHourPercent"
+            | "earlyLimitWeeklyPercent"
+            | "earlyLimitMonthlyPercent"
         >;
         border?: boolean;
     }
@@ -38,6 +46,15 @@
     );
     let activityConcurrency = $state(
         initialData?.activityConcurrency == null ? "" : String(initialData.activityConcurrency),
+    );
+    let earlyLimitFiveHourPercent = $state(
+        initialData?.earlyLimitFiveHourPercent == null ? "" : String(initialData.earlyLimitFiveHourPercent),
+    );
+    let earlyLimitWeeklyPercent = $state(
+        initialData?.earlyLimitWeeklyPercent == null ? "" : String(initialData.earlyLimitWeeklyPercent),
+    );
+    let earlyLimitMonthlyPercent = $state(
+        initialData?.earlyLimitMonthlyPercent == null ? "" : String(initialData.earlyLimitMonthlyPercent),
     );
     let apiKey = $state("");
     let apiKeyModalOpen = $state(false);
@@ -83,6 +100,19 @@
             await openAlert("Activity concurrency must be an integer of at least 1, or empty for no limit");
             return;
         }
+        const [earlyLimitFiveHourPercentValue, earlyLimitWeeklyPercentValue, earlyLimitMonthlyPercentValue] = [
+            earlyLimitFiveHourPercent,
+            earlyLimitWeeklyPercent,
+            earlyLimitMonthlyPercent,
+        ].map((text) => (text.trim() === "" ? null : Number(text.trim())));
+        if (
+            [earlyLimitFiveHourPercentValue, earlyLimitWeeklyPercentValue, earlyLimitMonthlyPercentValue].some(
+                (value) => value !== null && (!Number.isInteger(value) || value < 1 || value > 100),
+            )
+        ) {
+            await openAlert("Early limit percent must be an integer between 1 and 100, or empty for off");
+            return;
+        }
         if (mode === "create") {
             if (!apiKey) {
                 await openAlert("API Key is required");
@@ -100,6 +130,9 @@
                 timeoutSecond: timeout,
                 requestConcurrency: requestConcurrencyValue,
                 activityConcurrency: activityConcurrencyValue,
+                earlyLimitFiveHourPercent: earlyLimitFiveHourPercentValue,
+                earlyLimitWeeklyPercent: earlyLimitWeeklyPercentValue,
+                earlyLimitMonthlyPercent: earlyLimitMonthlyPercentValue,
             };
 
             const res = await fetchApi("/model-provider", {
@@ -122,6 +155,9 @@
                 timeoutSecond: timeout,
                 requestConcurrency: requestConcurrencyValue,
                 activityConcurrency: activityConcurrencyValue,
+                earlyLimitFiveHourPercent: earlyLimitFiveHourPercentValue,
+                earlyLimitWeeklyPercent: earlyLimitWeeklyPercentValue,
+                earlyLimitMonthlyPercent: earlyLimitMonthlyPercentValue,
             };
 
             const res = await fetchApi(`/model-provider/${modelProviderId}`, {
@@ -238,7 +274,7 @@
 {/snippet}
 
 <form onsubmit={handleSubmit} class="space-y-8">
-    <Card {border} spaceY>
+    <Card title="Provider" {border} spaceY>
         <FormField label="Display Name" description="A label for this LLM connection">
             {#snippet children({ id })}
                 <InputText {id} name="label" placeholder="OpenRouter Production" bind:value={label} />
@@ -281,22 +317,6 @@
         {/if}
 
         <FormField
-            label="Request concurrency"
-            description="Maximum concurrent model requests for this provider. Empty means no limit.">
-            {#snippet children({ id })}
-                <InputText {id} placeholder="Leave empty for unlimited" bind:value={requestConcurrency} numeric />
-            {/snippet}
-        </FormField>
-
-        <FormField
-            label="Activity concurrency"
-            description="Maximum activities running at once for this provider. Others wait. Empty means no limit.">
-            {#snippet children({ id })}
-                <InputText {id} placeholder="Leave empty for unlimited" bind:value={activityConcurrency} numeric />
-            {/snippet}
-        </FormField>
-
-        <FormField
             label="Response Timeout"
             description="Seconds to wait with no data from the model before the request is stopped and retried. Local models send nothing while reading a long prompt, so keep this generous on slow hardware.">
             {#snippet children({ id })}
@@ -311,6 +331,50 @@
                 </Button>
             </div>
         {/if}
+    </Card>
+
+    <Card title="Rate Limit" {border} spaceY>
+        <FormField
+            label="Request concurrency"
+            description="Maximum concurrent model requests for this provider. Empty means no limit.">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="Leave empty for unlimited" bind:value={requestConcurrency} numeric />
+            {/snippet}
+        </FormField>
+
+        <FormField
+            label="Activity concurrency"
+            description="Maximum activities running at once for this provider. Others wait. Empty means no limit.">
+            {#snippet children({ id })}
+                <InputText {id} placeholder="Leave empty for unlimited" bind:value={activityConcurrency} numeric />
+            {/snippet}
+        </FormField>
+    </Card>
+
+    <Card title="Early Limit" {border}>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <FormField label="5 Hour">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="Off" bind:value={earlyLimitFiveHourPercent} numeric />
+                {/snippet}
+            </FormField>
+            <FormField label="Weekly">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="Off" bind:value={earlyLimitWeeklyPercent} numeric />
+                {/snippet}
+            </FormField>
+            <FormField label="Monthly">
+                {#snippet children({ id })}
+                    <InputText {id} placeholder="Off" bind:value={earlyLimitMonthlyPercent} numeric />
+                {/snippet}
+            </FormField>
+        </div>
+        <div class="mt-4">
+            <Description>
+                Stop starting new pull request reviews when a quota window reaches this percent. Running reviews
+                continue. Works with z.ai and OpenCode Go. Empty means off.
+            </Description>
+        </div>
     </Card>
     <div class="flex flex-wrap justify-between gap-3 pt-2">
         <div class="flex flex-wrap gap-3 text-sm">

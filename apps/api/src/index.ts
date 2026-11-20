@@ -11,7 +11,6 @@ import { clearWorkspaceRoot } from "./git-provider/workspace.js";
 import { ActivityService, recoverLegacyReplyTargetComment } from "./api/activity/activity.service.js";
 import { activityQueue } from "./api/activity/activity.queue.js";
 import { authService } from "./api/auth/auth.service.js";
-import { ModelProviderService } from "./api/model/model.service.js";
 
 loadEncryptionKey();
 
@@ -69,14 +68,7 @@ if (isRerunInterruptedActivity) {
 
 activityQueue.drain();
 
-setInterval(() => {
-    void new ModelProviderService()
-        .checkAllAndRemoveRateLimitIfReset()
-        .then((expiredList) => {
-            if (expiredList.length > 0) activityQueue.drain();
-        })
-        .catch((error) => logError("Rate limit reset check failed", error));
-}, 60_000);
+setInterval(() => activityQueue.drain(), 60_000);
 
 let isExiting = false;
 const shutdownWaitMs = 7_200_000;

@@ -80,6 +80,9 @@ export const modelProviderTable = sqliteTable("model_provider", {
     timeoutSecond: integer().notNull().default(600),
     requestConcurrency: integer("request_concurrency"),
     activityConcurrency: integer("activity_concurrency"),
+    earlyLimitFiveHourPercent: integer("early_limit_five_hour_percent"),
+    earlyLimitWeeklyPercent: integer("early_limit_weekly_percent"),
+    earlyLimitMonthlyPercent: integer("early_limit_monthly_percent"),
     rateLimitResetAt: integer({ mode: "timestamp" }),
     rateLimitDescription: text(),
 

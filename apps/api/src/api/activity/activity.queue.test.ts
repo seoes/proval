@@ -44,6 +44,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
     const { activityTable, gitProviderAccessTable, modelProviderTable, repositoryTable } = await import("@proval/db");
     const { encrypt } = await import("../../util/encrypt.js");
     const { ActivityService } = await import("./activity.service.js");
+    const { ModelProviderService } = await import("../model/model.service.js");
     const { activityQueue } = await import("./activity.queue.js");
 
     migrate(db, { migrationsFolder: resolve(import.meta.dir, "../../../../../packages/db/src/migration") });
@@ -55,7 +56,10 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
 
     let fixtureCounter = 0;
 
-    async function insertProvider(activityConcurrency: number | null = null) {
+    async function insertProvider(
+        activityConcurrency: number | null = null,
+        earlyLimitFiveHourPercent: number | null = null,
+    ) {
         fixtureCounter++;
         const suffix = String(fixtureCounter);
         const [modelProvider] = await db
@@ -66,6 +70,7 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
                 baseUrl: "http://localhost:1234/v1",
                 apiKey: encrypt("test key"),
                 activityConcurrency,
+                earlyLimitFiveHourPercent,
             })
             .returning({ id: modelProviderTable.id });
         const [access] = await db
@@ -409,6 +414,44 @@ if (process.env.PROVAL_ACTIVITY_QUEUE_TEST_CHILD !== "1") {
             await waitForStatus(queuedId, "started", 5000);
             const [stillQueued] = await db.select().from(activityTable).where(eq(activityTable.id, queuedId));
             expect(stillQueued.status).toBe("started");
+        });
+
+        it("early limit holds new pr_review while replies start and running review finishes", async () => {
+            const quota = { fiveHour: { usage: 10, resetAt: new Date(Date.now() + 3_600_000) } };
+            const getQuota = spyOn(ModelProviderService.prototype, "getQuotaFromUrl").mockImplementation(
+                async () => quota,
+            );
+            const requeue = spyOn(ActivityService.prototype, "requeueByModelProviderId");
+            try {
+                const { modelProvider, repository } = await insertProvider(null, 99);
+                const runningId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 30, "sha-run"));
+                activityQueue.drain();
+                await waitForStatus(runningId, "started", 5000);
+
+                quota.fiveHour.usage = 99;
+                activityQueue["earlyLimitCache"].clear();
+                const heldId = await activityQueue.push(reviewInput(repository.id, modelProvider.id, 31, "sha-held"));
+                const replyId = await activityQueue.push({
+                    repositoryId: repository.id,
+                    modelProviderId: modelProvider.id,
+                    modelName: "test-model",
+                    type: "pr_reply",
+                    targetIid: 31,
+                    targetCommentId: 1,
+                });
+                activityQueue.drain();
+                await waitForStatus(replyId, "completed", 5000);
+
+                releaseReview?.();
+                await waitForStatus(runningId, "completed", 5000);
+                await drainSettled();
+                const [held] = await db.select().from(activityTable).where(eq(activityTable.id, heldId));
+                expect(held.status).toBe("queued");
+                expect(requeue).not.toHaveBeenCalled();
+            } finally {
+                getQuota.mockRestore();
+                requeue.mockRestore();
+            }
         });
 
         it("stopQueueForShutdown leaves later queued activity while running review finishes", async () => {
