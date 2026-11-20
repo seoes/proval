@@ -16,7 +16,7 @@ export type RepositoryPageData = {
     provider: ProviderOption;
 };
 
-async function resolveProviderForRepository(repository: RepositoryResponse): Promise<ProviderOption | null> {
+export async function resolveProviderForRepository(repository: RepositoryResponse): Promise<ProviderOption | null> {
     if (repository.provider === "github") {
         if (repository.githubInstallationId == null) {
             return null;

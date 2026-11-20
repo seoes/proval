@@ -42,7 +42,7 @@
         if (data.repository.provider === "github") {
             return `https://github.com/${path}`;
         }
-        if (data.provider.type === "github") {
+        if (!data.provider || data.provider.type === "github") {
             return null;
         }
         const base = data.provider.baseUrl.replace(/\/$/, "");
