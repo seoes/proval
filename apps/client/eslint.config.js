@@ -7,6 +7,6 @@ const gitignorePath = path.resolve(import.meta.dirname, ".gitignore");
 export default createSvelteConfig({
     svelteConfig,
     gitignorePath,
-    ignores: ["dist/**"],
+    ignores: ["dist/**", "scripts/**"],
     tsconfigRootDir: import.meta.dirname,
 });

@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { Headers } from "openai/_shims/index.mjs";
 
 export type ChatComplete = (system: string, user: string, timeoutMs: number) => Promise<string>;
 

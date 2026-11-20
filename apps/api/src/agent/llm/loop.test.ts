@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 
 mock.module("../../api/activity/activity.service.js", () => ({
     ActivityService: class {
-        async isCanceledOrFailed() {
+        public async isCanceledOrFailed() {
             return false;
         }
     },
@@ -366,7 +366,10 @@ describe("model call retries", () => {
         const timeout = Object.assign(new Error("Request timed out."), { name: "APIConnectionTimeoutError" });
         const reset = Object.assign(new Error("socket closed"), { code: "ECONNRESET" });
         const s = sender([timeout, reset, timeout]);
-        const result = await runAgentLoop(s.sender, "system", "prompt", "test", { activityId: 9001, retryBaseDelayMs: 1 });
+        const result = await runAgentLoop(s.sender, "system", "prompt", "test", {
+            activityId: 9001,
+            retryBaseDelayMs: 1,
+        });
         expect(result.finalMessage).toBe("done");
         expect(s.calls()).toBe(4);
     });

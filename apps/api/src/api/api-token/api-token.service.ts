@@ -10,12 +10,12 @@ const PREFIX_DISPLAY_LENGTH = TOKEN_PREFIX.length + 6;
 const MAX_EXPIRES_IN_DAY = 36500;
 
 export class ApiTokenService {
-    async findAllForUser(userId: string): Promise<ApiTokenResponse[]> {
+    public async findAllForUser(userId: string): Promise<ApiTokenResponse[]> {
         const rowList = await db.select().from(apiTokenTable).where(eq(apiTokenTable.userId, userId));
         return rowList.map((row) => this.toResponse(row));
     }
 
-    async create(userId: string, input: ApiTokenCreateInput) {
+    public async create(userId: string, input: ApiTokenCreateInput) {
         const secret = this.createSecret();
         const expiresAt =
             input.expiresInDay && input.expiresInDay > 0
@@ -42,7 +42,7 @@ export class ApiTokenService {
         return { token: this.toResponse(row), secret };
     }
 
-    async remove(userId: string, id: number): Promise<boolean> {
+    public async remove(userId: string, id: number): Promise<boolean> {
         const removed = await db
             .delete(apiTokenTable)
             .where(and(eq(apiTokenTable.id, id), eq(apiTokenTable.userId, userId)))
@@ -54,7 +54,7 @@ export class ApiTokenService {
      * Resolves a bearer secret to its owner and scope list.
      * Touches lastUsedAt so an unused token is visible in the dashboard.
      */
-    async authenticate(secret: string): Promise<{ user: UserResponse; scopeList: ApiScope[] } | null> {
+    public async authenticate(secret: string): Promise<{ user: UserResponse; scopeList: ApiScope[] } | null> {
         if (!secret.startsWith(TOKEN_PREFIX)) {
             return null;
         }
@@ -82,12 +82,12 @@ export class ApiTokenService {
         return { user, scopeList: this.parseScopeList(row.token.scopeList) };
     }
 
-    async hashSecret(secret: string): Promise<string> {
+    public async hashSecret(secret: string): Promise<string> {
         const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
         return Buffer.from(digest).toString("hex");
     }
 
-    parseScopeList(raw: string): ApiScope[] {
+    public parseScopeList(raw: string): ApiScope[] {
         const known = new Set<string>(apiScopeValueList);
         return raw
             .split(",")
@@ -95,7 +95,7 @@ export class ApiTokenService {
             .filter((part) => known.has(part)) as ApiScope[];
     }
 
-    isScopeListValid(scopeList: string[]): boolean {
+    public isScopeListValid(scopeList: string[]): boolean {
         const known = new Set<string>(apiScopeValueList);
         return scopeList.length > 0 && scopeList.every((scope) => known.has(scope));
     }
@@ -111,7 +111,7 @@ export class ApiTokenService {
      * the millisecond arithmetic overflow into an Invalid Date, which reaches the
      * insert as a null or a failure rather than a clean 400.
      */
-    validateExpiresInDay(value: unknown): string | null {
+    public validateExpiresInDay(value: unknown): string | null {
         if (value === null || value === undefined) {
             return null;
         }

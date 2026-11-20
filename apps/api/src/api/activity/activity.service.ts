@@ -28,7 +28,6 @@ import { runWithActivity } from "./activity.runner.js";
 import { activityQueue } from "./activity.queue.js";
 
 const RETRY_TYPES = ["pr_review", "pr_reply", "issue_open", "issue_reply"] as const;
-type RetryActivityType = (typeof RETRY_TYPES)[number];
 
 const FINISHED_STATUSES = ["completed", "failed", "canceled"] as const;
 
@@ -941,7 +940,7 @@ export class ActivityService {
         if (activity.status !== "failed" && activity.status !== "canceled") {
             throw new Error("Only failed or canceled activities can be retried");
         }
-        if (!RETRY_TYPES.includes(activity.type as RetryActivityType)) {
+        if (!RETRY_TYPES.includes(activity.type)) {
             throw new Error("This activity type cannot be retried");
         }
 

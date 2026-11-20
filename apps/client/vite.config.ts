@@ -7,11 +7,7 @@ const isDemoBuild = process.env.PUBLIC_DEMO === "true";
 
 const version =
     process.env.PROVAL_VERSION ||
-    (process.env.NODE_ENV === "production"
-        ? isDemoBuild
-            ? "demo"
-            : "unknown"
-        : process.env.NODE_ENV || "unknown");
+    (process.env.NODE_ENV === "production" ? (isDemoBuild ? "demo" : "unknown") : process.env.NODE_ENV || "unknown");
 
 export default defineConfig({
     define: {

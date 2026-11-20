@@ -9,7 +9,7 @@
     },
     "scripts": {
         "generate": "bun scripts/generate.ts",
-        "lint": "prettier --check .",
+        "format:check": "prettier --check .",
         "format": "prettier --write ."
     },
     "devDependencies": {

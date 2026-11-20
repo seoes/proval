@@ -43,13 +43,7 @@ export type ActivityLogResponse = {
 /** Fields that change while a review is running. The detail poll reads only these. */
 export type ActivityStatusResponse = Pick<
     Activity,
-    | "status"
-    | "startedAt"
-    | "completedAt"
-    | "errorMessage"
-    | "inputToken"
-    | "cachedInputToken"
-    | "outputToken"
+    "status" | "startedAt" | "completedAt" | "errorMessage" | "inputToken" | "cachedInputToken" | "outputToken"
 >;
 
 /** Activity row as returned by list/detail APIs (logs loaded separately). */

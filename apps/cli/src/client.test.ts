@@ -72,8 +72,8 @@ describe("ApiClient", () => {
         });
         await client.get("/repository");
         await client.put("/repository/1", { prReviewEnabled: false });
-        expect(seen[0]!["Content-Type"]).toBeUndefined();
-        expect(seen[1]!["Content-Type"]).toBe("application/json");
+        expect(seen[0]["Content-Type"]).toBeUndefined();
+        expect(seen[1]["Content-Type"]).toBe("application/json");
     });
 
     test("turns a failure status into an ApiError rather than returning a body", async () => {
@@ -101,15 +101,18 @@ describe("ApiClient", () => {
     });
 
     test("does not crash when an error body is not json", async () => {
-        const client = new ApiClient(credentials, async () =>
-            ({ ok: false, status: 502, text: async () => "<html>bad gateway</html>" }) as unknown as Response,
+        const client = new ApiClient(
+            credentials,
+            async () =>
+                ({ ok: false, status: 502, text: async () => "<html>bad gateway</html>" }) as unknown as Response,
         );
         await expect(client.get("/repository")).rejects.toThrow(ApiError);
     });
 
     test("rejects a success body that is not json", async () => {
-        const client = new ApiClient(credentials, async () =>
-            ({ ok: true, status: 200, text: async () => "<!doctype html>" }) as unknown as Response,
+        const client = new ApiClient(
+            credentials,
+            async () => ({ ok: true, status: 200, text: async () => "<!doctype html>" }) as unknown as Response,
         );
         await expect(client.get("/settings")).rejects.toThrow(ApiError);
     });

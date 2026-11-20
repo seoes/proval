@@ -6,6 +6,7 @@ export const typedRules = {
     "@typescript-eslint/switch-exhaustiveness-check": "error",
     "@typescript-eslint/no-misused-promises": "error",
     "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
 };
 
 /** @type {import('eslint').Linter.Config[]} */
@@ -28,5 +29,9 @@ export const baseConfigs = [
             "@typescript-eslint/no-explicit-any": "error",
             "@typescript-eslint/no-non-null-assertion": "warn",
         },
+    },
+    {
+        files: ["**/*.test.ts"],
+        rules: { "@typescript-eslint/no-non-null-assertion": "off" },
     },
 ];

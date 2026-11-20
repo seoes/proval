@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-    isAllowedTargetBranch,
-    validateAllowedBranchList,
-} from "./allowed-target-branch.js";
+import { isAllowedTargetBranch, validateAllowedBranchList } from "./allowed-target-branch.js";
 
 describe("isAllowedTargetBranch", () => {
     it("allows every branch when the list is empty", () => {
@@ -13,9 +10,7 @@ describe("isAllowedTargetBranch", () => {
     it("matches the whole branch name only", () => {
         expect(isAllowedTargetBranch(["dev"], "dev")).toBe(true);
         expect(isAllowedTargetBranch(["dev", "main"], "main")).toBe(true);
-        expect(isAllowedTargetBranch(["release/1.2"], "release/1.2")).toBe(
-            true,
-        );
+        expect(isAllowedTargetBranch(["release/1.2"], "release/1.2")).toBe(true);
 
         for (const branch of [
             "development",
@@ -37,24 +32,13 @@ describe("isAllowedTargetBranch", () => {
 
 describe("validateAllowedBranchList", () => {
     it("accepts valid branch lists", () => {
-        expect(validateAllowedBranchList(["dev", "main"])).toEqual([
-            "dev",
-            "main",
+        expect(validateAllowedBranchList(["dev", "main"])).toEqual(["dev", "main"]);
+        expect(validateAllowedBranchList([" main ", "dev"])).toEqual(["main", "dev"]);
+        expect(validateAllowedBranchList(["main", "main", "dev"])).toEqual(["main", "dev"]);
+        expect(validateAllowedBranchList(["release/1.2"])).toEqual(["release/1.2"]);
+        expect(validateAllowedBranchList(["github/dev-king/feat-something"])).toEqual([
+            "github/dev-king/feat-something",
         ]);
-        expect(validateAllowedBranchList([" main ", "dev"])).toEqual([
-            "main",
-            "dev",
-        ]);
-        expect(validateAllowedBranchList(["main", "main", "dev"])).toEqual([
-            "main",
-            "dev",
-        ]);
-        expect(validateAllowedBranchList(["release/1.2"])).toEqual([
-            "release/1.2",
-        ]);
-        expect(
-            validateAllowedBranchList(["github/dev-king/feat-something"]),
-        ).toEqual(["github/dev-king/feat-something"]);
         expect(validateAllowedBranchList(["Dev"])).toEqual(["Dev"]);
     });
 
@@ -76,13 +60,7 @@ describe("validateAllowedBranchList", () => {
     });
 
     it("rejects oversized lists and names", () => {
-        expect(() =>
-            validateAllowedBranchList(
-                Array.from({ length: 33 }, (_, i) => `branch-${i}`),
-            ),
-        ).toThrow(Error);
-        expect(() =>
-            validateAllowedBranchList(["a".repeat(256)]),
-        ).toThrow(Error);
+        expect(() => validateAllowedBranchList(Array.from({ length: 33 }, (_, i) => `branch-${i}`))).toThrow(Error);
+        expect(() => validateAllowedBranchList(["a".repeat(256)])).toThrow(Error);
     });
 });

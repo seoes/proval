@@ -20,8 +20,7 @@ function resolveClosedPullRequest(c: Context, provider: Repository["provider"]):
         if (webhookEvent !== "Merge Request Hook") {
             return { kind: "not_applicable" };
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const payload = c.get("gitlabPayload") as any;
+        const payload = c.get("gitlabPayload");
         const action = payload?.object_attributes?.action;
         if (action !== "close" && action !== "merge") {
             return { kind: "not_applicable" };
@@ -38,8 +37,7 @@ function resolveClosedPullRequest(c: Context, provider: Repository["provider"]):
     if (webhookEvent !== "pull_request" && webhookEvent !== "pull_request_sync") {
         return { kind: "not_applicable" };
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
+    const payload = c.get(isForgejo ? "forgejoPayload" : "githubPayload");
     const action = payload?.action ?? "";
     if (isForgejo && action === "merged") {
         const number = payload?.pull_request?.number ?? payload?.number;
@@ -86,8 +84,7 @@ export const logWebhookRequest = createMiddleware(async (c, next) => {
 });
 
 function parseGitLabWebhook(c: Context): WebhookIngress {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const p = c.get("gitlabPayload") as any;
+    const p = c.get("gitlabPayload");
     const oa = p?.object_attributes;
     const webhookEvent = c.req.header("X-Gitlab-Event") ?? "unknown";
 
@@ -112,8 +109,7 @@ function parseGitLabWebhook(c: Context): WebhookIngress {
 }
 
 function parseGitHubWebhook(c: Context, isForgejo: boolean): WebhookIngress {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload") as any;
+    const p = c.get(isForgejo ? "forgejoPayload" : "githubPayload");
     const pr = p?.pull_request;
     const issue = p?.issue;
     const webhookEvent = isForgejo ? resolveForgejoWebhookEvent(c) : (c.req.header("X-GitHub-Event") ?? "unknown");

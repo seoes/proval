@@ -14,7 +14,8 @@
         "build": "tsc",
         "typecheck": "tsc --noEmit",
         "dev": "tsc --watch",
-        "lint": "prettier --check . && eslint .",
+        "lint": "eslint .",
+        "format:check": "prettier --check .",
         "format": "prettier --write ."
     },
     "peerDependencies": {

@@ -229,10 +229,7 @@ function primaryByCase(attemptList: ScoreAttempt[]): Map<string, ScoreAttempt> {
     return byCase;
 }
 
-function coreScore(
-    evaluationList: Evaluation[],
-    beta: number,
-): ReturnType<typeof scoreProfile> | null {
+function coreScore(evaluationList: Evaluation[], beta: number): ReturnType<typeof scoreProfile> | null {
     const usable = evaluationList.filter((evaluation) => !evaluation.skipped);
     if (usable.length === 0) return null;
     return scoreProfile(usable, new Map(), "core", beta);
@@ -288,11 +285,7 @@ function range(summaryList: CaseSummary[]): string {
     return `${formatMs(Math.min(...valueList))} to ${formatMs(Math.max(...valueList))}`;
 }
 
-function coreForCases(
-    caseIdList: string[],
-    primary: Map<string, ScoreAttempt>,
-    beta: number | null,
-): string {
+function coreForCases(caseIdList: string[], primary: Map<string, ScoreAttempt>, beta: number | null): string {
     if (beta === null) return "-";
     const evaluationList = caseIdList
         .map((caseId) => usableEvaluation(primary.get(caseId)?.evaluation))
@@ -401,11 +394,7 @@ export function renderBatchReadme(input: {
     return `${lineList.join("\n").trim()}\n`;
 }
 
-function projectTable(
-    summaryList: CaseSummary[],
-    primary: Map<string, ScoreAttempt>,
-    beta: number | null,
-): string {
+function projectTable(summaryList: CaseSummary[], primary: Map<string, ScoreAttempt>, beta: number | null): string {
     const byProject = new Map<string, CaseSummary[]>();
     for (const summary of summaryList) {
         const list = byProject.get(summary.project) ?? [];
@@ -435,11 +424,7 @@ function projectTable(
     return table(["Project", "PRs", "Completed", "Median", "Range", "Core score"], rowList);
 }
 
-function sizeTable(
-    summaryList: CaseSummary[],
-    primary: Map<string, ScoreAttempt>,
-    beta: number | null,
-): string {
+function sizeTable(summaryList: CaseSummary[], primary: Map<string, ScoreAttempt>, beta: number | null): string {
     const rowList = SIZE_ORDER.map((bucket) => {
         const list = summaryList.filter((summary) => summary.bucket === bucket);
         if (list.length === 0) return null;
@@ -538,9 +523,7 @@ function prTable(
                 recordList.filter((record) => record.caseId === summary.caseId).map((record) => record.repeatIndex),
             ).size;
             const awaiting =
-                typeof repeatCount === "number" && repeatCount > 0
-                    ? Math.max(0, repeatCount - recordedRepeatCount)
-                    : 0;
+                typeof repeatCount === "number" && repeatCount > 0 ? Math.max(0, repeatCount - recordedRepeatCount) : 0;
             const outcome = [formatStatus(summary.statusCount), awaiting > 0 ? `Awaiting ${awaiting}` : ""]
                 .filter(Boolean)
                 .join(", ");
@@ -648,7 +631,19 @@ function detailSection(summaryList: CaseSummary[], score: ScoreFile | null): str
             attemptList.length === 0
                 ? "None."
                 : table(
-                      ["PR", "Repeat", "Attempt", "Candidates", "Golden", "TP", "FP", "FN", "Precision", "Recall", "Note"],
+                      [
+                          "PR",
+                          "Repeat",
+                          "Attempt",
+                          "Candidates",
+                          "Golden",
+                          "TP",
+                          "FP",
+                          "FN",
+                          "Precision",
+                          "Recall",
+                          "Note",
+                      ],
                       attemptList.map((attempt) => {
                           const evaluation = usableEvaluation(attempt.evaluation);
                           return [

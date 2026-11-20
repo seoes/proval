@@ -30,7 +30,7 @@ export function createSvelteConfig({ svelteConfig, gitignorePath, ignores = [], 
             },
         },
         {
-            languageOptions: { globals: { ...globals.browser, ...globals.node } },
+            languageOptions: { globals: { ...globals.browser, ...globals.node }, parserOptions: { tsconfigRootDir } },
         },
         {
             files: ["**/*.{ts,tsx,mts,cts}"],

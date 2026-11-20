@@ -7,7 +7,7 @@ import type { GitHubInstallationResponse, GitHubRepositoryResponse } from "@prov
 import { decrypt } from "../../util/encrypt.js";
 
 export class GitHubInstallationService {
-    async getInstallationList(appId: number): Promise<GitHubInstallationResponse[]> {
+    public async getInstallationList(appId: number): Promise<GitHubInstallationResponse[]> {
         const appList = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appId)).limit(1);
         if (appList.length === 0) {
             throw new Error("GitHub App not found");
@@ -93,7 +93,7 @@ export class GitHubInstallationService {
         };
     }
 
-    async getRepositoryList(appId: number, installationId: number): Promise<GitHubRepositoryResponse[]> {
+    public async getRepositoryList(appId: number, installationId: number): Promise<GitHubRepositoryResponse[]> {
         const appList = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appId)).limit(1);
 
         if (appList.length === 0) {
@@ -152,7 +152,7 @@ export class GitHubInstallationService {
         }));
     }
 
-    async delete(appId: number, installationId: number): Promise<void> {
+    public async delete(appId: number, installationId: number): Promise<void> {
         const appList = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appId)).limit(1);
         if (appList.length === 0) {
             throw new Error("GitHub App not found");
@@ -191,7 +191,7 @@ export class GitHubInstallationService {
         await db.delete(githubInstallationTable).where(eq(githubInstallationTable.id, installationId));
     }
 
-    async getInstallUrl(appId: number): Promise<string> {
+    public async getInstallUrl(appId: number): Promise<string> {
         const appList = await db.select().from(githubAppTable).where(eq(githubAppTable.id, appId)).limit(1);
         if (appList.length === 0) {
             throw new Error("No GitHub App configured");
@@ -199,7 +199,7 @@ export class GitHubInstallationService {
         return `https://github.com/apps/${appList[0].slug}/installations/new`;
     }
 
-    async handleSetup(installationId: number, setupAction: string): Promise<{ id: number }> {
+    public async handleSetup(installationId: number, setupAction: string): Promise<{ id: number }> {
         if (setupAction !== "install") {
             throw new Error("Invalid setup action");
         }

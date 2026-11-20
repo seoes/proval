@@ -107,7 +107,7 @@ export function parseExtractIssueList(content: string): { issueList: string[]; e
     if (!parsed || typeof parsed !== "object" || !("issues" in parsed)) {
         return { issueList: [], error: "Missing issues key" };
     }
-    const issueList = (parsed as { issues: unknown }).issues;
+    const issueList = parsed.issues;
     if (!Array.isArray(issueList) || issueList.some((item) => typeof item !== "string")) {
         return { issueList: [], error: "issues must be a string list" };
     }
@@ -123,7 +123,7 @@ export function parseDedupGroupList(content: string, candidateCount: number): nu
         return null;
     }
     if (!parsed || typeof parsed !== "object" || !("groups" in parsed)) return null;
-    const groupList = (parsed as { groups: unknown }).groups;
+    const groupList = parsed.groups;
     if (!Array.isArray(groupList)) return null;
     const seen = new Set<number>();
     const parsedGroupList: number[][] = [];

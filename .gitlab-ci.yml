@@ -14,6 +14,18 @@ stages:
     before_script:
         - bun install --frozen-lockfile
 
+format:
+    extends: .bun_verify
+    script:
+        - bun run format:check
+
+lint:
+    extends: .bun_verify
+    script:
+        - bun run --filter @proval/db build
+        - bun run --filter @proval/types build
+        - bun run lint
+
 typecheck:
     extends: .bun_verify
     script:

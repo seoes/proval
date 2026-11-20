@@ -20,16 +20,13 @@ function mockActivityService(overrides: {
 
 describe("skipPullRequestReviewBeforeQueue", () => {
     it("skips reopen when head was already reviewed", async () => {
-        const message = await skipPullRequestReviewBeforeQueue(
-            mockActivityService({ lastHeadSha: "abc" }),
-            {
-                repositoryId: 1,
-                targetIid: 2,
-                headSha: "abc",
-                reviewMode: "on_every_push",
-                isReopen: true,
-            },
-        );
+        const message = await skipPullRequestReviewBeforeQueue(mockActivityService({ lastHeadSha: "abc" }), {
+            repositoryId: 1,
+            targetIid: 2,
+            headSha: "abc",
+            reviewMode: "on_every_push",
+            isReopen: true,
+        });
         expect(message).toBe("Skipped: head already reviewed");
     });
 
@@ -48,16 +45,13 @@ describe("skipPullRequestReviewBeforeQueue", () => {
     });
 
     it("applies on_first_push gate for non reopen events", async () => {
-        const message = await skipPullRequestReviewBeforeQueue(
-            mockActivityService({ hasCompleted: true }),
-            {
-                repositoryId: 1,
-                targetIid: 2,
-                headSha: "new",
-                reviewMode: "on_first_push",
-                isReopen: false,
-            },
-        );
+        const message = await skipPullRequestReviewBeforeQueue(mockActivityService({ hasCompleted: true }), {
+            repositoryId: 1,
+            targetIid: 2,
+            headSha: "new",
+            reviewMode: "on_first_push",
+            isReopen: false,
+        });
         expect(message).toBe("Skipped: already reviewed (on_first_push)");
     });
 });

@@ -1,5 +1,5 @@
 import fetchApi from "$lib/utils";
-import type { ActivitySummaryResponse, DashboardRange } from "@proval/types";
+import type { ActivitySummaryResponse } from "@proval/types";
 import type { PageLoad } from "./$types";
 import { loadRepositoryPage } from "./load.js";
 

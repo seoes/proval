@@ -104,7 +104,7 @@ async function shutdownAndExit(signal: string) {
                 .where(eq(activityTable.status, "started"))
                 .limit(1);
             if (!started) {
-                console.log("No running activities...");
+                log("No running activities...");
                 return;
             }
             await Bun.sleep(1000);

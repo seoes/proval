@@ -11,9 +11,7 @@
     }
     const { children, title, narrow = false, asideLayout = false, actions }: Props = $props();
 
-    const containerClass = $derived(
-        narrow ? "max-w-lg" : asideLayout ? "max-w-7xl xl:max-w-6xl" : "max-w-6xl",
-    );
+    const containerClass = $derived(narrow ? "max-w-lg" : asideLayout ? "max-w-7xl xl:max-w-6xl" : "max-w-6xl");
 </script>
 
 <svelte:head>

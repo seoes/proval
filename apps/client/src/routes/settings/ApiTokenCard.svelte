@@ -17,13 +17,9 @@
 
     let { tokenList }: Props = $props();
 
-    let list = $state<ApiTokenResponse[]>([]);
-
     // Seeded from the loader and resynced if the page reloads. Create and revoke
     // update it in place so the list does not need a round trip.
-    $effect(() => {
-        list = tokenList;
-    });
+    let list = $derived(tokenList);
     let isCreating = $state(false);
     let isBusy = $state(false);
     let name = $state("");
@@ -143,7 +139,7 @@
             <div class="rounded-md border border-warning bg-warning-muted p-4">
                 <FieldTitle class="mb-1">Copy this token now</FieldTitle>
                 <Description placement="below">It is shown once and cannot be retrieved again.</Description>
-                <p class="mt-3 break-all rounded bg-background px-3 py-2 font-mono text-xs text-foreground">
+                <p class="mt-3 rounded bg-background px-3 py-2 font-mono text-xs break-all text-foreground">
                     {newSecret}
                 </p>
                 <div class="mt-3 flex gap-2">

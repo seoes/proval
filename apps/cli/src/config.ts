@@ -35,10 +35,7 @@ function cleanUrl(raw: string): string {
  * token would otherwise silently fall back to a stored token for a different
  * instance, which is the kind of mistake that sends a write to the wrong place.
  */
-export function resolveCredentials(
-    env: NodeJS.ProcessEnv,
-    stored: Partial<Credentials> | null,
-): ResolvedCredentials {
+export function resolveCredentials(env: NodeJS.ProcessEnv, stored: Partial<Credentials> | null): ResolvedCredentials {
     const envUrl = env.PROVAL_API_URL?.trim();
     const envToken = env.PROVAL_API_TOKEN?.trim();
     if (envUrl && envToken) {
@@ -76,9 +73,13 @@ export async function writeStoredCredentials(
     const directory = configDirectory(env);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const path = configPath(env);
-    await writeFile(path, JSON.stringify({ url: cleanUrl(credentials.url), token: credentials.token }, null, 2) + "\n", {
-        mode: 0o600,
-    });
+    await writeFile(
+        path,
+        JSON.stringify({ url: cleanUrl(credentials.url), token: credentials.token }, null, 2) + "\n",
+        {
+            mode: 0o600,
+        },
+    );
     await chmod(path, 0o600);
     return path;
 }

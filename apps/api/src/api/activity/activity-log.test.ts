@@ -116,7 +116,9 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             expect(body.status).toBe("started");
             expect(body.logVersion).toBe("1");
             expect(body.entryList.map((entry) => entry.label)).toEqual(["Current", "Plan", "log", "log"]);
-            expect(body.entryList.every((entry) => entry.type === "common" && entry.message === base.message)).toBe(true);
+            expect(body.entryList.every((entry) => entry.type === "common" && entry.message === base.message)).toBe(
+                true,
+            );
             const saved = db
                 .select({ logs: activityTable.logs, logVersion: activityTable.logVersion })
                 .from(activityTable)
@@ -207,7 +209,11 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
         });
 
         it("returns an empty list for a new activity and 404 for a missing activity", async () => {
-            expect(await service.findLogListById(activityId)).toEqual({ status: "started", logVersion: "1", entryList: [] });
+            expect(await service.findLogListById(activityId)).toEqual({
+                status: "started",
+                logVersion: "1",
+                entryList: [],
+            });
             const response = await app.request("/activity/0/log");
             expect(response.status).toBe(404);
         });

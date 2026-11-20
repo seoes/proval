@@ -50,7 +50,7 @@ export function median(valueList: number[]): number | null {
     if (valueList.length === 0) return null;
     const sorted = [...valueList].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+    return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function countByStatus(recordList: AttemptRecord[]): Record<string, number> {

@@ -1,4 +1,4 @@
-// scripts/export-bruno.ts
+/* eslint-disable no-console */
 import { Hono } from "hono";
 import { inspectRoutes } from "hono/dev";
 import fs from "fs";
@@ -11,7 +11,7 @@ function slugify(str: string): string {
     return (
         str
             .replace(/^\//, "")
-            .replace(/[\/:{}]/g, "-")
+            .replace(/[/:{}]/g, "-")
             .replace(/-+/g, "-") || "root"
     );
 }

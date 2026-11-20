@@ -15,11 +15,7 @@
     const { data }: PageProps = $props();
 
     let addModelProviderModalOpen = $state(false);
-    let modelProviderList = $state(data.modelProviderList);
-
-    $effect(() => {
-        modelProviderList = data.modelProviderList;
-    });
+    let modelProviderList = $derived(data.modelProviderList);
 
     async function onResetRateLimit(modelProvider: ModelProviderResponse) {
         const confirmed = await openConfirm(

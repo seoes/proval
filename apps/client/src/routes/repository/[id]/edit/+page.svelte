@@ -68,9 +68,7 @@
             goto(`/repository/${data.repository.id}`);
         } catch (error) {
             console.error("Failed to update repository", error);
-            await openAlert(
-                error instanceof Error ? error.message : "Failed to update repository",
-            );
+            await openAlert(error instanceof Error ? error.message : "Failed to update repository");
         }
     }
 

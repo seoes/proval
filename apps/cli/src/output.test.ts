@@ -28,8 +28,8 @@ describe("renderTable", () => {
     test("right aligns numeric columns so digits line up", () => {
         const lineList = renderTable(rowList, columnList).split("\n");
         // "1" is padded to the width of "23".
-        expect(lineList[1]!.startsWith(" 1")).toBe(true);
-        expect(lineList[2]!.startsWith("23")).toBe(true);
+        expect(lineList[1].startsWith(" 1")).toBe(true);
+        expect(lineList[2].startsWith("23")).toBe(true);
     });
 
     test("leaves no trailing whitespace on any line", () => {
@@ -47,7 +47,7 @@ describe("renderNdjson", () => {
     test("writes one object per line with no wrapping array", () => {
         const lineList = renderNdjson(rowList).split("\n");
         expect(lineList).toHaveLength(2);
-        expect(JSON.parse(lineList[0]!)).toEqual(rowList[0] as unknown as Record<string, unknown>);
+        expect(JSON.parse(lineList[0])).toEqual(rowList[0] as unknown as Record<string, unknown>);
     });
 
     test("produces nothing for an empty list, so a consumer reads zero lines", () => {

@@ -83,7 +83,9 @@ function slowFetch(frames: string[], gapMs: number, close: boolean) {
     return async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         const body = new ReadableStream<Uint8Array>({
             async start(controller) {
-                init?.signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")));
+                init?.signal?.addEventListener("abort", () =>
+                    controller.error(new DOMException("aborted", "AbortError")),
+                );
                 for (const f of frames) {
                     await new Promise((r) => setTimeout(r, gapMs));
                     controller.enqueue(encoder.encode(f));
@@ -105,23 +107,33 @@ async function expectSilentTimeout(send: () => Promise<unknown>) {
 
 describe("stream idle timeout", () => {
     describe("openai chat completions", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createOpenAiSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
+            createOpenAiSender({ ...sdkBase, fetch: fetchImpl });
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
             await expectSilentTimeout(() =>
-                sender(slowFetch([chatFrame({ content: "thinking" })], 10, false)).send([{ role: "user", content: "hi" }], []),
+                sender(slowFetch([chatFrame({ content: "thinking" })], 10, false)).send(
+                    [{ role: "user", content: "hi" }],
+                    [],
+                ),
             );
         });
 
         test("a slow stream that keeps sending is not cut off", async () => {
-            const frames = [chatFrame({ content: "a" }), chatFrame({ content: "b" }), chatFrame({ content: "c" }), chatFrame({}, "stop")];
+            const frames = [
+                chatFrame({ content: "a" }),
+                chatFrame({ content: "b" }),
+                chatFrame({ content: "c" }),
+                chatFrame({}, "stop"),
+            ];
             const result = await sender(slowFetch(frames, 600, true)).send([{ role: "user", content: "hi" }], []);
             expect(result.message.content).toBe("abc");
         });
     });
 
     describe("openai responses", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createOpenAiResponsesSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
+            createOpenAiResponsesSender({ ...sdkBase, fetch: fetchImpl });
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
             await expectSilentTimeout(() =>
@@ -130,23 +142,35 @@ describe("stream idle timeout", () => {
         });
 
         test("a slow stream that keeps sending is not cut off", async () => {
-            const frames = [
-                responsesCreated(),
-                responsesCreated(),
-                responsesCreated(),
-                responsesCompleted("abc"),
-            ];
+            const frames = [responsesCreated(), responsesCreated(), responsesCreated(), responsesCompleted("abc")];
             const result = await sender(slowFetch(frames, 600, true)).send([{ role: "user", content: "hi" }], []);
             expect(result.message.content).toBe("abc");
         });
     });
 
     describe("anthropic", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createAnthropicSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
+            createAnthropicSender({ ...sdkBase, fetch: fetchImpl });
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
-            const startOnly = [anthropicSse({ type: "message_start", message: { id: "msg_1", type: "message", role: "assistant", model: "m", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } })];
-            await expectSilentTimeout(() => sender(slowFetch(startOnly, 10, false)).send([{ role: "user", content: "hi" }], []));
+            const startOnly = [
+                anthropicSse({
+                    type: "message_start",
+                    message: {
+                        id: "msg_1",
+                        type: "message",
+                        role: "assistant",
+                        model: "m",
+                        content: [],
+                        stop_reason: null,
+                        stop_sequence: null,
+                        usage: { input_tokens: 1, output_tokens: 0 },
+                    },
+                }),
+            ];
+            await expectSilentTimeout(() =>
+                sender(slowFetch(startOnly, 10, false)).send([{ role: "user", content: "hi" }], []),
+            );
         });
 
         test("a slow stream that keeps sending is not cut off", async () => {

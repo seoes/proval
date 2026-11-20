@@ -94,7 +94,7 @@ export class XaiOAuthService {
         return { clientId: previous?.clientId ?? clientId, accessToken, refreshToken, expiresAt };
     }
 
-    async start(owner: string, input: unknown): Promise<XaiOAuthAttemptResponse> {
+    public async start(owner: string, input: unknown): Promise<XaiOAuthAttemptResponse> {
         const attemptInput = xaiOAuthAttemptSchema.parse(input);
         if (this.startingOwnerSet.has(owner)) throw new XaiOAuthError("Authorization is already starting", 409);
         if (this.attemptMap.size + this.startingOwnerSet.size >= 256) {
@@ -170,7 +170,7 @@ export class XaiOAuthService {
         }
     }
 
-    get(owner: string, id: string): XaiOAuthAttemptResponse {
+    public get(owner: string, id: string): XaiOAuthAttemptResponse {
         const attempt = this.findAttempt(owner, id);
         if (attempt.response.status === "pending" && Date.now() >= attempt.response.expiresAt)
             this.finish(attempt, "expired");
@@ -178,7 +178,7 @@ export class XaiOAuthService {
         return { ...attempt.response };
     }
 
-    cancel(owner: string, id: string): XaiOAuthAttemptResponse {
+    public cancel(owner: string, id: string): XaiOAuthAttemptResponse {
         const attempt = this.findAttempt(owner, id);
         if (attempt.response.status === "pending") this.finish(attempt, "cancelled");
 
@@ -333,7 +333,7 @@ export class XaiOAuthService {
         return { ...provider, oauthCredential: provider.oauthCredential };
     }
 
-    async getAccessToken(id: number, rejectedAccessToken?: string): Promise<string> {
+    public async getAccessToken(id: number, rejectedAccessToken?: string): Promise<string> {
         const provider = this.provider(id);
         if (provider.oauthStatus === "reauthorization_required")
             throw new XaiOAuthError("Reconnect this xAI provider", 403);
@@ -416,7 +416,7 @@ export class XaiOAuthService {
         return updated;
     }
 
-    async revoke(id: number, encryptedCredential: string) {
+    public async revoke(id: number, encryptedCredential: string) {
         for (const attempt of this.attemptMap.values()) {
             if (attempt.input.modelProviderId === id) this.finish(attempt, "cancelled");
         }

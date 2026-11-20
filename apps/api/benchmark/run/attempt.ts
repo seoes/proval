@@ -27,7 +27,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { OUTPUT_DIR } from "../load/git.js";
 import { loadManifest, MANIFEST_PATH } from "../load/manifest.js";
-import type { AttemptStatus, BenchmarkLlmConfig, BenchmarkProfile, ManifestCase, PhaseTiming, SubAgentMeasure } from "../types.js";
+import type {
+    AttemptStatus,
+    BenchmarkLlmConfig,
+    BenchmarkProfile,
+    ManifestCase,
+    PhaseTiming,
+    SubAgentMeasure,
+} from "../types.js";
 import {
     collectSourceState,
     loadBenchmarkLlmConfig,
@@ -134,7 +141,7 @@ async function createActivityRow(entry: ManifestCase, modelName: string): Promis
             logVersion: "1",
         })
         .returning({ id: activityTable.id });
-    return row!.id;
+    return row.id;
 }
 
 async function main(): Promise<void> {

@@ -341,10 +341,7 @@ function pickType(rng: () => number): ActivityResponse["type"] {
     return "issue_open";
 }
 
-type DemoActivity = Omit<
-    ActivityResponse,
-    "targetCommentId" | "targetInlineReviewId" | "reasoningEffort" | "queuedAt"
->;
+type DemoActivity = Omit<ActivityResponse, "targetCommentId" | "targetInlineReviewId" | "reasoningEffort" | "queuedAt">;
 
 function withReplyTarget(activity: DemoActivity): ActivityResponse {
     const isReply = activity.type === "pr_reply" || activity.type === "issue_reply";

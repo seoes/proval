@@ -204,7 +204,7 @@
             index,
             label: bars[index].label,
             leftPct: (bars[index].centerX / plotW) * 100,
-            align: (index === 0 ? "start" : index === length - 1 ? "end" : "center") as "start" | "center" | "end",
+            align: index === 0 ? "start" : index === length - 1 ? "end" : "center",
         }));
     });
 

@@ -32,7 +32,7 @@ export function renderTable<T>(rowList: T[], columnList: Column<T>[]): string {
     }
     const cellMatrix = rowList.map((row) => columnList.map((column) => column.value(row)));
     const widthList = columnList.map((column, index) =>
-        Math.max(column.header.length, ...cellMatrix.map((cells) => cells[index]!.length)),
+        Math.max(column.header.length, ...cellMatrix.map((cells) => cells[index].length)),
     );
 
     const pad = (text: string, width: number, numeric: boolean) =>
@@ -40,12 +40,15 @@ export function renderTable<T>(rowList: T[], columnList: Column<T>[]): string {
 
     const lineList: string[] = [];
     lineList.push(
-        columnList.map((column, index) => pad(column.header, widthList[index]!, false)).join("  ").trimEnd(),
+        columnList
+            .map((column, index) => pad(column.header, widthList[index], false))
+            .join("  ")
+            .trimEnd(),
     );
     for (const cells of cellMatrix) {
         lineList.push(
             cells
-                .map((cell, index) => pad(cell, widthList[index]!, columnList[index]!.numeric ?? false))
+                .map((cell, index) => pad(cell, widthList[index], columnList[index].numeric ?? false))
                 .join("  ")
                 .trimEnd(),
         );

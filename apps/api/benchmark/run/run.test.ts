@@ -45,8 +45,8 @@ describe("closeUnfinishedAttemptList", () => {
             const after = await readResultLineList(dir);
             const interrupted = after.filter((line) => line.type === "result" && line.status === "interrupted");
             expect(interrupted.length).toBe(1);
-            expect(interrupted[0]!.runId).toBe("r2");
-            expect(interrupted[0]!.statusReason).toBe("process-exited-before-terminal-record");
+            expect(interrupted[0].runId).toBe("r2");
+            expect(interrupted[0].statusReason).toBe("process-exited-before-terminal-record");
 
             // A second pass must not duplicate the classification.
             expect(await closeUnfinishedAttemptList(dir)).toBe(0);
@@ -134,7 +134,7 @@ async function writeChangedManifest(name: string, change: () => Promise<void>): 
     await git(["update-ref", `refs/heads/${name}`, nextHeadSha], repoDir);
     const stat = await computeDiffStat(repoDir, headSha, nextHeadSha);
     const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as Manifest;
-    Object.assign(manifest.caseList[0]!, { baseSha: headSha, startSha: headSha, headSha: nextHeadSha, ...stat });
+    Object.assign(manifest.caseList[0], { baseSha: headSha, startSha: headSha, headSha: nextHeadSha, ...stat });
     const path = join(rootDir, `${name}.json`);
     await writeFile(path, JSON.stringify(manifest));
     await git(["checkout", "--detach", headSha], repoDir);
@@ -151,7 +151,7 @@ function childEnv(extra: Record<string, string> = {}): Record<string, string> {
         LLM_API_KEY: "fake",
         LLM_MODEL: "fake-model",
         ...extra,
-    } as Record<string, string>;
+    };
 }
 
 function spawnWorkerChild(env: Record<string, string>, attemptIndex: number, tag: string) {
@@ -226,7 +226,7 @@ describe("batch resume with fake sender", () => {
     test("only resumes the original execution condition and preserves output on rejection", async () => {
         const batchManifest = JSON.parse(await readFile(manifestPath, "utf-8")) as Manifest;
         batchManifest.caseList.push({
-            ...batchManifest.caseList[0]!,
+            ...batchManifest.caseList[0],
             caseId: "fixture__2",
             sourceUrl: "https://example.com/fixture/pull/2",
             prNumber: 2,
@@ -246,7 +246,14 @@ describe("batch resume with fake sender", () => {
         });
         const run = async (argList: string[], extra: Record<string, string> = {}) => {
             const proc = Bun.spawn(
-                [process.execPath, resolve(import.meta.dir, "../index.ts"), "run", ...argList, "--batch", "resume-batch"],
+                [
+                    process.execPath,
+                    resolve(import.meta.dir, "../index.ts"),
+                    "run",
+                    ...argList,
+                    "--batch",
+                    "resume-batch",
+                ],
                 { stdout: "pipe", stderr: "pipe", env: { ...env, ...extra } },
             );
             const [stdout, stderr, exitCode] = await Promise.all([
@@ -343,7 +350,14 @@ describe("batch resume with fake sender", () => {
         const env = childEnv({ BENCHMARK_FAKE_SENDER: "scripted" });
         const run = async (argList: string[]) => {
             const proc = Bun.spawn(
-                [process.execPath, resolve(import.meta.dir, "../index.ts"), "run", ...argList, "--batch", "repeat-batch"],
+                [
+                    process.execPath,
+                    resolve(import.meta.dir, "../index.ts"),
+                    "run",
+                    ...argList,
+                    "--batch",
+                    "repeat-batch",
+                ],
                 { stdout: "pipe", stderr: "pipe", env },
             );
             const [stdout, stderr, exitCode] = await Promise.all([
@@ -414,7 +428,7 @@ describe("run worker with fake sender", () => {
         expect(record.evaluation).toBe("good");
         expect(record.reviewUnitCount).toBe(2);
 
-        const timing = record.timing as PhaseTiming;
+        const timing = record.timing;
         // Phase durations partition the review and preparation stays outside.
         expect(timing.prepareMs).toBeGreaterThanOrEqual(0);
         for (const key of ["setupMs", "planMs", "subWallMs", "writingMs", "finalizeMs"] as const) {

@@ -41,33 +41,23 @@ export function createMultiLineCommentTool(
             const { position, ...finding } = parsed;
             const body = formatReviewFindingCommentBody(finding);
 
-            const validateEndpoint = (
-                label: "start" | "end",
-                endpoint: { type: "old" | "new"; newLine?: number; oldLine?: number },
-            ) => {
-                if (endpoint.type === "new" && endpoint.newLine === undefined) {
-                    return `position.${label}.newLine is required when position.${label}.type is 'new'.`;
-                }
-                if (endpoint.type === "old" && endpoint.oldLine === undefined) {
-                    return `position.${label}.oldLine is required when position.${label}.type is 'old'.`;
-                }
-                return null;
-            };
+            const startLine = position.start.type === "new" ? position.start.newLine : position.start.oldLine;
+            if (startLine === undefined) {
+                return {
+                    error: `position.start.${position.start.type}Line is required when position.start.type is '${position.start.type}'.`,
+                };
+            }
+            const endLine = position.end.type === "new" ? position.end.newLine : position.end.oldLine;
+            if (endLine === undefined) {
+                return {
+                    error: `position.end.${position.end.type}Line is required when position.end.type is '${position.end.type}'.`,
+                };
+            }
 
-            const startError = validateEndpoint("start", position.start);
-            if (startError) return { error: startError };
-
-            const endError = validateEndpoint("end", position.end);
-            if (endError) return { error: endError };
-
-            if (position.start.type === position.end.type) {
-                const startLine = position.start.type === "new" ? position.start.newLine! : position.start.oldLine!;
-                const endLine = position.end.type === "new" ? position.end.newLine! : position.end.oldLine!;
-                if (startLine > endLine) {
-                    return {
-                        error: "position.start line must be <= position.end line on the same side.",
-                    };
-                }
+            if (position.start.type === position.end.type && startLine > endLine) {
+                return {
+                    error: "position.start line must be <= position.end line on the same side.",
+                };
             }
 
             let fileDiff;
@@ -133,13 +123,12 @@ export function createMultiLineCommentTool(
                 }
             }
 
-            const resolveEndpoint = (endpoint: {
-                type: "old" | "new";
-                newLine?: number;
-                oldLine?: number;
-            }): { error: string } | { line: GitDiffLine } => {
-                if (endpoint.type === "new") {
-                    const newLine = endpoint.newLine!;
+            const resolveEndpoint = (
+                type: "old" | "new",
+                lineNumber: number,
+            ): { error: string } | { line: GitDiffLine } => {
+                if (type === "new") {
+                    const newLine = lineNumber;
                     if (!newLines.has(newLine)) {
                         return {
                             error: `Line ${newLine} is not in the PR diff hunk for ${position.newPath}. Call get_file_diff and anchor to a + or context line on the new side, or put the finding in the summary.`,
@@ -147,7 +136,7 @@ export function createMultiLineCommentTool(
                     }
                     return { line: { type: "new", newLine, oldLine: contextOldByNew.get(newLine) } };
                 }
-                const oldLine = endpoint.oldLine!;
+                const oldLine = lineNumber;
                 if (!oldLines.has(oldLine)) {
                     return {
                         error: `Line ${oldLine} is not in the PR diff hunk for ${position.oldPath}. Call get_file_diff and anchor to a - or context line on the old side, or put the finding in the summary.`,
@@ -156,9 +145,9 @@ export function createMultiLineCommentTool(
                 return { line: { type: "old", oldLine, newLine: contextNewByOld.get(oldLine) } };
             };
 
-            const resolvedStart = resolveEndpoint(position.start);
+            const resolvedStart = resolveEndpoint(position.start.type, startLine);
             if ("error" in resolvedStart) return { error: resolvedStart.error };
-            const resolvedEnd = resolveEndpoint(position.end);
+            const resolvedEnd = resolveEndpoint(position.end.type, endLine);
             if ("error" in resolvedEnd) return { error: resolvedEnd.error };
 
             const comment = await provider.createCommentToMultiLine(prIid, body, {

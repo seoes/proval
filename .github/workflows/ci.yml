@@ -7,6 +7,35 @@ permissions:
     contents: read
 
 jobs:
+    format:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run format:check
+
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: 1.3.11
+
+            - run: bun install --frozen-lockfile
+
+            - run: bun run --filter @proval/db build
+            - run: bun run --filter @proval/types build
+
+            - run: bun run lint
+
     typecheck:
         runs-on: ubuntu-latest
         steps:

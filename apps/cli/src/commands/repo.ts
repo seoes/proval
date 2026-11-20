@@ -57,10 +57,7 @@ function parseWholeNumber(raw: string): number {
 }
 
 /** Accepts either Proval's numeric id or the repository path, which is what a person remembers. */
-export async function resolveRepository(
-    context: CommandContext,
-    reference: string,
-): Promise<RepositoryResponse> {
+export async function resolveRepository(context: CommandContext, reference: string): Promise<RepositoryResponse> {
     const list = await context.client.get<RepositoryResponse[]>("/repository");
     const byId = /^\d+$/.test(reference) ? list.find((row) => row.id === Number(reference)) : undefined;
     const match = byId ?? list.find((row) => row.path === reference);

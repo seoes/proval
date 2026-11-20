@@ -135,22 +135,14 @@ async function preparePublishedBatch(batchId: string, targetDir: string): Promis
     await mkdir(targetDir, { recursive: true });
     await writeFile(join(targetDir, "run.json"), sanitizeRunJson(runJson));
     await writeFile(join(targetDir, "result.jsonl"), sanitizeResultJsonl(resultJsonl));
-    await writeFile(
-        join(targetDir, "README.md"),
-        renderBatchReadme({ batchId, runJson, resultJsonl, scoreJson }),
-    );
+    await writeFile(join(targetDir, "README.md"), renderBatchReadme({ batchId, runJson, resultJsonl, scoreJson }));
     if (scoreJson !== undefined) await writeFile(join(targetDir, "score.json"), scoreJson);
 }
 
 async function ensureResultRepo(repoUrl: string, token: string | undefined): Promise<void> {
     const repoDir = resultRepoDir();
     await rm(repoDir, { recursive: true, force: true });
-    await git(
-        ["clone", "--depth", "1", "--branch", "main", repoUrl, repoDir],
-        benchmarkDataDir(),
-        token,
-        true,
-    );
+    await git(["clone", "--depth", "1", "--branch", "main", repoUrl, repoDir], benchmarkDataDir(), token, true);
 }
 
 async function commitAndPush(

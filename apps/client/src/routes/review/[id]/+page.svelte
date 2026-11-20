@@ -89,7 +89,6 @@
     );
     const isQueuedOrStarted = $derived(review.status === "queued" || review.status === "started");
     const canCancel = $derived(isQueuedOrStarted);
-    const isRunning = $derived(review.status === "started");
 
     let isCanceling = $state(false);
 

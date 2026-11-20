@@ -410,12 +410,7 @@ export class RepositoryService {
         const [openActivityCount] = await db
             .select({ total: count() })
             .from(activityTable)
-            .where(
-                and(
-                    eq(activityTable.repositoryId, id),
-                    inArray(activityTable.status, ["queued", "started"]),
-                ),
-            );
+            .where(and(eq(activityTable.repositoryId, id), inArray(activityTable.status, ["queued", "started"])));
         if (openActivityCount.total > 0) {
             throw new Error(
                 `There are ${openActivityCount.total} queued or running activities for this repository. Cancel them first.`,

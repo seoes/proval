@@ -1,11 +1,7 @@
 import type { AgentTool } from "../../llm/loop.js";
 import type { GitProvider, GitRepositoryLabel } from "../../../git-provider/types.js";
 
-export function addIssueLabelTool(
-    provider: GitProvider,
-    issueIid: number,
-    labelList: GitRepositoryLabel[],
-): AgentTool {
+export function addIssueLabelTool(provider: GitProvider, issueIid: number, labelList: GitRepositoryLabel[]): AgentTool {
     const nameSet = new Set(labelList.map((item) => item.name));
     return {
         name: "add_issue_label",

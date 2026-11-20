@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { join, posix, resolve, sep } from "node:path";
 import { log, logAgent, logAgentError, logError } from "../util/log.js";
@@ -125,7 +127,7 @@ export class Workspace {
         await runCommand(
             ["git", "-c", `http.extraHeader=${this.authHeader}`, "fetch", `--depth=${depth}`, "origin", spec],
             {
-                cwd: this.rootDir!,
+                cwd: this.rootDir,
                 env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
             },
         );
@@ -142,8 +144,8 @@ export class Workspace {
         if (!target) {
             throw new Error("checkout target is required");
         }
-        await runCommand(["git", "checkout", "--detach", target], { cwd: this.rootDir! });
-        const { stdout } = await runCommand(["git", "rev-parse", "HEAD"], { cwd: this.rootDir! });
+        await runCommand(["git", "checkout", "--detach", target], { cwd: this.rootDir });
+        const { stdout } = await runCommand(["git", "rev-parse", "HEAD"], { cwd: this.rootDir });
         this.headSha = stdout.trim();
         this.isLoaded = true;
     }
