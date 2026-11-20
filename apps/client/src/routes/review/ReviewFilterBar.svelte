@@ -3,6 +3,7 @@
     import { twMerge } from "tailwind-merge";
     import Button from "$lib/components/atom/Button.svelte";
     import Select from "$lib/components/atom/Select.svelte";
+    import FormField from "$lib/components/molecule/FormField.svelte";
     import ReviewDateRangePicker from "./ReviewDateRangePicker.svelte";
     import {
         REVIEW_STATUS_OPTION_LIST,
@@ -41,8 +42,6 @@
         statusValue = filter.statusList[0] ?? "";
         typeValue = filter.typeList[0] ?? "";
     });
-
-    const filterControlClass = "border-input bg-input-background text-foreground";
 
     const sortedRepositoryList = $derived([...repositoryList].sort((a, b) => a.path.localeCompare(b.path)));
 
@@ -110,8 +109,7 @@
                 options={statusSelectOptionList}
                 bind:value={statusValue}
                 onValueChange={onStatusValueChange}
-                placeholder="All"
-                class={filterControlClass} />
+                placeholder="All" />
         </div>
         <div class="min-w-0 flex-1 sm:max-w-[11rem]">
             <Select
@@ -119,87 +117,90 @@
                 options={typeSelectOptionList}
                 bind:value={typeValue}
                 onValueChange={onTypeValueChange}
-                placeholder="All"
-                class={filterControlClass} />
+                placeholder="All" />
         </div>
         <div class="min-w-0 flex-1 sm:max-w-xs">
-            <p class="mb-1 text-xs font-medium text-muted-foreground">Repository</p>
-            <div bind:this={repositoryContainerRef} class="relative">
-                <button
-                    type="button"
-                    class={twMerge(
-                        "flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-border px-3 text-left text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                        filterControlClass,
-                    )}
-                    aria-haspopup="listbox"
-                    aria-expanded={repositoryOpen}
-                    onclick={toggleRepositoryMenu}>
-                    <span class="min-w-0 truncate text-foreground">{repositoryLabel}</span>
-                    <svg
-                        class={twMerge(
-                            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                            repositoryOpen && "rotate-180",
-                        )}
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        aria-hidden="true">
-                        <path
-                            fill-rule="evenodd"
-                            d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                            clip-rule="evenodd" />
-                    </svg>
-                </button>
-                {#if repositoryOpen}
-                    <ul
-                        class="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
-                        role="listbox"
-                        aria-label="Repository filter">
-                        {#if sortedRepositoryList.length === 0}
-                            <li class="px-3 py-2 text-sm text-muted-foreground">No repositories</li>
-                        {:else}
-                            {#each sortedRepositoryList as repo (repo.id)}
-                                {@const selected = filter.repositoryIdList.includes(repo.id)}
-                                <li>
-                                    <button
-                                        type="button"
-                                        role="option"
-                                        aria-selected={selected}
-                                        class={twMerge(
-                                            "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent",
-                                            selected && "bg-primary/10",
-                                        )}
-                                        onclick={(event) => {
-                                            event.stopPropagation();
-                                            toggleRepository(repo.id);
-                                        }}>
-                                        <span
-                                            class={twMerge(
-                                                "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                                                selected
-                                                    ? "border-primary bg-primary text-primary-foreground"
-                                                    : "border-border-strong",
-                                            )}
-                                            aria-hidden="true">
-                                            {#if selected}
-                                                <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                                                        clip-rule="evenodd" />
-                                                </svg>
-                                            {/if}
-                                        </span>
-                                        <span class="min-w-0 truncate">{repo.path}</span>
-                                    </button>
-                                </li>
-                            {/each}
+            <FormField label="Repository">
+                {#snippet children({ id })}
+                    <div bind:this={repositoryContainerRef} class="relative">
+                        <button
+                            type="button"
+                            {id}
+                            class="flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-input bg-input-background px-4 text-left text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            aria-haspopup="listbox"
+                            aria-expanded={repositoryOpen}
+                            onclick={toggleRepositoryMenu}>
+                            <span class="min-w-0 truncate text-foreground">{repositoryLabel}</span>
+                            <svg
+                                class={twMerge(
+                                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                    repositoryOpen && "rotate-180",
+                                )}
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true">
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        {#if repositoryOpen}
+                            <ul
+                                class="absolute top-full z-50 mt-1 max-h-60 w-full overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
+                                role="listbox"
+                                aria-label="Repository filter">
+                                {#if sortedRepositoryList.length === 0}
+                                    <li class="px-4 py-2 text-sm text-muted-foreground">No repositories</li>
+                                {:else}
+                                    {#each sortedRepositoryList as repo, index (repo.id)}
+                                        {@const selected = filter.repositoryIdList.includes(repo.id)}
+                                        <li>
+                                            <button
+                                                type="button"
+                                                role="option"
+                                                aria-selected={selected}
+                                                class={twMerge(
+                                                    "flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left transition-colors",
+                                                    index === 0 && "rounded-t-lg",
+                                                    index === sortedRepositoryList.length - 1 && "rounded-b-lg",
+                                                    selected ? "bg-primary/10" : "hover:bg-accent",
+                                                )}
+                                                onclick={(event) => {
+                                                    event.stopPropagation();
+                                                    toggleRepository(repo.id);
+                                                }}>
+                                                <span
+                                                    class={twMerge(
+                                                        "flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                                                        selected
+                                                            ? "border-primary bg-primary text-primary-foreground"
+                                                            : "border-border-strong",
+                                                    )}
+                                                    aria-hidden="true">
+                                                    {#if selected}
+                                                        <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path
+                                                                fill-rule="evenodd"
+                                                                d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                                                clip-rule="evenodd" />
+                                                        </svg>
+                                                    {/if}
+                                                </span>
+                                                <span class="min-w-0 truncate text-sm text-foreground"
+                                                    >{repo.path}</span>
+                                            </button>
+                                        </li>
+                                    {/each}
+                                {/if}
+                            </ul>
                         {/if}
-                    </ul>
-                {/if}
-            </div>
+                    </div>
+                {/snippet}
+            </FormField>
         </div>
 
-        <ReviewDateRangePicker {filter} controlClass={filterControlClass} onFilterChange={updateFilter} />
+        <ReviewDateRangePicker {filter} onFilterChange={updateFilter} />
 
         {#if showClear}
             <div class="sm:pb-0.5">
