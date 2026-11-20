@@ -235,9 +235,9 @@
                 if (logResponse.ok) {
                     const delta = (await logResponse.json()) as ActivityLogResponse;
                     if (id !== review.id) continue;
-                    if (!log) {
+                    if (!log && delta.from == null) {
                         log = delta;
-                    } else if (delta.from === log.entryList.length && delta.entryList.length > 0) {
+                    } else if (log && delta.from === log.entryList.length && delta.entryList.length > 0) {
                         log = { ...log, status: delta.status, entryList: [...log.entryList, ...delta.entryList] };
                     }
                 } else if (!log) {
