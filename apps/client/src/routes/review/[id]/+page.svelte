@@ -234,6 +234,7 @@
                 if (id !== review.id) continue;
                 if (logResponse.ok) {
                     const delta = (await logResponse.json()) as ActivityLogResponse;
+                    if (id !== review.id) continue;
                     if (!log) {
                         log = delta;
                     } else if (delta.from === log.entryList.length && delta.entryList.length > 0) {
@@ -245,6 +246,7 @@
                 if (id !== review.id) continue;
                 if (statusResponse.ok) {
                     const nextStatus = (await statusResponse.json()) as ActivityStatusResponse;
+                    if (id !== review.id) continue;
                     review = { ...review, ...nextStatus };
                 }
             } while (pollAgain);
