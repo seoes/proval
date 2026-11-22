@@ -90,6 +90,30 @@ it("retains Responses output when continuing after text and tool calls", async (
     expect(result.toolCallCount.noop).toBe(1);
 });
 
+it("returns invalid tool arguments to the model and keeps valid JSON in history", async () => {
+    const badResponse = assistantWithTool();
+    badResponse.message.toolCalls = [{ id: "tc1", name: "noop", arguments: '{"a":1}{"a":2}' }];
+    let sendCount = 0;
+    const sender: LlmSender = {
+        getModel: () => ({ model: "test", provider: "openai", baseUrl: "http://localhost" }),
+        async send(messageList) {
+            sendCount++;
+            if (sendCount === 1) return badResponse;
+            expect(messageList.find((message) => message.toolCalls)?.toolCalls?.[0]?.arguments).toBe("{}");
+            expect(messageList.find((message) => message.role === "tool")?.content).toContain("Invalid JSON arguments");
+            return assistantDone("Finished");
+        },
+    };
+
+    const result = await runAgentLoop(sender, "sys", "task", "test", {
+        activityId: -1,
+        toolList: [noopTool],
+        maxSteps: 4,
+    });
+    expect(result.finalMessage).toBe("Finished");
+    expect(result.toolCallCount.noop).toBeUndefined();
+});
+
 describe("runAgentLoop context compression", () => {
     it("recovers from overflow by compacting and keeps system plus original user", async () => {
         let agentSendCount = 0;

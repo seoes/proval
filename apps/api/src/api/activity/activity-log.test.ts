@@ -430,14 +430,13 @@ if (process.env.PROVAL_ACTIVITY_LOG_TEST_CHILD !== "1") {
             expect(result.messages.find((message) => message.role === "tool")?.toolCallId).toBe(call.id);
         });
 
-        it("records invalid arguments before preserving the loop failure", async () => {
+        it("records invalid arguments and returns the error to the model", async () => {
             const execute = mock(async () => "unused");
-            await expect(
-                runAgentLoop(createSender([{ ...call, arguments: "{" }]), "system", "prompt", "Plan", {
-                    activityId,
-                    toolList: [{ name: "read", description: "read", parameters: {}, execute }],
-                }),
-            ).rejects.toBeInstanceOf(SyntaxError);
+            const result = await runAgentLoop(createSender([{ ...call, arguments: "{" }]), "system", "prompt", "Plan", {
+                activityId,
+                toolList: [{ name: "read", description: "read", parameters: {}, execute }],
+            });
+            expect(result.finalMessage).toBe("done");
             expect(execute).not.toHaveBeenCalled();
             const logList = await readToolLogList();
             expect(logList.map((entry) => entry.type)).toEqual(["tool-call", "tool-error"]);
