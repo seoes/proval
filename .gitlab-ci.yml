@@ -12,6 +12,8 @@ stages:
     rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     before_script:
+        # The bun image has no git, and the workspace tests create local repos.
+        - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
         - bun install --frozen-lockfile
 
 format:
