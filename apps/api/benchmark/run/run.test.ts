@@ -117,6 +117,7 @@ async function writeFixtureRepo(): Promise<void> {
             userPrompt: "",
             reasoningEffort: null,
             llmConcurrency: null,
+            caseConcurrency: 1,
             timeoutSecond: 600,
         },
         quick: { seed: 42, caseIdList: ["fixture__1"] },
@@ -390,6 +391,39 @@ describe("batch resume with fake sender", () => {
         const resumed = await run(["quick", "--repeat", "2", "--resume"]);
         expect(resumed.exitCode).toBe(0);
         expect(resumed.stdout).toContain("0 attempt(s) run, 2 skipped as completed");
+    }, 120_000);
+
+    test("BENCHMARK_CASE_CONCURRENCY runs attempts in parallel and records the value", async () => {
+        const proc = Bun.spawn(
+            [
+                process.execPath,
+                resolve(import.meta.dir, "../index.ts"),
+                "run",
+                "quick",
+                "--repeat",
+                "2",
+                "--batch",
+                "parallel-batch",
+            ],
+            {
+                stdout: "pipe",
+                stderr: "pipe",
+                env: childEnv({ BENCHMARK_FAKE_SENDER: "scripted", BENCHMARK_CASE_CONCURRENCY: "2" }),
+            },
+        );
+        expect(await proc.exited).toBe(0);
+        const batchDir = join(dataDir, "output", "parallel-batch");
+        const meta = JSON.parse(await readFile(join(batchDir, "run.json"), "utf-8")) as {
+            setting: { caseConcurrency: number };
+        };
+        expect(meta.setting.caseConcurrency).toBe(2);
+        const resultList = (await readFile(join(batchDir, "result.jsonl"), "utf-8"))
+            .trim()
+            .split("\n")
+            .map((line) => JSON.parse(line) as { type: string; repeatIndex: number; status?: string })
+            .filter((line) => line.type === "result");
+        expect(resultList.map((line) => line.repeatIndex).sort()).toEqual([1, 2]);
+        expect(resultList.every((line) => line.status === "completed")).toBe(true);
     }, 120_000);
 });
 

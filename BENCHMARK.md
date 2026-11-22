@@ -12,6 +12,10 @@ Model credentials come from `.env.benchmark` at the repo root, see
 are never written into any artifact. Recorded config goes through an explicit
 safe field list and URLs are stripped of userinfo.
 
+`LLM_CONCURRENCY` and `BENCHMARK_CASE_CONCURRENCY` override `llmConcurrency`
+and `caseConcurrency` in `profile.json`. Parallel cases share the endpoint,
+so latency is only comparable between batches with the same value.
+
 The benchmark supports API key authentication only. OAuth providers,
 including xAI OAuth, are not supported. OAuth authorization configured in
 the Proval dashboard is not available to the benchmark runner.

@@ -55,6 +55,15 @@ export async function loadProfile(path: string = PROFILE_PATH): Promise<Benchmar
     if (!profile.quick || !profile.full) {
         throw new Error("profile must define quick and full run profiles");
     }
+    for (const [envKey, settingKey] of [
+        ["LLM_CONCURRENCY", "llmConcurrency"],
+        ["BENCHMARK_CASE_CONCURRENCY", "caseConcurrency"],
+    ] as const) {
+        const text = process.env[envKey]?.trim();
+        if (!text) continue;
+        if (!/^[1-9]\d*$/.test(text)) throw new Error(`${envKey} must be a positive integer`);
+        profile.setting[settingKey] = Number(text);
+    }
     return profile;
 }
 

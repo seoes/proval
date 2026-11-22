@@ -40,6 +40,8 @@ export type BenchmarkProfileSetting = {
     userPrompt: string;
     reasoningEffort: string | null;
     llmConcurrency: number | null;
+    /** Number of cases reviewed at the same time. */
+    caseConcurrency: number;
     timeoutSecond: number;
 };
 

@@ -46,7 +46,9 @@ export async function ensureCacheRepo(repoUrl: string): Promise<string> {
     }
     // Source trees contain paths that exceed the default Windows path limit
     // once the workdir prefix is added. Worktrees share this config.
-    await git(["config", "core.longpaths", "true"], dir);
+    // Concurrent attempts share this repo, and an unconditional write races on the config lock.
+    const longpaths = await git(["config", "--get", "core.longpaths"], dir).catch(() => "");
+    if (longpaths !== "true") await git(["config", "core.longpaths", "true"], dir);
     return dir;
 }
 

@@ -6,6 +6,7 @@
         "userPrompt": "",
         "reasoningEffort": null,
         "llmConcurrency": 4,
+        "caseConcurrency": 1,
         "timeoutSecond": 600
     },
     "quick": {

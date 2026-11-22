@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { OUTPUT_DIR } from "../load/git.js";
-import { loadManifest, MANIFEST_PATH } from "../load/manifest.js";
+import { loadManifest, MANIFEST_PATH, prepareCase } from "../load/manifest.js";
 import type { AttemptRecord, Manifest, BenchmarkRunProfile, ResultLine, RunOptions } from "../types.js";
 import {
     collectSourceState,
@@ -86,7 +86,7 @@ function attemptKey(caseId: string, repeatIndex: number): string {
     return `${caseId}#${repeatIndex}`;
 }
 
-let activeChild: { kill: (signal?: number | NodeJS.Signals) => void } | null = null;
+const activeChildSet = new Set<{ kill: (signal?: number | NodeJS.Signals) => void }>();
 /** Compact CI output. Child logs go to attempt/<runId>/full.log and error.log without color. */
 const benchmarkMode = process.env.BENCHMARK_MODE !== "false";
 
@@ -205,20 +205,36 @@ export async function runBatch(option: RunOptions): Promise<void> {
         }
         cancelRequested = true;
         console.log("cancel requested, stopping the active review...");
-        activeChild?.kill("SIGTERM");
-        setTimeout(() => activeChild?.kill("SIGKILL"), 10_000).unref();
+        for (const child of activeChildSet) child.kill("SIGTERM");
+        setTimeout(() => {
+            for (const child of activeChildSet) child.kill("SIGKILL");
+        }, 10_000).unref();
     };
     process.on("SIGINT", onSigint);
 
     let planned = 0;
     let skipped = 0;
     const total = caseIdList.length * repeatCount;
+    const caseConcurrency = profile.setting.caseConcurrency;
+    const queue: { caseId: string; round: number }[] = [];
+    for (let round = 1; round <= repeatCount; round++) {
+        for (const caseId of seededShuffle(caseIdList, runProfile.seed + round)) queue.push({ caseId, round });
+    }
+    // Report writes must not overlap when several workers finish together.
+    let reportChain: Promise<unknown> = Promise.resolve();
+    const report = () => (reportChain = reportChain.then(() => reportBatch(batchId)));
     try {
-        await reportBatch(batchId);
-        for (let round = 1; round <= repeatCount; round++) {
-            const orderedList = seededShuffle(caseIdList, runProfile.seed + round);
-            for (const caseId of orderedList) {
-                if (cancelRequested) break;
+        await report();
+        if (caseConcurrency > 1) {
+            // Warm cache repos one at a time so parallel attempts do not fetch into the same repo.
+            // A failure here is recorded by the attempt itself when it prepares again.
+            for (const caseId of new Set(queue.map((item) => item.caseId))) {
+                await prepareCase(manifest.caseList.find((entry) => entry.caseId === caseId)!).catch(() => {});
+            }
+        }
+        const worker = async () => {
+            for (let item = queue.shift(); item && !cancelRequested; item = queue.shift()) {
+                const { caseId, round } = item;
                 const key = attemptKey(caseId, round);
                 if (doneKeySet.has(key)) {
                     skipped++;
@@ -247,7 +263,6 @@ export async function runBatch(option: RunOptions): Promise<void> {
                 const attemptStartedAt = Date.now();
 
                 const exitCode = await spawnAttempt(batchId, caseId, round, attemptIndex, runId);
-                activeChild = null;
 
                 const entry = manifest.caseList.find((candidate) => candidate.caseId === caseId)!;
                 await cleanupAttempt(entry.repoUrl, runId, batchDir);
@@ -285,7 +300,7 @@ export async function runBatch(option: RunOptions): Promise<void> {
                 }
                 priorCountByKey.set(key, attemptIndex);
                 const lineList = await readResultLineList(batchDir);
-                const last = [...lineList].reverse().find((line) => line.type === "result");
+                const last = [...lineList].reverse().find((line) => line.type === "result" && line.runId === runId);
                 if (benchmarkMode) {
                     const elapsedSec = Math.round((Date.now() - attemptStartedAt) / 1000);
                     const elapsed = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
@@ -332,13 +347,13 @@ export async function runBatch(option: RunOptions): Promise<void> {
                 } else {
                     console.log(`[done] ${caseId} repeat ${round} -> ${last?.status ?? "unknown"}`);
                 }
-                await reportBatch(batchId);
+                await report();
             }
-            if (cancelRequested) break;
-        }
+        };
+        await Promise.all(Array.from({ length: caseConcurrency }, worker));
     } finally {
         process.off("SIGINT", onSigint);
-        await reportBatch(batchId);
+        await report();
     }
 
     console.log(
@@ -372,8 +387,8 @@ async function spawnAttempt(
     ];
     if (!benchmarkMode) {
         const proc = Bun.spawn(command, { stdout: "inherit", stderr: "inherit", env: process.env });
-        activeChild = proc;
-        return proc.exited;
+        activeChildSet.add(proc);
+        return proc.exited.finally(() => activeChildSet.delete(proc));
     }
 
     const attemptDir = join(OUTPUT_DIR, batchId, "attempt", runId);
@@ -381,7 +396,7 @@ async function spawnAttempt(
     const fullFd = openSync(join(attemptDir, "full.log"), "a");
     const errorFd = openSync(join(attemptDir, "error.log"), "a");
     const proc = Bun.spawn(command, { stdout: fullFd, stderr: "pipe", env: { ...process.env, NO_COLOR: "1" } });
-    activeChild = proc;
+    activeChildSet.add(proc);
     // stderr goes to both files so full.log keeps errors in context
     for await (const chunk of proc.stderr) {
         writeSync(fullFd, chunk);
@@ -389,7 +404,7 @@ async function spawnAttempt(
     }
     closeSync(fullFd);
     closeSync(errorFd);
-    return proc.exited;
+    return proc.exited.finally(() => activeChildSet.delete(proc));
 }
 
 async function readAttemptRecord(batchDir: string, runId: string): Promise<Record<string, unknown> | null> {
