@@ -116,7 +116,8 @@ export async function accumulateChatCompletionStream(
     let promptTokens = 0;
     let completionTokens = 0;
     let cachedInputTokens = 0;
-    const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
+    const toolCalls: { index: number; id: string; name: string; arguments: string }[] = [];
+    const latestToolCallByIndex = new Map<number, (typeof toolCalls)[number]>();
 
     for await (const chunk of stream) {
         onChunk?.();
@@ -137,11 +138,16 @@ export async function accumulateChatCompletionStream(
 
         for (const toolCall of delta.tool_calls ?? []) {
             const index = toolCall.index ?? 0;
-            const current = toolCalls.get(index) ?? { id: "", name: "", arguments: "" };
+            let current = latestToolCallByIndex.get(index);
+            // Some proxies (LiteLLM) send parallel calls on one index, so a new id starts a new call
+            if (!current || (toolCall.id && current.id && toolCall.id !== current.id)) {
+                current = { index, id: "", name: "", arguments: "" };
+                toolCalls.push(current);
+                latestToolCallByIndex.set(index, current);
+            }
             if (toolCall.id) current.id = toolCall.id;
             if (toolCall.function?.name) current.name = toolCall.function.name;
             if (toolCall.function?.arguments) current.arguments += toolCall.function.arguments;
-            toolCalls.set(index, current);
         }
     }
 
@@ -149,8 +155,8 @@ export async function accumulateChatCompletionStream(
         id,
         content: content.length > 0 ? content : null,
         toolCalls:
-            toolCalls.size > 0
-                ? [...toolCalls.entries()].sort(([a], [b]) => a - b).map(([, value]) => value)
+            toolCalls.length > 0
+                ? toolCalls.sort((a, b) => a.index - b.index).map(({ index: _, ...toolCall }) => toolCall)
                 : undefined,
         finishReason,
         promptTokens,

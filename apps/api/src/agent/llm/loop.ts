@@ -375,16 +375,14 @@ export async function runAgentLoop(
                     try {
                         args = JSON.parse(tc.arguments);
                     } catch (error) {
-                        logAgentTool(
-                            activityId,
-                            {
-                                ...toolLog,
-                                type: "tool-error",
-                                message: error instanceof Error ? error.message : String(error),
-                            },
-                            error,
-                        );
-                        throw error;
+                        const errorMsg = error instanceof Error ? error.message : String(error);
+                        logAgentTool(activityId, { ...toolLog, type: "tool-error", message: errorMsg }, error);
+                        // tc is in history already and some providers reject invalid JSON arguments on the next request
+                        tc.arguments = "{}";
+                        return {
+                            toolCallId: tc.id,
+                            content: JSON.stringify({ error: `Invalid JSON arguments: ${errorMsg}` }),
+                        };
                     }
 
                     try {

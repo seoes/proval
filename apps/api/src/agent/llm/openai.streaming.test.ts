@@ -251,6 +251,32 @@ describe("accumulateChatCompletionStream", () => {
 
         expect(accumulated.toolCalls).toEqual([{ id: "call_x", name: "grep", arguments: '{"q":1}' }]);
     });
+
+    test("splits parallel tool calls that share an index or omit it", async () => {
+        const call = (id: string | undefined, args: string, index?: number) => ({
+            choices: [
+                {
+                    index: 0,
+                    delta: {
+                        tool_calls: [{ index, id, function: id ? { name: "get_file_diff" } : { arguments: args } }],
+                    },
+                },
+            ],
+        });
+        const accumulated = await accumulateChatCompletionStream(
+            from([
+                call("a", "", 0),
+                call(undefined, '{"filePath":"a.py"}', 0),
+                call("b", ""),
+                call(undefined, '{"filePath":"b.py"}'),
+            ]),
+        );
+
+        expect(accumulated.toolCalls).toEqual([
+            { id: "a", name: "get_file_diff", arguments: '{"filePath":"a.py"}' },
+            { id: "b", name: "get_file_diff", arguments: '{"filePath":"b.py"}' },
+        ]);
+    });
 });
 
 describe("createOpenAiSender OpenRouter errors", () => {
