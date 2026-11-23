@@ -11,6 +11,8 @@ This guide covers how to fill in the model provider form in the dashboard. For r
 - [OpenRouter](/docs/openrouter): cloud models through one API key
 - [llama.cpp](/docs/llama-cpp): local or on-prem inference
 
+To use a ChatGPT plan or xAI subscription instead of an API key, see [OAuth subscription](/docs/oauth).
+
 ## Prerequisites
 
 - Proval is running ([Quick Start](/docs/quick-start))
@@ -20,14 +22,15 @@ This guide covers how to fill in the model provider form in the dashboard. For r
 
 ## Choose an API provider
 
-In **Model Provider → Add model provider**, pick the provider that matches your endpoint:
+In **Model Provider → Add model provider → API Key**, pick the provider that matches your endpoint:
 
-| Provider in Proval | Protocol             | Use when                                                             |
-| ------------------ | -------------------- | -------------------------------------------------------------------- |
-| **OpenAI**         | Chat Completions API | OpenRouter, llama.cpp, Ollama, vLLM, or any OpenAI-compatible server |
-| **Anthropic**      | Messages API         | Anthropic directly, or a proxy that speaks the Messages API          |
+| Provider in Proval | Protocol             | Use when                                                                   |
+| ------------------ | -------------------- | -------------------------------------------------------------------------- |
+| **OpenAI**         | Chat Completions API | OpenRouter, llama.cpp, Ollama, vLLM, or any OpenAI-compatible server       |
+| **OpenAI**         | Responses API        | OpenAI directly, or a gateway that speaks the Responses API (`/responses`) |
+| **Anthropic**      | Messages API         | Anthropic directly, or a proxy that speaks the Messages API                |
 
-Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch to **Anthropic** only when your endpoint expects the Messages API.
+Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Choose **OpenAI (Responses)** for OpenAI reasoning models, since the Responses API keeps their reasoning between tool calls. Switch to **Anthropic** only when your endpoint expects the Messages API.
 
 ---
 
@@ -39,8 +42,7 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch
 | Field            | What to enter                                                                                                                     |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | **Display Name** | A label for your team, e.g. `Main Reviewer`                                                                                       |
-| **API Provider** | **OpenAI** or **Anthropic** (see above)                                                                                           |
-| **Model ID**     | The model name your API expects, e.g. `anthropic/claude-sonnet-4.6` or `llama-3.1-8b-instruct`                                    |
+| **API Provider** | **OpenAI (Chat Completions)**, **OpenAI (Responses)**, or **Anthropic** (see above)                                               |
 | **Base URL**     | Root URL of the API, including `/v1` when your server uses it, e.g. `https://openrouter.ai/api/v1` or `http://<llm-host>:8080/v1` |
 | **API Key**      | Key required by that endpoint (`sk-or-...`, `sk-ant-...`, or a placeholder if the server has no auth)                             |
 
@@ -55,15 +57,17 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Switch
 
 <h2 id="test-and-save">Test and save</h2>
 
-1. Click **Test Connection**. You should see **Connection successful**
+1. Click **Test Connection**, enter a model ID your API accepts (e.g. `anthropic/claude-sonnet-4.6` or `llama-3.1-8b-instruct`), and click **Test**. You should see **Connection successful**. The model ID is only used for the test and is not saved
 2. Click **Create**
+
+You choose the model for reviews later, in each repository's settings.
 
 <figure>
     <img src="/docs/set-llm/02-test.png" alt="Proval connection test success dialog" />
     <figcaption>Successful connection test before saving</figcaption>
 </figure>
 
-If the test fails, double-check **Base URL**, **Model ID**, and **API Key** against your provider's docs. Wrong provider type (OpenAI vs Anthropic) is a common mistake.
+If the test fails, double-check **Base URL**, **Model ID**, and **API Key** against your provider's docs. Wrong provider type (Chat Completions, Responses, or Anthropic) is a common mistake.
 
 ---
 
