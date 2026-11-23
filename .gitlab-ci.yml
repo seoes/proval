@@ -129,10 +129,12 @@ benchmark_full:
 benchmark_full_resume:
     extends: .benchmark
     timeout: 72h
+    variables:
+        GIT_DEPTH: 0
     script:
-        - test -n "$RESUME_PIPELINE_ID" && test -n "$RESUME_JOB_ID" && test -n "$RESUME_COMMIT"
+        - test -n "$RESUME_PIPELINE_ID" -a -n "$RESUME_JOB_ID" -a -n "$RESUME_COMMIT"
         - apt-get update && apt-get install -y --no-install-recommends curl unzip
-        - git fetch origin "$RESUME_COMMIT" && git checkout --detach "$RESUME_COMMIT"
+        - git checkout --detach "$RESUME_COMMIT"
         - 'curl -fsSL -H "JOB-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/$RESUME_JOB_ID/artifacts" -o /tmp/artifact.zip'
         - unzip -q /tmp/artifact.zip
         - bun run benchmark run full --batch "full-${RESUME_PIPELINE_ID}" --resume
