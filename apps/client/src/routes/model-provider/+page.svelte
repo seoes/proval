@@ -3,7 +3,7 @@
     import Badge from "$lib/components/atom/Badge.svelte";
     import Button from "$lib/components/atom/Button.svelte";
     import Modal from "$lib/components/atom/Modal.svelte";
-    import { KeyIcon, PlusIcon } from "phosphor-svelte";
+    import { KeyIcon, OpenAiLogoIcon, PlusIcon } from "phosphor-svelte";
     import { modelProviderLabel, truncateUrl } from "$lib/utils/label";
     import { openAlert, openConfirm } from "$lib/store/modal";
     import fetchApi from "$lib/utils";
@@ -69,10 +69,12 @@
                 {/snippet}
                 {#snippet badge()}
                     <Badge variant="primary"
-                        >{modelProvider.authMethod === "xai_oauth"
-                            ? "xAI OAuth"
-                            : modelProviderLabel(modelProvider.provider)}</Badge>
-                    {#if modelProvider.authMethod === "xai_oauth"}
+                        >{modelProvider.authMethod === "api_key"
+                            ? modelProviderLabel(modelProvider.provider)
+                            : modelProvider.authMethod === "xai_oauth"
+                              ? "xAI OAuth"
+                              : "OpenAI OAuth"}</Badge>
+                    {#if modelProvider.authMethod !== "api_key"}
                         <Badge variant="neutral"
                             >{modelProvider.oauthStatus === "reauthorization_required"
                                 ? "Reconnect required"
@@ -117,6 +119,13 @@
                 class="w-full justify-start gap-2 focus-visible:outline-none">
                 <KeyIcon class="size-4 shrink-0" aria-hidden="true" />
                 API Key
+            </Button>
+            <Button
+                secondary
+                href="/model-provider/create/openai"
+                class="w-full justify-start gap-2 focus-visible:outline-none">
+                <OpenAiLogoIcon class="size-4 shrink-0" aria-hidden="true" />
+                OpenAI OAuth
             </Button>
             <Button
                 secondary

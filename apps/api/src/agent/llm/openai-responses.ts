@@ -14,14 +14,16 @@ export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender 
     return {
         async send(messageList, toolList) {
             const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
+            const instructions = messageList
+                .filter((message) => message.role === "system")
+                .map((message) => message.content ?? "")
+                .join("\n\n");
             try {
                 const stream = await client.responses.create(
                     {
                         model: config.model,
-                        instructions: messageList
-                            .filter((message) => message.role === "system")
-                            .map((message) => message.content ?? "")
-                            .join("\n\n"),
+                        // Codex CLI omits instructions rather than sending an empty value.
+                        ...(instructions ? { instructions } : {}),
                         input: messageList.flatMap(convertToOpenAiInput),
                         store: false,
                         stream: true,

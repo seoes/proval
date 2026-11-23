@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/5afc0bba-d89e-43cd-b4d7-d5e7b022eeb1
   Proval takes 3 min, less than 10 lines to deploy to your server
 
 - **Bring your own LLM (Even local models)**
-  Proval works with OpenAI-compatible Chat Completions APIs, so you can use OpenAI, local model APIs like Ollama and llama.cpp, or any internal LLM gateway. Anthropic and Gemini support are planned as first-class integrations.
+  Proval works with OpenAI-compatible Chat Completions and Responses APIs and the Anthropic Messages API, so you can use OpenAI, Anthropic, local model APIs like Ollama and llama.cpp, or any internal LLM gateway. You can also sign in with your ChatGPT plan or xAI subscription through OAuth. Gemini support is planned.
 
 - **GitLab, Forgejo, and GitHub support**
   Proval supports GitLab, Forgejo, and GitHub. Gitea and Codeberg are also a natural fit through Forgejo-compatible APIs.
@@ -220,7 +220,6 @@ I believe everyone will get their own Local LLM someday. Models keep getting sma
 - Custom User Prompt
 - Authentication and authorization
 - SSO support
-- LLM Provider integration based on OAuth subscriptions
 - Enhance review quality
     - Reduce False Positives
     - Focus on critical issues only

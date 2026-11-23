@@ -11,9 +11,10 @@
     import FieldTitle from "../atom/FieldTitle.svelte";
     import { onMount } from "svelte";
 
-    import type { ModelProviderResponse, XaiOAuthAttemptResponse } from "@proval/types";
+    import type { ModelProviderResponse, OAuthAttemptResponse } from "@proval/types";
 
     interface Props {
+        authMethod: "xai_oauth" | "openai_oauth";
         mode: "create" | "edit";
         modelProviderId?: number;
         initialData?: Pick<
@@ -23,7 +24,9 @@
         border?: boolean;
     }
 
-    const { mode, modelProviderId, initialData, border = true }: Props = $props();
+    const { authMethod, mode, modelProviderId, initialData, border = true }: Props = $props();
+    const isOpenAi = $derived(authMethod === "openai_oauth");
+    const providerName = $derived(isOpenAi ? "OpenAI" : "xAI");
 
     let label = $state(initialData?.label ?? "");
     let timeoutSecond = $state(String(initialData?.timeoutSecond ?? 600));
@@ -37,7 +40,7 @@
     let testModelNameDraft = $state("");
     let testResult = $state<{ success: boolean; message: string } | null>(null);
     let isTestingConnection = $state(false);
-    let oauthAttempt = $state<XaiOAuthAttemptResponse | null>(null);
+    let oauthAttempt = $state<OAuthAttemptResponse | null>(null);
     let oauthLoading = $state(false);
     let oauthMessage = $state("");
     let copied = $state(false);
@@ -47,9 +50,9 @@
     let oauthTimer: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
     let oauthVersion = 0;
-    const oauthStorageKey = $derived(`proval_xai_attempt_${modelProviderId ?? "create"}`);
+    const oauthStorageKey = $derived(`proval_${authMethod}_attempt_${modelProviderId ?? "create"}`);
     const oauthHeader = { "Content-Type": "application/json", "X-Proval-OAuth": "1" };
-    const oauthPath = "/model-provider/oauth/xai/attempt";
+    const oauthPath = "/model-provider/oauth/attempt";
 
     function rememberAttempt(id: string | null) {
         try {
@@ -60,7 +63,7 @@
         }
     }
 
-    async function acceptAttempt(attempt: XaiOAuthAttemptResponse) {
+    async function acceptAttempt(attempt: OAuthAttemptResponse) {
         if (disposed) return;
         oauthAttempt = attempt;
         label = attempt.label;
@@ -80,7 +83,9 @@
                 attempt.error ??
                 {
                     denied: "Authorization was denied. You can try again.",
-                    expired: "Authorization expired. Start again to get a new code.",
+                    expired: isOpenAi
+                        ? "Authorization expired. Check that device code authorization is turned on in ChatGPT Security settings, then start again."
+                        : "Authorization expired. Start again to get a new code.",
                     cancelled: "Authorization cancelled.",
                     failed: "Authorization failed. You can try again.",
                 }[attempt.status];
@@ -148,6 +153,7 @@
                 method: "POST",
                 headers: oauthHeader,
                 body: JSON.stringify({
+                    authMethod,
                     label: label.trim(),
                     timeoutSecond: timeout,
                     requestConcurrency: requestConcurrencyValue,
@@ -331,7 +337,12 @@
     <Card {border} spaceY>
         <FormField label="Display Name" description="A label for this LLM connection">
             {#snippet children({ id })}
-                <InputText {id} name="label" disabled={oauthLocked} placeholder="xAI" bind:value={label} />
+                <InputText
+                    {id}
+                    name="label"
+                    disabled={oauthLocked}
+                    placeholder={isOpenAi ? "ChatGPT" : "xAI"}
+                    bind:value={label} />
             {/snippet}
         </FormField>
 
@@ -372,22 +383,35 @@
         {#if mode === "edit"}
             <Description
                 >{initialData?.oauthStatus === "reauthorization_required"
-                    ? "Reconnect your xAI account to continue using this provider."
-                    : "xAI account authorized. Model access depends on your subscription."}</Description>
+                    ? `Reconnect your ${providerName} account to continue using this provider.`
+                    : `${providerName} account authorized. Model access depends on your subscription.`}</Description>
+        {/if}
+        {#if isOpenAi && !oauthPending}
+            <Description
+                >Before connecting, open <a
+                    class="text-primary underline"
+                    href="https://chatgpt.com/#settings/Security"
+                    target="_blank"
+                    rel="noopener noreferrer">ChatGPT Security Settings</a> and turn on device code authorization for Codex.</Description>
         {/if}
         {#if oauthAttempt && oauthPending}
             <div class="space-y-3 rounded-lg border border-border p-4" aria-live="polite">
-                <FieldTitle>Authorize with xAI</FieldTitle>
-                <Description>Open xAI and approve this connection using the code below.</Description>
+                <FieldTitle>Authorize with {providerName}</FieldTitle>
+                <Description>Open {providerName} and approve this connection using the code below.</Description>
                 <div class="flex items-center gap-3">
                     <code class="text-xl font-semibold tracking-wider select-all">{oauthAttempt.userCode}</code>
                     <Button text onclick={copyCode}>{copied ? "Copied" : "Copy code"}</Button>
                 </div>
                 <Description
                     >Expires in {Math.max(0, Math.ceil((oauthAttempt.expiresAt - now) / 1000))} seconds</Description>
+                {#if isOpenAi}
+                    <Description
+                        >If approval does not finish, turn on device code authorization in ChatGPT Security settings and
+                        start again.</Description>
+                {/if}
                 <div class="flex gap-3">
                     <Button primary href={oauthAttempt.verificationUri} target="_blank" rel="noopener noreferrer"
-                        >Open xAI</Button>
+                        >Open {providerName}</Button>
                     <Button text onclick={cancelAuthorization} disabled={oauthLoading}>Cancel authorization</Button>
                 </div>
             </div>
@@ -403,7 +427,11 @@
                 type="button"
                 onclick={startAuthorization}
                 disabled={oauthLocked}
-                >{oauthLoading ? "Connecting..." : mode === "edit" ? "Reconnect xAI" : "Connect to xAI"}</Button>
+                >{oauthLoading
+                    ? "Connecting..."
+                    : mode === "edit"
+                      ? `Reconnect ${providerName}`
+                      : `Connect to ${providerName}`}</Button>
             {#if mode === "edit"}<Button text onclick={openTestModal} disabled={oauthLocked}>Test Connection</Button
                 >{/if}
         </div>
@@ -431,7 +459,7 @@
             <Description
                 >Enter a model ID your API accepts. This is only used for the test and is not saved.</Description>
             <InputText
-                placeholder="grok-4.7"
+                placeholder={isOpenAi ? "gpt-5.5" : "grok-4.7"}
                 bind:value={testModelNameDraft}
                 onkeydown={(e) => {
                     if (e.key === "Enter") {

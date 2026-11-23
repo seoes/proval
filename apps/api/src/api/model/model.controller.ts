@@ -2,7 +2,7 @@ import type { Context, Handler } from "hono";
 import { ModelProviderService } from "./model.service.js";
 import type { ModelProviderResponse, SecretInput } from "@proval/types";
 import { getCookie, setCookie } from "hono/cookie";
-import { XaiOAuthError, xaiOAuthService } from "./xai-oauth.service.js";
+import { OAuthError, oauthService } from "./oauth.service.js";
 import { ZodError } from "zod";
 import { SESSION_COOKIE_NAME } from "../auth/auth.service.js";
 import { activityQueue } from "../activity/activity.queue.js";
@@ -17,14 +17,14 @@ function inputError(c: Context, error: unknown) {
                       ? error.message
                       : "Request failed",
         },
-        error instanceof XaiOAuthError ? error.status : 400,
+        error instanceof OAuthError ? error.status : 400,
     );
 }
 
 function oauthOwner(c: Context, create = false): string {
     c.header("Cache-Control", "no-store");
     if (c.req.header("X-Proval-OAuth") !== "1") {
-        throw new XaiOAuthError("OAuth requests must originate from the Proval dashboard", 403);
+        throw new OAuthError("OAuth requests must originate from the Proval dashboard", 403);
     }
     let browser = getCookie(c, "proval_oauth_browser");
     if (!browser && create) {
@@ -37,31 +37,31 @@ function oauthOwner(c: Context, create = false): string {
             maxAge: 86400,
         });
     }
-    if (!browser) throw new XaiOAuthError("Authorization attempt not found. Start again", 404);
+    if (!browser) throw new OAuthError("Authorization attempt not found. Start again", 404);
     const session = c.get("user") ? getCookie(c, SESSION_COOKIE_NAME) : "anonymous";
     return JSON.stringify([browser, session]);
 }
 
-export const startXaiOAuth: Handler = async (c) => {
+export const startOAuth: Handler = async (c) => {
     try {
         const owner = oauthOwner(c, true);
-        return c.json(await xaiOAuthService.start(owner, await c.req.json()), 201);
+        return c.json(await oauthService.start(owner, await c.req.json()), 201);
     } catch (error) {
         return inputError(c, error);
     }
 };
 
-export const getXaiOAuth: Handler = (c) => {
+export const getOAuth: Handler = (c) => {
     try {
-        return c.json(xaiOAuthService.get(oauthOwner(c), c.req.param("attemptId") ?? ""));
+        return c.json(oauthService.get(oauthOwner(c), c.req.param("attemptId") ?? ""));
     } catch (error) {
         return inputError(c, error);
     }
 };
 
-export const cancelXaiOAuth: Handler = (c) => {
+export const cancelOAuth: Handler = (c) => {
     try {
-        return c.json(xaiOAuthService.cancel(oauthOwner(c), c.req.param("attemptId") ?? ""));
+        return c.json(oauthService.cancel(oauthOwner(c), c.req.param("attemptId") ?? ""));
     } catch (error) {
         return inputError(c, error);
     }

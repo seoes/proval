@@ -148,7 +148,7 @@ if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
     });
 
     describe("sender concurrency", () => {
-        it.each(["openai", "openai_responses", "anthropic", "xai"] as const)(
+        it.each(["openai", "openai_responses", "anthropic", "oauth"] as const)(
             "shares the provider limit and releases failed requests for %s",
             async (provider) => {
                 const gate = createDeferred();
@@ -159,7 +159,7 @@ if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
                 const config: SenderConfig = {
                     provider,
                     apiKey: "test",
-                    baseURL: "https://llm.example/v1",
+                    baseURL: provider === "oauth" ? "https://api.x.ai/v1" : "https://llm.example/v1",
                     model: "test",
                     timeoutSecond: 10,
                     modelProviderId: 9001,

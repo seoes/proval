@@ -14,8 +14,8 @@ import { log, logError } from "../../util/log.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
 import { createSender } from "../../agent/llm/factory.js";
 import type { LlmSender } from "../../agent/llm/loop.js";
-import { getXaiModelList } from "../../agent/llm/xai.js";
-import { xaiOAuthService } from "./xai-oauth.service.js";
+import { getOAuthModelList } from "../../agent/llm/oauth.js";
+import { oauthService } from "./oauth.service.js";
 import { z } from "zod";
 
 const providerSchema = z.enum(["openai", "openai_responses", "anthropic"]);
@@ -43,13 +43,13 @@ export function createModelProviderSender(
         concurrency: modelProvider.requestConcurrency,
         reasoningEffort,
     };
-    if (modelProvider.authMethod === "xai_oauth") {
+    if (modelProvider.authMethod !== "api_key") {
         return createSender({
             ...config,
-            provider: "xai",
+            provider: "oauth",
             apiKey: "oauth",
             baseURL: modelProvider.baseUrl,
-            getAccessToken: (rejected) => xaiOAuthService.getAccessToken(modelProvider.id, rejected),
+            getAccessToken: (rejected) => oauthService.getAccessToken(modelProvider.id, rejected),
         });
     }
     if (!modelProvider.apiKey) throw new Error("API key is missing");
@@ -109,7 +109,7 @@ export class ModelProviderService {
             earlyLimitMonthlyPercent: earlyLimitPercentSchema,
         };
         const cleanData =
-            current.authMethod === "xai_oauth"
+            current.authMethod !== "api_key"
                 ? z.object(editable).strict().parse(data)
                 : z
                       .object({ ...editable, provider: providerSchema.optional(), baseUrl: baseUrlSchema.optional() })
@@ -200,18 +200,19 @@ export class ModelProviderService {
         if (deleted.length === 0) {
             throw new Error("Model provider not found");
         }
-        if (deleted[0].oauthCredential) {
-            void xaiOAuthService.revoke(id, deleted[0].oauthCredential).catch(() => {});
+        if (deleted[0].oauthCredential && deleted[0].authMethod !== "api_key") {
+            void oauthService.revoke(id, deleted[0].authMethod, deleted[0].oauthCredential).catch(() => {});
         }
     }
 
     public async listModels(modelProviderId: number): Promise<ModelProviderModelListResponse> {
         const modelProvider = await this.findById(modelProviderId);
 
-        if (modelProvider.authMethod === "xai_oauth") {
-            const modelList = await getXaiModelList({
+        if (modelProvider.authMethod !== "api_key") {
+            const modelList = await getOAuthModelList({
+                baseUrl: modelProvider.baseUrl as Parameters<typeof getOAuthModelList>[0]["baseUrl"],
                 timeoutSecond: modelProvider.timeoutSecond,
-                getAccessToken: (rejected) => xaiOAuthService.getAccessToken(modelProvider.id, rejected),
+                getAccessToken: (rejected) => oauthService.getAccessToken(modelProvider.id, rejected),
             });
             return modelList
                 ? { models: modelList, source: "openai_compatible" }

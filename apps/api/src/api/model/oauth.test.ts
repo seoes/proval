@@ -23,8 +23,9 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
     const { default: db } = await import("../../db/index.js");
     const { modelProviderTable, repositoryTable } = await import("@proval/db");
     const { encrypt, decrypt } = await import("../../util/encrypt.js");
-    const { XaiOAuthError, XaiOAuthService, xaiOAuthService } = await import("./xai-oauth.service.js");
-    const { createXaiFetch, getXaiModelList, xaiBaseUrl } = await import("../../agent/llm/xai.js");
+    const { OAuthError, OAuthService, oauthService } = await import("./oauth.service.js");
+    const { createOAuthFetch, getOAuthModelList, openAiOAuthBaseUrl, xaiBaseUrl } =
+        await import("../../agent/llm/oauth.js");
     const { ModelProviderService, createModelProviderSender } = await import("./model.service.js");
     const controller = await import("./model.controller.js");
     const { RepositoryService } = await import("../repository/repository.service.js");
@@ -61,7 +62,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
     db.$client.run("PRAGMA foreign_keys = ON");
 
     const clientId = "b1a00492-073a-47ea-816f-4c329264a828";
-    const input = { label: "Subscription", timeoutSecond: 30, requestConcurrency: 2 };
+    const input = { authMethod: "xai_oauth" as const, label: "Subscription", timeoutSecond: 30, requestConcurrency: 2 };
     const device = {
         device_code: "private-device-code",
         user_code: "TEST-CODE",
@@ -82,16 +83,16 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
     api.get("/model-provider/:id", controller.findModelProviderById);
     api.put("/model-provider/:id", controller.updateModelProvider);
     api.patch("/model-provider/:id/api-key", controller.updateModelProviderApiKey);
-    api.post("/oauth", controller.startXaiOAuth);
-    api.get("/oauth/:attemptId", controller.getXaiOAuth);
-    api.delete("/oauth/:attemptId", controller.cancelXaiOAuth);
+    api.post("/oauth", controller.startOAuth);
+    api.get("/oauth/:attemptId", controller.getOAuth);
+    api.delete("/oauth/:attemptId", controller.cancelOAuth);
     let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">> | undefined;
     afterEach(() => {
         fetchSpy?.mockRestore();
         fetchSpy = undefined;
     });
 
-    async function completed(service: InstanceType<typeof XaiOAuthService>, id: string, owner = "browser") {
+    async function completed(service: InstanceType<typeof OAuthService>, id: string, owner = "browser") {
         for (let count = 0; count < 200; count++) {
             const state = service.get(owner, id);
             if (state.status !== "pending") return state;
@@ -153,7 +154,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
         it("honors pending and slow down and saves exactly one encrypted provider", async () => {
             const waitList: number[] = [];
             let pollCount = 0;
-            const service = new XaiOAuthService(
+            const service = new OAuthService(
                 async (url, init) => {
                     const form = new URLSearchParams(String(init?.body));
                     expect(new Headers(init?.headers).get("user-agent")).toBe("Proval");
@@ -202,11 +203,63 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             expect(service.cancel("browser", start.id).status).toBe("authorized");
         });
 
+        it("connects OpenAI through device code, exchange, account header and rotating refresh", async () => {
+            const claim = (account: string) =>
+                `x.${Buffer.from(JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: account } })).toString("base64url")}.y`;
+            let pollCount = 0;
+            const service = new OAuthService(async (url, init) => {
+                const body = String(init?.body);
+                if (String(url).endsWith("/deviceauth/usercode")) {
+                    expect(JSON.parse(body)).toEqual({ client_id: "app_EMoamEEZ73f0CkXaXp7hrann" });
+                    return Response.json({ device_auth_id: "device-id", user_code: "ABCD-1234", interval: "5" });
+                }
+                if (String(url).endsWith("/deviceauth/token")) {
+                    expect(JSON.parse(body)).toEqual({ device_auth_id: "device-id", user_code: "ABCD-1234" });
+                    if (++pollCount === 1) return new Response(null, { status: 403 });
+                    return Response.json({ authorization_code: "auth-code", code_verifier: "verifier" });
+                }
+                const form = new URLSearchParams(body);
+                expect(String(url)).toBe("https://auth.openai.com/oauth/token");
+                if (form.get("grant_type") === "authorization_code") {
+                    expect(form.get("code")).toBe("auth-code");
+                    expect(form.get("code_verifier")).toBe("verifier");
+                    expect(form.get("redirect_uri")).toBe("https://auth.openai.com/deviceauth/callback");
+                    return Response.json({ access_token: claim("acct-1"), refresh_token: "r1", expires_in: 1 });
+                }
+                expect(form.get("refresh_token")).toBe("r1");
+                return Response.json({ error: { code: "refresh_token_reused" } }, { status: 401 });
+            }, fastWait);
+            const start = await service.start("browser", { ...input, authMethod: "openai_oauth" });
+            expect(start).toMatchObject({
+                userCode: "ABCD-1234",
+                verificationUri: "https://auth.openai.com/codex/device",
+            });
+            const result = await completed(service, start.id);
+            expect(result.status).toBe("authorized");
+            const row = await new ModelProviderService().findById(result.modelProviderId!);
+            expect(row).toMatchObject({ authMethod: "openai_oauth", baseUrl: openAiOAuthBaseUrl });
+
+            let header = new Headers();
+            await createOAuthFetch({
+                baseUrl: openAiOAuthBaseUrl,
+                getAccessToken: async () => claim("acct-1"),
+                fetch: async (_url, init) => {
+                    header = new Headers(init?.headers);
+                    return new Response("{}");
+                },
+            })(`${openAiOAuthBaseUrl}/responses`);
+            expect(header.get("chatgpt-account-id")).toBe("acct-1");
+            expect(header.get("originator")).toBe("proval");
+
+            await expect(service.getAccessToken(row.id)).rejects.toThrow("Reconnect this provider");
+            expect((await new ModelProviderService().findById(row.id)).oauthStatus).toBe("reauthorization_required");
+        });
+
         it.each(["access_denied", "expired_token", "invalid_client"])(
             "terminates on %s without creating a provider",
             async (error) => {
                 const before = db.select().from(modelProviderTable).all().length;
-                const service = new XaiOAuthService(
+                const service = new OAuthService(
                     async (url) =>
                         Response.json(String(url).endsWith("device/code") ? device : { error }, {
                             status: String(url).endsWith("device/code") ? 200 : 400,
@@ -223,7 +276,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
 
         it("cancels and expires pending attempts without exchanging another token", async () => {
             let pollCount = 0;
-            const service = new XaiOAuthService(async (url) => {
+            const service = new OAuthService(async (url) => {
                 if (!String(url).endsWith("device/code")) pollCount++;
                 return Response.json({ ...device, expires_in: 0.02 });
             });
@@ -294,7 +347,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
         it("shares a concurrent refresh and persists rotation for a new service instance", async () => {
             const row = saved(true);
             let refreshCount = 0;
-            const service = new XaiOAuthService(async (_url, init) => {
+            const service = new OAuthService(async (_url, init) => {
                 refreshCount++;
                 expect(new URLSearchParams(String(init?.body)).get("refresh_token")).toBe("old-refresh");
                 await delay(5);
@@ -303,7 +356,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             const result = await Promise.all(Array.from({ length: 12 }, () => service.getAccessToken(row.id)));
             expect(refreshCount).toBe(1);
             expect(result.every((item) => item === token.access_token)).toBe(true);
-            const restarted = new XaiOAuthService(async () => {
+            const restarted = new OAuthService(async () => {
                 throw new Error("Should use persisted token");
             });
             expect(await restarted.getAccessToken(row.id)).toBe(token.access_token);
@@ -314,9 +367,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
 
         it("retains the previous refresh token when rotation omits it", async () => {
             const row = saved(true);
-            const service = new XaiOAuthService(async () =>
-                Response.json({ access_token: "updated", expires_in: 3600 }),
-            );
+            const service = new OAuthService(async () => Response.json({ access_token: "updated", expires_in: 3600 }));
             expect(await service.getAccessToken(row.id)).toBe("updated");
             const stored = await new ModelProviderService().findById(row.id);
             if (!stored.oauthCredential) throw new Error("Saved credential is missing");
@@ -326,7 +377,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
         it("refreshes again when the token response omits expires_in", async () => {
             const row = saved(true);
             let count = 0;
-            const service = new XaiOAuthService(async () => {
+            const service = new OAuthService(async () => {
                 count++;
                 return Response.json({ access_token: `access-${count}`, refresh_token: "old-refresh" });
             });
@@ -337,7 +388,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
 
         it.each([400, 503])("handles refresh failure %s without leaking upstream details", async (status) => {
             const row = saved(true);
-            const service = new XaiOAuthService(async () =>
+            const service = new OAuthService(async () =>
                 Response.json(
                     {
                         error: status === 400 ? "invalid_grant" : "server_error",
@@ -361,7 +412,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 const gate = new Promise<void>((resolve) => {
                     release = resolve;
                 });
-                const service = new XaiOAuthService(async () => {
+                const service = new OAuthService(async () => {
                     await gate;
                     return Response.json(token);
                 });
@@ -396,7 +447,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 .values({ provider: "github", path: "team/oauth", modelProviderId: row.id })
                 .returning()
                 .get();
-            const service = new XaiOAuthService(
+            const service = new OAuthService(
                 async (url) => Response.json(String(url).endsWith("device/code") ? device : token),
                 fastWait,
             );
@@ -438,8 +489,9 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 expect(init?.redirect).toBe("error");
                 return new Response("Denied", { status: 401 });
             };
-            const service = new XaiOAuthService(fetch);
-            const request = createXaiFetch({
+            const service = new OAuthService(fetch);
+            const request = createOAuthFetch({
+                baseUrl: xaiBaseUrl,
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch,
             });
@@ -453,7 +505,8 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
 
         it("returns no models when xAI cannot be reached and still surfaces reconnect errors", async () => {
             expect(
-                await getXaiModelList({
+                await getOAuthModelList({
+                    baseUrl: xaiBaseUrl,
                     timeoutSecond: 10,
                     getAccessToken: async () => "token",
                     fetch: async () => {
@@ -462,13 +515,14 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 }),
             ).toBeNull();
             await expect(
-                getXaiModelList({
+                getOAuthModelList({
+                    baseUrl: xaiBaseUrl,
                     timeoutSecond: 10,
                     getAccessToken: async () => {
-                        throw new XaiOAuthError("Reconnect this xAI provider", 403);
+                        throw new OAuthError("Reconnect this xAI provider", 403);
                     },
                 }),
-            ).rejects.toThrow(XaiOAuthError);
+            ).rejects.toThrow(OAuthError);
         });
 
         it("respects cancellation while a shared refresh is pending", async () => {
@@ -477,12 +531,13 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             const gate = new Promise<void>((resolve) => {
                 release = resolve;
             });
-            const service = new XaiOAuthService(async () => {
+            const service = new OAuthService(async () => {
                 await gate;
                 return Response.json(token);
             });
             const abort = new AbortController();
-            const request = createXaiFetch({
+            const request = createOAuthFetch({
+                baseUrl: xaiBaseUrl,
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch: async () => {
                     throw new Error("A cancelled request must not be sent");
@@ -502,8 +557,9 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
                 count++;
                 return Response.json({ error: "quota_exceeded" }, { status: 403 });
             };
-            const service = new XaiOAuthService(fetch);
-            const request = createXaiFetch({
+            const service = new OAuthService(fetch);
+            const request = createOAuthFetch({
+                baseUrl: xaiBaseUrl,
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch,
             });
@@ -521,7 +577,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
         it("allows pending reauthorization to complete after the old credential refreshes", async () => {
             const row = saved(true);
             let approve = false;
-            const service = new XaiOAuthService(async (url, init) => {
+            const service = new OAuthService(async (url, init) => {
                 if (String(url).endsWith("device/code")) return Response.json(device);
                 if (new URLSearchParams(String(init?.body)).get("grant_type") === "refresh_token")
                     return Response.json(token);
@@ -629,7 +685,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             expect(responseCount).toBe(4);
             expect(() => createModelProviderSender(row, "grok-test", "minimal")).toThrow("not supported by xAI");
             // Ensure singleton state also uses the persisted credential after request completion.
-            expect(await xaiOAuthService.getAccessToken(row.id)).toBe("old-access");
+            expect(await oauthService.getAccessToken(row.id)).toBe("old-access");
         });
     });
 }
