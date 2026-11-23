@@ -125,6 +125,23 @@ benchmark_full:
         paths:
             - apps/api/benchmark/data/output/full-${CI_PIPELINE_ID}
 
+# Retries non completed attempts of a previous full batch. Resume requires the original commit, so check it out.
+benchmark_full_resume:
+    extends: .benchmark
+    timeout: 72h
+    script:
+        - test -n "$RESUME_PIPELINE_ID" && test -n "$RESUME_JOB_ID" && test -n "$RESUME_COMMIT"
+        - apt-get update && apt-get install -y --no-install-recommends curl unzip
+        - git fetch origin "$RESUME_COMMIT" && git checkout --detach "$RESUME_COMMIT"
+        - curl -fsSL -H "JOB-TOKEN: $CI_JOB_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/$RESUME_JOB_ID/artifacts" -o /tmp/artifact.zip
+        - unzip -q /tmp/artifact.zip
+        - bun run benchmark run full --batch "full-${RESUME_PIPELINE_ID}" --resume
+    artifacts:
+        when: always
+        expire_in: 90 days
+        paths:
+            - apps/api/benchmark/data/output/full-${RESUME_PIPELINE_ID}
+
 benchmark_full_score:
     extends: .benchmark
     timeout: 72h
