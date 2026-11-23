@@ -130,6 +130,8 @@ benchmark_full_resume:
     extends: .benchmark
     timeout: 72h
     variables:
+        # A reused shallow build dir is not deepened by fetch, so clone fresh.
+        GIT_STRATEGY: clone
         GIT_DEPTH: 0
     script:
         - test -n "$RESUME_PIPELINE_ID" -a -n "$RESUME_JOB_ID" -a -n "$RESUME_COMMIT"
