@@ -1,6 +1,6 @@
 ---
 title: "Set LLM"
-description: "Add a model provider in Proval with Base URL, API key, and model ID."
+description: "Add a model provider in Proval with Base URL and API key."
 order: 5
 ---
 
@@ -22,7 +22,7 @@ To use a ChatGPT plan or xAI subscription instead of an API key, see [OAuth subs
 
 ## Choose an API provider
 
-In **Model Provider → Add model provider → API Key**, pick the provider that matches your endpoint:
+In **Model Provider → Add Model Provider → API Key**, pick the provider that matches your endpoint:
 
 | Provider in Proval | Protocol             | Use when                                                                   |
 | ------------------ | -------------------- | -------------------------------------------------------------------------- |
@@ -36,7 +36,7 @@ Most self-hosted and aggregator setups use **OpenAI (Chat Completions)**. Choose
 
 <h2 id="fill-in-the-model-form">Fill in the model provider form</h2>
 
-1. Open the dashboard → **Model Provider** → **Add model provider**
+1. Open the dashboard → **Model Provider** → **Add Model Provider** → **API Key**
 2. Complete each field:
 
 | Field            | What to enter                                                                                                                     |

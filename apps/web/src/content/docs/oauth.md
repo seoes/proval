@@ -28,7 +28,7 @@ On a ChatGPT workspace plan such as Business, Enterprise, or Edu, a workspace ad
 
 ### Connect
 
-1. Open the dashboard → **Model Provider** → **Add Model Provider** → **OpenAI OAuth (ChatGPT plan)**
+1. Open the dashboard → **Model Provider** → **Add Model Provider** → **OpenAI OAuth**
 2. Fill in **Display Name**, the concurrency fields, and **Response Timeout**
 3. Click **Connect to OpenAI**. Proval shows a code
 4. Click **Open OpenAI**, sign in, enter the code, and approve
