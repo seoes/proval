@@ -81,12 +81,13 @@ export type ModelProviderCreateInput = Pick<ModelProvider, "provider" | "label" 
     earlyLimitWeeklyPercent?: number | null;
     earlyLimitMonthlyPercent?: number | null;
 };
-export type XaiOAuthAttemptInput = Pick<ModelProvider, "label" | "timeoutSecond"> & {
+export type OAuthAttemptInput = Pick<ModelProvider, "label" | "timeoutSecond"> & {
+    authMethod: Exclude<ModelProvider["authMethod"], "api_key">;
     modelProviderId?: number;
     requestConcurrency?: number | null;
     activityConcurrency?: number | null;
 };
-export type XaiOAuthAttemptResponse = {
+export type OAuthAttemptResponse = {
     id: string;
     label: string;
     timeoutSecond: number;

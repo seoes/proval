@@ -72,7 +72,7 @@ export const modelProviderTable = sqliteTable("model_provider", {
     label: text().notNull(),
     baseUrl: text().notNull(),
     apiKey: text(),
-    authMethod: text({ enum: ["api_key", "xai_oauth"] })
+    authMethod: text({ enum: ["api_key", "xai_oauth", "openai_oauth"] })
         .notNull()
         .default("api_key"),
     oauthCredential: text(),

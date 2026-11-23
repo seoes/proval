@@ -108,8 +108,14 @@
     let modelName = $state<string>(config.modelName ?? "");
     let reasoningEffort = $state<string>(config.reasoningEffort ?? "");
 
-    const isXaiOauth = $derived(
-        modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod === "xai_oauth",
+    const authMethod = $derived(modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod);
+    // Mirrors the reasoning effort lists the OAuth senders accept in apps/api/src/agent/llm/oauth.ts.
+    const oauthReasoningEffortList = $derived(
+        authMethod === "xai_oauth"
+            ? ["low", "medium", "high", "xhigh"]
+            : authMethod === "openai_oauth"
+              ? ["minimal", "low", "medium", "high", "xhigh"]
+              : null,
     );
     let catalogReasoningEffortList = $state<(typeof reasoningEffortValueList)[number][] | null>(null);
     const reasoningEffortSelectOptionList = $derived([
@@ -118,14 +124,14 @@
             label: "Default",
         },
         ...(catalogReasoningEffortList ?? reasoningEffortValueList)
-            .filter((value) => !isXaiOauth || ["low", "medium", "high", "xhigh"].includes(value))
+            .filter((value) => !oauthReasoningEffortList || oauthReasoningEffortList.includes(value))
             .map((value) => ({
                 value,
                 label: value,
             })),
     ]);
     $effect(() => {
-        if (isXaiOauth && reasoningEffort && !["low", "medium", "high", "xhigh"].includes(reasoningEffort))
+        if (oauthReasoningEffortList && reasoningEffort && !oauthReasoningEffortList.includes(reasoningEffort))
             reasoningEffort = "";
     });
     $effect(() => {

@@ -3,11 +3,11 @@ import type { LlmSender } from "./loop.js";
 import { createOpenAiSender } from "./openai.js";
 import { createOpenAiResponsesSender } from "./openai-responses.js";
 import { createAnthropicSender } from "./anthropic.js";
-import { createXaiSender } from "./xai.js";
+import { createOAuthSender } from "./oauth.js";
 import { loadLimiter, type Limiter } from "./concurrency.js";
 
 export interface SenderConfig {
-    provider: "openai" | "openai_responses" | "anthropic" | "xai";
+    provider: "openai" | "openai_responses" | "anthropic" | "oauth";
     apiKey: string;
     baseURL: string;
     model: string;
@@ -58,10 +58,11 @@ function withConcurrencyLimit(sender: LlmSender, limiter: Limiter): LlmSender {
 export function createSender(config: SenderConfig): LlmSender {
     const { modelProviderId, concurrency, provider, getAccessToken, ...sdkConfig } = config;
     const limiter = loadLimiter(modelProviderId, concurrency);
-    if (provider === "xai") {
-        if (!getAccessToken) throw new Error("xAI access token callback is missing");
+    if (provider === "oauth") {
+        if (!getAccessToken) throw new Error("OAuth access token callback is missing");
         return withConcurrencyLimit(
-            createXaiSender({
+            createOAuthSender({
+                baseUrl: config.baseURL as Parameters<typeof createOAuthSender>[0]["baseUrl"],
                 getAccessToken,
                 model: config.model,
                 timeoutSecond: config.timeoutSecond,
