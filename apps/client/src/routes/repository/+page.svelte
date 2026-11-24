@@ -51,8 +51,9 @@
                             {/if}
                         </div>
                         {#if repository.lastUsedAt}
-                            <span class="text-sm text-muted-foreground"
-                                >Last activity: {formatTimeAgo(repository.lastUsedAt)}</span>
+                            <span class="text-sm text-muted-foreground">
+                                Last activity: {formatTimeAgo(repository.lastUsedAt)}
+                            </span>
                         {:else}
                             <span class="text-sm text-muted-foreground">Not used</span>
                         {/if}

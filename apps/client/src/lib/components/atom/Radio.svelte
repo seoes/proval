@@ -24,10 +24,12 @@
         <input type="radio" class="peer sr-only" {name} {value} {disabled} bind:group />
         <span
             class="pointer-events-none absolute inset-0 rounded-full border-2 border-border-strong transition-colors peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-inset"
-            aria-hidden="true"></span>
+            aria-hidden="true">
+        </span>
         <span
             class="pointer-events-none absolute inset-0 m-auto h-2.5 w-2.5 rounded-full bg-primary opacity-0 transition-opacity peer-checked:opacity-100"
-            aria-hidden="true"></span>
+            aria-hidden="true">
+        </span>
     </span>
     <span class="text-sm text-foreground">{label}</span>
 </label>

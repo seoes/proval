@@ -80,7 +80,8 @@
                 type="button"
                 class="fixed inset-0 z-40 bg-overlay/40 lg:hidden"
                 aria-label="Close menu"
-                onclick={closeSidebar}></button>
+                onclick={closeSidebar}>
+            </button>
         {/if}
 
         <aside

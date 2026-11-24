@@ -381,18 +381,23 @@
         </FormField>
 
         {#if mode === "edit"}
-            <Description
-                >{initialData?.oauthStatus === "reauthorization_required"
+            <Description>
+                {initialData?.oauthStatus === "reauthorization_required"
                     ? `Reconnect your ${providerName} account to continue using this provider.`
-                    : `${providerName} account authorized. Model access depends on your subscription.`}</Description>
+                    : `${providerName} account authorized. Model access depends on your subscription.`}
+            </Description>
         {/if}
         {#if isOpenAi && !oauthPending}
-            <Description
-                >Before connecting, open <a
+            <Description>
+                Before connecting, open <a
                     class="text-primary underline"
                     href="https://chatgpt.com/#settings/Security"
                     target="_blank"
-                    rel="noopener noreferrer">ChatGPT Security Settings</a> and turn on device code authorization for Codex.</Description>
+                    rel="noopener noreferrer">
+                    ChatGPT Security Settings
+                </a>
+                 and turn on device code authorization for Codex.
+            </Description>
         {/if}
         {#if oauthAttempt && oauthPending}
             <div class="space-y-3 rounded-lg border border-border p-4" aria-live="polite">
@@ -402,16 +407,19 @@
                     <code class="text-xl font-semibold tracking-wider select-all">{oauthAttempt.userCode}</code>
                     <Button text onclick={copyCode}>{copied ? "Copied" : "Copy code"}</Button>
                 </div>
-                <Description
-                    >Expires in {Math.max(0, Math.ceil((oauthAttempt.expiresAt - now) / 1000))} seconds</Description>
+                <Description>
+                    Expires in {Math.max(0, Math.ceil((oauthAttempt.expiresAt - now) / 1000))} seconds
+                </Description>
                 {#if isOpenAi}
-                    <Description
-                        >If approval does not finish, turn on device code authorization in ChatGPT Security settings and
-                        start again.</Description>
+                    <Description>
+                        If approval does not finish, turn on device code authorization in ChatGPT Security settings and
+                        start again.
+                    </Description>
                 {/if}
                 <div class="flex gap-3">
-                    <Button primary href={oauthAttempt.verificationUri} target="_blank" rel="noopener noreferrer"
-                        >Open {providerName}</Button>
+                    <Button primary href={oauthAttempt.verificationUri} target="_blank" rel="noopener noreferrer">
+                        Open {providerName}
+                    </Button>
                     <Button text onclick={cancelAuthorization} disabled={oauthLoading}>Cancel authorization</Button>
                 </div>
             </div>
@@ -426,14 +434,16 @@
                 secondary={mode === "edit"}
                 type="button"
                 onclick={startAuthorization}
-                disabled={oauthLocked}
-                >{oauthLoading
+                disabled={oauthLocked}>
+                {oauthLoading
                     ? "Connecting..."
                     : mode === "edit"
                       ? `Reconnect ${providerName}`
-                      : `Connect to ${providerName}`}</Button>
-            {#if mode === "edit"}<Button text onclick={openTestModal} disabled={oauthLocked}>Test Connection</Button
-                >{/if}
+                      : `Connect to ${providerName}`}
+            </Button>
+            {#if mode === "edit"}<Button text onclick={openTestModal} disabled={oauthLocked}>
+                    Test Connection
+                </Button>{/if}
         </div>
         <div>
             {#if mode === "edit" && modelProviderId}
@@ -443,10 +453,13 @@
                     onclick={() => {
                         removeModelProvider(modelProviderId);
                     }}
-                    type="button">Remove</Button>
+                    type="button">
+                    Remove
+                </Button>
             {:else if mode === "create"}
-                <Button text onclick={() => goto("/model-provider")} type="button" disabled={oauthLocked}
-                    >Cancel</Button>
+                <Button text onclick={() => goto("/model-provider")} type="button" disabled={oauthLocked}>
+                    Cancel
+                </Button>
             {/if}
         </div>
     </div>
@@ -456,8 +469,9 @@
     <Modal bind:open={testModalOpen} class="max-w-lg">
         <div class="space-y-4">
             <FieldTitle>Test connection</FieldTitle>
-            <Description
-                >Enter a model ID your API accepts. This is only used for the test and is not saved.</Description>
+            <Description>
+                Enter a model ID your API accepts. This is only used for the test and is not saved.
+            </Description>
             <InputText
                 placeholder={isOpenAi ? "gpt-5.5" : "grok-4.7"}
                 bind:value={testModelNameDraft}

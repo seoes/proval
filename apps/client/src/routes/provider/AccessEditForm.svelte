@@ -403,7 +403,9 @@
                                         modelName = trimmed;
                                         modelPickerOpen = false;
                                     }
-                                }}>Use custom ID</Button>
+                                }}>
+                                Use custom ID
+                            </Button>
                         </div>
                     </div>
                 {/if}

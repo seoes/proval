@@ -122,8 +122,9 @@
                                     onclick={() => selectItem(item)}>
                                     <span class="block truncate">{item.path}</span>
                                     {#if item.isConnected}
-                                        <span class="mt-0.5 block text-xs text-muted-foreground"
-                                            >Already connected</span>
+                                        <span class="mt-0.5 block text-xs text-muted-foreground">
+                                            Already connected
+                                        </span>
                                     {/if}
                                 </button>
                             </li>

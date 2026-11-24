@@ -68,17 +68,19 @@
                     </div>
                 {/snippet}
                 {#snippet badge()}
-                    <Badge variant="primary"
-                        >{modelProvider.authMethod === "api_key"
+                    <Badge variant="primary">
+                        {modelProvider.authMethod === "api_key"
                             ? modelProviderLabel(modelProvider.provider)
                             : modelProvider.authMethod === "xai_oauth"
                               ? "xAI OAuth"
-                              : "OpenAI OAuth"}</Badge>
+                              : "OpenAI OAuth"}
+                    </Badge>
                     {#if modelProvider.authMethod !== "api_key"}
-                        <Badge variant="neutral"
-                            >{modelProvider.oauthStatus === "reauthorization_required"
+                        <Badge variant="neutral">
+                            {modelProvider.oauthStatus === "reauthorization_required"
                                 ? "Reconnect required"
-                                : "Authorized"}</Badge>
+                                : "Authorized"}
+                        </Badge>
                     {/if}
                     <Badge variant="neutral">{truncateUrl(modelProvider.baseUrl)}</Badge>
                     {#if modelProvider.rateLimitResetAt}
@@ -139,8 +141,9 @@
             </Button>
         </div>
         <div class="flex justify-end">
-            <Button text class="focus-visible:outline-none" onclick={() => (addModelProviderModalOpen = false)}
-                >Cancel</Button>
+            <Button text class="focus-visible:outline-none" onclick={() => (addModelProviderModalOpen = false)}>
+                Cancel
+            </Button>
         </div>
     </div>
 </Modal>

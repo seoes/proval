@@ -619,8 +619,8 @@
                     maxlength={USER_PROMPT_MAX_LENGTH}
                     placeholder="Ignore the lack of test coverage."
                     rows={4}
-                    class="w-full resize-y rounded-lg border border-input bg-input-background px-4 py-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                ></textarea>
+                    class="w-full resize-y rounded-lg border border-input bg-input-background px-4 py-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                </textarea>
                 <p class="mt-1 text-right text-xs text-muted-foreground">
                     {userPromptLength}/{USER_PROMPT_MAX_LENGTH}
                 </p>
@@ -702,8 +702,9 @@
                     <div class="flex items-center justify-between gap-2">
                         <div>
                             <FieldTitle class="ml-1">Mentioned only</FieldTitle>
-                            <Description class="ml-1"
-                                >Reply only when someone at or above minimum access @mentions the bot.</Description>
+                            <Description class="ml-1">
+                                Reply only when someone at or above minimum access @mentions the bot.
+                            </Description>
                         </div>
                         <ToggleSwitch bind:checked={prMentionOnly} disabled={!prEnabled || !prReplyEnabled} />
                     </div>
@@ -731,8 +732,9 @@
             <div class="flex items-center justify-between gap-2">
                 <div>
                     <FieldTitle class="ml-1">Set labels when issue opens</FieldTitle>
-                    <Description class="ml-1"
-                        >When on, the agent sets labels automatically when an issue opens.</Description>
+                    <Description class="ml-1">
+                        When on, the agent sets labels automatically when an issue opens.
+                    </Description>
                 </div>
                 <ToggleSwitch bind:checked={issueLabelOnOpenEnabled} disabled={!issueEnabled} />
             </div>
@@ -745,8 +747,9 @@
                     <div class="flex items-center justify-between gap-2">
                         <div>
                             <FieldTitle class="ml-1">Mentioned only</FieldTitle>
-                            <Description class="ml-1"
-                                >Reply only when someone at or above minimum access @mentions the bot.</Description>
+                            <Description class="ml-1">
+                                Reply only when someone at or above minimum access @mentions the bot.
+                            </Description>
                         </div>
                         <ToggleSwitch bind:checked={issueMentionOnly} disabled={!issueEnabled || !issueReplyEnabled} />
                     </div>

@@ -213,7 +213,8 @@
                     bind:value={manualPrivateKey}
                     rows="6"
                     class="w-full rounded-lg border border-input bg-input-background px-4 py-2 font-mono text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    placeholder="-----BEGIN RSA PRIVATE KEY-----"></textarea>
+                    placeholder="-----BEGIN RSA PRIVATE KEY-----">
+                </textarea>
             {/snippet}
         </FormField>
         <FormField label="Webhook secret" description="From App settings — must match what GitHub sends">

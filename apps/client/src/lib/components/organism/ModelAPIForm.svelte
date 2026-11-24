@@ -390,7 +390,9 @@
                     onclick={() => {
                         removeModelProvider(modelProviderId);
                     }}
-                    type="button">Remove</Button>
+                    type="button">
+                    Remove
+                </Button>
             {:else if mode === "create"}
                 <Button text onclick={() => goto("/model-provider")} type="button">Cancel</Button>
             {/if}
@@ -412,8 +414,9 @@
     <Modal bind:open={testModalOpen} class="max-w-lg">
         <div class="space-y-4">
             <FieldTitle>Test connection</FieldTitle>
-            <Description
-                >Enter a model ID your API accepts. This is only used for the test and is not saved.</Description>
+            <Description>
+                Enter a model ID your API accepts. This is only used for the test and is not saved.
+            </Description>
             <InputText
                 placeholder="anthropic/claude-sonnet-4.6"
                 bind:value={testModelNameDraft}

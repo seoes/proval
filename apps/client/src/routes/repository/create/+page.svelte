@@ -155,8 +155,9 @@
                             <Button
                                 primary
                                 onclick={() => (step = 2)}
-                                disabled={!selectedProviderOption || !selectedRepositoryId || isSelectedConnected}
-                                >Continue</Button>
+                                disabled={!selectedProviderOption || !selectedRepositoryId || isSelectedConnected}>
+                                Continue
+                            </Button>
                             <Button text onclick={() => goto("/repository")}>Cancel</Button>
                         </div>
                     </div>

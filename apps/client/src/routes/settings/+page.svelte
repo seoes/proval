@@ -169,9 +169,10 @@
                             <FieldTitle class="mb-1 ml-1">Wait for running activities on shutdown</FieldTitle>
                             <Description placement="below">
                                 You need to set container's timeout by setting
-                                <code class="rounded-md bg-gray-200 px-1 py-0.5 text-xs dark:bg-gray-700"
-                                    >stop_grace_period: 15m</code
-                                >(or any value) on Docker container first.
+                                <code class="rounded-md bg-gray-200 px-1 py-0.5 text-xs dark:bg-gray-700">
+                                    stop_grace_period: 15m
+                                </code>
+                                (or any value) on Docker container first.
                             </Description>
                         </div>
                         <ToggleSwitch

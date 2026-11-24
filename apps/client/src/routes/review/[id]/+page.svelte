@@ -320,8 +320,9 @@
                         {#if showQueuedAtBeforeStarted}
                             <div>
                                 <span class="text-muted-foreground">Queued at</span>
-                                <span class="ml-1.5 text-secondary-foreground"
-                                    >{formatDetailTime(review.queuedAt)}</span>
+                                <span class="ml-1.5 text-secondary-foreground">
+                                    {formatDetailTime(review.queuedAt)}
+                                </span>
                             </div>
                         {/if}
                         <div>
@@ -340,8 +341,9 @@
                         {#if showQueuedAtBeforeStarted}
                             <div>
                                 <span class="text-muted-foreground">Queued at</span>
-                                <span class="ml-1.5 text-secondary-foreground"
-                                    >{formatDetailTime(review.queuedAt)}</span>
+                                <span class="ml-1.5 text-secondary-foreground">
+                                    {formatDetailTime(review.queuedAt)}
+                                </span>
                             </div>
                         {/if}
                         <div>
@@ -391,18 +393,21 @@
                 <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                     <div>
                         <span class="text-muted-foreground">Input</span>
-                        <span class="ml-1.5 font-medium text-foreground tabular-nums"
-                            >{formatToken(review.inputToken)}</span>
+                        <span class="ml-1.5 font-medium text-foreground tabular-nums">
+                            {formatToken(review.inputToken)}
+                        </span>
                     </div>
                     <div>
                         <span class="text-muted-foreground">Cached</span>
-                        <span class="ml-1.5 font-medium text-foreground tabular-nums"
-                            >{formatToken(review.cachedInputToken)}</span>
+                        <span class="ml-1.5 font-medium text-foreground tabular-nums">
+                            {formatToken(review.cachedInputToken)}
+                        </span>
                     </div>
                     <div>
                         <span class="text-muted-foreground">Output</span>
-                        <span class="ml-1.5 font-medium text-foreground tabular-nums"
-                            >{formatToken(review.outputToken)}</span>
+                        <span class="ml-1.5 font-medium text-foreground tabular-nums">
+                            {formatToken(review.outputToken)}
+                        </span>
                     </div>
                     <div>
                         <span class="text-muted-foreground">Cache Rate</span>
@@ -472,8 +477,9 @@
                                                     : openRowKeySet.delete(row.key)}>
                                             <summary
                                                 class="group flex cursor-pointer list-none gap-2.5 px-2 py-0.5 [&::-webkit-details-marker]:hidden">
-                                                <span class="hidden shrink-0 text-muted-foreground md:inline"
-                                                    >[{logStageLabel(entry.label)}]</span>
+                                                <span class="hidden shrink-0 text-muted-foreground md:inline">
+                                                    [{logStageLabel(entry.label)}]
+                                                </span>
                                                 <ToolIcon
                                                     size={16}
                                                     class="mt-0.5 shrink-0 text-muted-foreground"
@@ -483,9 +489,11 @@
                                                         entry.level,
                                                     )}">
                                                     <span class="block">
-                                                        {transformToolName(entry.toolName)}<span
-                                                            class="pointer-events-none ml-2 inline-block font-normal text-muted-foreground opacity-0 transition-opacity select-none group-hover:opacity-100 group-focus-visible:opacity-100"
-                                                            >{formatLogTime(entry.timestamp)}</span>
+                                                        {transformToolName(entry.toolName)}
+                                                        <span
+                                                            class="pointer-events-none ml-2 inline-block font-normal text-muted-foreground opacity-0 transition-opacity select-none group-hover:opacity-100 group-focus-visible:opacity-100">
+                                                            {formatLogTime(entry.timestamp)}
+                                                        </span>
                                                     </span>
                                                     <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes the argument text before adding markup -->
                                                     <code class={CODE_HIGHLIGHT_CLASS}>{@html row.argumentHtml}</code>
@@ -510,12 +518,14 @@
                                                             class="rounded-sm border border-border bg-card px-2 py-1.5 text-secondary-foreground">
                                                             {#if resultHtml}
                                                                 <!-- eslint-disable svelte/no-at-html-tags -- Highlight.js escapes text before adding markup -->
-                                                                <code class={CODE_HIGHLIGHT_CLASS}
-                                                                    >{@html resultHtml}</code>
+                                                                <code class={CODE_HIGHLIGHT_CLASS}>
+                                                                    {@html resultHtml}
+                                                                </code>
                                                                 <!-- eslint-enable svelte/no-at-html-tags -->
                                                             {:else}
-                                                                <span class="whitespace-pre-wrap"
-                                                                    >{row.result.message}</span>
+                                                                <span class="whitespace-pre-wrap">
+                                                                    {row.result.message}
+                                                                </span>
                                                             {/if}
                                                         </div>
                                                     </div>
@@ -526,16 +536,19 @@
                                         </details>
                                     {:else}
                                         <div class="group flex gap-2.5 px-2 py-0.5">
-                                            <span class="hidden shrink-0 text-muted-foreground md:inline"
-                                                >[{logStageLabel(entry.label)}]</span>
+                                            <span class="hidden shrink-0 text-muted-foreground md:inline">
+                                                [{logStageLabel(entry.label)}]
+                                            </span>
                                             <span
                                                 class="min-w-0 flex-1 wrap-break-word {logLevelTextColor(entry.level)}">
                                                 {#if entry.type === "tool-error"}
                                                     <span class="block font-semibold">Error · {entry.toolName}</span>
                                                 {/if}
-                                                <span class="whitespace-pre-wrap">{entry.message}</span><span
-                                                    class="pointer-events-none ml-2 inline-block font-normal text-muted-foreground opacity-0 transition-opacity select-none group-hover:opacity-100"
-                                                    >{formatLogTime(entry.timestamp)}</span>
+                                                <span class="whitespace-pre-wrap">{entry.message}</span>
+                                                <span
+                                                    class="pointer-events-none ml-2 inline-block font-normal text-muted-foreground opacity-0 transition-opacity select-none group-hover:opacity-100">
+                                                    {formatLogTime(entry.timestamp)}
+                                                </span>
                                             </span>
                                         </div>
                                     {/if}

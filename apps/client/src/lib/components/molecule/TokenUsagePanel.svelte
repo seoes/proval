@@ -302,8 +302,9 @@
         <span class="size-2 shrink-0 rounded-full" style="background-color: {meta.color}"></span>
         <span class="min-w-0 flex-1 text-secondary-foreground">{meta.label}</span>
         <span class="shrink-0 text-foreground tabular-nums">{formatTokensFull(value)}</span>
-        <span class="w-10 shrink-0 text-right text-muted-foreground tabular-nums"
-            >{segmentPercent(value, segmentSum)}</span>
+        <span class="w-10 shrink-0 text-right text-muted-foreground tabular-nums">
+            {segmentPercent(value, segmentSum)}
+        </span>
     </li>
 {/snippet}
 

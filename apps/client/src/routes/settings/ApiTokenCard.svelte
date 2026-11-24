@@ -131,8 +131,8 @@
     <div class="space-y-6">
         <Description placement="below">
             Tokens let a script call the API without your password. Send one as
-            <code class="rounded bg-muted px-1 py-0.5 text-xs">Authorization: Bearer &lt;token&gt;</code>. A token
-            cannot create or revoke other tokens.
+            <code class="rounded bg-muted px-1 py-0.5 text-xs">Authorization: Bearer &lt;token&gt;</code>
+            . A token cannot create or revoke other tokens.
         </Description>
 
         {#if newSecret}

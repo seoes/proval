@@ -187,8 +187,9 @@
                                                         </svg>
                                                     {/if}
                                                 </span>
-                                                <span class="min-w-0 truncate text-sm text-foreground"
-                                                    >{repo.path}</span>
+                                                <span class="min-w-0 truncate text-sm text-foreground">
+                                                    {repo.path}
+                                                </span>
                                             </button>
                                         </li>
                                     {/each}
