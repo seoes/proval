@@ -228,14 +228,17 @@
             <p>
                 Supports
                 <span class="ml-1.5 inline-flex items-center gap-1 font-bold text-orange-500">
-                    <GitLab class="size-[0.85em] shrink-0 translate-y-[1px]" />GitLab</span
-                >,
+                    <GitLab class="size-[0.85em] shrink-0 translate-y-[1px]" />GitLab
+                </span>
+                ,
                 <span class="inline-flex items-center gap-0.5 font-semibold text-orange-700">
-                    <Forgejo class="size-[0.85em] shrink-0 translate-y-[1px]" />Forgejo</span
-                >, and
+                    <Forgejo class="size-[0.85em] shrink-0 translate-y-[1px]" />Forgejo
+                </span>
+                , and
                 <span class="inline-flex items-center gap-1 font-medium text-black">
-                    <GitHub class="size-[0.85em] shrink-0" />GitHub</span
-                >.
+                    <GitHub class="size-[0.85em] shrink-0" />GitHub
+                </span>
+                .
             </p>
         </div>
 
@@ -438,11 +441,13 @@
                             </p>
                             <div class="mt-2 flex flex-col items-center gap-1.5">
                                 <span
-                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[10px] text-sky-700"
-                                    >merge_request.opened</span>
+                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[10px] text-sky-700">
+                                    merge_request.opened
+                                </span>
                                 <span
-                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[10px] text-sky-700"
-                                    >note.created</span>
+                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[10px] text-sky-700">
+                                    note.created
+                                </span>
                             </div>
                         </div>
                         <div class="integration-line-v-blue h-5" aria-hidden="true"></div>
@@ -455,11 +460,13 @@
                             </p>
                             <div class="mt-2 flex flex-col items-center gap-1.5">
                                 <span
-                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[10px] text-emerald-700"
-                                    >GET /repository</span>
+                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[10px] text-emerald-700">
+                                    GET /repository
+                                </span>
                                 <span
-                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[10px] text-emerald-700"
-                                    >POST /comment</span>
+                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[10px] text-emerald-700">
+                                    POST /comment
+                                </span>
                             </div>
                         </div>
                         <div class="integration-line-v-green h-5" aria-hidden="true"></div>
@@ -475,11 +482,13 @@
                             </p>
                             <div class="mt-2 flex flex-col items-center gap-1">
                                 <span
-                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-sky-700 xl:text-[10px]"
-                                    >merge_request.opened</span>
+                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-sky-700 xl:text-[10px]">
+                                    merge_request.opened
+                                </span>
                                 <span
-                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-sky-700 xl:text-[10px]"
-                                    >note.created</span>
+                                    class="rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-sky-700 xl:text-[10px]">
+                                    note.created
+                                </span>
                             </div>
                         </div>
                         <div class="integration-line-h-blue min-w-4 flex-1" aria-hidden="true"></div>
@@ -492,11 +501,13 @@
                             </p>
                             <div class="mt-2 flex flex-col items-center gap-1">
                                 <span
-                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]"
-                                    >GET /repository</span>
+                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]">
+                                    GET /repository
+                                </span>
                                 <span
-                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]"
-                                    >POST /comment</span>
+                                    class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-emerald-700 xl:text-[10px]">
+                                    POST /comment
+                                </span>
                             </div>
                         </div>
                         <div class="integration-line-h-green min-w-4 flex-1" aria-hidden="true"></div>
@@ -539,11 +550,13 @@
                         </p>
                         <div class="mt-2 flex flex-col items-center gap-1.5">
                             <span
-                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 font-mono text-[10px] text-violet-700"
-                                >Chat Completions API</span>
+                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 font-mono text-[10px] text-violet-700">
+                                Chat Completions API
+                            </span>
                             <span
-                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 font-mono text-[10px] text-violet-700"
-                                >Messages API</span>
+                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 font-mono text-[10px] text-violet-700">
+                                Messages API
+                            </span>
                         </div>
                     </div>
                     <div class="integration-line-v-violet h-5" aria-hidden="true"></div>
@@ -557,11 +570,13 @@
                         </p>
                         <div class="mt-2 flex flex-col items-center gap-1">
                             <span
-                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-violet-700 xl:text-[10px]"
-                                >Chat Completions API</span>
+                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-violet-700 xl:text-[10px]">
+                                Chat Completions API
+                            </span>
                             <span
-                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-violet-700 xl:text-[10px]"
-                                >Messages API</span>
+                                class="rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 font-mono text-[9px] leading-4 text-violet-700 xl:text-[10px]">
+                                Messages API
+                            </span>
                         </div>
                     </div>
                     <div class="integration-line-h-violet min-w-4 flex-1" aria-hidden="true"></div>
@@ -601,8 +616,9 @@
                                     href="/docs/llama-cpp"
                                     class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
                                     <span
-                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-violet-600 font-mono text-[11px] font-bold text-white"
-                                        >Lc</span>
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-violet-600 font-mono text-[11px] font-bold text-white">
+                                        Lc
+                                    </span>
                                     <span class="text-sm font-medium text-neutral-900">Llama.cpp</span>
                                 </a>
                             </li>
@@ -611,8 +627,9 @@
                                     href="/docs/set-llm"
                                     class="flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2.5 transition-colors hover:border-violet-200 hover:bg-violet-50">
                                     <span
-                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 font-mono text-[11px] font-bold text-white"
-                                        >OA</span>
+                                        class="flex size-8 shrink-0 items-center justify-center rounded-md bg-neutral-900 font-mono text-[11px] font-bold text-white">
+                                        OA
+                                    </span>
                                     <span class="text-sm font-medium text-neutral-900">OpenAI-compatible</span>
                                 </a>
                             </li>
@@ -623,13 +640,15 @@
 
             <div class="mt-6 space-y-1.5 px-1 text-xs leading-5 text-neutral-500">
                 <p>
-                    <span class="font-semibold text-neutral-950">Gitea</span> and
-                    <span class="font-semibold text-neutral-950">Codeberg</span> use the same Forgejo-compatible webhook and
-                    API path.
+                    <span class="font-semibold text-neutral-950">Gitea</span>
+                    and
+                    <span class="font-semibold text-neutral-950">Codeberg</span>
+                     use the same Forgejo-compatible webhook and API path.
                 </p>
                 <p>
                     Public webhooks may need nginx or Caddy in front of Proval for
-                    <span class="font-semibold text-neutral-950">HTTPS</span> (TLS).
+                    <span class="font-semibold text-neutral-950">HTTPS</span>
+                     (TLS).
                 </p>
             </div>
         </Panel>
@@ -708,7 +727,8 @@
         ]}>
         <span
             class={["mt-1.5 size-2 shrink-0 rounded-full transition-colors", active ? "bg-primary" : "bg-neutral-300"]}
-            aria-hidden="true"></span>
+            aria-hidden="true">
+        </span>
         <div class="min-w-0">
             <p class="text-sm font-semibold tracking-tight text-neutral-900">{mode.label}</p>
             <p class="mt-0.5 text-xs leading-relaxed text-neutral-500">{mode.tagline}</p>
@@ -825,8 +845,8 @@
                             {copyLabel}
                         </Button>
                     </div>
-                    <pre class="overflow-x-auto px-4 pt-4 pb-5 font-mono text-[13px] leading-6 text-neutral-100"><code
-                            >{dockerCompose}</code></pre>
+                    <pre
+                        class="overflow-x-auto px-4 pt-4 pb-5 font-mono text-[13px] leading-6 text-neutral-100"><code>{dockerCompose}</code></pre>
                 </Panel>
                 <p class="mt-3 text-center text-sm text-neutral-500">
                     Deploy in a minute with Docker Compose.

@@ -396,7 +396,7 @@
                     rel="noopener noreferrer">
                     ChatGPT Security Settings
                 </a>
-                 and turn on device code authorization for Codex.
+                and turn on device code authorization for Codex.
             </Description>
         {/if}
         {#if oauthAttempt && oauthPending}
