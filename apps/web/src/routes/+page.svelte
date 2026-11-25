@@ -643,12 +643,12 @@
                     <span class="font-semibold text-neutral-950">Gitea</span>
                     and
                     <span class="font-semibold text-neutral-950">Codeberg</span>
-                     use the same Forgejo-compatible webhook and API path.
+                    use the same Forgejo-compatible webhook and API path.
                 </p>
                 <p>
                     Public webhooks may need nginx or Caddy in front of Proval for
                     <span class="font-semibold text-neutral-950">HTTPS</span>
-                     (TLS).
+                    (TLS).
                 </p>
             </div>
         </Panel>
