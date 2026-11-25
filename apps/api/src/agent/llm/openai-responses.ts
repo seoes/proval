@@ -1,108 +1,85 @@
 import OpenAI from "openai";
-import type { LlmResponse, LlmSender, Message, ToolCall } from "./loop.js";
-import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
+import type { LlmResponse, Message, ToolCall } from "./loop.js";
+import type { SenderRequest, SenderSDKConfig } from "./sender.js";
 
-export function createOpenAiResponsesSender(config: SenderSDKConfig): LlmSender {
+export function createOpenAiResponsesRequest(config: SenderSDKConfig): SenderRequest {
     const client = new OpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
         timeout: config.timeoutSecond * 1000,
         fetch: config.fetch,
-        maxRetries: config.maxRetries,
     });
 
-    return {
-        async send(messageList, toolList) {
-            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
-            const instructions = messageList
-                .filter((message) => message.role === "system")
-                .map((message) => message.content ?? "")
-                .join("\n\n");
-            try {
-                const stream = await client.responses.create(
-                    {
-                        model: config.model,
-                        // Codex CLI omits instructions rather than sending an empty value.
-                        ...(instructions ? { instructions } : {}),
-                        input: messageList.flatMap(convertToOpenAiInput),
-                        store: false,
-                        stream: true,
-                        include: ["reasoning.encrypted_content"],
-                        ...(config.maxOutputToken !== undefined ? { max_output_tokens: config.maxOutputToken } : {}),
-                        ...(toolList.length > 0
-                            ? {
-                                  tools: toolList.map((tool) => ({
-                                      type: "function" as const,
-                                      name: tool.name,
-                                      description: tool.description,
-                                      parameters: tool.parameters,
-                                      strict: false,
-                                  })),
-                                  tool_choice: "auto" as const,
-                              }
-                            : {}),
-                        ...(config.reasoningEffort
-                            ? {
-                                  reasoning: {
-                                      effort: config.reasoningEffort as NonNullable<
-                                          OpenAI.Responses.ResponseCreateParams["reasoning"]
-                                      >["effort"],
-                                  },
-                              }
-                            : {}),
-                    },
-                    { signal },
-                );
-
-                for await (const event of stream) {
-                    touch();
-                    if (event.type === "response.completed") {
-                        return convertFromOpenAiResponse(event.response);
-                    }
-                    if (event.type === "response.failed") {
-                        throw new OpenAI.APIError(
-                            undefined,
-                            event.response.error ?? undefined,
-                            "OpenAI Responses generation failed",
-                            undefined,
-                        );
-                    }
-                    if (event.type === "response.incomplete") {
-                        if (
-                            config.maxOutputToken !== undefined &&
-                            event.response.incomplete_details?.reason === "max_output_tokens"
-                        ) {
-                            return { ...convertFromOpenAiResponse(event.response), finishReason: "length" };
-                        }
-                        throw new Error(
-                            `OpenAI Responses generation incomplete (${event.response.incomplete_details?.reason ?? "unknown"})`,
-                        );
-                    }
-                    if (event.type === "error") {
-                        throw new OpenAI.APIError(undefined, event, event.message, undefined);
-                    }
-                }
-
-                throw new Error("OpenAI Responses stream ended before completion");
-            } catch (error) {
-                if (signal.aborted) {
-                    throw new OpenAI.APIConnectionTimeoutError({
-                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
-                    });
-                }
-                throw error;
-            } finally {
-                clear();
-            }
-        },
-        getModel() {
-            return {
+    return async (messageList, toolList, { signal, touch }) => {
+        const instructions = messageList
+            .filter((message) => message.role === "system")
+            .map((message) => message.content ?? "")
+            .join("\n\n");
+        const stream = await client.responses.create(
+            {
                 model: config.model,
-                provider: "openai_responses",
-                baseUrl: config.baseURL,
-                reasoningEffort: config.reasoningEffort,
-            };
-        },
+                // Codex CLI omits instructions rather than sending an empty value.
+                ...(instructions ? { instructions } : {}),
+                input: messageList.flatMap(convertToOpenAiInput),
+                store: false,
+                stream: true,
+                include: ["reasoning.encrypted_content"],
+                ...(config.maxOutputToken !== undefined ? { max_output_tokens: config.maxOutputToken } : {}),
+                ...(toolList.length > 0
+                    ? {
+                          tools: toolList.map((tool) => ({
+                              type: "function" as const,
+                              name: tool.name,
+                              description: tool.description,
+                              parameters: tool.parameters,
+                              strict: false,
+                          })),
+                          tool_choice: "auto" as const,
+                      }
+                    : {}),
+                ...(config.reasoningEffort
+                    ? {
+                          reasoning: {
+                              effort: config.reasoningEffort as NonNullable<
+                                  OpenAI.Responses.ResponseCreateParams["reasoning"]
+                              >["effort"],
+                          },
+                      }
+                    : {}),
+            },
+            { signal },
+        );
+
+        for await (const event of stream) {
+            touch();
+            if (event.type === "response.completed") {
+                return convertFromOpenAiResponse(event.response);
+            }
+            if (event.type === "response.failed") {
+                throw new OpenAI.APIError(
+                    undefined,
+                    event.response.error ?? undefined,
+                    "OpenAI Responses generation failed",
+                    undefined,
+                );
+            }
+            if (event.type === "response.incomplete") {
+                if (
+                    config.maxOutputToken !== undefined &&
+                    event.response.incomplete_details?.reason === "max_output_tokens"
+                ) {
+                    return { ...convertFromOpenAiResponse(event.response), finishReason: "length" };
+                }
+                throw new Error(
+                    `OpenAI Responses generation incomplete (${event.response.incomplete_details?.reason ?? "unknown"})`,
+                );
+            }
+            if (event.type === "error") {
+                throw new OpenAI.APIError(undefined, event, event.message, undefined);
+            }
+        }
+
+        throw new Error("OpenAI Responses stream ended before completion");
     };
 }
 

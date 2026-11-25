@@ -1,8 +1,13 @@
-import { describe, expect, test } from "bun:test";
-import { createAnthropicSender } from "./anthropic.js";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { Sender, type SenderConfig } from "./sender.js";
 import { classifyModelError } from "./retryable-error.js";
-import { createOpenAiSender } from "./openai.js";
-import { createOpenAiResponsesSender } from "./openai-responses.js";
+
+afterEach(() => mock.restore());
+
+function createSender(provider: SenderConfig["provider"], fetchImpl: ReturnType<typeof slowFetch>) {
+    spyOn(globalThis, "fetch").mockImplementation(fetchImpl as typeof fetch);
+    return new Sender({ ...sdkBase, provider });
+}
 
 const encoder = new TextEncoder();
 const timeoutSecond = 1;
@@ -107,8 +112,7 @@ async function expectSilentTimeout(send: () => Promise<unknown>) {
 
 describe("stream idle timeout", () => {
     describe("openai chat completions", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
-            createOpenAiSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createSender("openai", fetchImpl);
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
             await expectSilentTimeout(() =>
@@ -132,8 +136,7 @@ describe("stream idle timeout", () => {
     });
 
     describe("openai responses", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
-            createOpenAiResponsesSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createSender("openai_responses", fetchImpl);
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
             await expectSilentTimeout(() =>
@@ -149,8 +152,7 @@ describe("stream idle timeout", () => {
     });
 
     describe("anthropic", () => {
-        const sender = (fetchImpl: ReturnType<typeof slowFetch>) =>
-            createAnthropicSender({ ...sdkBase, fetch: fetchImpl });
+        const sender = (fetchImpl: ReturnType<typeof slowFetch>) => createSender("anthropic", fetchImpl);
 
         test("a stream that goes silent fails fast with a retryable timeout", async () => {
             const startOnly = [

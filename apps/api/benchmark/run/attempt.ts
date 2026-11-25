@@ -242,7 +242,7 @@ async function runAttempt(
 ): Promise<void> {
     const { MockProvider } = await import("../../mock/provider.js");
     const { Workspace } = await import("../../src/git-provider/workspace.js");
-    const { createSender } = await import("../../src/agent/llm/factory.js");
+    const { Sender } = await import("../../src/agent/llm/sender.js");
     const { runPullRequestReview } = await import("../../src/agent/pull-request/index.js");
     const { JobCanceledError } = await import("../../src/agent/llm/loop.js");
     const { git } = await import("../load/git.js");
@@ -304,7 +304,7 @@ async function runAttempt(
     const fakeSenderKind = process.env.BENCHMARK_FAKE_SENDER?.trim();
     const rawSender = fakeSenderKind
         ? (await import("./sender.js")).createFakeSender(fakeSenderKind)
-        : createSender({
+        : new Sender({
               provider: llm.provider,
               apiKey: llm.apiKey,
               baseURL: llm.baseURL,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { SenderConfig } from "./factory.js";
+import type { SenderConfig } from "./sender.js";
 
 if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
     it("passes sender concurrency in an isolated process", () => {
@@ -13,7 +13,7 @@ if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
     }, 30000);
 } else {
     const { Limiter, loadLimiter } = await import("./concurrency.js");
-    const { createSender } = await import("./factory.js");
+    const { Sender } = await import("./sender.js");
 
     function createDeferred() {
         let resolve: () => void = () => {};
@@ -157,14 +157,16 @@ if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
                 let peak = 0;
                 let requestCount = 0;
                 const config: SenderConfig = {
-                    provider,
+                    provider: provider === "oauth" ? "openai_responses" : provider,
                     apiKey: "test",
                     baseURL: provider === "oauth" ? "https://api.x.ai/v1" : "https://llm.example/v1",
                     model: "test",
                     timeoutSecond: 10,
                     modelProviderId: 9001,
                     concurrency: 1,
-                    getAccessToken: async () => "test",
+                    ...(provider === "oauth"
+                        ? { oauth: { method: "xai_oauth", getAccessToken: async () => "test" } }
+                        : {}),
                 };
                 const originalFetch = globalThis.fetch;
                 globalThis.fetch = (async () => {
@@ -176,7 +178,7 @@ if (process.env.PROVAL_CONCURRENCY_TEST_CHILD !== "1") {
                     active--;
                     return Response.json({ error: { message: "Invalid test request" } }, { status: 400 });
                 }) as unknown as typeof fetch;
-                const senderList = [createSender(config), createSender(config)];
+                const senderList = [new Sender(config), new Sender(config)];
                 const run = Promise.allSettled(
                     senderList.map((sender) => sender.send([{ role: "user", content: "Test" }], [])),
                 );

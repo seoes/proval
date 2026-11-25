@@ -25,11 +25,12 @@
                         Self-hosted AI code review for GitLab, Forgejo, and GitHub. Bring your own model.
                     </p>
                     <div class="mt-6 w-48">
-                        <a href="https://fazier.com/launches/proval.app" target="_blank"
-                            ><img
+                        <a href="https://fazier.com/launches/proval.app" target="_blank">
+                            <img
                                 src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=featured&theme=neutral"
                                 width="250"
-                                alt="Fazier badge" /></a>
+                                alt="Fazier badge" />
+                        </a>
                     </div>
                 </div>
 
@@ -37,8 +38,9 @@
                     <ul class="mt-4 space-y-2.5 text-sm">
                         {#each product as link (link.href)}
                             <li>
-                                <a href={link.href} class="text-neutral-600 transition-colors hover:text-neutral-950"
-                                    >{link.label}</a>
+                                <a href={link.href} class="text-neutral-600 transition-colors hover:text-neutral-950">
+                                    {link.label}
+                                </a>
                             </li>
                         {/each}
                     </ul>
@@ -48,7 +50,9 @@
             <div
                 class="mt-10 flex flex-col gap-2 border-t border-neutral-200/80 pt-6 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
                 <p>© {year} Proval</p>
-                <p>Contact: <a href="mailto:me@dowonseo.com">me@dowonseo.com</a></p>
+                <p>
+                    Contact: <a href="mailto:me@dowonseo.com">me@dowonseo.com</a>
+                </p>
             </div>
         </div>
     </div>

@@ -120,7 +120,9 @@
                             Compare
                             <span
                                 class="inline-block transition-transform group-hover:translate-x-0.5"
-                                aria-hidden="true">→</span>
+                                aria-hidden="true">
+                                →
+                            </span>
                         </p>
                     </a>
                 </li>

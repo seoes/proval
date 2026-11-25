@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import type { LlmSender, Message } from "./loop.js";
-import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
+import type { Message } from "./loop.js";
+import type { SenderRequest, SenderSDKConfig } from "./sender.js";
 import z from "zod";
 
 const openRouterErrorSchema = z.object({
@@ -11,7 +11,7 @@ const openRouterErrorSchema = z.object({
     }),
 });
 
-export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
+export function createOpenAiRequest(config: SenderSDKConfig): SenderRequest {
     const client = new OpenAI({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
@@ -19,80 +19,62 @@ export function createOpenAiSender(config: SenderSDKConfig): LlmSender {
         fetch: config.fetch,
     });
 
-    return {
-        async send(messages, tools) {
-            const openAiTools: OpenAI.Chat.ChatCompletionTool[] = tools.map((t) => ({
-                type: "function",
-                function: {
-                    name: t.name,
-                    description: t.description,
-                    parameters: t.parameters,
+    return async (messages, tools, { signal, touch }) => {
+        const openAiTools: OpenAI.Chat.ChatCompletionTool[] = tools.map((t) => ({
+            type: "function",
+            function: {
+                name: t.name,
+                description: t.description,
+                parameters: t.parameters,
+            },
+        }));
+
+        try {
+            const stream = await client.chat.completions.create(
+                {
+                    model: config.model,
+                    messages: messages.map(convertToOpenAiMessage),
+                    ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
+                    ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
+                    ...(config.reasoningEffort
+                        ? {
+                              reasoning_effort:
+                                  config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"],
+                          }
+                        : {}),
+                    stream: true,
+                    stream_options: { include_usage: true },
                 },
-            }));
-
-            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
-            try {
-                const stream = await client.chat.completions.create(
-                    {
-                        model: config.model,
-                        messages: messages.map(convertToOpenAiMessage),
-                        ...(config.maxOutputToken !== undefined ? { max_tokens: config.maxOutputToken } : {}),
-                        ...(openAiTools.length > 0 ? { tools: openAiTools, tool_choice: "auto" as const } : {}),
-                        ...(config.reasoningEffort
-                            ? {
-                                  reasoning_effort:
-                                      config.reasoningEffort as OpenAI.Chat.ChatCompletionCreateParams["reasoning_effort"],
-                              }
-                            : {}),
-                        stream: true,
-                        stream_options: { include_usage: true },
-                    },
-                    { signal },
-                );
-                const accumulated = await accumulateChatCompletionStream(stream, touch);
-                if (accumulated.finishReason === null) {
-                    throw new Error("The model stream ended without a finish reason");
-                }
-
-                return {
-                    message: {
-                        role: "assistant",
-                        content: accumulated.content,
-                        toolCalls: accumulated.toolCalls,
-                    },
-                    finishReason: accumulated.finishReason,
-                    requestId: accumulated.id,
-                    usage: {
-                        inputToken: accumulated.promptTokens,
-                        outputToken: accumulated.completionTokens,
-                        cachedInputToken: accumulated.cachedInputTokens,
-                    },
-                };
-            } catch (error) {
-                if (signal.aborted) {
-                    throw new OpenAI.APIConnectionTimeoutError({
-                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
-                    });
-                }
-                if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
-                    const result = openRouterErrorSchema.safeParse({ error: error.error });
-                    if (result.success) {
-                        throw new Error(result.data.error.message);
-                    }
-                }
-                throw error;
-            } finally {
-                clear();
+                { signal },
+            );
+            const accumulated = await accumulateChatCompletionStream(stream, touch);
+            if (accumulated.finishReason === null) {
+                throw new Error("The model stream ended without a finish reason");
             }
-        },
-        getModel() {
+
             return {
-                model: config.model,
-                provider: "openai",
-                baseUrl: config.baseURL,
-                reasoningEffort: config.reasoningEffort,
+                message: {
+                    role: "assistant",
+                    content: accumulated.content,
+                    toolCalls: accumulated.toolCalls,
+                },
+                finishReason: accumulated.finishReason,
+                requestId: accumulated.id,
+                usage: {
+                    inputToken: accumulated.promptTokens,
+                    outputToken: accumulated.completionTokens,
+                    cachedInputToken: accumulated.cachedInputTokens,
+                },
             };
-        },
+        } catch (error) {
+            if (client.baseURL?.includes("openrouter.ai") && error instanceof OpenAI.APIError) {
+                const result = openRouterErrorSchema.safeParse({ error: error.error });
+                if (result.success) {
+                    throw new Error(result.data.error.message);
+                }
+            }
+            throw error;
+        }
     };
 }
 

@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
 import db from "../../db/index.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
-import { getChatGptAccountId, openAiOAuthBaseUrl, xaiBaseUrl } from "../../agent/llm/oauth.js";
+import { getChatGptAccountId, oauthProviderMap } from "../../agent/llm/oauth.js";
 import { z } from "zod";
 
 const oauthAttemptSchema = z
@@ -19,23 +19,7 @@ const oauthAttemptSchema = z
     .strict();
 
 const openAiAuthUrl = "https://auth.openai.com";
-const providerMap = {
-    xai_oauth: {
-        name: "xAI",
-        clientId: "b1a00492-073a-47ea-816f-4c329264a828",
-        tokenUrl: "https://auth.x.ai/oauth2/token",
-        revokeUrl: "https://auth.x.ai/oauth2/revoke",
-        baseUrl: xaiBaseUrl,
-    },
-    openai_oauth: {
-        name: "OpenAI",
-        clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
-        tokenUrl: `${openAiAuthUrl}/oauth/token`,
-        revokeUrl: `${openAiAuthUrl}/oauth/revoke`,
-        baseUrl: openAiOAuthBaseUrl,
-    },
-};
-type OAuthMethod = keyof typeof providerMap;
+type OAuthMethod = keyof typeof oauthProviderMap;
 
 // OpenAI and xAI report OAuth errors either as a plain string or as { code }.
 function errorCode(data: Record<string, unknown>) {
@@ -123,7 +107,7 @@ export class OAuthService {
 
     public async start(owner: string, input: unknown): Promise<OAuthAttemptResponse> {
         const attemptInput = oauthAttemptSchema.parse(input);
-        const { name, clientId } = providerMap[attemptInput.authMethod];
+        const { name, clientId } = oauthProviderMap[attemptInput.authMethod];
         if (this.startingOwnerSet.has(owner)) throw new OAuthError("Authorization is already starting", 409);
         if (this.attemptMap.size + this.startingOwnerSet.size >= 256) {
             throw new OAuthError("Too many authorization attempts. Try again later", 429);
@@ -254,7 +238,7 @@ export class OAuthService {
 
     private async poll(attempt: Attempt, pollBody: Record<string, string>, interval: number) {
         const { authMethod } = attempt.input;
-        const { name, clientId, tokenUrl, baseUrl } = providerMap[authMethod];
+        const { name, clientId, tokenUrl, baseUrl } = oauthProviderMap[authMethod];
         const isOpenAi = authMethod === "openai_oauth";
         const deadline = AbortSignal.timeout(
             Math.max(0, Math.min(Math.ceil(attempt.response.expiresAt - Date.now()), 2147483647)),
@@ -417,7 +401,7 @@ export class OAuthService {
     public async getAccessToken(id: number, rejectedAccessToken?: string): Promise<string> {
         const provider = this.provider(id);
         if (provider.oauthStatus === "reauthorization_required")
-            throw new OAuthError(`Reconnect this ${providerMap[provider.authMethod].name} provider`, 403);
+            throw new OAuthError(`Reconnect this ${oauthProviderMap[provider.authMethod].name} provider`, 403);
 
         const credential = JSON.parse(decrypt(provider.oauthCredential)) as Credential;
         const needsRefresh =
@@ -444,7 +428,7 @@ export class OAuthService {
         encryptedCredential: string,
         credential: Credential,
     ): Promise<Credential> {
-        const { name, tokenUrl } = providerMap[authMethod];
+        const { name, tokenUrl } = oauthProviderMap[authMethod];
         const { response, data } = await this.form(tokenUrl, {
             client_id: credential.clientId,
             grant_type: "refresh_token",
@@ -522,7 +506,7 @@ export class OAuthService {
     private async revokeCredential(credential: Credential, authMethod: OAuthMethod) {
         try {
             await this.form(
-                providerMap[authMethod].revokeUrl,
+                oauthProviderMap[authMethod].revokeUrl,
                 {
                     client_id: credential.clientId,
                     token: credential.refreshToken,

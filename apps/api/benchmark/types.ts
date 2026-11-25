@@ -1,4 +1,4 @@
-import type { SenderConfig } from "../src/agent/llm/factory.js";
+import type { SenderConfig } from "../src/agent/llm/sender.js";
 import type { ReviewMeasureEvent } from "../src/agent/pull-request/index.js";
 
 export type ManifestCase = {

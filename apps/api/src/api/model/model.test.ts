@@ -20,7 +20,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
     const { Hono } = await import("hono");
     const { migrate } = await import("drizzle-orm/bun-sqlite/migrator");
     const { default: db } = await import("../../db/index.js");
-    const { createSender } = await import("../../agent/llm/factory.js");
+    const { Sender } = await import("../../agent/llm/sender.js");
     const { ModelProviderService, createModelProviderSender } = await import("./model.service.js");
     const {
         createModelProvider,
@@ -260,7 +260,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
 
         it("still rejects truncated Responses when no output limit was configured", async () => {
             incompleteReason = "max_output_tokens";
-            const sender = createSender({
+            const sender = new Sender({
                 ...config,
                 provider: "openai_responses",
                 baseURL: config.baseUrl,
@@ -293,7 +293,7 @@ if (process.env.PROVAL_MODEL_TEST_CHILD !== "1") {
             ["anthropic", "/messages"],
         ] as const)("keeps the existing %s provider on its endpoint", async (provider, endpoint) => {
             const baseUrl = provider === "anthropic" ? String(server.url).replace(/\/$/, "") : config.baseUrl;
-            const sender = createSender({ ...config, provider, baseURL: baseUrl, model: "test-model" });
+            const sender = new Sender({ ...config, provider, baseURL: baseUrl, model: "test-model" });
             expect((await sender.send([{ role: "user", content: "Hello" }], [])).message.content).toBe("OK");
             expect(requestList[0].url).toBe(`${config.baseUrl}${endpoint}`);
             if (provider === "anthropic") {

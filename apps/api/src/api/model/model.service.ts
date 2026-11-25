@@ -12,9 +12,9 @@ import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
 import OpenAI from "openai";
 import { log, logError } from "../../util/log.js";
 import { decrypt, encrypt } from "../../util/encrypt.js";
-import { createSender } from "../../agent/llm/factory.js";
+import { Sender } from "../../agent/llm/sender.js";
 import type { LlmSender } from "../../agent/llm/loop.js";
-import { getOAuthModelList } from "../../agent/llm/oauth.js";
+import { getOAuthModelList, oauthProviderMap } from "../../agent/llm/oauth.js";
 import { oauthService } from "./oauth.service.js";
 import { z } from "zod";
 
@@ -44,16 +44,20 @@ export function createModelProviderSender(
         reasoningEffort,
     };
     if (modelProvider.authMethod !== "api_key") {
-        return createSender({
+        // xAI and OpenAI OAuth both serve the Responses API
+        return new Sender({
             ...config,
-            provider: "oauth",
+            provider: "openai_responses",
             apiKey: "oauth",
-            baseURL: modelProvider.baseUrl,
-            getAccessToken: (rejected) => oauthService.getAccessToken(modelProvider.id, rejected),
+            baseURL: oauthProviderMap[modelProvider.authMethod].baseUrl,
+            oauth: {
+                method: modelProvider.authMethod,
+                getAccessToken: (rejected) => oauthService.getAccessToken(modelProvider.id, rejected),
+            },
         });
     }
     if (!modelProvider.apiKey) throw new Error("API key is missing");
-    return createSender({
+    return new Sender({
         ...config,
         provider: modelProvider.provider,
         baseURL: modelProvider.baseUrl,
@@ -210,7 +214,7 @@ export class ModelProviderService {
 
         if (modelProvider.authMethod !== "api_key") {
             const modelList = await getOAuthModelList({
-                baseUrl: modelProvider.baseUrl as Parameters<typeof getOAuthModelList>[0]["baseUrl"],
+                method: modelProvider.authMethod,
                 timeoutSecond: modelProvider.timeoutSecond,
                 getAccessToken: (rejected) => oauthService.getAccessToken(modelProvider.id, rejected),
             });
@@ -252,7 +256,7 @@ export class ModelProviderService {
             timeoutSecond: number;
         },
     ): Promise<void> {
-        const sender = createSender({
+        const sender = new Sender({
             provider: config.provider,
             baseURL: config.baseUrl,
             model: config.modelName,

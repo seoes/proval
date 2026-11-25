@@ -2,7 +2,7 @@ import type { AgentLoopEvent, LlmSender } from "../../src/agent/llm/loop.js";
 import type { ReviewMeasureEvent } from "../../src/agent/pull-request/index.js";
 import type { PhaseName, PhaseTiming, SenderStat, TimedEvent } from "../types.js";
 
-/** Wrap the sender returned by createSender so usage capture includes compression requests. */
+/** Wrap a Sender so usage capture includes compression requests. */
 export function measureSender(sender: LlmSender): { sender: LlmSender; stat: SenderStat } {
     const stat: SenderStat = {
         requestCount: 0,

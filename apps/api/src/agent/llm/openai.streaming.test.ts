@@ -1,6 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import type OpenAI from "openai";
-import { accumulateChatCompletionStream, createOpenAiSender } from "./openai.js";
+import { Sender, type SenderConfig } from "./sender.js";
+import { accumulateChatCompletionStream } from "./openai.js";
+
+afterEach(() => mock.restore());
+
+function createOpenAiSender({ fetch: fetchStub, ...config }: Omit<SenderConfig, "provider"> & { fetch: unknown }) {
+    spyOn(globalThis, "fetch").mockImplementation(fetchStub as typeof fetch);
+    return new Sender({ ...config, provider: "openai" });
+}
 
 const encoder = new TextEncoder();
 

@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import type { GitDiff, GitPullRequestVersion } from "../src/git-provider/types.js";
 import { Workspace } from "../src/git-provider/workspace.js";
 import { MockProvider, type MockInput, type PostedAction } from "../mock/provider.js";
-import { createSender } from "../src/agent/llm/factory.js";
+import { Sender } from "../src/agent/llm/sender.js";
 import { runPullRequestReview, type PullRequestReviewResult } from "../src/agent/pull-request/index.js";
 import { loadConfig, type ReviewConfig } from "./config.js";
 import { logBlock, logError, logInfo, logSection, logStep } from "./log.js";
@@ -307,7 +307,7 @@ async function main(): Promise<void> {
             baseSha: version.baseSha,
         });
         await workspace.checkout(version.headSha);
-        const llmSender = createSender({
+        const llmSender = new Sender({
             provider: "openai",
             apiKey: config.llmApiKey,
             baseURL: config.llmBaseUrl,
