@@ -37,11 +37,12 @@ export type SenderRequest = (
 
 // Bun applies a socket idle limit that fires while a slow model is still thinking.
 // Disable it and let the SDK deadline own the timeout.
-function createLLMFetch() {
-    const sessionId = crypto.randomUUID();
+function createLLMFetch(baseURL: string) {
+    // Only OpenCode needs a session id. Other providers never see it.
+    const sessionId = new URL(baseURL).hostname.endsWith("opencode.ai") ? crypto.randomUUID() : null;
     return (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         const headers = new Headers(init?.headers ?? {});
-        headers.set("x-opencode-session", sessionId);
+        if (sessionId) headers.set("x-opencode-session", sessionId);
         headers.set("User-Agent", "Proval");
         return fetch(input, { ...init, timeout: false, headers } as RequestInit);
     };
@@ -54,7 +55,7 @@ export class Sender implements LlmSender {
     constructor(private readonly config: SenderConfig) {
         const { provider, modelProviderId, concurrency, oauth, ...sdkConfig } = config;
         this.limiter = loadLimiter(modelProviderId, concurrency);
-        const fetch = oauth ? createOAuthFetch(oauth) : createLLMFetch();
+        const fetch = oauth ? createOAuthFetch(oauth) : createLLMFetch(config.baseURL);
         const createRequest = {
             openai: createOpenAiRequest,
             openai_responses: createOpenAiResponsesRequest,
