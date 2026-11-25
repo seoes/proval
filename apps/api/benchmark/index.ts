@@ -79,8 +79,8 @@ async function main(): Promise<void> {
         case "ready": {
             const llm = loadBenchmarkLlmConfig();
             const profile = await loadProfile();
-            const { createSender } = await import("../src/agent/llm/factory.js");
-            const sender = createSender({
+            const { Sender } = await import("../src/agent/llm/sender.js");
+            const sender = new Sender({
                 provider: llm.provider,
                 apiKey: llm.apiKey,
                 baseURL: llm.baseURL,

@@ -109,7 +109,7 @@
     let reasoningEffort = $state<string>(config.reasoningEffort ?? "");
 
     const authMethod = $derived(modelList.find((item) => item.id === Number(selectedModelProviderId))?.authMethod);
-    // Mirrors the reasoning effort lists the OAuth senders accept in apps/api/src/agent/llm/oauth.ts.
+    // Reasoning effort values the OAuth APIs accept. The server sends the value as is.
     const oauthReasoningEffortList = $derived(
         authMethod === "xai_oauth"
             ? ["low", "medium", "high", "xhigh"]

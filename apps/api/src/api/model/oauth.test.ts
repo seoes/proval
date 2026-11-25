@@ -24,8 +24,9 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
     const { modelProviderTable, repositoryTable } = await import("@proval/db");
     const { encrypt, decrypt } = await import("../../util/encrypt.js");
     const { OAuthError, OAuthService, oauthService } = await import("./oauth.service.js");
-    const { createOAuthFetch, getOAuthModelList, openAiOAuthBaseUrl, xaiBaseUrl } =
-        await import("../../agent/llm/oauth.js");
+    const { createOAuthFetch, getOAuthModelList, oauthProviderMap } = await import("../../agent/llm/oauth.js");
+    const xaiBaseUrl = oauthProviderMap.xai_oauth.baseUrl;
+    const openAiOAuthBaseUrl = oauthProviderMap.openai_oauth.baseUrl;
     const { ModelProviderService, createModelProviderSender } = await import("./model.service.js");
     const controller = await import("./model.controller.js");
     const { RepositoryService } = await import("../repository/repository.service.js");
@@ -241,7 +242,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
 
             let header = new Headers();
             await createOAuthFetch({
-                baseUrl: openAiOAuthBaseUrl,
+                method: "openai_oauth",
                 getAccessToken: async () => claim("acct-1"),
                 fetch: async (_url, init) => {
                     header = new Headers(init?.headers);
@@ -491,7 +492,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             };
             const service = new OAuthService(fetch);
             const request = createOAuthFetch({
-                baseUrl: xaiBaseUrl,
+                method: "xai_oauth",
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch,
             });
@@ -506,7 +507,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
         it("returns no models when xAI cannot be reached and still surfaces reconnect errors", async () => {
             expect(
                 await getOAuthModelList({
-                    baseUrl: xaiBaseUrl,
+                    method: "xai_oauth",
                     timeoutSecond: 10,
                     getAccessToken: async () => "token",
                     fetch: async () => {
@@ -516,7 +517,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             ).toBeNull();
             await expect(
                 getOAuthModelList({
-                    baseUrl: xaiBaseUrl,
+                    method: "xai_oauth",
                     timeoutSecond: 10,
                     getAccessToken: async () => {
                         throw new OAuthError("Reconnect this xAI provider", 403);
@@ -537,7 +538,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             });
             const abort = new AbortController();
             const request = createOAuthFetch({
-                baseUrl: xaiBaseUrl,
+                method: "xai_oauth",
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch: async () => {
                     throw new Error("A cancelled request must not be sent");
@@ -559,7 +560,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             };
             const service = new OAuthService(fetch);
             const request = createOAuthFetch({
-                baseUrl: xaiBaseUrl,
+                method: "xai_oauth",
                 getAccessToken: (rejected) => service.getAccessToken(row.id, rejected),
                 fetch,
             });
@@ -661,7 +662,7 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             expect(await new ModelProviderService().listModels(row.id)).toMatchObject({
                 models: [{ id: "grok-test" }],
             });
-            const sender = createModelProviderSender(row, "grok-test", "none");
+            const sender = createModelProviderSender(row, "grok-test");
             const first = await sender.send(
                 [{ role: "user", content: "Call echo" }],
                 [
@@ -683,7 +684,6 @@ if (process.env.PROVAL_XAI_TEST_CHILD !== "1") {
             expect(responseCount).toBe(3);
             await createModelProviderSender(row, "grok-test", "high").send([{ role: "user", content: "Hi" }], []);
             expect(responseCount).toBe(4);
-            expect(() => createModelProviderSender(row, "grok-test", "minimal")).toThrow("not supported by xAI");
             // Ensure singleton state also uses the persisted credential after request completion.
             expect(await oauthService.getAccessToken(row.id)).toBe("old-access");
         });

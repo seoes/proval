@@ -1,13 +1,20 @@
-import type { ReasoningEffort } from "@proval/types";
 import OpenAI from "openai";
-import type { LlmSender } from "./loop.js";
-import { createOpenAiResponsesSender } from "./openai-responses.js";
 
-export const xaiBaseUrl = "https://api.x.ai/v1";
-export const openAiOAuthBaseUrl = "https://chatgpt.com/backend-api/codex";
-const apiMap = {
-    [xaiBaseUrl]: { name: "xAI", reasoningEffortList: ["low", "medium", "high", "xhigh"] },
-    [openAiOAuthBaseUrl]: { name: "OpenAI", reasoningEffortList: ["minimal", "low", "medium", "high", "xhigh"] },
+export const oauthProviderMap = {
+    xai_oauth: {
+        name: "xAI",
+        baseUrl: "https://api.x.ai/v1",
+        clientId: "b1a00492-073a-47ea-816f-4c329264a828",
+        tokenUrl: "https://auth.x.ai/oauth2/token",
+        revokeUrl: "https://auth.x.ai/oauth2/revoke",
+    },
+    openai_oauth: {
+        name: "OpenAI",
+        baseUrl: "https://chatgpt.com/backend-api/codex",
+        clientId: "app_EMoamEEZ73f0CkXaXp7hrann",
+        tokenUrl: "https://auth.openai.com/oauth/token",
+        revokeUrl: "https://auth.openai.com/oauth/revoke",
+    },
 };
 
 type Fetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -24,18 +31,16 @@ export function getChatGptAccountId(accessToken: string): string | undefined {
     }
 }
 
-interface OAuthSenderConfig {
-    baseUrl: typeof xaiBaseUrl | typeof openAiOAuthBaseUrl;
+interface OAuthConfig {
+    method: keyof typeof oauthProviderMap;
     getAccessToken: (rejectedAccessToken?: string) => Promise<string>;
     timeoutSecond: number;
     fetch?: Fetch;
-    model: string;
-    reasoningEffort?: ReasoningEffort;
 }
 
-export function createOAuthFetch(config: Pick<OAuthSenderConfig, "baseUrl" | "getAccessToken" | "fetch">): Fetch {
+export function createOAuthFetch(config: Omit<OAuthConfig, "timeoutSecond">): Fetch {
     const request = config.fetch ?? ((input, init) => fetch(input, init));
-    const base = new URL(config.baseUrl);
+    const base = new URL(oauthProviderMap[config.method].baseUrl);
 
     return async (input, init) => {
         const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -45,7 +50,7 @@ export function createOAuthFetch(config: Pick<OAuthSenderConfig, "baseUrl" | "ge
             url.username ||
             url.password
         ) {
-            throw new Error(`Refusing to send ${apiMap[config.baseUrl].name} credentials to another address`);
+            throw new Error(`Refusing to send ${oauthProviderMap[config.method].name} credentials to another address`);
         }
 
         const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
@@ -65,7 +70,7 @@ export function createOAuthFetch(config: Pick<OAuthSenderConfig, "baseUrl" | "ge
             const header = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
             header.set("Authorization", `Bearer ${accessToken}`);
             header.set("User-Agent", "Proval");
-            if (config.baseUrl === openAiOAuthBaseUrl) {
+            if (config.method === "openai_oauth") {
                 const accountId = getChatGptAccountId(accessToken);
                 if (!accountId) throw new Error("The OpenAI token has no ChatGPT account. Reconnect this provider");
                 header.set("chatgpt-account-id", accountId);
@@ -88,55 +93,22 @@ export function createOAuthFetch(config: Pick<OAuthSenderConfig, "baseUrl" | "ge
     };
 }
 
-function unwrapConnectionCause(error: unknown): unknown {
+export function unwrapConnectionCause(error: unknown): unknown {
     if (error instanceof OpenAI.APIConnectionError && error.cause instanceof Error) return error.cause;
     return error;
 }
 
-export function createOAuthSender(config: OAuthSenderConfig): LlmSender {
-    const { name, reasoningEffortList } = apiMap[config.baseUrl];
-    const reasoningEffort = config.reasoningEffort === "none" ? undefined : config.reasoningEffort;
-    if (reasoningEffort && !reasoningEffortList.includes(reasoningEffort)) {
-        throw new Error(`This reasoning effort is not supported by ${name}. Select Default or a supported effort`);
-    }
-
-    const sender = createOpenAiResponsesSender({
-        model: config.model,
-        timeoutSecond: config.timeoutSecond,
-        reasoningEffort,
-        apiKey: "oauth",
-        baseURL: config.baseUrl,
-        fetch: createOAuthFetch(config),
-    });
-
-    return {
-        ...sender,
-        getModel() {
-            return { ...sender.getModel(), reasoningEffort: config.reasoningEffort };
-        },
-        async send(...argumentList: Parameters<LlmSender["send"]>) {
-            try {
-                return await sender.send(...argumentList);
-            } catch (error) {
-                throw unwrapConnectionCause(error);
-            }
-        },
-    };
-}
-
-export async function getOAuthModelList(
-    config: Pick<OAuthSenderConfig, "baseUrl" | "getAccessToken" | "timeoutSecond" | "fetch">,
-): Promise<{ id: string }[] | null> {
-    const { name } = apiMap[config.baseUrl];
+export async function getOAuthModelList(config: OAuthConfig): Promise<{ id: string }[] | null> {
+    const { name, baseUrl } = oauthProviderMap[config.method];
     const client = new OpenAI({
         apiKey: "oauth",
-        baseURL: config.baseUrl,
+        baseURL: baseUrl,
         timeout: config.timeoutSecond * 1000,
         fetch: createOAuthFetch(config),
     });
 
     try {
-        if (config.baseUrl === openAiOAuthBaseUrl) {
+        if (config.method === "openai_oauth") {
             // The Codex model catalog requires a Codex CLI client version.
             const body = await client.get<unknown, { models?: { slug: string; visibility?: string }[] }>("/models", {
                 query: { client_version: "0.171.0" },

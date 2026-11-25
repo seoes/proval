@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { LlmSender, Message } from "./loop.js";
-import { createStreamTimeout, type SenderSDKConfig } from "./factory.js";
+import type { Message } from "./loop.js";
+import type { SenderRequest, SenderSDKConfig } from "./sender.js";
 
-export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
+export function createAnthropicRequest(config: SenderSDKConfig): SenderRequest {
     const client = new Anthropic({
         apiKey: config.apiKey,
         baseURL: config.baseURL,
@@ -10,104 +10,82 @@ export function createAnthropicSender(config: SenderSDKConfig): LlmSender {
         fetch: config.fetch,
     });
 
-    return {
-        async send(messages, tools) {
-            const anthropicTools: Anthropic.Messages.Tool[] = tools.map((t) => ({
-                name: t.name,
-                description: t.description,
-                input_schema: t.parameters as Anthropic.Messages.Tool.InputSchema,
-            }));
+    return async (messages, tools, { signal, touch }) => {
+        const anthropicTools: Anthropic.Messages.Tool[] = tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            input_schema: t.parameters as Anthropic.Messages.Tool.InputSchema,
+        }));
 
-            // Anthropic separates system prompt from messages
-            const systemParts: string[] = [];
-            const chatMessages: Anthropic.Messages.MessageParam[] = [];
+        // Anthropic separates system prompt from messages
+        const systemParts: string[] = [];
+        const chatMessages: Anthropic.Messages.MessageParam[] = [];
 
-            for (const m of messages) {
-                if (m.role === "system") {
-                    systemParts.push(m.content ?? "");
-                } else if (m.role === "tool") {
-                    appendToolResult(chatMessages, m.toolCallId ?? "", m.content ?? "");
-                } else {
-                    chatMessages.push(convertToAnthropicMessage(m));
-                }
+        for (const m of messages) {
+            if (m.role === "system") {
+                systemParts.push(m.content ?? "");
+            } else if (m.role === "tool") {
+                appendToolResult(chatMessages, m.toolCallId ?? "", m.content ?? "");
+            } else {
+                chatMessages.push(convertToAnthropicMessage(m));
             }
+        }
 
-            const { signal, touch, clear } = createStreamTimeout(config.timeoutSecond);
-            try {
-                const stream = client.messages.stream(
-                    {
-                        model: config.model,
-                        system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
-                        messages: chatMessages,
-                        tools: anthropicTools.length > 0 ? anthropicTools : undefined,
-                        max_tokens: config.maxOutputToken ?? 8192,
-                        cache_control: {
-                            type: "ephemeral",
-                        },
-                        ...(config.reasoningEffort
-                            ? {
-                                  output_config: {
-                                      effort: config.reasoningEffort as NonNullable<
-                                          Anthropic.Messages.MessageCreateParams["output_config"]
-                                      >["effort"],
-                                  },
-                              }
-                            : {}),
-                    },
-                    { signal },
-                );
-                stream.on("streamEvent", touch);
-
-                const completion = await stream.finalMessage();
-
-                const textParts: string[] = [];
-                const toolCalls: { id: string; name: string; arguments: string }[] = [];
-
-                for (const block of completion.content) {
-                    if (block.type === "text") {
-                        textParts.push(block.text);
-                    } else if (block.type === "tool_use") {
-                        toolCalls.push({
-                            id: block.id,
-                            name: block.name,
-                            arguments: JSON.stringify(block.input),
-                        });
-                    }
-                }
-
-                return {
-                    message: {
-                        role: "assistant",
-                        content: textParts.length > 0 ? textParts.join("\n") : null,
-                        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                    },
-                    finishReason: completion.stop_reason === "end_turn" ? "stop" : (completion.stop_reason ?? "stop"),
-                    requestId: completion.id ?? null,
-                    usage: {
-                        inputToken: completion.usage?.input_tokens ?? 0,
-                        outputToken: completion.usage?.output_tokens ?? 0,
-                        cachedInputToken: completion.usage?.cache_read_input_tokens ?? 0,
-                    },
-                };
-            } catch (error) {
-                if (signal.aborted) {
-                    throw new Anthropic.APIConnectionTimeoutError({
-                        message: `Request timed out: no stream data for ${config.timeoutSecond}s.`,
-                    });
-                }
-                throw error;
-            } finally {
-                clear();
-            }
-        },
-        getModel() {
-            return {
+        const stream = client.messages.stream(
+            {
                 model: config.model,
-                provider: "anthropic",
-                baseUrl: config.baseURL,
-                reasoningEffort: config.reasoningEffort,
-            };
-        },
+                system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
+                messages: chatMessages,
+                tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+                max_tokens: config.maxOutputToken ?? 8192,
+                cache_control: {
+                    type: "ephemeral",
+                },
+                ...(config.reasoningEffort
+                    ? {
+                          output_config: {
+                              effort: config.reasoningEffort as NonNullable<
+                                  Anthropic.Messages.MessageCreateParams["output_config"]
+                              >["effort"],
+                          },
+                      }
+                    : {}),
+            },
+            { signal },
+        );
+        stream.on("streamEvent", touch);
+
+        const completion = await stream.finalMessage();
+
+        const textParts: string[] = [];
+        const toolCalls: { id: string; name: string; arguments: string }[] = [];
+
+        for (const block of completion.content) {
+            if (block.type === "text") {
+                textParts.push(block.text);
+            } else if (block.type === "tool_use") {
+                toolCalls.push({
+                    id: block.id,
+                    name: block.name,
+                    arguments: JSON.stringify(block.input),
+                });
+            }
+        }
+
+        return {
+            message: {
+                role: "assistant",
+                content: textParts.length > 0 ? textParts.join("\n") : null,
+                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+            },
+            finishReason: completion.stop_reason === "end_turn" ? "stop" : (completion.stop_reason ?? "stop"),
+            requestId: completion.id ?? null,
+            usage: {
+                inputToken: completion.usage?.input_tokens ?? 0,
+                outputToken: completion.usage?.output_tokens ?? 0,
+                cachedInputToken: completion.usage?.cache_read_input_tokens ?? 0,
+            },
+        };
     };
 }
 
